@@ -83,6 +83,8 @@ def run():
     eligible=[g for g in joined.get("nba_cba_games",[]) if g.get("markets",{}).get("full_spread") and g.get("markets",{}).get("full_total")]
     ids=[g["game_id"] for g in eligible[:3]]
     if not ids:
+        if joined.get("nba_cba_joined_for_date",0)>0:
+            raise RuntimeError("Games exist but none suitable for checking both full markets")
         output={"checked_at_utc":datetime.now(timezone.utc).isoformat(),"status":"NO_ELIGIBLE_GAMES","matching_markets":0,"mismatching_markets":0,"unverified_markets":0,"details":[]}
         Path("titan007_crown_quality_check.json").write_text(json.dumps(output,ensure_ascii=False,indent=2),encoding="utf-8")
         print(json.dumps(output,ensure_ascii=False))
