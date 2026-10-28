@@ -92,7 +92,9 @@ def run(out):
                 fm[variant]={}
                 for target in ("margin","total"):
                     m=B.train_ridge(tr,target,variant,ALPHA if variant!="baseline" else 0)
-                    z=B.fit_calibration(cal,variant,{target:m})[target]
+                    resid=np.array([x[target] for x in cal],dtype=float)-B.predict(cal,variant,m)
+                    bias=float(resid.mean())
+                    z={"residual_bias":bias,"sigma":max(1.0,float(np.sqrt(np.mean((resid-bias)**2))))}
                     fm[variant][target]=score(ev,target,variant,m,z)
             folds.append({"name":f["name"],"period":f,
                 "train_size":len(tr),"cal_size":len(cal),"eval_size":len(ev),
