@@ -1,0 +1,42 @@
+name: NBA lagged expanding development walk-forward audit
+on:
+  push:
+    branches: ["research/odds-history-walkforward-v2"]
+    paths:
+      - "analysis/nba_development_robustness.py"
+      - ".github/workflows/nba-development-robustness.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install exact numerical dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Unit test strict score publication lag and future-result mutation
+        run: python3 analysis/nba_development_robustness.py --self-test
+      - name: Evaluate ONLY the preregistered historical development folds
+        run: python3 analysis/nba_development_robustness.py --out nba_development_lag_walkforward.json
+      - name: Check number of folds, anti-leakage, and no holdout refit
+        run: |
+          python3 - <<'PY'
+          import json
+          r=json.load(open('nba_development_lag_walkforward.json'))
+          assert r['purpose']=='DEVELOPMENT_ROBUSTNESS_NOT_NEW_UNSEEN_HOLDOUT'
+          assert sorted(r['folds'])==['1','2','3']
+          for lag,folds in r['folds'].items():
+              assert len(folds['folds'])==2
+              for x in folds['folds']:
+                  assert x['provenance_lag_pass']
+                  assert x['eval_size']>100
+          print('DEVELOPMENT_LAG_ROLLING_FOLDS_ACCEPTED',6,'fold evaluations')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-lag-sensitivity-development-only
+          path: nba_development_lag_walkforward.json
+          if-no-files-found: warn
