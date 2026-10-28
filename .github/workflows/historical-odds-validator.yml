@@ -1,0 +1,27 @@
+name: Historical Odds API strict point-in-time validator
+on:
+  push:
+    branches: ["research/odds-history-walkforward-v2"]
+    paths:
+      - "analysis/historical_odds_validator.py"
+      - ".github/workflows/historical-odds-validator.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test no look-ahead, stale price rejection, market sign consistency
+        run: python3 analysis/historical_odds_validator.py --self-test
+      - name: Validate no API credentials are required or accessed
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('analysis/historical_odds_validator.py').read_text()
+          assert 'os.getenv' not in p and 'apiKey=' not in p
+          assert 'MAX_PRICE_AGE_MINUTES' in p
+          print('OFFLINE_NO_CREDENTIALS_PASS')
+          PY
