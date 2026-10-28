@@ -1,0 +1,78 @@
+name: Titan007 basketball public page sample
+on:
+  push:
+    branches: ["audit/titan007-live-20261028"]
+    paths: [".github/workflows/titan007-current-sample.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Sample small number of publicly readable resources
+        shell: bash
+        run: |
+          cat > /tmp/titan_sample.py <<'PY'
+          import urllib.request,urllib.error,urllib.robotparser,urllib.parse
+          import json,re,time,html
+          from html.parser import HTMLParser
+          from datetime import datetime,timezone
+          UA='Titan007DataResearch/1.0 (public access audit)'
+          HOST='lq3.titan007.com'
+          URLS=[
+            'https://lq3.titan007.com/nba.htm',
+            'https://lq3.titan007.com/nba_big.htm',
+            'https://lq3.titan007.com/NBA/sbOddsDataBsk.js',
+          ]
+          class P(HTMLParser):
+            def __init__(self): super().__init__();self.scripts=[];self.links=[]
+            def handle_starttag(self,tag,attrs):
+              d=dict(attrs)
+              if tag=='script' and d.get('src'): self.scripts.append(d['src'])
+              if tag=='a' and d.get('href'): self.links.append(d['href'])
+          try:
+            rq=urllib.request.Request('https://lq3.titan007.com/robots.txt',headers={'User-Agent':UA})
+            with urllib.request.urlopen(rq,timeout=10) as r: robots=r.read(80000).decode('utf-8','replace')
+            rp=urllib.robotparser.RobotFileParser();rp.parse(robots.splitlines())
+            robots_out=robots[:4000]
+          except Exception as e:
+            rp=None;robots_out=f'NOT_VERIFIED:{type(e).__name__}:{str(e)[:100]}'
+          results=[]
+          for url in URLS:
+            x={'url':url,'allowed':bool(rp and rp.can_fetch(UA,url))}
+            if not x['allowed']:
+              x['status']='RULES_UNCONFIRMED_OR_DISALLOWED'
+              results.append(x);continue
+            try:
+              rq=urllib.request.Request(url,headers={'User-Agent':UA,'Accept':'text/html,text/javascript,*/*;q=0.2'})
+              with urllib.request.urlopen(rq,timeout=12) as r:
+                blob=r.read(250001);x.update(http_status=r.status,content_type=r.headers.get('Content-Type'),final_url=r.geturl(),bytes=len(blob))
+              if len(blob)>250000:
+                x['status']='RESPONSE_LIMIT_EXCEEDED'
+              else:
+                decoded=blob.decode('gb18030','replace')
+                prs=P();prs.feed(decoded)
+                patterns={
+                  'odds_path':r'(?:AsianOdds_n\.aspx\?id=|OverDown_n\.aspx\?ID=|/analysis/)(\d{4,12})',
+                  'js_array_id':r'(?:\b[A-Za-z]{1,5}\[)(\d{4,12})(?:\])',
+                  'oddslist':r'/oddslist/(\d{4,12})',
+                }
+                ids=list(dict.fromkeys(re.findall('|'.join('(?:'+s+')' for s in patterns.values()),decoded,re.I)))
+                real_ids=[next((u for u in group if u),None) for group in ids]
+                x.update(status='FETCHED',scripts=prs.scripts[:35],links_count=len(prs.links),matching_links=[v for v in prs.links if re.search(r'(?:odds|analysis|handicap|OverDown)',v,re.I)][:18],id_candidates=real_ids[:25],id_count=len(real_ids),snippet=decoded[:750] if 'javascript' in str(x['content_type']) else '')
+            except urllib.error.HTTPError as e: x.update(status='HTTP_ERROR',http_status=e.code)
+            except Exception as e: x.update(status='NETWORK_ERROR',error=type(e).__name__+': '+str(e)[:180])
+            results.append(x)
+            time.sleep(1)
+          o={'utc':datetime.now(timezone.utc).isoformat(),'robots':robots_out,'results':results}
+          with open('current_page_sample.json','w') as f:json.dump(o,f,indent=2,ensure_ascii=False)
+          print(json.dumps(o,indent=2,ensure_ascii=False))
+          PY
+          python3 /tmp/titan_sample.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-current-page-sample
+          path: current_page_sample.json
