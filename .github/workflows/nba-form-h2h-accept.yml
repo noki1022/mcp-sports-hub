@@ -1,0 +1,55 @@
+name: NBA daily last-five form and H2H live acceptance
+on:
+  push:
+    branches: ["feature/nba-daily-form-h2h-efficiency"]
+    paths: [".github/workflows/nba-form-h2h-accept.yml","analysis/nba_rolling_form_h2h.py"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate parser, as-of cutoff and non-duplicate H2H
+        run: python3 analysis/nba_rolling_form_h2h.py --self-test
+      - name: Fetch the real published scoreboard and current market IDs
+        run: python3 scripts/titan007_join_daily.py --date 2026-10-29
+      - name: Fetch up to five public NBA seasons and join opponent-specific history
+        run: |
+          python3 analysis/nba_rolling_form_h2h.py --date 2026-10-29 \
+            --joined titan007_joined_nba_cba.json --out nba_recent_form_h2h.json
+      - name: Enforce no look-ahead and data completeness rules
+        run: |
+          python3 - <<'PY'
+          import json
+          from datetime import date
+          x=json.load(open('nba_recent_form_h2h.json'))
+          assert x['verified_distinct_games']>1000
+          assert len(x['nba_games'])>=10
+          day=date.fromisoformat(x['target_date'])
+          mapped=0
+          for g in x['nba_games']:
+              if g['status']=='UNMAPPED_TEAM':continue
+              mapped+=1
+              for key in ('home_recent','away_recent'):
+                  z=g[key]
+                  assert z['sample_games']==len(z['last_five'])<=5
+                  for row in z['last_five']:
+                      assert date.fromisoformat(row['date'])<day
+              h=g['head_to_head']
+              assert h['verified_h2h_games']==len(h['recent_five'])<=5
+              for row in h['recent_five']:
+                  assert date.fromisoformat(row['date'])<day
+          assert mapped>=10
+          print('NBA_FIVE_GAME_H2H_LIVE_ACCEPTED',mapped,'matches; verified source rows',x['verified_distinct_games'])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nba-real-recent-form-and-h2h
+          path: |
+            nba_recent_form_h2h.json
+            titan007_joined_nba_cba.json
+          if-no-files-found: warn
