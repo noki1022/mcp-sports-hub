@@ -1,7 +1,8 @@
 import json,os,urllib.parse,urllib.request
 
 def fetch_odds(sport='basketball_nba',regions='us',markets='spreads,totals,h2h'):
- key=os.environ.get('ODD') or os.environ.get('ODDS_API_KEY')
+ key=(os.environ.get('THE_ODDS_API_KEY') or os.environ.get('ODDS_API_KEY')
+      or os.environ.get('ODD'))
  if not key: raise RuntimeError('ODDS_API_KEY is not configured')
  q=urllib.parse.urlencode({'apiKey':key,'regions':regions,'markets':markets,'oddsFormat':'decimal'})
  url=f'https://api.the-odds-api.com/v4/sports/{sport}/odds/?{q}'
