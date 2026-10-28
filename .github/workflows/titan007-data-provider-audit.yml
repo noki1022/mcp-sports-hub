@@ -1,0 +1,70 @@
+name: Free basketball data provider access audit
+on:
+  push:
+    branches: ["feature/titan007-market-value-analysis"]
+    paths: [".github/workflows/titan007-data-provider-audit.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check allowable public efficiency and injuries sources
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import re,json,urllib.request,urllib.error,urllib.parse,urllib.robotparser,time,socket
+          from datetime import datetime,timezone
+          UA='Titan007BasketballResearch/1.0 (read-only verification)'
+          sources={
+              'realgm_advanced':'https://basketball.realgm.com/nba/team-stats/2027/Advanced_Stats/Team_Totals/Regular_Season',
+              'keel_ratings':'https://keelstats.com/teams',
+              'nba_official_injuries':'https://official.nba.com/nba-injury-report-2026-27-season/',
+              'cbs_injuries':'https://www.cbssports.com/nba/injuries/daily/',
+              'espn_scoreboard':'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261028',
+          }
+          out=[]
+          for label,url in sources.items():
+              u=urllib.parse.urlsplit(url);base=f'{u.scheme}://{u.netloc}'
+              obj={'name':label,'url':url}
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(base+'/robots.txt',headers={'User-Agent':UA}),timeout=9) as r:
+                      rules=r.read(200000).decode('utf-8','replace')
+                      obj['robots_status']=r.status
+                  rp=urllib.robotparser.RobotFileParser();rp.parse(rules.splitlines())
+                  permitted=rp.can_fetch(UA,url)
+              except urllib.error.HTTPError as e:
+                  obj['robots_status']=e.code;permitted=e.code in (404,410)
+              except Exception as e:
+                  obj['robots_status']=type(e).__name__;permitted=False
+              obj['permitted']=permitted
+              if not permitted:
+                  obj['result']='SKIPPED_RULES_UNCONFIRMED_OR_DENIED'
+                  out.append(obj);continue
+              try:
+                  req=urllib.request.Request(url,headers={'User-Agent':UA,'Accept':'text/html,application/json,*/*;q=0.2'})
+                  with urllib.request.urlopen(req,timeout=12) as r:
+                      data=r.read(280001)
+                      obj.update(status=r.status,bytes=len(data),content_type=r.headers.get('content-type',''))
+                  if len(data)>280000:obj['result']='TOO_LARGE';out.append(obj);continue
+                  txt=data.decode('utf-8','replace')
+                  obj['result']='RESPONSE_READ'
+                  obj['head']=re.sub(r'\s+',' ',txt[:450])
+                  obj['nba_injury_pdf_links']=list(dict.fromkeys(re.findall(r'(?:(?:https?:)?//)?[^"\'\s<>]+\.pdf[^"\'\s<>]*',txt,re.I)))[:8]
+                  obj['advanced_terms']= {term:len(re.findall(re.escape(term),txt,re.I)) for term in ['ORtg','DRtg','Pace','2026','Miami','Atlanta','injury-report']}
+                  obj['tables']=len(re.findall(r'<table',txt,re.I))
+                  obj['nested_json_games']=len(re.findall(r'"competitions":',txt,re.I))
+              except urllib.error.HTTPError as e:obj.update(result='HTTP_ERROR',http_status=e.code)
+              except Exception as e:obj.update(result='ERROR',error=type(e).__name__+':'+str(e)[:160])
+              out.append(obj);time.sleep(.6)
+          report={'utc':datetime.now(timezone.utc).isoformat(),'sources':out}
+          with open('free_provider_audit.json','w') as f:json.dump(report,f,ensure_ascii=False,indent=2)
+          print(json.dumps(report,ensure_ascii=False,indent=2))
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-provider-audit
+          path: free_provider_audit.json
