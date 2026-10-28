@@ -89,6 +89,15 @@ jobs:
           print(json.dumps(out,ensure_ascii=False,indent=2))
           PY
           python3 /tmp/titan_probe.py
+          python3 - <<'PY'
+          import json,sys
+          report=json.load(open('titan007_live_audit.json'))
+          n=report.get('total_extracted_ids',0)
+          if not n:
+              print('ACCEPTANCE FAILED: no verified real match IDs from published sources')
+              sys.exit(1)
+          print(f'ACCEPTANCE PASSED: {n} candidate IDs extracted; manual cross-check still required')
+          PY
       - name: Save audit result
         if: always()
         uses: actions/upload-artifact@v4
