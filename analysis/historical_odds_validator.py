@@ -12,7 +12,7 @@ No wagering action, no extrapolated historic prices, no key or query logging.
 from __future__ import annotations
 import argparse
 import csv
-from datetime import datetime,timezone,timedelta
+from datetime import datetime,timezone,timedelta,date
 import json
 import math
 from pathlib import Path
@@ -190,14 +190,14 @@ def link_outcomes_to_results(rows,results):
     for row in rows:
         dt_tip=dt(row["commence_time_utc"])
         nearby=[g for g in by_pair.get((row["home"],row["away"]),[])
-                if abs((dt_tip.date()-dt.fromisoformat(g["date"]+"T12:00:00+00:00").date()).days)<=1]
+                if abs((dt_tip.date()-date.fromisoformat(g["date"])).days)<=1]
         # Most US games after midnight UTC have previous local game date.
         if len(nearby)!=1:
             rejections["AMBIGUOUS_OR_NO_SCORE_PAIR"]+=1;continue
         g=nearby[0]
-        if dt_tip.date()!=dt.fromisoformat(g["date"]+"T12:00:00+00:00").date():
+        if dt_tip.date()!=date.fromisoformat(g["date"]):
             # Day offset must be explicit for downstream audit, not auto-assumed valid.
-            day_shift=abs((dt_tip.date()-dt.fromisoformat(g["date"]+"T12:00:00+00:00").date()).days)
+            day_shift=abs((dt_tip.date()-date.fromisoformat(g["date"])).days)
         else:day_shift=0
         linked.append({**row,
             "result_game_key":f'{g["date"]}:{g["home"]}:{g["away"]}',
