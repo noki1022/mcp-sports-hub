@@ -1,0 +1,49 @@
+name: NBA chronological anti-leakage backtest acceptance
+on:
+  push:
+    branches: ["research/nba-walkforward-calibration"]
+    paths: [".github/workflows/nba-walkforward-backtest.yml","analysis/nba_chronological_backtest.py"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  holdout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install minimal numerical dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet "numpy==2.2.6"
+      - name: Fail-closed leakage unit tests
+        run: python3 analysis/nba_chronological_backtest.py --self-test
+      - name: Run frozen chronological training validation calibration and holdout
+        run: python3 analysis/nba_chronological_backtest.py --out nba_chronological_backtest.json --predictions nba_holdout_predictions.csv
+      - name: Verify fixed partitions and proper probability metrics
+        run: |
+          python3 - <<'PY'
+          import json,csv,math
+          from pathlib import Path
+          o=json.loads(Path('nba_chronological_backtest.json').read_text())
+          assert all(o['feature_leakage_checks'].values()),o['feature_leakage_checks']
+          assert o['sample_partitions']['test']['games']>900
+          assert o['sample_partitions']['calibration']['games']>180
+          assert o['protocol']['historical_bookmaker_odds'].startswith('NOT AVAILABLE')
+          assert o['recommendations']==[] and o['decision']=='NO_BET'
+          with open('nba_holdout_predictions.csv',encoding='utf-8') as f: rows=list(csv.DictReader(f))
+          assert len(rows)==o['sample_partitions']['test']['games']
+          assert all(r['feature_source_date_lt_game_date']=='True' for r in rows)
+          for variant,met in o['holdout_metrics'].items():
+              for name in ('home_moneyline_no_vig_unavailable','over_225_5_FIXED_THRESHOLD_NOT_BOOKMAKER'):
+                  assert 0<=met[name]['Brier']<=1
+                  assert math.isfinite(met[name]['log_loss'])
+          print("HOLDOUT_NO_LEAKAGE_ACCEPTED",len(rows),"predictions; NO_BET")
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-chronological-frozen-holdout-backtest
+          path: |
+            nba_chronological_backtest.json
+            nba_holdout_predictions.csv
+          if-no-files-found: warn
+          retention-days: 14
