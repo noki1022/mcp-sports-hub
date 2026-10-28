@@ -187,7 +187,7 @@ def self_test():
     print('EXPERIMENTAL_EV_TEST_PASS')
 
 def render_csv(report,path):
-    headers=['date','game_id','home','away','market','line','water1','water2','decimal1','decimal2','devig1','devig2','exp_ev1','exp_ev2','issues']
+    headers=['date','game_id','home','away','market','opening_line','line','water1','water2','decimal1','decimal2','devig1','devig2','exp_ev1','exp_ev2','issues']
     with open(path,'w',newline='',encoding='utf-8-sig') as f:
         w=csv.writer(f);w.writerow(headers)
         for g in report['games']:
@@ -195,7 +195,7 @@ def render_csv(report,path):
                 d=g['markets'][market]['current']
                 if d.get('status')!='MARKET_CALCULATED_EXPERIMENTAL':continue
                 w.writerow([g['date'],g['game_id'],g['home_team'],g['away_team'],market,
-                    d['line'],g['markets'][market]['opening'].get('line'),d['decimal_side1']-1,d['decimal_side2']-1,
+                    g['markets'][market]['opening'].get('line'),d['line'],d['decimal_side1']-1,d['decimal_side2']-1,
                     d['decimal_side1'],d['decimal_side2'],
                     round(d['no_vig_conditional_side1'],6),round(d['no_vig_conditional_side2'],6),
                     round(d['diagnostic_ev_side1'],6),round(d['diagnostic_ev_side2'],6),';'.join(g['quality_blocks'])])
