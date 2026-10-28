@@ -1,0 +1,42 @@
+name: Titan007 match XML structure sample
+on:
+  push:
+    branches: ["audit/titan007-live-20261028"]
+    paths: [".github/workflows/titan007-xml-schema.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Inspect authorized public static match XML structural schema
+        run: |
+          python3 - <<'PY'
+          import urllib.request, urllib.robotparser, xml.etree.ElementTree as E, json, re
+          UA='Titan007BasketballResearch/1.0';b='https://bf.titan007.com/'
+          with urllib.request.urlopen(urllib.request.Request(b+'robots.txt',headers={'User-Agent':UA}),timeout=10) as r:
+            rules=r.read(80000).decode('utf-8','replace')
+          rp=urllib.robotparser.RobotFileParser();rp.parse(rules.splitlines())
+          out={}
+          for path in ['NBA/today.xml','NBA/today2.xml']:
+            url=b+path
+            if not rp.can_fetch(UA,url):out[path]={'status':'not permitted'};continue
+            with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':UA}),timeout=12) as r:raw=r.read(200000)
+            root=E.fromstring(raw)
+            obj={
+              'root_tag':root.tag,'children':[{'tag':c.tag,'attrib':c.attrib,'len':len(c),'text_start':(c.text or '')[:90]} for c in list(root)[:5]],
+              'raw_head':raw.decode('gb18030','replace')[:750]
+            }
+            rows=[(e.tag,e.attrib,(e.text or '')[:450],len(e)) for e in root.iter() if (e.text or '').find('751320')>=0 or (e.text or '').find('743436')>=0]
+            obj['records_containing_known_id']=rows[:6]
+            out[path]=obj
+          with open('xml_schema_audit.json','w') as f:json.dump(out,f,ensure_ascii=False,indent=2)
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-match-xml-schema
+          path: xml_schema_audit.json
