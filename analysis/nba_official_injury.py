@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+"""Read latest official NBA injury PDF, preserving availability and ambiguity.
+
+NBA publishes PDFs as landscape tables. pdfplumber word coordinates prevent
+cross-attributing a player's injury to the next team when plain PDF text reorders
+columns. This is not a lineup projection; "not submitted" is not "healthy".
+"""
+from __future__ import annotations
+import argparse,io,json,re,urllib.error,urllib.request,urllib.robotparser
+from collections import Counter,defaultdict
+from datetime import date,timedelta,datetime,timezone
+from html.parser import HTMLParser
+from pathlib import Path
+
+INDEX='https://official.nba.com/nba-injury-report-2026-27-season/'
+PDF_HOST='https://ak-static.cms.nba.com'
+UA='Titan007BasketballResearch/1.0'
+STATUS={'Out','Doubtful','Questionable','Probable','Available'}
+class Links(HTMLParser):
+    def __init__(self):
+        super().__init__();self.links=[]
+    def handle_starttag(self,tag,attrs):
+        if tag=='a':
+            href=dict(attrs).get('href','')
+            if href.startswith(PDF_HOST+'/referee/injury/Injury-Report_') and href.endswith('.pdf'):
+                self.links.append(href)
+
+def checked(url,limit):
+    from urllib.parse import urlsplit
+    base=urlsplit(url)
+    robots=f'{base.scheme}://{base.netloc}/robots.txt'
+    try:
+        with urllib.request.urlopen(urllib.request.Request(robots,headers={'User-Agent':UA}),timeout=12) as r:
+            raw=r.read(120000).decode('utf-8','replace')
+        rp=urllib.robotparser.RobotFileParser();rp.parse(raw.splitlines())
+        permitted=rp.can_fetch(UA,url)
+    except urllib.error.HTTPError as e:
+        permitted=e.code in (404,410)
+    except Exception:
+        permitted=False
+    if not permitted:raise RuntimeError('Cannot establish permission to access '+url)
+    with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':UA}),timeout=15) as r:
+        data=r.read(limit+1)
+        if r.status!=200:raise RuntimeError(f'HTTP {r.status}')
+    if len(data)>limit:raise RuntimeError('Resource exceeds limited public sample')
+    return data
+
+def latest_pdf(et_date:str):
+    p=Links()
+    p.feed(checked(INDEX,180000).decode('utf-8','replace'))
+    needle='Injury-Report_'+et_date+'_'
+    valid=[u for u in p.links if needle in u]
+    if not valid:raise RuntimeError('No official injury PDF listed for '+et_date)
+    # HTML lists them chronologically; never construct undiscovered PDF urls.
+    return valid[-1]
+
+def group_words(words):
+    a=[]
+    for w in sorted(words,key=lambda x:(x['top'],x['x0'])):
+        if w['top']<115:continue
+        if not a or abs(float(w['top'])-a[-1]['top'])>3.5:
+            a.append({'top':float(w['top']),'words':[w]})
+        else:
+            a[-1]['words'].append(w)
+    return a
+
+def read_lines(pages):
+    current_team=None
+    current_matchup=None
+    teams=defaultdict(lambda:{'players':[],'report_state':'NO_ROWS_FOUND','matchups':set()})
+    exceptions=[]
+    for page in pages:
+        for row in group_words(page):
+            cols={k:[] for k in ('matchup','team','player','status','reason')}
+            for w in row['words']:
+                x=float(w['x0']);s=w['text']
+                if 196<=x<260:cols['matchup'].append(s)
+                elif 260<=x<420:cols['team'].append(s)
+                elif 423<=x<580:cols['player'].append(s)
+                elif 580<=x<665:cols['status'].append(s)
+                elif 665<=x:cols['reason'].append(s)
+            match=' '.join(cols['matchup']).strip()
+            if re.fullmatch(r'[A-Z]{2,4}@[A-Z]{2,4}',match):
+                current_matchup=match
+            team=' '.join(cols['team']).strip()
+            if team and team not in ('Team','Date') and not team.startswith('Page'):
+                current_team=re.sub(r'\s+',' ',team)
+                teams[current_team]  # Initialize.
+                if current_matchup:teams[current_team]['matchups'].add(current_matchup)
+            if not current_team:continue
+            status=' '.join(cols['status']).strip()
+            reason=' '.join(cols['reason']).strip()
+            player=' '.join(cols['player']).strip()
+            if 'NOT YET SUBMITTED' in reason.upper() or 'NOT YET SUBMITTED' in status.upper():
+                teams[current_team]['report_state']='NOT_SUBMITTED'
+                continue
+            if status in STATUS and player:
+                if teams[current_team]['report_state']!='NOT_SUBMITTED':
+                    teams[current_team]['report_state']='PUBLISHED'
+                teams[current_team]['players'].append({'name':player,'status':status,'reason':reason})
+            elif player and not status and not player.startswith('Player'):
+                exceptions.append({'team':current_team,'raw_player':player,'raw_status':status})
+    result={}
+    for t,x in teams.items():
+        result[t]={
+            'report_state':x['report_state'],
+            'matchups':sorted(x['matchups']),
+            'players':x['players'],
+            'status_counts':dict(Counter(p['status'] for p in x['players']))
+        }
+    return result,exceptions
+
+def parse_pdf(data):
+    if not data.startswith(b'%PDF'):raise ValueError('Not a PDF')
+    import pdfplumber
+    with pdfplumber.open(io.BytesIO(data)) as pdf:
+        pages=[page.extract_words(x_tolerance=2,y_tolerance=2) for page in pdf.pages]
+    return read_lines(pages)
+
+def self_test():
+    def row(y,segments):
+        return [{'text':z,'x0':x,'top':y} for x,z in segments]
+    words=(row(129,[(201,'MIA@ATL'),(265,'Miami'),(293,'Heat'),(426,'Fontecchio,'),(482,'Simone'),(587,'Out')])
+         +row(151,[(265,'Atlanta'),(300,'Hawks'),(426,'Gueye,'),(455,'Mouhamed'),(587,'Out')])
+         +row(173,[(426,'Wiggins,'),(468,'Aaron'),(587,'Questionable')]))
+    teams,errors=read_lines([words])
+    assert teams['Miami Heat']['players'][0]['status']=='Out'
+    assert teams['Atlanta Hawks']['players'][0]['name']=='Gueye, Mouhamed'
+    assert teams['Atlanta Hawks']['status_counts']['Questionable']==1
+    assert not errors,errors
+    print('OFFICIAL_INJURY_PDF_COORD_TEST_PASS')
+
+def run(target_date,out):
+    # NBA morning games shown in China on target_date were previous US ET day.
+    et=(date.fromisoformat(target_date)-timedelta(days=1)).isoformat()
+    url=latest_pdf(et)
+    teams,errors=parse_pdf(checked(url,1500000))
+    if len(teams)<20:raise RuntimeError(f'Official PDF parse incomplete: {len(teams)} teams')
+    report={
+        'captured_at_utc':datetime.now(timezone.utc).isoformat(),
+        'report_et_date':et,
+        'source_url':url,
+        'official_source_index':INDEX,
+        'team_count':len(teams),
+        'teams':teams,
+        'ambiguous_player_rows':errors[:40],
+        'warning':'Official injury report is a changing pregame snapshot; any missing team, NOT_SUBMITTED, questionable starter or old timestamp blocks confirmed value picks.'
+    }
+    Path(out).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({'pdf':url,'team_count':len(teams),'ambiguous_count':len(errors),'samples':{t:teams[t] for t in ('Atlanta Hawks','Miami Heat','Charlotte Hornets') if t in teams}},ensure_ascii=False,indent=2)[:9500])
+    return report
+
+if __name__=='__main__':
+    p=argparse.ArgumentParser()
+    p.add_argument('--self-test',action='store_true')
+    p.add_argument('--date',default='2026-10-29')
+    p.add_argument('--out',default='nba_official_injuries.json')
+    a=p.parse_args()
+    if a.self_test:self_test()
+    else:run(a.date,a.out)
