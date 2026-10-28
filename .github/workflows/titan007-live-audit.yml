@@ -20,14 +20,14 @@ jobs:
           from xml.etree import ElementTree
           UA='Titan007PublicAudit/1.0 (public endpoint verification; no login)'
           SOURCES={
-            'titan_bulk_xml':'https://nba.titan007.com/odds/odds.xml',
-            'legacy_daily_ids':'https://txt.win007.com/phone/lqschedule.aspx?date=2026-10-29',
-            'legacy_daily_crown':'https://txt.win007.com/phone/lqodds.aspx?date=2026-10-29&type=0&companyid=3',
-            'legacy_bulk_crown_js':'https://lq3.win007.com/NBA/sbOddsDataBsk.js',
-            'vip_basket_xml':'https://vip.titan007.com/xmlvbs/fl_nbaGoal3.xml',
-            'nba_monthly':'https://nba.titan007.com/cn/Normal.aspx?y=2026&m=10&matchSeason=2026-2027&SclassID=1',
-            'cba_monthly':'https://nba.titan007.com/cn/Normal.aspx?y=2026&m=10&matchSeason=2026-2027&SclassID=5',
-            'titan_daily':'https://nba.titan007.com/match/20261029.htm',
+            'titan_bulk_xml':'http://nba.titan007.com/odds/odds.xml',
+            'legacy_daily_ids':'http://txt.win007.com/phone/lqschedule.aspx?date=2026-10-29',
+            'legacy_daily_crown':'http://txt.win007.com/phone/lqodds.aspx?date=2026-10-29&type=0&companyid=3',
+            'legacy_bulk_crown_js':'http://lq3.win007.com/NBA/sbOddsDataBsk.js',
+            'vip_basket_xml':'http://vip.titan007.com/xmlvbs/fl_nbaGoal3.xml',
+            'nba_monthly':'http://nba.titan007.com/cn/Normal.aspx?y=2026&m=10&matchSeason=2026-2027&SclassID=1',
+            'cba_monthly':'http://nba.titan007.com/cn/Normal.aspx?y=2026&m=10&matchSeason=2026-2027&SclassID=5',
+            'titan_daily':'http://nba.titan007.com/match/20261029.htm',
           }
           cache={}
           def robots(host,scheme):
