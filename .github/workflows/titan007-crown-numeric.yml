@@ -1,0 +1,24 @@
+name: Titan007 bulk Crown numerical crossverification
+on:
+  push:
+    branches: ["audit/titan007-live-20261028"]
+    paths: [".github/workflows/titan007-crown-numeric.yml", "audit/titan007_crown_crossverify.py"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Crown row parser and comparison
+        run: python3 audit/titan007_crown_crossverify.py --self-test
+      - name: Cross-check real current price triples against mobile Crow* prices
+        run: python3 audit/titan007_crown_crossverify.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-crown-numerical-quality
+          path: titan007_crown_quality_check.json
+          if-no-files-found: warn
