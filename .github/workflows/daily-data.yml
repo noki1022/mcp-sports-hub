@@ -15,6 +15,7 @@ jobs:
       - name: Run collectors when credentials are configured
         env:
           APIZERO_API_KEY: \${{ secrets.APIZERO_API_KEY }}
+          ODD: \${{ secrets.ODD }}
           ODDS_API_KEY: \${{ secrets.ODDS_API_KEY }}
         run: |
           python scripts/collect_daily.py || echo "Collector not enabled: credentials or endpoint not configured"
