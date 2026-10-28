@@ -1,0 +1,98 @@
+name: Titan007 live endpoint audit (isolated)
+on:
+  push:
+    branches: ["audit/titan007-live-20261028"]
+    paths: [".github/workflows/titan007-live-audit.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Test public basketball endpoints
+        shell: bash
+        run: |
+          cat > /tmp/titan_probe.py <<'PY'
+          import json, socket, urllib.parse, urllib.request, urllib.error, urllib.robotparser, re
+          from datetime import datetime, timezone
+          from xml.etree import ElementTree
+          UA='Titan007PublicAudit/1.0 (public endpoint verification; no login)'
+          SOURCES={
+            'titan_bulk_xml':'https://nba.titan007.com/odds/odds.xml',
+            'legacy_daily_ids':'https://txt.win007.com/phone/lqschedule.aspx?date=2026-10-29',
+            'legacy_daily_crown':'https://txt.win007.com/phone/lqodds.aspx?date=2026-10-29&type=0&companyid=3',
+            'legacy_bulk_crown_js':'https://lq3.win007.com/NBA/sbOddsDataBsk.js',
+            'vip_basket_xml':'https://vip.titan007.com/xmlvbs/fl_nbaGoal3.xml',
+            'nba_monthly':'https://nba.titan007.com/cn/Normal.aspx?y=2026&m=10&matchSeason=2026-2027&SclassID=1',
+            'cba_monthly':'https://nba.titan007.com/cn/Normal.aspx?y=2026&m=10&matchSeason=2026-2027&SclassID=5',
+            'titan_daily':'https://nba.titan007.com/match/20261029.htm',
+          }
+          cache={}
+          def robots(host,scheme):
+            key=(host,scheme)
+            if key in cache: return cache[key]
+            try:
+              req=urllib.request.Request(f'{scheme}://{host}/robots.txt',headers={'User-Agent':UA})
+              with urllib.request.urlopen(req,timeout=8) as r:
+                rp=urllib.robotparser.RobotFileParser()
+                rp.parse(r.read(200000).decode('utf-8','replace').splitlines())
+                v=('present',rp)
+            except urllib.error.HTTPError as e:
+              v=('not_found',None) if e.code in (404,410) else (f'http_{e.code}',None)
+            except Exception as e:
+              v=(f'error_{type(e).__name__}',None)
+            cache[key]=v
+            return v
+          def check(name,url):
+            o={'name':name,'url':url}
+            p=urllib.parse.urlsplit(url)
+            try:
+              socket.getaddrinfo(p.hostname,443)
+              o['dns']='OK'
+            except Exception as e:
+              o.update(status='DNS_ERROR',error=str(e)[:180]);return o
+            state,rp=robots(p.hostname,p.scheme)
+            o['robots']=state
+            if not (state=='not_found' or (state=='present' and rp.can_fetch(UA,url))):
+              o['status']='ROBOTS_BLOCKED_OR_UNKNOWN';return o
+            try:
+              req=urllib.request.Request(url,headers={'User-Agent':UA,'Accept':'text/html,application/xml,text/xml,text/javascript,*/*;q=0.2'})
+              with urllib.request.urlopen(req,timeout=12) as r:
+                body=r.read(500001);o['http_status']=r.status;o['final_url']=r.geturl();o['bytes_read']=len(body)
+                if len(body)>500000:
+                  o['status']='RESPONSE_TOO_LARGE';return o
+                o['content_type']=r.headers.get('Content-Type','')
+              if name=='titan_bulk_xml':
+                try:
+                  root=ElementTree.fromstring(body)
+                  ids=[(m.findtext('i') or '').strip() for m in root.iter('m')]
+                  ids=[s for s in ids if re.fullmatch(r'\d{4,12}',s)]
+                  o.update(status='REAL_XML_PARSED' if ids else 'REAL_XML_NO_IDS',match_count=len(ids),sample_ids=ids[:12])
+                except ElementTree.ParseError: o['status']='NOT_XML'
+              elif name in ('nba_monthly','cba_monthly','titan_daily'):
+                t=body.decode('gb18030','replace')
+                ids=re.findall(r'/oddslist/(\d{4,12})',t,re.I)
+                ids+=re.findall(r'(?:AsianOdds_n\.aspx\?id=|OverDown_n\.aspx\?ID=)(\d{4,12})',t,re.I)
+                ids=list(dict.fromkeys(ids))
+                o.update(status='REAL_HTML_IDS' if ids else 'HTML_NO_LINK_IDS',match_count=len(ids),sample_ids=ids[:12])
+              else:
+                t=body.decode('utf-8','replace')
+                o.update(status='REAL_FETCHED_NEEDS_FORMAT_CONFIRMATION',has_candidate_ids=bool(re.search(r'\b\d{5,9}\b',t)))
+            except urllib.error.HTTPError as e: o.update(status='HTTP_ERROR',http_status=e.code)
+            except Exception as e: o.update(status='NETWORK_ERROR',error=f'{type(e).__name__}: {str(e)[:180]}')
+            return o
+          results=[check(k,v) for k,v in SOURCES.items()]
+          out={'executed_at_utc':datetime.now(timezone.utc).isoformat(),'environment':'GitHub Actions ubuntu-latest','tests':results,'total_extracted_ids':sum(x.get('match_count',0) for x in results)}
+          with open('titan007_live_audit.json','w') as f:json.dump(out,f,ensure_ascii=False,indent=2)
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+          python3 /tmp/titan_probe.py
+      - name: Save audit result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-live-endpoint-audit
+          path: titan007_live_audit.json
+          if-no-files-found: warn
