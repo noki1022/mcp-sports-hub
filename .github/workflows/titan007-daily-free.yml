@@ -1,0 +1,87 @@
+name: Free Titan007 NBA and CBA daily odds report
+on:
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: "007 display date YYYY-MM-DD (optional; default based on Beijing time)"
+        required: false
+        type: string
+  schedule:
+    # Beijing 22:00 for next morning; 05:30 for pre-game follow-up.
+    - cron: "0 14 * * *"
+    - cron: "30 21 * * *"
+  push:
+    branches: ["feature/titan007-nba-cba-daily-free"]
+    paths: [".github/workflows/titan007-daily-free.yml"]
+permissions:
+  contents: read
+concurrency:
+  group: titan007-daily-free-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  public-market-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      REQUESTED_DATE: ${{ inputs.target_date || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Select source display date, using Asia/Shanghai UTC+8
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import os,re
+          from datetime import datetime,timedelta,date
+          from zoneinfo import ZoneInfo
+          specified=os.environ.get('REQUESTED_DATE','').strip()
+          if specified:
+              if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',specified):
+                  raise ValueError('Target date must be YYYY-MM-DD')
+              date.fromisoformat(specified)
+              target=specified
+          else:
+              local=datetime.now(ZoneInfo('Asia/Shanghai'))
+              d=local.date()+timedelta(days=1 if local.hour>=12 else 0)
+              target=d.isoformat()
+          print('TARGET_DATE='+target)
+          PY
+      - name: Validate ID and Crown row parsers
+        run: |
+          python3 scripts/titan007_bf_snapshot.py --self-test
+          python3 scripts/titan007_join_daily.py --self-test
+          python3 scripts/titan007_crown_crossverify.py --self-test
+      - name: Join currently published match IDs with public odds
+        run: |
+          python3 scripts/titan007_join_daily.py --date "$TARGET_DATE" --out titan007_joined_nba_cba.json
+      - name: Sample-check current Crown labeled source, without login
+        run: python3 scripts/titan007_crown_crossverify.py
+      - name: Produce phone-friendly HTML and CSV
+        run: python3 scripts/titan007_report.py
+      - name: Verify report integrity
+        run: |
+          python3 - <<'PY'
+          import csv,json
+          from pathlib import Path
+          joined=json.loads(Path('titan007_joined_nba_cba.json').read_text(encoding='utf-8'))
+          quality=json.loads(Path('titan007_crown_quality_check.json').read_text(encoding='utf-8'))
+          with open('titan007_nba_cba_report.csv',encoding='utf-8-sig') as f:
+              rows=list(csv.DictReader(f))
+          assert len(rows)==joined['nba_cba_joined_for_date']
+          assert Path('titan007_nba_cba_report.html').stat().st_size>700
+          if rows:
+              assert quality.get('matching_markets',0)>0
+              assert quality.get('mismatching_markets',0)==0
+          print('DAILY_REPORT_ACCEPTED',len(rows),'games date',joined['requested_display_date'],'quality',quality.get('matching_markets',0))
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-basketball-daily-${{ env.TARGET_DATE }}
+          path: |
+            titan007_joined_nba_cba.json
+            titan007_crown_quality_check.json
+            titan007_nba_cba_report.csv
+            titan007_nba_cba_report.html
+          if-no-files-found: warn
+          retention-days: 14
