@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from html import unescape
 from pathlib import Path
-import json, re, time, urllib.request, urllib.error, urllib.robotparser
+import argparse, json, re, time, urllib.request, urllib.error, urllib.robotparser
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 import titan007_bf_snapshot as odds
@@ -76,7 +76,17 @@ def run():
     text=odds.download_once()
     result=odds.parse(text)
     games={r["game_id"]:r for r in result["records"]}
-    ids=["746353","746354","751320"]
+    joined_path=Path("titan007_joined_nba_cba.json")
+    if not joined_path.exists():
+        raise RuntimeError("Joined target-date game file required")
+    joined=json.loads(joined_path.read_text(encoding="utf-8"))
+    eligible=[g for g in joined.get("nba_cba_games",[]) if g.get("markets",{}).get("full_spread") and g.get("markets",{}).get("full_total")]
+    ids=[g["game_id"] for g in eligible[:3]]
+    if not ids:
+        output={"checked_at_utc":datetime.now(timezone.utc).isoformat(),"status":"NO_ELIGIBLE_GAMES","matching_markets":0,"mismatching_markets":0,"unverified_markets":0,"details":[]}
+        Path("titan007_crown_quality_check.json").write_text(json.dumps(output,ensure_ascii=False,indent=2),encoding="utf-8")
+        print(json.dumps(output,ensure_ascii=False))
+        return
     records=[]
     for gid in ids:
         entry=games.get(gid)
@@ -106,8 +116,8 @@ def run():
     }
     Path("titan007_crown_quality_check.json").write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding="utf-8")
     print(json.dumps(data,ensure_ascii=False,indent=2))
-    if data["matching_markets"]<2:
-        raise RuntimeError("Insufficient confirmed Crown price matches")
+    if data["matching_markets"] < min(2,len(ids)*2) or data["mismatching_markets"] > 0:
+        raise RuntimeError("Crown sample quality gate failed")
 
 if __name__=="__main__":
     if "--self-test" in sys.argv:test()
