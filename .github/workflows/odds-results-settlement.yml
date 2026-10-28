@@ -1,0 +1,32 @@
+name: NBA odds results settlement audit
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 * * *'
+permissions:
+  contents: write
+jobs:
+  settle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Fetch completed scores and settle available snapshots
+        env:
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          ODD: ${{ secrets.ODD }}
+        run: |
+          python scripts/odds_scores_collector.py
+          mkdir -p reports/odds
+          odds_file=$(find data/odds -maxdepth 1 -name '*_the_odds_api.json' -type f | sort | tail -1)
+          if [ -n "$odds_file" ]; then
+            python analysis/historical_odds_validator.py --infile "$odds_file" --outfile /tmp/validated.json
+            python analysis/settle_odds_snapshot.py --odds /tmp/validated.json --scores data/results/odds_api_scores.json --out reports/odds/latest_settlement.json
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add data/results reports/odds
+          git diff --cached --quiet || git commit -m "Record NBA odds score settlement audit"
+          git push
