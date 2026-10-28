@@ -1,0 +1,74 @@
+name: Titan007 team identity and book mapping audit
+on:
+  push:
+    branches: ["audit/titan007-live-20261028"]
+    paths: [".github/workflows/titan007-identity-audit.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Check bookmaker labels and small set of known-ID pages
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,re,urllib.request,urllib.error,urllib.robotparser,urllib.parse,time
+          from datetime import datetime,timezone
+          UA='Titan007BasketballResearch/1.0'
+          def permit(url):
+            p=urllib.parse.urlsplit(url);origin=p.scheme+'://'+p.netloc;rr=origin+'/robots.txt'
+            try:
+              with urllib.request.urlopen(urllib.request.Request(rr,headers={'User-Agent':UA}),timeout=9) as r:raw=r.read(80000).decode('utf-8','replace')
+              rule=urllib.robotparser.RobotFileParser();rule.parse(raw.splitlines())
+              return rule.can_fetch(UA,url),'PRESENT',raw[:350]
+            except urllib.error.HTTPError as e:
+              return (True,'NOT_FOUND',str(e.code)) if e.code in (404,410) else (False,'UNVERIFIED',str(e.code))
+            except Exception as e:return False,'UNVERIFIED',type(e).__name__
+          urls=[
+            'https://bf.titan007.com/NBA_SC.aspx',
+            'https://bf.titan007.com/funcNba.js',
+            'https://bf.titan007.com/NBA/today.xml',
+            'https://bf.titan007.com/NBA/today2.xml',
+            'https://m.titan007.com/lq/handicap/751320.htm',
+            'https://m.titan007.com/lq/overunder/751320.htm',
+            'https://m.titan007.com/lq/handicap/743436.htm',
+            'https://m.titan007.com/lq/overunder/730611.htm',
+          ]
+          result=[]
+          for url in urls:
+            ok,state,rob=permit(url)
+            d={'url':url,'robots':state,'allowed':ok}
+            if not ok:
+              d['result']='SKIPPED_NOT_ALLOWED_OR_UNKNOWN';result.append(d);continue
+            try:
+              with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':UA}),timeout=11) as r:
+                b=r.read(250001);d.update(http_status=r.status,content_type=r.headers.get('Content-Type',''),bytes=len(b))
+              if len(b)>250000:d['result']='TOO_LARGE'
+              else:
+                s=b.decode('gb18030','replace')
+                if url.endswith('.js') or 'NBA_SC.aspx' in url:
+                  patterns=[
+                    r'.{0,110}(?:companyid\s*=|companyID\s*=|Crown|皇冠|SB|公司|oddsFile|OddsFile).{0,185}',
+                  ]
+                  d['code_matches']=[x[:350] for pat in patterns for x in re.findall(pat,s,re.I)][:45]
+                else:
+                  d['title']=re.findall(r'<title[^>]*>(.*?)</title>',s,re.I|re.S)[:2]
+                  d['text_head']=re.sub(r'<[^>]+>',' ',s[:1500])[:500]
+                  d['names_from_meta']=re.findall(r'<meta[^>]+(?:description|keywords)[^>]+>',s,re.I)[:3]
+                  d['ids_in_source']=list(dict.fromkeys(re.findall(r'(?<!\d)(?:751320|743436|730611)(?!\d)',s)))[:10]
+                d['result']='FETCHED'
+            except urllib.error.HTTPError as e:d.update(result='HTTP_ERROR',status=e.code)
+            except Exception as e:d.update(result='NETWORK_ERROR',error=type(e).__name__+':'+str(e)[:130])
+            result.append(d);time.sleep(.5)
+          out={'utc':datetime.now(timezone.utc).isoformat(),'tests':result}
+          with open('titan_identity_audit.json','w') as f:json.dump(out,f,indent=2,ensure_ascii=False)
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-identity-and-book-audit
+          path: titan_identity_audit.json
