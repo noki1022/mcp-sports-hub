@@ -32,7 +32,8 @@ jobs:
               rp=urllib.robotparser.RobotFileParser();rp.parse(rtext.splitlines())
               allowed=lambda u:rp.can_fetch(ua,u)
           except urllib.error.HTTPError as e:
-              allowed=lambda u:e.code in (404,410)
+              ok=e.code in (404,410)
+              allowed=lambda u:ok
           except Exception:allowed=lambda u:False
           out=[]
           for market in ("handicap","overunder"):
