@@ -11,7 +11,7 @@ on:
     - cron: "0 14 * * *"
     - cron: "30 21 * * *"
   push:
-    branches: ["fix/security-and-titan007-daily-analysis"]
+    branches: ["feature/nba-daily-form-h2h-efficiency"]
     paths: [".github/workflows/titan007-daily-free.yml"]
 permissions:
   contents: read
@@ -54,6 +54,34 @@ jobs:
       - name: Join currently published match IDs with public odds
         run: |
           python3 scripts/titan007_join_daily.py --date "$TARGET_DATE" --out titan007_joined_nba_cba.json
+      - name: Refresh NBA recent five games, possession efficiency, and five historical H2H
+        shell: bash
+        run: |
+          python3 analysis/nba_rolling_form_h2h.py --self-test
+          python3 analysis/nba_rolling_form_h2h.py --date "$TARGET_DATE" \
+            --joined titan007_joined_nba_cba.json --out nba_recent_form_h2h.json
+          python3 analysis/nba_form_h2h_report.py --source nba_recent_form_h2h.json
+      - name: Validate daily form and H2H before publication
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from datetime import date
+          with open('nba_recent_form_h2h.json',encoding='utf-8') as f: x=json.load(f)
+          assert x['target_date']==__import__('os').environ['TARGET_DATE']
+          assert x['verified_distinct_games']>1000
+          cutoff=date.fromisoformat(x['target_date'])
+          for game in x['nba_games']:
+              if game['status']=='UNMAPPED_TEAM': continue
+              for side in ('home_recent','away_recent'):
+                  form=game[side]
+                  assert len(form['last_five'])<=5
+                  assert all(date.fromisoformat(row['date'])<cutoff for row in form['last_five'])
+              h=game['head_to_head']
+              assert len(h['recent_five'])<=5
+              assert all(date.fromisoformat(row['date'])<cutoff for row in h['recent_five'])
+          print('DAILY_NBA_LAST5_H2H_ACCEPTED',len(x['nba_games']))
+          PY
       - name: Sample-check current Crown labeled source, without login
         run: python3 scripts/titan007_crown_crossverify.py
       - name: Produce phone-friendly HTML and CSV
@@ -116,5 +144,8 @@ jobs:
             daily_market_analysis.csv
             daily_market_analysis.html
             nba_official_injuries.json
+            nba_recent_form_h2h.json
+            nba_recent_form_h2h.csv
+            nba_recent_form_h2h.html
           if-no-files-found: warn
           retention-days: 14
