@@ -23,10 +23,10 @@ jobs:
           python3 - <<'PY'
           import json
           r=json.load(open('nba_official_injuries.json'))
-          assert r['team_count'] >= 20
-          atl=r['teams'].get('Atlanta Hawks',{})
+          assert r['matchup_count'] >= 10
+          atl=r['matchups'].get('MIA@ATL',{}).get('Atlanta Hawks',{})
           assert atl.get('status_counts',{}).get('Out',0)>=1
-          print('OFFICIAL_INJURY_QUALITY_PASS',r['team_count'],'teams')
+          print('OFFICIAL_INJURY_QUALITY_PASS',r['matchup_count'],'matchups')
           PY
       - if: always()
         uses: actions/upload-artifact@v4
