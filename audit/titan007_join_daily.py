@@ -49,8 +49,8 @@ def identify(data:bytes):
         if not d:
             rejected.append({"reason":"date_unreadable","id":mid});continue
         raw_league=fields[1].split(",")[0].strip()
-        home=fields[8].split(",")[0].strip()
-        away=fields[10].split(",")[0].strip()
+        home=re.sub(r"\[[^\]]*\]$","",fields[8].split(",")[0].strip())
+        away=re.sub(r"\[[^\]]*\]$","",fields[10].split(",")[0].strip())
         if not home or not away:
             rejected.append({"reason":"missing_team","id":mid});continue
         year=next((f for f in reversed(fields) if re.fullmatch(r"20\d\d",f)),None)
