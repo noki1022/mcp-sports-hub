@@ -25,3 +25,19 @@
 - 总分中枢：236.5。
 - 这是基准快照，不代表最终临场盘口。
 - 后续快照将按相同盘口分值逐项比较。
+
+## 公开来源伤停审计
+
+核验时间：2026-10-28（北京时间）
+
+- Ivica Zubac：Out；参考 [NBA Pacers 赛前预览](https://www.nba.com/pacers/news/preview-pacers-76ers-261028)
+- Ben Sheppard：Out；与球队伤停报告一致
+- T.J. McConnell：Out；腿筋问题
+- Andrew Nembhard：Questionable / 接近回归，等待最终确认
+- Tyrese Haliburton：公开赛前报道倾向可出场，但 StatsHawk 标记为 Day-To-Day，存在来源冲突
+- Joel Embiid：已不在本场伤停名单；参考 [NBA 球员页面](https://www.nba.com/player/203954)
+- Tacko Fall：Out；参考 [NBA 相关报告](https://www.nba.com/player/1629605/payton-pritchard)
+
+### 数据审计结论
+
+Haliburton 的状态存在来源冲突，暂不把“缺阵”作为确定条件计算让分或总分。临场结论优先等待 NBA 官方最终伤停报告、球队公告和首发名单。
