@@ -1,0 +1,38 @@
+name: Titan007 real NBA/CBA identity join acceptance
+on:
+  push:
+    branches: ["audit/titan007-live-20261028"]
+    paths: [".github/workflows/titan007-join-accept.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  join:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the fixed-format ID and date parser
+        run: python3 audit/titan007_join_daily.py --self-test
+      - name: Fetch and join published current scoreboard with real market records
+        run: python3 audit/titan007_join_daily.py --date 2026-10-29 --out titan007_joined_nba_cba.json
+      - name: Assert output quality
+        run: |
+          python3 - <<'PY'
+          import json
+          r=json.load(open('titan007_joined_nba_cba.json'))
+          assert r['all_scoreboard_matches']>0
+          assert r['all_untargeted_market_matches']>0
+          assert r['markets_joined_for_date']>0
+          for g in r['nba_cba_games']:
+            assert g['league'] in ('NBA','CBA')
+            assert g['display_date']==r['requested_display_date']
+            assert g['home_team'] and g['away_team']
+          print('IDENTITY_JOIN_ACCEPTED',r['nba_cba_joined_for_date'],'games')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-real-nba-cba-join
+          path: titan007_joined_nba_cba.json
+          if-no-files-found: warn
