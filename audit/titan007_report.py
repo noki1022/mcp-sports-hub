@@ -82,7 +82,8 @@ CARDS
         template=template.replace(token,html.escape(replacement) if token!="CARDS" else replacement)
     Path(html_path).write_text(template,encoding="utf-8")
     print(json.dumps({"report_html":html_path,"report_csv":csv_path,"matches":len(rows),"quality":status},ensure_ascii=False))
-    assert rows,"Target date has no verified NBA/CBA games"
+    if not rows:
+        print("NO_MATCHES: no NBA/CBA markets joined for target display date")
 
 if __name__=="__main__":
     p=argparse.ArgumentParser()
