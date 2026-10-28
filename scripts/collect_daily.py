@@ -2,7 +2,8 @@ import json,os,sys
 from datetime import datetime,timezone
 sys.path.insert(0,'scripts')
 def main():
- key=os.getenv('ODD') or os.getenv('ODDS_API_KEY'); print('ODD configured:',bool(key))
+ key=(os.getenv('THE_ODDS_API_KEY') or os.getenv('ODDS_API_KEY')
+      or os.getenv('ODD')); print('ODD configured:',bool(key))
  if not key: print('Odds collector skipped: missing ODD'); return 0
  try:
   from odds_api_collector import fetch_odds,normalize_event
