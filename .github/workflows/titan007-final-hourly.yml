@@ -19,6 +19,7 @@ jobs:
     timeout-minutes: 12
     env:
       REQUESTED_DATE: ${{ inputs.target_date || '' }}
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - name: Select current Asia/Shanghai display date
@@ -46,9 +47,7 @@ jobs:
           key: pushplus-state-${{ github.run_id }}
           restore-keys: pushplus-state-
       - name: Push final report to WeChat via PushPlus
-        if: ${{ secrets.PUSHPLUS_TOKEN != '' }}
-        env:
-          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+        if: env.PUSHPLUS_TOKEN != ''
         run: |
           python3 - <<'PY'
           import json,os,urllib.parse,urllib.request
