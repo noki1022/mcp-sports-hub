@@ -11,7 +11,7 @@ on:
     - cron: "0 14 * * *"
     - cron: "30 21 * * *"
   push:
-    branches: ["feature/titan007-nba-cba-daily-free"]
+    branches: ["fix/security-and-titan007-daily-analysis"]
     paths: [".github/workflows/titan007-daily-free.yml"]
 permissions:
   contents: read
@@ -74,6 +74,23 @@ jobs:
               assert quality.get('mismatching_markets',0)==0
           print('DAILY_REPORT_ACCEPTED',len(rows),'games date',joined['requested_display_date'],'quality',quality.get('matching_markets',0))
           PY
+      - name: Produce strict market-only analysis without stale efficiency inputs
+        run: |
+          python3 analysis/titan007_daily_market.py --self-test
+          python3 analysis/titan007_daily_market.py --joined titan007_joined_nba_cba.json --out daily_market_analysis.json
+      - name: Verify zero betting signals and valid live de-vig rows
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          o=json.loads(Path('daily_market_analysis.json').read_text(encoding='utf-8'))
+          assert o['recommendations']==[]
+          assert o['real_ev_status'].startswith('DISABLED')
+          for row in o['row_data']:
+            if row.get('market_status')=='OK':
+              assert abs(row['devig_side1']+row['devig_side2']-1)<1e-10
+          print('DAILY_MARKET_QUALITY_PASS',o['games'])
+          PY
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -83,5 +100,8 @@ jobs:
             titan007_crown_quality_check.json
             titan007_nba_cba_report.csv
             titan007_nba_cba_report.html
+            daily_market_analysis.json
+            daily_market_analysis.csv
+            daily_market_analysis.html
           if-no-files-found: warn
           retention-days: 14
