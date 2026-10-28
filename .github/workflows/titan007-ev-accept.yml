@@ -1,0 +1,59 @@
+name: NBA odds de-vig efficiency injury EV research acceptance
+on:
+  push:
+    branches: ["feature/titan007-market-value-analysis"]
+    paths: [".github/workflows/titan007-ev-accept.yml","analysis/titan007_ev_analysis.py","analysis/titan007_market_math.py"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install official injury report PDF reader
+        run: python3 -m pip install --disable-pip-version-check --quiet --user "pdfplumber==0.11.7"
+      - name: Verify probability and source parsing
+        run: |
+          python3 analysis/titan007_market_math.py
+          python3 analysis/nba_official_injury.py --self-test
+          python3 analysis/titan007_ev_analysis.py --test
+      - name: Fetch real permitted 007 matches and Crown odds
+        run: python3 scripts/titan007_join_daily.py --date 2026-10-29 --out titan007_joined_nba_cba.json
+      - name: Download and map official NBA injury bulletin
+        run: python3 analysis/nba_official_injury.py --date 2026-10-29 --out nba_official_injuries.json
+      - name: Join recent form efficiency injuries and market math
+        run: python3 analysis/titan007_ev_analysis.py
+      - name: Assert cautious quality policy and numerical integrity
+        run: |
+          python3 - <<'PY'
+          import json,csv,math
+          from pathlib import Path
+          x=json.loads(Path('nba_market_value_analysis.json').read_text())
+          assert x['game_count']==12
+          assert not x['errors']
+          assert x['recommended_bets']==[]
+          with open('nba_market_value_analysis.csv',encoding='utf-8-sig') as f:rows=list(csv.DictReader(f))
+          assert len(rows)>=20
+          for g in x['games']:
+              assert g['bet_action']=='NO_BET'
+              assert g['availability']['source_pdf'].endswith('.pdf')
+              for name in ('full_spread','full_total'):
+                  r=g['markets'][name]['current']
+                  if 'no_vig_conditional_side1' in r:
+                      assert abs(r['no_vig_conditional_side1']+r['no_vig_conditional_side2']-1)<1e-10
+          print('ODDS_TO_EV_RESEARCH_ACCEPTED',x['game_count'],'games;',len(rows),'current markets; NO_BET policy')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-2026-10-29-market-research-not-betting-advice
+          path: |
+            titan007_joined_nba_cba.json
+            nba_official_injuries.json
+            nba_market_value_analysis.json
+            nba_market_value_analysis.csv
+            nba_market_value_analysis.html
+          if-no-files-found: warn
+          retention-days: 14
