@@ -1,0 +1,44 @@
+name: NBA official injury PDF source discovery
+on:
+  push:
+    branches: ["feature/titan007-market-value-analysis"]
+    paths: [".github/workflows/nba-injury-pdf-discovery.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Discover official NBA report hrefs (read-only)
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.robotparser,re,html,json
+          from html.parser import HTMLParser
+          UA='Titan007BasketballResearch/1.0';u='https://official.nba.com/nba-injury-report-2026-27-season/'
+          with urllib.request.urlopen(urllib.request.Request('https://official.nba.com/robots.txt',headers={'User-Agent':UA}),timeout=10) as r:
+            rules=r.read().decode('utf-8','replace')
+          rp=urllib.robotparser.RobotFileParser();rp.parse(rules.splitlines())
+          if not rp.can_fetch(UA,u):raise RuntimeError('not allowed')
+          with urllib.request.urlopen(urllib.request.Request(u,headers={'User-Agent':UA}),timeout=12) as r:
+            text=r.read(110000).decode('utf-8','replace')
+          class P(HTMLParser):
+              def __init__(self):super().__init__();self.links=[];self.href=None;self.strs=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag=='a':self.href=dict(attrs).get('href');self.strs=[]
+              def handle_endtag(self,tag):
+                  if tag=='a' and self.href:self.links.append([self.href,' '.join(self.strs)]);self.href=None
+              def handle_data(self,data):
+                  if self.href:self.strs.append(data.strip())
+          p=P();p.feed(text)
+          subset=[{'href':h,'text':s} for h,s in p.links if 'injury' in h.lower() or 'report' in s.lower()]
+          result={'report_links_count':len(subset),'recent_report_links':subset[:35]}
+          with open('official_injury_links.json','w') as f:json.dump(result,f,ensure_ascii=False,indent=2)
+          print(json.dumps(result,ensure_ascii=False,indent=2)[:13000])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nba-injury-links
+          path: official_injury_links.json

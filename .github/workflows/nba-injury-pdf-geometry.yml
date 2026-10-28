@@ -1,0 +1,46 @@
+name: NBA official injury PDF table geometry audit
+on:
+  push:
+    branches: ["feature/titan007-market-value-analysis"]
+    paths: [".github/workflows/nba-injury-pdf-geometry.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - run: python3 -m pip install --disable-pip-version-check --quiet --user "pdfplumber==0.11.7"
+      - name: Map report columns and rows
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.robotparser,io,re,json
+          from html.parser import HTMLParser
+          import pdfplumber
+          ua="Titan007BasketballResearch/1.0";root="https://official.nba.com/nba-injury-report-2026-27-season/"
+          with urllib.request.urlopen(urllib.request.Request(root,headers={'User-Agent':ua}),timeout=10) as r:page=r.read(150000).decode('utf-8','replace')
+          class P(HTMLParser):
+              def __init__(self):super().__init__();self.hrefs=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag=='a':
+                      href=dict(attrs).get('href','')
+                      if 'Injury-Report_2026-10-28_' in href and href.endswith('.pdf'):self.hrefs.append(href)
+          p=P();p.feed(page);url=p.hrefs[-1]
+          with urllib.request.urlopen(urllib.request.Request("https://ak-static.cms.nba.com/robots.txt",headers={'User-Agent':ua}),timeout=9) as r:robots=r.read().decode('utf-8','replace')
+          rp=urllib.robotparser.RobotFileParser();rp.parse(robots.splitlines())
+          if not rp.can_fetch(ua,url):raise RuntimeError("PDF not allowed")
+          with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':ua}),timeout=12) as r:pdf=r.read(800000)
+          with pdfplumber.open(io.BytesIO(pdf)) as d:
+              pg=d.pages[0]
+              words=pg.extract_words(x_tolerance=2,y_tolerance=2)
+              parsed=[{'s':w['text'],'x':round(w['x0'],1),'top':round(w['top'],1)} for w in words if w['top']>30][:145]
+              out={'pdf':url,'pages':len(d.pages),'page_size':[pg.width,pg.height],'columns':parsed,'text':pg.extract_text(x_tolerance=2,y_tolerance=2)[:4300]}
+          with open('injury_pdf_geometry.json','w') as f:json.dump(out,f,ensure_ascii=False,indent=2)
+          print(json.dumps(out,ensure_ascii=False,indent=2)[:19000])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: injury-pdf-geometry
+          path: injury_pdf_geometry.json

@@ -1,0 +1,341 @@
+{
+  "reference_date": "2026-10-28",
+  "source": "StatsHawk get_box_score; 30 distinct NBA completed game observations selected from past week",
+  "estimation": "possessions = FGA - offensive rebounds + turnovers + 0.44*free throw attempts; pace adjusted for estimated minutes",
+  "limitations": [
+    "Team rebounds and team turnovers not included",
+    "Only two recent games per team: very high sampling variance",
+    "Unadjusted for opponent quality and lineup availability",
+    "Use only with shrinkage and conservative calibration; not automatically safe to bet"
+  ],
+  "sample_games": 30,
+  "rejected_games": [],
+  "teams": {
+    "Milwaukee Bucks": {
+      "sample_games": 2,
+      "off_rating": 109.41130906274206,
+      "def_rating": 106.0774504354271,
+      "pace_estimate": 105.61,
+      "game_ids": [
+        "cst_06gn2xkwkhxd19tkk4ndht4hpr",
+        "cst_06gmeb1hmdv6174875cw67t21r"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Indiana Pacers": {
+      "sample_games": 2,
+      "off_rating": 114.64354527938342,
+      "def_rating": 106.04299825682743,
+      "pace_estimate": 103.31012448132779,
+      "game_ids": [
+        "cst_06gn2xkwkhxd19tkk4ndht4hpr",
+        "cst_06gmrm4wmstf79d08r4jzrkf50"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Brooklyn Nets": {
+      "sample_games": 2,
+      "off_rating": 105.91269110333396,
+      "def_rating": 121.73507462686567,
+      "pace_estimate": 107.89,
+      "game_ids": [
+        "cst_06gmrm4wmstf79d08r4jzrkf50",
+        "cst_06gmeb1grxrx363pxm4m1mjtqw"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Philadelphia 76ers": {
+      "sample_games": 2,
+      "off_rating": 102.76532137518684,
+      "def_rating": 108.1239041496201,
+      "pace_estimate": 104.6214937759336,
+      "game_ids": [
+        "cst_06gmrm512nsy1b1547jx4xp6ym",
+        "cst_06gmeb1hmdv6174875cw67t21r"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Detroit Pistons": {
+      "sample_games": 2,
+      "off_rating": 104.33799342105263,
+      "def_rating": 101.77609259628817,
+      "pace_estimate": 98.54680497925311,
+      "game_ids": [
+        "cst_06gnd7pkxhxq341eq9by43e2fr",
+        "cst_06gmrm512nsy1b1547jx4xp6ym"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Houston Rockets": {
+      "sample_games": 2,
+      "off_rating": 118.02154750244858,
+      "def_rating": 107.44435917114352,
+      "pace_estimate": 103.17000000000002,
+      "game_ids": [
+        "cst_06gn2xkya9s271c4v4hkyv6cxm",
+        "cst_06gmeb1kr5s55a5d4r60vvbrsg"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Atlanta Hawks": {
+      "sample_games": 2,
+      "off_rating": 107.44435917114352,
+      "def_rating": 118.02154750244858,
+      "pace_estimate": 102.96112033195021,
+      "game_ids": [
+        "cst_06gn2xkya9s271c4v4hkyv6cxm",
+        "cst_06gmeb1kr5s55a5d4r60vvbrsg"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Miami Heat": {
+      "sample_games": 2,
+      "off_rating": 104.7846889952153,
+      "def_rating": 110.59371362048894,
+      "pace_estimate": 103.78999999999999,
+      "game_ids": [
+        "cst_06gn2xkw41r5558p9gsf6vnh0w",
+        "cst_06gmeb1gadvk59nxa0b5dnxzpm"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Dallas Mavericks": {
+      "sample_games": 2,
+      "off_rating": 106.99628688684776,
+      "def_rating": 108.9417091114884,
+      "pace_estimate": 103.74578512396695,
+      "game_ids": [
+        "cst_06gn2xkw41r5558p9gsf6vnh0w",
+        "cst_06gmeb1jw5tv744fpeptzpt3jw"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Charlotte Hornets": {
+      "sample_games": 2,
+      "off_rating": 113.36154776299878,
+      "def_rating": 107.79352226720648,
+      "pace_estimate": 99.02000000000001,
+      "game_ids": [
+        "cst_06gn2xkt31vq3csfknycv9ba7r",
+        "cst_06gmeb1gadvk59nxa0b5dnxzpm"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Cleveland Cavaliers": {
+      "sample_games": 2,
+      "off_rating": 114.10976272414418,
+      "def_rating": 110.8108108108108,
+      "pace_estimate": 105.63636363636364,
+      "game_ids": [
+        "cst_06gn2xktshx216tt0pa28rzh70",
+        "cst_06gmeb1grxrx363pxm4m1mjtqw"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Minnesota Timberwolves": {
+      "sample_games": 2,
+      "off_rating": 113.02073603586774,
+      "def_rating": 103.58080239970003,
+      "pace_estimate": 101.41488721804512,
+      "game_ids": [
+        "cst_06gn2xktshx216tt0pa28rzh70",
+        "cst_06gmrm4yfstv78v5bwjgjd00rr"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Washington Wizards": {
+      "sample_games": 2,
+      "off_rating": 111.31816398587682,
+      "def_rating": 112.37052960719171,
+      "pace_estimate": 101.75520661157024,
+      "game_ids": [
+        "cst_06gn2xkt31vq3csfknycv9ba7r",
+        "cst_06gmeb1j25th724fn729rgzqkw"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Chicago Bulls": {
+      "sample_games": 2,
+      "off_rating": 100.99612617598228,
+      "def_rating": 117.76519992696733,
+      "pace_estimate": 108.97999999999999,
+      "game_ids": [
+        "cst_06gn2xkv9hvf1a13nnpzyv9md8",
+        "cst_06gmeb1j25th724fn729rgzqkw"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "New York Knicks": {
+      "sample_games": 2,
+      "off_rating": 103.96329558766107,
+      "def_rating": 104.62776659959758,
+      "pace_estimate": 100.92000000000002,
+      "game_ids": [
+        "cst_06gnd7pkxhxq341eq9by43e2fr",
+        "cst_06gmrm4xdnvt3fkb39sfaqajdr"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Toronto Raptors": {
+      "sample_games": 2,
+      "off_rating": 98.3387435554707,
+      "def_rating": 104.08745247148289,
+      "pace_estimate": 104.52446280991735,
+      "game_ids": [
+        "cst_06gmrm4yfstv78v5bwjgjd00rr",
+        "cst_06gm41bnj9w87480csn0zfathg"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Orlando Magic": {
+      "sample_games": 2,
+      "off_rating": 100.69101678183614,
+      "def_rating": 104.95260205068679,
+      "pace_estimate": 102.34000000000002,
+      "game_ids": [
+        "cst_06gmrm4xdnvt3fkb39sfaqajdr",
+        "cst_06gm41bmr5ty10gse7ws6pap0w"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Denver Nuggets": {
+      "sample_games": 2,
+      "off_rating": 122.43134242366045,
+      "def_rating": 125.44301436299197,
+      "pace_estimate": 99.67377591427906,
+      "game_ids": [
+        "cst_06gn2xkzs1ts360xka8qnxntrc",
+        "cst_06gmeb1mg9yp31dtchqvcxk7pr"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "New Orleans Pelicans": {
+      "sample_games": 2,
+      "off_rating": 114.8905373620409,
+      "def_rating": 121.01261127596439,
+      "pace_estimate": 103.78056603773584,
+      "game_ids": [
+        "cst_06gmeb1mg9yp31dtchqvcxk7pr",
+        "cst_06gm41brvssa3dx1q6g19zxpd8"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Utah Jazz": {
+      "sample_games": 2,
+      "off_rating": 110.74412278997474,
+      "def_rating": 118.39530332681018,
+      "pace_estimate": 102.35975103734438,
+      "game_ids": [
+        "cst_06gn2xkyydxk30bd9zgty9par0",
+        "cst_06gmrm4vthwb5ek21e0n36gcxw"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Golden State Warriors": {
+      "sample_games": 2,
+      "off_rating": 127.79552715654953,
+      "def_rating": 124.49186991869918,
+      "pace_estimate": 98.6832098765432,
+      "game_ids": [
+        "cst_06gn2xkzs1ts360xka8qnxntrc",
+        "cst_06gmeb1n7xsk150b2pb688gzp0"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Boston Celtics": {
+      "sample_games": 1,
+      "off_rating": 120.98230408089563,
+      "def_rating": 91.97324414715719,
+      "pace_estimate": 109.2,
+      "game_ids": [
+        "cst_06gn2xkv9hvf1a13nnpzyv9md8"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Phoenix Suns": {
+      "sample_games": 2,
+      "off_rating": 121.479571598572,
+      "def_rating": 120.58191759421987,
+      "pace_estimate": 101.21107438016529,
+      "game_ids": [
+        "cst_06gn2xkxantw704svbekr81q30",
+        "cst_06gmeb1n7xsk150b2pb688gzp0"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Memphis Grizzlies": {
+      "sample_games": 1,
+      "off_rating": 109.2570520460866,
+      "def_rating": 102.94117647058823,
+      "pace_estimate": 100.91950207468878,
+      "game_ids": [
+        "cst_06gn2xkyydxk30bd9zgty9par0"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Los Angeles Lakers": {
+      "sample_games": 2,
+      "off_rating": 126.74825174825173,
+      "def_rating": 125.16914749661706,
+      "pace_estimate": 102.99709543568464,
+      "game_ids": [
+        "cst_06gnd7pnphz818f6yf889gek0g",
+        "cst_06gmrm4vthwb5ek21e0n36gcxw"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "San Antonio Spurs": {
+      "sample_games": 2,
+      "off_rating": 121.50433944069431,
+      "def_rating": 104.37475029964043,
+      "pace_estimate": 101.70141078838175,
+      "game_ids": [
+        "cst_06gnd7pmxszs7epmd85f4msrj4",
+        "cst_06gmeb1jw5tv744fpeptzpt3jw"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Sacramento Kings": {
+      "sample_games": 1,
+      "off_rating": 104.3354943273906,
+      "def_rating": 127.00273544353263,
+      "pace_estimate": 100.54,
+      "game_ids": [
+        "cst_06gnd7pmxszs7epmd85f4msrj4"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Oklahoma City Thunder": {
+      "sample_games": 2,
+      "off_rating": 113.52562853244982,
+      "def_rating": 104.57198443579767,
+      "pace_estimate": 102.71000000000001,
+      "game_ids": [
+        "cst_06gn2xkxantw704svbekr81q30",
+        "cst_06gmrm4zrstw740n1z7z2x6z5m"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "LA Clippers": {
+      "sample_games": 2,
+      "off_rating": 102.05992509363296,
+      "def_rating": 113.39303095191745,
+      "pace_estimate": 104.11819896437022,
+      "game_ids": [
+        "cst_06gmrm4zrstw740n1z7z2x6z5m",
+        "cst_06gm41btchx23763zfsgx3khhw"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    },
+    "Portland Trail Blazers": {
+      "sample_games": 1,
+      "off_rating": 131.98757763975155,
+      "def_rating": 126.22309197651663,
+      "pace_estimate": 102.62,
+      "game_ids": [
+        "cst_06gnd7pnphz818f6yf889gek0g"
+      ],
+      "source": "StatsHawk game-player boxscore sums; possessions estimate; team OREB omitted; pace adjusted with approximate game length"
+    }
+  }
+}

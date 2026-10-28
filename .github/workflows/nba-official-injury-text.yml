@@ -1,0 +1,49 @@
+name: NBA official injury PDF text parse research
+on:
+  push:
+    branches: ["feature/titan007-market-value-analysis"]
+    paths: [".github/workflows/nba-official-injury-text.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Install PDF parser
+        run: python3 -m pip install --disable-pip-version-check --quiet --user "pypdf==5.9.0"
+      - name: Parse real NBA report for current ET date
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.error,urllib.robotparser,re,json,io
+          from html.parser import HTMLParser
+          from pypdf import PdfReader
+          ua="Titan007BasketballResearch/1.0";home="https://official.nba.com/nba-injury-report-2026-27-season/"
+          with urllib.request.urlopen(urllib.request.Request(home,headers={'User-Agent':ua}),timeout=12) as r:page=r.read(120000).decode('utf-8','replace')
+          class L(HTMLParser):
+              def __init__(self):super().__init__();self.links=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag=='a':
+                      h=dict(attrs).get('href')
+                      if h:self.links.append(h)
+          p=L();p.feed(page)
+          u=[x for x in p.links if 'Injury-Report_2026-10-28_' in x and x.endswith('.pdf')][-1]
+          base='https://ak-static.cms.nba.com'
+          with urllib.request.urlopen(urllib.request.Request(base+'/robots.txt',headers={'User-Agent':ua}),timeout=10) as r:robots=r.read(60000).decode('utf-8','replace')
+          rp=urllib.robotparser.RobotFileParser();rp.parse(robots.splitlines())
+          if not rp.can_fetch(ua,u):raise RuntimeError("Robots rules prohibit PDF")
+          with urllib.request.urlopen(urllib.request.Request(u,headers={'User-Agent':ua}),timeout=12) as r:content=r.read(750000)
+          if not content.startswith(b'%PDF'):raise ValueError("Not PDF")
+          reader=PdfReader(io.BytesIO(content))
+          pgs=[p.extract_text(extraction_mode='layout') for p in list(reader.pages)[:3]]
+          out={"source":u,"pages":len(reader.pages),"samples":[p[:4500] for p in pgs],"reference_matches":[s[:280] for p in pgs for s in p.splitlines() if any(x in s for x in ('ATL','MIA','Out','Questionable','Cleveland'))][:26]}
+          with open('injury_pdf_text.json','w') as f:json.dump(out,f,ensure_ascii=False,indent=2)
+          print(json.dumps(out,ensure_ascii=False,indent=2)[:17000])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: injury-pdf-text
+          path: injury_pdf_text.json

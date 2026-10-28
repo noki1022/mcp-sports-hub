@@ -1,0 +1,64 @@
+name: NBA official CDN schedule and box score audit
+on:
+  push:
+    branches: ["feature/titan007-market-value-analysis"]
+    paths: [".github/workflows/nba-cdn-stat-audit.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Read NBA public schedule and verify recent boxscore availability
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.error,urllib.robotparser,json,datetime
+          ua='Titan007BasketballResearch/1.0';base='https://cdn.nba.com/'
+          out={}
+          try:
+            with urllib.request.urlopen(urllib.request.Request(base+'robots.txt',headers={'User-Agent':ua}),timeout=9) as r:
+                text=r.read(120000).decode('utf-8','replace');out['robots_code']=r.status
+            rp=urllib.robotparser.RobotFileParser();rp.parse(text.splitlines())
+          except urllib.error.HTTPError as e:
+            rp=urllib.robotparser.RobotFileParser();rp.parse([])
+            out['robots_code']=e.code
+            if e.code not in (404,410):raise RuntimeError(f"Unverified CDN robots {e.code}")
+          except Exception as e:raise RuntimeError("CDN robots unavailable "+str(e)[:120])
+          def permitted(url):return rp.can_fetch(ua,url)
+          def get(path,limit):
+            url=base+path
+            if not permitted(url):return {'status':'ROBOTS_DENY','url':url}
+            try:
+              with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':ua}),timeout=12) as r:
+                  b=r.read(limit+1);status=r.status
+              if len(b)>limit:return {'status':'TOO_LARGE','url':url,'bytes_read':len(b)}
+              return {'status':status,'url':url,'data':json.loads(b),'bytes':len(b)}
+            except urllib.error.HTTPError as e:return {'status':e.code,'url':url}
+            except Exception as e:return {'status':'ERROR','error':type(e).__name__+':'+str(e)[:100]}
+          result=get('static/json/staticData/scheduleLeagueV2_1.json',4200000)
+          out['schedule']={k:v for k,v in result.items() if k!='data'}
+          if result['status']==200:
+            sd=result['data'];days=sd.get('leagueSchedule',{}).get('gameDates',[])
+            allgames=[g for day in days for g in day.get('games',[])]
+            out['season_games']=len(allgames)
+            out['today_game_examples']=[{'id':g.get('gameId'),'home':g.get('homeTeam',{}).get('teamTricode'),'away':g.get('awayTeam',{}).get('teamTricode'),'date':g.get('gameDateTimeUTC') or g.get('gameDateTimeEst'),'status':g.get('gameStatus')} for g in allgames if str(g.get('gameDateTimeUTC','')).startswith('2026-10-28')][:6]
+            finals=[g for g in allgames if g.get('gameStatus')==3 and str(g.get('gameDateTimeUTC',''))<'2026-10-28T00:00']
+            finals.sort(key=lambda g:g.get('gameDateTimeUTC',''),reverse=True)
+            sample=finals[0] if finals else next((g for g in allgames if g.get('gameId','')=='0022600143'),None)
+            out['recent_final_game_id']=sample.get('gameId') if sample else None
+            if sample:
+              box=get('static/json/liveData/boxscore/boxscore_'+sample['gameId']+'.json',350000)
+              if 'data' in box:
+                z=box['data'].get('game',{})
+                box['team_sample']={k:{'name':z.get(k,{}).get('teamName'),'score':z.get(k,{}).get('score'),'stats':z.get(k,{}).get('statistics',{})} for k in ('homeTeam','awayTeam')}
+              out['boxscore']={k:v for k,v in box.items() if k!='data'}
+          with open('nba_cdn_stat_audit.json','w') as f:json.dump(out,f,ensure_ascii=False,indent=2)
+          print(json.dumps(out,ensure_ascii=False,indent=2)[:12500])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-cdn-stat-audit
+          path: nba_cdn_stat_audit.json
