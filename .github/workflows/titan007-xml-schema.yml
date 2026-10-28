@@ -24,7 +24,9 @@ jobs:
             url=b+path
             if not rp.can_fetch(UA,url):out[path]={'status':'not permitted'};continue
             with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':UA}),timeout=12) as r:raw=r.read(200000)
-            root=E.fromstring(raw)
+            decoded=raw.decode('gb18030','replace')
+            decoded=re.sub(r'^\\s*<\\?xml[^>]*\\?>','',decoded)
+            root=E.fromstring(decoded)
             obj={
               'root_tag':root.tag,'children':[{'tag':c.tag,'attrib':c.attrib,'len':len(c),'text_start':(c.text or '')[:90]} for c in list(root)[:5]],
               'raw_head':raw.decode('gb18030','replace')[:750]
