@@ -72,7 +72,7 @@ jobs:
           if rows:
               assert quality.get('matching_markets',0)>0
               if quality.get('mismatching_markets',0):
-              print('DEGRADED_CROWN_QUOTES',quality['mismatching_markets'],'sample markets changed between fetches')
+                  print('DEGRADED_CROWN_QUOTES',quality['mismatching_markets'],'sample markets changed between fetches')
           print('DAILY_REPORT_ACCEPTED',len(rows),'games date',joined['requested_display_date'],'quality',quality.get('matching_markets',0))
           PY
       - name: Install PDF reader for NBA official injury report
