@@ -1,0 +1,53 @@
+name: Titan007 NBA/CBA final one-hour report
+on:
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: "Display date YYYY-MM-DD; default is today in Asia/Shanghai"
+        required: false
+        type: string
+  schedule:
+    - cron: "0 * * * *"
+permissions:
+  contents: read
+concurrency:
+  group: titan007-final-hourly-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  final-window:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      REQUESTED_DATE: ${{ inputs.target_date || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select current Asia/Shanghai display date
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import os,re
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          x=os.environ.get('REQUESTED_DATE','').strip()
+          if x and not re.fullmatch(r'\d{4}-\d{2}-\d{2}',x): raise ValueError('invalid target date')
+          print('TARGET_DATE='+ (x or datetime.now(ZoneInfo('Asia/Shanghai')).date().isoformat()))
+          PY
+      - name: Join current 007 markets
+        run: python3 scripts/titan007_join_daily.py --date "$TARGET_DATE" --out titan007_joined_today.json
+      - name: Select 25–35 minute final window centered on 30 minutes
+        run: python3 scripts/titan007_final_window.py --infile titan007_joined_today.json --outfile titan007_final_window.json
+      - name: Render final mobile report when a game is in window
+        run: |
+          python3 scripts/titan007_report.py --joined titan007_final_window.json --html titan007_final_hour_report.html --csv titan007_final_hour_report.csv
+          python3 analysis/titan007_daily_market.py --joined titan007_final_window.json --out titan007_final_hour_market.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-final-window-${{ env.TARGET_DATE }}
+          path: |
+            titan007_joined_today.json
+            titan007_final_window.json
+            titan007_final_hour_report.html
+            titan007_final_hour_report.csv
+            titan007_final_hour_market.json
+          if-no-files-found: warn
+          retention-days: 14
