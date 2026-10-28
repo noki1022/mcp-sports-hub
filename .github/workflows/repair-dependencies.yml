@@ -1,0 +1,41 @@
+name: Repair vulnerable dependency lockfile
+on:
+  push:
+    branches: [feature/secure-render-mcp]
+    paths:
+      - '.github/workflows/repair-dependencies.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: github.repository == 'noki1022/mcp-sports-hub'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/secure-render-mcp
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Repair compatible vulnerable dependencies
+        run: |
+          npm ci
+          npm audit fix
+          npm audit --audit-level=low
+          npm run build
+          npm test
+          node --test deploy/gateway.test.mjs
+      - name: Commit lockfile repair to development branch
+        run: |
+          if ! git diff --quiet -- package-lock.json package.json; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add package-lock.json package.json
+            git commit -m 'fix: update vulnerable npm dependencies'
+            git push origin HEAD:feature/secure-render-mcp
+          else
+            echo 'No dependency changes needed'
+          fi
