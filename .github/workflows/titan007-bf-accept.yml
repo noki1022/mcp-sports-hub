@@ -1,0 +1,36 @@
+name: Titan007 BF parsed snapshot acceptance
+on:
+  push:
+    branches: ["audit/titan007-live-20261028"]
+    paths: [".github/workflows/titan007-bf-accept.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parser self-tests
+        run: python3 audit/titan007_bf_snapshot.py --self-test
+      - name: Download and parse the current permitted public BF file
+        run: python3 audit/titan007_bf_snapshot.py --out titan007_bf_snapshot.json
+      - name: Verify real match records and full markets
+        run: |
+          python3 - <<'PY'
+          import json,sys
+          r=json.load(open('titan007_bf_snapshot.json'))
+          games=r['records']
+          assert r['game_count'] == len(games) > 0
+          spread=sum(any(x['line'] is not None for x in m['markets'].get('full_spread',{}).values()) for m in games)
+          total=sum(any(x['line'] is not None for x in m['markets'].get('full_total',{}).values()) for m in games)
+          print(json.dumps({'game_ids':len(games),'spread_markets':spread,'total_markets':total,'sample_ids':r['sample_game_ids'],'rejected':len(r['rejected'])},ensure_ascii=False))
+          assert spread>0 and total>0
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-bf-parsed-real-snapshot
+          path: titan007_bf_snapshot.json
+          if-no-files-found: warn
