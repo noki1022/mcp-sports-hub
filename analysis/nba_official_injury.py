@@ -67,47 +67,46 @@ def group_words(words):
 def read_lines(pages):
     current_team=None
     current_matchup=None
-    teams=defaultdict(lambda:{'players':[],'report_state':'NO_ROWS_FOUND','matchups':set()})
+    games=defaultdict(lambda:defaultdict(lambda:{'players':[],'report_state':'NO_ROWS_FOUND'}))
     exceptions=[]
     for page in pages:
         for row in group_words(page):
             cols={k:[] for k in ('matchup','team','player','status','reason')}
             for w in row['words']:
-                x=float(w['x0']);s=w['text']
-                if 196<=x<260:cols['matchup'].append(s)
-                elif 260<=x<420:cols['team'].append(s)
-                elif 423<=x<580:cols['player'].append(s)
-                elif 580<=x<665:cols['status'].append(s)
-                elif 665<=x:cols['reason'].append(s)
-            match=' '.join(cols['matchup']).strip()
-            if re.fullmatch(r'[A-Z]{2,4}@[A-Z]{2,4}',match):
-                current_matchup=match
+                x=float(w['x0']);piece=w['text']
+                if 196<=x<260:cols['matchup'].append(piece)
+                elif 260<=x<420:cols['team'].append(piece)
+                elif 423<=x<580:cols['player'].append(piece)
+                elif 580<=x<665:cols['status'].append(piece)
+                elif 665<=x:cols['reason'].append(piece)
+            m=' '.join(cols['matchup']).strip()
+            if re.fullmatch(r'[A-Z]{2,4}@[A-Z]{2,4}',m):
+                current_matchup=m
+                # Team names must never bleed from previous matchup.
+                current_team=None
             team=' '.join(cols['team']).strip()
             if team and team not in ('Team','Date') and not team.startswith('Page'):
                 current_team=re.sub(r'\s+',' ',team)
-                teams[current_team]  # Initialize.
-                if current_matchup:teams[current_team]['matchups'].add(current_matchup)
-            if not current_team:continue
+            if not current_matchup or not current_team:continue
+            record=games[current_matchup][current_team]
             status=' '.join(cols['status']).strip()
             reason=' '.join(cols['reason']).strip()
             player=' '.join(cols['player']).strip()
             if 'NOT YET SUBMITTED' in reason.upper() or 'NOT YET SUBMITTED' in status.upper():
-                teams[current_team]['report_state']='NOT_SUBMITTED'
+                record['report_state']='NOT_SUBMITTED'
                 continue
             if status in STATUS and player:
-                if teams[current_team]['report_state']!='NOT_SUBMITTED':
-                    teams[current_team]['report_state']='PUBLISHED'
-                teams[current_team]['players'].append({'name':player,'status':status,'reason':reason})
+                if record['report_state']!='NOT_SUBMITTED':record['report_state']='PUBLISHED'
+                record['players'].append({'name':player,'status':status,'reason':reason})
             elif player and not status and not player.startswith('Player'):
-                exceptions.append({'team':current_team,'raw_player':player,'raw_status':status})
+                exceptions.append({'matchup':current_matchup,'team':current_team,'raw_player':player})
     result={}
-    for t,x in teams.items():
-        result[t]={
-            'report_state':x['report_state'],
-            'matchups':sorted(x['matchups']),
-            'players':x['players'],
-            'status_counts':dict(Counter(p['status'] for p in x['players']))
-        }
+    for m,teams in games.items():
+        result[m]={}
+        for t,x in teams.items():
+            result[m][t]={'report_state':x['report_state'],
+                'players':x['players'],
+                'status_counts':dict(Counter(p['status'] for p in x['players']))}
     return result,exceptions
 
 def parse_pdf(data):
@@ -123,10 +122,10 @@ def self_test():
     words=(row(129,[(201,'MIA@ATL'),(265,'Miami'),(293,'Heat'),(426,'Fontecchio,'),(482,'Simone'),(587,'Out')])
          +row(151,[(265,'Atlanta'),(300,'Hawks'),(426,'Gueye,'),(455,'Mouhamed'),(587,'Out')])
          +row(173,[(426,'Wiggins,'),(468,'Aaron'),(587,'Questionable')]))
-    teams,errors=read_lines([words])
-    assert teams['Miami Heat']['players'][0]['status']=='Out'
-    assert teams['Atlanta Hawks']['players'][0]['name']=='Gueye, Mouhamed'
-    assert teams['Atlanta Hawks']['status_counts']['Questionable']==1
+    games,errors=read_lines([words])
+    assert games['MIA@ATL']['Miami Heat']['players'][0]['status']=='Out'
+    assert games['MIA@ATL']['Atlanta Hawks']['players'][0]['name']=='Gueye, Mouhamed'
+    assert games['MIA@ATL']['Atlanta Hawks']['status_counts']['Questionable']==1
     assert not errors,errors
     print('OFFICIAL_INJURY_PDF_COORD_TEST_PASS')
 
@@ -134,20 +133,20 @@ def run(target_date,out):
     # NBA morning games shown in China on target_date were previous US ET day.
     et=(date.fromisoformat(target_date)-timedelta(days=1)).isoformat()
     url=latest_pdf(et)
-    teams,errors=parse_pdf(checked(url,1500000))
-    if len(teams)<20:raise RuntimeError(f'Official PDF parse incomplete: {len(teams)} teams')
+    games,errors=parse_pdf(checked(url,1500000))
+    if len(games)<10:raise RuntimeError(f'Official PDF parse incomplete: {len(games)} matchups')
     report={
         'captured_at_utc':datetime.now(timezone.utc).isoformat(),
         'report_et_date':et,
         'source_url':url,
         'official_source_index':INDEX,
-        'team_count':len(teams),
-        'teams':teams,
+        'matchup_count':len(games),
+        'matchups':games,
         'ambiguous_player_rows':errors[:40],
         'warning':'Official injury report is a changing pregame snapshot; any missing team, NOT_SUBMITTED, questionable starter or old timestamp blocks confirmed value picks.'
     }
     Path(out).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
-    print(json.dumps({'pdf':url,'team_count':len(teams),'ambiguous_count':len(errors),'samples':{t:teams[t] for t in ('Atlanta Hawks','Miami Heat','Charlotte Hornets') if t in teams}},ensure_ascii=False,indent=2)[:9500])
+    print(json.dumps({'pdf':url,'matchup_count':len(games),'ambiguous_count':len(errors),'samples':{m:games[m] for m in ('MIA@ATL','CHA@DET') if m in games}},ensure_ascii=False,indent=2)[:9500])
     return report
 
 if __name__=='__main__':
