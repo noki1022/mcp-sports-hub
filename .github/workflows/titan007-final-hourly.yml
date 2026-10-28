@@ -70,11 +70,17 @@ jobs:
           fresh=[g for g in games if g.get('game_id') not in sent]
           if not fresh:
               print('FINAL_WINDOW_ALREADY_SENT_NO_PUSH'); raise SystemExit(0)
+          market_rows=json.loads(Path('titan007_final_hour_market.json').read_text()).get('row_data',[]) if Path('titan007_final_hour_market.json').exists() else []
+          by_game={}
+          for r in market_rows:
+              if r.get('stage')=='current': by_game.setdefault(r.get('game_id'),{})[r.get('market')]=r
           rows=[]
           for g in fresh:
-              rows.append(f"{g.get('display_clock')} 主队：{g.get('home_team')} vs 客队：{g.get('away_team')}（ID {g.get('game_id')}）")
+              m=by_game.get(g.get('game_id'),{})
+              sp=m.get('full_spread',{}); tt=m.get('full_total',{})
+              rows.append(f"{g.get('display_clock')} 主队：{g.get('home_team')} vs 客队：{g.get('away_team')}\\n让分：{sp.get('line','—')}（主/客去水 {sp.get('devig_side1','—')} / {sp.get('devig_side2','—')}）\\n总分：{tt.get('line','—')}（大/小去水 {tt.get('devig_side1','—')} / {tt.get('devig_side2','—')}）")
           title='NBA/CBA 开赛前30分钟临场报告'
-          content='\n'.join(rows)+'\n\n盘口已重新抓取；当前仅发布市场数据和变化，未校准模型统一 NO_BET。'
+          content='\\n\\n'.join(rows)+'\\n\\n盘口已重新抓取；以上为市场倾向，不是独立校准模型，统一 NO_BET。'
           data=urllib.parse.urlencode({'token':os.environ['PUSHPLUS_TOKEN'],'title':title,'content':content,'template':'txt'}).encode()
           req=urllib.request.Request('https://www.pushplus.plus/send',data=data,method='POST')
           with urllib.request.urlopen(req,timeout=15) as r:
