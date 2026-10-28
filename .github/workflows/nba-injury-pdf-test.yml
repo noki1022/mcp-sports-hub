@@ -1,0 +1,70 @@
+name: Official NBA injury report PDF access and extraction
+on:
+  push:
+    branches: ["feature/titan007-market-value-analysis"]
+    paths: [".github/workflows/nba-injury-pdf-test.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Attempt one official NBA PDF with documented access controls
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.error,urllib.robotparser,re,json,shutil,subprocess
+          from html.parser import HTMLParser
+          UA='Titan007BasketballResearch/1.0'
+          home='https://official.nba.com/nba-injury-report-2026-27-season/'
+          with urllib.request.urlopen(urllib.request.Request(home,headers={'User-Agent':UA}),timeout=12) as r:page=r.read(150000).decode('utf-8','replace')
+          class P(HTMLParser):
+              def __init__(self):super().__init__();self.href=None;self.recs=[];self.name=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag=='a':self.href=dict(attrs).get('href');self.name=[]
+              def handle_data(self,s):
+                  if self.href:self.name.append(s)
+              def handle_endtag(self,tag):
+                  if tag=='a' and self.href:self.recs.append((self.href,' '.join(self.name)));self.href=None
+          p=P();p.feed(page)
+          pdfs=[(u,name) for u,name in p.recs if 'Injury-Report_2026-10-28_' in u and u.endswith('.pdf')]
+          o={'report_pdf_list_count':len(pdfs),'pdftotext_installed':bool(shutil.which('pdftotext'))}
+          if pdfs:
+              url=pdfs[-1][0]
+              base='https://ak-static.cms.nba.com'
+              o['latest_pdf']=url
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(base+'/robots.txt',headers={'User-Agent':UA}),timeout=10) as r:rules=r.read(100000).decode('utf-8','replace')
+                  rp=urllib.robotparser.RobotFileParser();rp.parse(rules.splitlines())
+                  allowed=rp.can_fetch(UA,url)
+                  o['robots_status']='PRESENT'
+              except urllib.error.HTTPError as e:
+                  o['robots_status']=e.code;allowed=e.code in (404,410)
+              except Exception as e:
+                  o['robots_status']=type(e).__name__;allowed=False
+              o['permitted']=allowed
+              if allowed:
+                  try:
+                      with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':UA}),timeout=15) as r:
+                          data=r.read(2500001)
+                          o['pdf_http']=r.status
+                      o['bytes']=len(data)
+                      if data.startswith(b'%PDF') and len(data)<=2500000 and shutil.which('pdftotext'):
+                          open('/tmp/nba_injury.pdf','wb').write(data)
+                          res=subprocess.run(['pdftotext','-layout','/tmp/nba_injury.pdf','-'],capture_output=True,text=True,timeout=12)
+                          o['pdftotext_exit']=res.returncode
+                          s=res.stdout
+                          o['text_prefix']=s[:2300]
+                          o['hints']=[line[:220] for line in s.splitlines() if 'Atlanta' in line or 'Miami' in line or 'Heat' in line or 'Hawks' in line][:8]
+                      elif not data.startswith(b'%PDF'):o['format']='NOT_PDF'
+                  except Exception as e:o['error']=type(e).__name__+':'+str(e)[:130]
+          with open('official_injury_pdf_probe.json','w') as f:json.dump(o,f,ensure_ascii=False,indent=2)
+          print(json.dumps(o,ensure_ascii=False,indent=2)[:9500])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-nba-injury-pdf-probe
+          path: official_injury_pdf_probe.json
