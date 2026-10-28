@@ -1,0 +1,69 @@
+name: Titan007 score data flow audit
+on:
+  push:
+    branches: ["audit/titan007-live-20261028"]
+    paths: [".github/workflows/titan007-score-flow-audit.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Inspect real score-flow function and published schedule page
+        shell: bash
+        run: |
+          cat > /tmp/flow.py <<'PY'
+          import json,urllib.request,urllib.error,urllib.robotparser,urllib.parse,re,time
+          from datetime import datetime,timezone
+          UA='Titan007DataResearch/1.0'
+          sites={
+            'lq3.titan007.com':['/funcNba.js','/NBA/position/basketballscore.txt'],
+            'bf.titan007.com':['/NBA_SC.aspx']
+          }
+          findings=[]
+          for host,paths in sites.items():
+            root='https://'+host
+            try:
+              with urllib.request.urlopen(urllib.request.Request(root+'/robots.txt',headers={'User-Agent':UA}),timeout=10) as r:
+                robots=r.read(60000).decode('utf-8','replace')
+              rp=urllib.robotparser.RobotFileParser();rp.parse(robots.splitlines())
+            except Exception as e:
+              findings.append({'host':host,'robots_error':str(e)[:100]});continue
+            for path in paths:
+              url=root+path;d={'url':url,'allowed':rp.can_fetch(UA,url)}
+              if not d['allowed']:
+                d['status']='DENIED';findings.append(d);continue
+              try:
+                with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':UA}),timeout=14) as r:
+                  body=r.read(450001);d.update(status=r.status,bytes=len(body),content_type=r.headers.get('Content-Type',''))
+                if len(body)>450000:
+                  d['too_large']=True
+                else:
+                  txt=body.decode('gb18030','replace')
+                  if path.endswith('funcNba.js'):
+                    terms=['function loadScore','loadScore = function','function getNbaXml','function getScore','ScoreFile','scoreFile','function loadFlOdds','function getFlOdds']
+                    snippets=[]
+                    for term in terms:
+                      it=list(re.finditer(re.escape(term),txt,re.I))
+                      snippets += [{'term':term,'count':len(it),'slices':[txt[max(0,m.start()-220):min(len(txt),m.start()+1250)] for m in it[:3]]}]
+                    d['functions']=snippets
+                  else:
+                    d['prefix']=txt[:1800]
+                    d['id_candidates']=list(dict.fromkeys(re.findall(r'(?:/oddslist/|/analysis/|matchid=|/odds/AsianOdds_n\.aspx\?id=)(\d{4,12})',txt,re.I)))[:20]
+                    d['html_title']=re.findall(r'<title[^>]*>(.*?)</title>',txt,re.I|re.S)[:2]
+              except urllib.error.HTTPError as e:d.update(status=e.code,error='HTTP_ERROR')
+              except Exception as e:d.update(status='ERROR',error=type(e).__name__+':'+str(e)[:150])
+              findings.append(d)
+              time.sleep(1)
+          report={'utc':datetime.now(timezone.utc).isoformat(),'findings':findings}
+          with open('titan_score_flow.json','w') as f:json.dump(report,f,indent=2,ensure_ascii=False)
+          print(json.dumps(report,indent=2,ensure_ascii=False))
+          PY
+          python3 /tmp/flow.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-score-flow
+          path: titan_score_flow.json
