@@ -20,11 +20,18 @@ jobs:
         run: |
           python scripts/odds_scores_collector.py
           mkdir -p reports/odds
-          odds_file=$(find data/odds -maxdepth 1 -name '*_the_odds_api.json' -type f | sort | tail -1)
-          if [ -n "$odds_file" ]; then
-            python analysis/historical_odds_validator.py --infile "$odds_file" --outfile /tmp/validated.json
-            python analysis/settle_odds_snapshot.py --odds /tmp/validated.json --scores data/results/odds_api_scores.json --out reports/odds/latest_settlement.json
-          fi
+          mkdir -p reports/odds/settlements
+          find data/odds -maxdepth 1 -name '*_the_odds_api.json' -type f | sort | while read odds_file; do
+            base=$(basename "$odds_file" .json)
+            python analysis/historical_odds_validator.py --infile "$odds_file" --outfile "/tmp/validated_\${base}.json"
+            python analysis/settle_odds_snapshot.py --odds "/tmp/validated_\${base}.json" --scores data/results/odds_api_scores.json --out "reports/odds/settlements/\${base}_settlement.json"
+          done
+          python - <<'PY'
+          import json,glob
+          paths=sorted(glob.glob('reports/odds/settlements/*_settlement.json'))
+          rows=[json.load(open(p)) for p in paths]
+          json.dump({'snapshot_reports':rows,'snapshot_count':len(rows)},open('reports/odds/latest_settlement.json','w'),ensure_ascii=False,indent=2)
+          PY
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add data/results reports/odds
