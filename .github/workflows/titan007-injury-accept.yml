@@ -1,0 +1,36 @@
+name: Titan007 official NBA injury integration acceptance
+on:
+  push:
+    branches: ["feature/titan007-market-value-analysis"]
+    paths: [".github/workflows/titan007-injury-accept.yml","analysis/nba_official_injury.py"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  injuries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install minimal official PDF parser
+        run: python3 -m pip install --disable-pip-version-check --quiet --user "pdfplumber==0.11.7"
+      - name: Unit tests
+        run: python3 analysis/nba_official_injury.py --self-test
+      - name: Real NBA injury official release
+        run: python3 analysis/nba_official_injury.py --date 2026-10-29 --out nba_official_injuries.json
+      - name: Verify attribution
+        run: |
+          python3 - <<'PY'
+          import json
+          r=json.load(open('nba_official_injuries.json'))
+          assert r['team_count'] >= 20
+          atl=r['teams'].get('Atlanta Hawks',{})
+          assert atl.get('status_counts',{}).get('Out',0)>=1
+          print('OFFICIAL_INJURY_QUALITY_PASS',r['team_count'],'teams')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-2026-10-28-official-injuries
+          path: nba_official_injuries.json
+          if-no-files-found: warn
