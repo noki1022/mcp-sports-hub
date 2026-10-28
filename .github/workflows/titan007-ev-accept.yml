@@ -36,6 +36,12 @@ jobs:
           assert x['recommended_bets']==[]
           with open('nba_market_value_analysis.csv',encoding='utf-8-sig') as f:rows=list(csv.DictReader(f))
           assert len(rows)>=20
+          assert len(rows[0])==len(rows[0].keys()) and None not in rows[0]
+          for row in rows:
+              assert set(row)==set(rows[0])
+              assert abs(float(row['decimal1'])-1-float(row['water1']))<1e-8
+              assert abs(float(row['decimal2'])-1-float(row['water2']))<1e-8
+              assert abs(float(row['devig1'])+float(row['devig2'])-1)<2e-6
           for g in x['games']:
               assert g['bet_action']=='NO_BET'
               assert g['availability']['source_pdf'].endswith('.pdf')
