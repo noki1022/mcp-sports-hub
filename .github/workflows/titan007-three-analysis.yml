@@ -1,0 +1,89 @@
+name: Titan007 daily three analysis before lottery cutoff
+on:
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: "Next-day display date YYYY-MM-DD; default is tomorrow in Asia/Shanghai"
+        required: false
+        type: string
+  schedule:
+    - cron: "0 4 * * *"
+    - cron: "0 10 * * *"
+    - cron: "30 13 * * *"
+permissions:
+  contents: read
+concurrency:
+  group: titan007-three-analysis-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      REQUESTED_DATE: ${{ inputs.target_date || '' }}
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select next-day display date
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import os,re
+          from datetime import datetime,timedelta
+          from zoneinfo import ZoneInfo
+          x=os.environ.get('REQUESTED_DATE','').strip()
+          if x:
+              if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',x): raise ValueError('invalid target date')
+              target=x
+          else:
+              target=(datetime.now(ZoneInfo('Asia/Shanghai')).date()+timedelta(days=1)).isoformat()
+          print('TARGET_DATE='+target)
+          PY
+      - name: Fetch next-day 007 schedule and markets
+        run: |
+          for attempt in 1 2 3; do
+            if python3 scripts/titan007_join_daily.py --date "$TARGET_DATE" --out titan007_three_joined.json; then exit 0; fi
+            sleep 8
+          done
+          exit 1
+      - name: Render mobile report and market analysis
+        run: |
+          python3 scripts/titan007_report.py --joined titan007_three_joined.json --html titan007_three_report.html --csv titan007_three_report.csv
+          python3 analysis/titan007_daily_market.py --joined titan007_three_joined.json --out titan007_three_market.json
+      - name: Push this analysis to WeChat
+        if: env.PUSHPLUS_TOKEN != ''
+        run: |
+          python3 - <<'PY'
+          import json,os,urllib.parse,urllib.request
+          from pathlib import Path
+          board=json.loads(Path('titan007_three_joined.json').read_text())
+          games=board.get('nba_cba_games',[])
+          market=json.loads(Path('titan007_three_market.json').read_text())
+          by={}
+          for r in market.get('row_data',[]):
+              if r.get('stage')=='current': by.setdefault(r.get('game_id'),{})[r.get('market')]=r
+          rows=[]
+          for g in games:
+              m=by.get(g.get('game_id'),{}); sp=m.get('full_spread',{}); tt=m.get('full_total',{})
+              rows.append(f"{g.get('display_clock')} 主队：{g.get('home_team')} vs 客队：{g.get('away_team')}\n让分 {sp.get('line','—')}；总分 {tt.get('line','—')}")
+          if not rows:
+              print('NO_NEXT_DAY_GAMES_NO_PUSH'); raise SystemExit(0)
+          title='NBA/CBA 次日比赛分析｜阶段 '+os.environ.get('GITHUB_EVENT_NAME','schedule')
+          content=f"目标日期：{board.get('requested_display_date')}\n\n"+'\n\n'.join(rows)+"\n\n这是停售前阶段性市场分析；盘口和伤停仍可能变化，未校准模型统一 NO_BET。"
+          data=urllib.parse.urlencode({'token':os.environ['PUSHPLUS_TOKEN'],'title':title,'content':content,'template':'txt'}).encode()
+          req=urllib.request.Request('https://www.pushplus.plus/send',data=data,method='POST')
+          with urllib.request.urlopen(req,timeout=15) as r:
+              body=r.read().decode('utf-8','replace')
+              if r.status!=200 or '200' not in body: raise RuntimeError('PushPlus rejected request')
+          print('PUSHPLUS_SENT',len(rows))
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-three-analysis-${{ env.TARGET_DATE }}
+          path: |
+            titan007_three_joined.json
+            titan007_three_report.html
+            titan007_three_report.csv
+            titan007_three_market.json
+          if-no-files-found: warn
+          retention-days: 14
