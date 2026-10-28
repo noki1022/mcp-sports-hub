@@ -1,0 +1,60 @@
+name: Titan007 referenced JS resource inspection
+on:
+  push:
+    branches: ["audit/titan007-live-20261028"]
+    paths: [".github/workflows/titan007-script-inspection.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Inspect scripts directly referenced by accessible page
+        shell: bash
+        run: |
+          cat > /tmp/inspect.py <<'PY'
+          import urllib.request,urllib.error,urllib.robotparser,urllib.parse
+          import re,json,time
+          from datetime import datetime,timezone
+          UA='Titan007DataResearch/1.0 (public JS audit)'
+          host='https://lq3.titan007.com'
+          paths=['/nba.htm','/funcNba.js','/js/basketballWs.js','/js/SocketHelper.js','/vbsxml/ballpub/basid.js']
+          with urllib.request.urlopen(urllib.request.Request(host+'/robots.txt',headers={'User-Agent':UA}),timeout=12) as r:
+            rob=r.read(50000).decode('utf-8','replace')
+          rp=urllib.robotparser.RobotFileParser();rp.parse(rob.splitlines())
+          out=[]
+          relevant=re.compile(r'(?:url|https?|wss?:|\.xml|\.js|\.json|score|basket|websocket|wsurl|nba|match|fixture|game|initData|loadData|live|socket|ajax)',re.I)
+          for path in paths:
+            url=host+path
+            d={'path':path,'allowed':rp.can_fetch(UA,url)}
+            if not d['allowed']:
+              d['status']='RULES_DENY';out.append(d);continue
+            try:
+              with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':UA}),timeout=12) as r:
+                body=r.read(400001);d.update(status=r.status,bytes=len(body),type=r.headers.get('Content-Type',''))
+              if len(body)>400000:
+                d['note']='too large; not processed'
+              else:
+                t=body.decode('gb18030','replace')
+                # Tokenize by newlines and statement terminators with bounded samples.
+                fragments=re.split(r'(?<=[;\n])',t)
+                matched=[s.strip()[:320] for s in fragments if relevant.search(s)]
+                d['matched_fragments_count']=len(matched)
+                d['matched_fragments']=matched[:80]
+                d['head']=t[:250]
+            except urllib.error.HTTPError as e:d.update(status=e.code,error='HTTP_ERROR')
+            except Exception as e:d.update(status='ERROR',error=type(e).__name__+':'+str(e)[:140])
+            out.append(d)
+            time.sleep(.8)
+          result={'utc':datetime.now(timezone.utc).isoformat(),'robots':rob,'findings':out}
+          with open('titan007_scripts.json','w') as f:json.dump(result,f,indent=2,ensure_ascii=False)
+          print(json.dumps(result,ensure_ascii=False,indent=2))
+          PY
+          python3 /tmp/inspect.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-current-js-inspection
+          path: titan007_scripts.json
