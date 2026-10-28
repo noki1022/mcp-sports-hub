@@ -1,0 +1,61 @@
+name: Titan007 current host connectivity audit
+on:
+  push:
+    branches: ["audit/titan007-live-20261028"]
+    paths: [".github/workflows/titan007-host-connectivity.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Compare current Titan007 domains and network controls
+        shell: bash
+        run: |
+          cat > /tmp/diag.py <<'PY'
+          import json, socket, urllib.request, urllib.error, urllib.robotparser
+          from datetime import datetime, timezone
+          hosts=[
+             'nba.titan007.com','lq3.titan007.com','bf.titan007.com',
+             'm.titan007.com','vip.titan007.com','www.titan007.com',
+             'example.com','site.api.espn.com'
+          ]
+          out=[]
+          for host in hosts:
+            rec={'host':host}
+            try:
+              rec['ips']=sorted(set(x[4][0] for x in socket.getaddrinfo(host,None)))[:4]
+            except Exception as e:
+              rec.update(dns='FAIL',dns_error=type(e).__name__)
+              out.append(rec);continue
+            for scheme in ['https','http']:
+              target=f'{scheme}://{host}/robots.txt'
+              info={'scheme':scheme}
+              try:
+                rq=urllib.request.Request(target,headers={'User-Agent':'Titan007ConnectivityResearch/1.0','Accept':'text/plain,*/*;q=0.1'})
+                with urllib.request.urlopen(rq,timeout=9) as response:
+                  body=response.read(100000)
+                  info.update(result='HTTP_RESPONSE',status=response.status,content_type=response.headers.get('content-type',''),length=len(body),final_host=urllib.request.urlparse(response.geturl()).hostname)
+                  if response.status==200:
+                    rp=urllib.robotparser.RobotFileParser()
+                    rp.parse(body.decode('utf-8','replace').splitlines())
+                    info['robots_allows_candidate']=rp.can_fetch('Titan007ConnectivityResearch/1.0',f'{scheme}://{host}/')
+              except urllib.error.HTTPError as e:
+                info.update(result='HTTP_ERROR',status=e.code)
+              except Exception as e:
+                info.update(result='NETWORK_ERROR',error_type=type(e).__name__,error_detail=str(e)[:180])
+              rec[scheme]=info
+            out.append(rec)
+          report={'utc':datetime.now(timezone.utc).isoformat(),'scope':'robots connectivity only; no content scraping','results':out}
+          with open('host_diagnostics.json','w') as f: json.dump(report,f,ensure_ascii=False,indent=2)
+          print(json.dumps(report,ensure_ascii=False,indent=2))
+          PY
+          python3 /tmp/diag.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-host-connectivity
+          path: host_diagnostics.json
+          if-no-files-found: warn
