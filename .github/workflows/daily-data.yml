@@ -15,6 +15,7 @@ jobs:
       - name: Run collectors when credentials are configured
         env:
           APIZERO_API_KEY: ${{ secrets.APIZERO_API_KEY }}
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
           ODD: ${{ secrets.ODD }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: |
