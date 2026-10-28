@@ -1,0 +1,61 @@
+name: Titan007 market semantics audit
+on:
+  push:
+    branches: ["feature/titan007-market-value-analysis"]
+    paths: [".github/workflows/titan007-market-semantics.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect actual table headings, odds side orientation and handicap descriptions
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.robotparser,urllib.error,html,re,json,time
+          from html.parser import HTMLParser
+          class T(HTMLParser):
+              def __init__(self):
+                  super().__init__();self.parts=[];self.active=False
+              def handle_starttag(self,tag,attrs):
+                  if tag in ('thead','th'):self.active=True
+              def handle_endtag(self,tag):
+                  if tag in ('thead','th'):self.active=False
+              def handle_data(self,data):
+                  if self.active and data.strip():self.parts.append(data.strip())
+          ua="Titan007BasketballResearch/1.0";host="https://m.titan007.com"
+          try:
+              with urllib.request.urlopen(urllib.request.Request(host+"/robots.txt",headers={"User-Agent":ua}),timeout=10) as f:rtext=f.read().decode("utf-8","replace")
+              rp=urllib.robotparser.RobotFileParser();rp.parse(rtext.splitlines())
+              allowed=lambda u:rp.can_fetch(ua,u)
+          except urllib.error.HTTPError as e:
+              allowed=lambda u:e.code in (404,410)
+          except Exception:allowed=lambda u:False
+          out=[]
+          for market in ("handicap","overunder"):
+              url=f"{host}/lq/{market}/746353.htm";a={"url":url,"access_permitted":allowed(url)}
+              if not a["access_permitted"]:out.append(a);continue
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":ua}),timeout=12) as f:
+                      raw=f.read(80000)
+                  page=raw.decode("utf-8","replace")
+                  h=T();h.feed(page)
+                  a["table_headers"]=h.parts[:90]
+                  a["headings_and_section"]=re.findall(r"<(?:h[1-5]|th|caption|td)[^>]*>.*?</(?:h[1-5]|th|caption|td)>",page,re.I|re.S)[:90]
+                  a["relevant_texts"]=[re.sub(r"<[^>]+>"," ",m)[:330] for m in re.findall(r".{0,170}(?:让分|受让|主队|客队|总分|大分|小分|即时|初盘|主胜|客胜|赔率|初始|上盘|下盘|主水|客水).{0,130}",page,re.I)]
+                  a["script_markers"]=[(q,page.find(q)) for q in ("Crow*","首页","让分指数","初盘","即时")]
+              except Exception as e:a["error"]=type(e).__name__+":"+str(e)[:120]
+              out.append(a);time.sleep(0.5)
+          with open("titan007_market_semantics.json","w") as f:json.dump(out,f,ensure_ascii=False,indent=2)
+          # Limit log text while keeping data excerpt 
+          for x in out:
+              print(json.dumps({k:v if k!='headings_and_section' else v[:35] for k,v in x.items()},ensure_ascii=False)[:15500])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: market-semantics
+          path: titan007_market_semantics.json
