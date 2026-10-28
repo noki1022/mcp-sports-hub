@@ -11,7 +11,7 @@ on:
     - cron: "0 10 * * *"
     - cron: "30 13 * * *"
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: titan007-three-analysis-${{ github.ref }}
   cancel-in-progress: false
@@ -49,6 +49,23 @@ jobs:
         run: |
           python3 scripts/titan007_report.py --joined titan007_three_joined.json --html titan007_three_report.html --csv titan007_three_report.csv
           python3 analysis/titan007_daily_market.py --joined titan007_three_joined.json --out titan007_three_market.json
+      - name: Archive analysis in repository
+        if: ${{ success() }}
+        run: |
+          count=$(python3 -c "import json; print(len(json.load(open('titan007_three_joined.json')).get('nba_cba_games',[])))")
+          if [ "$count" -gt 0 ]; then
+            slot=$(TZ=Asia/Shanghai date +%H%M)
+            dir="reports/daily/${TARGET_DATE}/${slot}"
+            mkdir -p "$dir"
+            cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json "$dir"/
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add "$dir"
+            git commit -m "Archive Titan007 analysis ${TARGET_DATE} ${slot}"
+            git push
+          else
+            echo "No NBA/CBA games; no repository archive commit"
+          fi
       - name: Push this analysis to WeChat
         if: env.PUSHPLUS_TOKEN != ''
         run: |
@@ -57,19 +74,9 @@ jobs:
           from pathlib import Path
           board=json.loads(Path('titan007_three_joined.json').read_text())
           games=board.get('nba_cba_games',[])
-          market=json.loads(Path('titan007_three_market.json').read_text())
-          by={}
-          for r in market.get('row_data',[]):
-              if r.get('stage')=='current': by.setdefault(r.get('game_id'),{})[r.get('market')]=r
-          rows=[]
-          for g in games:
-              m=by.get(g.get('game_id'),{}); sp=m.get('full_spread',{}); tt=m.get('full_total',{})
-              rows.append(f"{g.get('display_clock')} 主队：{g.get('home_team')} vs 客队：{g.get('away_team')}\n让分 {sp.get('line','—')}；总分 {tt.get('line','—')}")
-          if not rows:
-              print('NO_NEXT_DAY_GAMES_NO_PUSH'); raise SystemExit(0)
-          title='NBA/CBA 次日比赛分析｜阶段 '+os.environ.get('GITHUB_EVENT_NAME','schedule')
-          content=f"目标日期：{board.get('requested_display_date')}\n\n"+'\n\n'.join(rows)+"\n\n这是停售前阶段性市场分析；盘口和伤停仍可能变化，未校准模型统一 NO_BET。"
-          data=urllib.parse.urlencode({'token':os.environ['PUSHPLUS_TOKEN'],'title':title,'content':content,'template':'txt'}).encode()
+          if not games: print('NO_NEXT_DAY_GAMES_NO_PUSH'); raise SystemExit(0)
+          rows=[f"{g.get('display_clock')} 主队：{g.get('home_team')} vs 客队：{g.get('away_team')}" for g in games]
+          data=urllib.parse.urlencode({'token':os.environ['PUSHPLUS_TOKEN'],'title':'NBA/CBA 次日比赛阶段分析','content':f"目标日期：{board.get('requested_display_date')}\\n\\n"+'\\n'.join(rows)+"\\n\\n阶段性市场分析，盘口和伤停仍可能变化，统一 NO_BET。",'template':'txt'}).encode()
           req=urllib.request.Request('https://www.pushplus.plus/send',data=data,method='POST')
           with urllib.request.urlopen(req,timeout=15) as r:
               body=r.read().decode('utf-8','replace')
