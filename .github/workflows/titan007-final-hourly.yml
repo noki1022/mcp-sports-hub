@@ -33,7 +33,7 @@ jobs:
           PY
       - name: Join current 007 markets
         run: python3 scripts/titan007_join_daily.py --date "$TARGET_DATE" --out titan007_joined_today.json
-      - name: Select 45–75 minute final window
+      - name: Select 25–35 minute final window centered on 30 minutes
         run: python3 scripts/titan007_final_window.py --infile titan007_joined_today.json --outfile titan007_final_window.json
       - name: Render final mobile report when a game is in window
         run: |

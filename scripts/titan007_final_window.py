@@ -6,7 +6,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 TZ=ZoneInfo("Asia/Shanghai")
-def select(source,now=None,low=45,high=75):
+def select(source,now=None,low=25,high=35):
     now=now or datetime.now(TZ)
     out=[]; rejected=[]
     for game in source.get("nba_cba_games",[]):
@@ -17,7 +17,7 @@ def select(source,now=None,low=45,high=75):
         except (KeyError,TypeError,ValueError):
             rejected.append(game.get("game_id"))
     return {**source,"captured_at_utc":datetime.now(__import__("datetime").timezone.utc).isoformat(),
-            "final_window":True,"final_window_rule":{"min_minutes":low,"max_minutes":high,"timezone":"Asia/Shanghai","display_time_unverified":True},
+            "final_window":True,"final_window_rule":{"min_minutes":low,"max_minutes":high,"center_minutes":30,"timezone":"Asia/Shanghai","display_time_unverified":True},
             "nba_cba_games":out,"nba_cba_joined_for_date":len(out),"window_rejected_games":rejected}
 
 def main():
