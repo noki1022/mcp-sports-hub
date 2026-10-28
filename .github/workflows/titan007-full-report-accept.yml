@@ -1,0 +1,45 @@
+name: Titan007 end-to-end NBA/CBA HTML CSV acceptance
+on:
+  push:
+    branches: ["audit/titan007-live-20261028"]
+    paths: [".github/workflows/titan007-full-report-accept.yml","audit/titan007_report.py"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse real 007 NBA/CBA identity, season and odds
+        run: python3 audit/titan007_join_daily.py --date 2026-10-29
+      - name: Verify Crown labels against multiple real mobile pages
+        run: python3 audit/titan007_crown_crossverify.py
+      - name: Generate mobile HTML and CSV reports
+        run: python3 audit/titan007_report.py
+      - name: Validate finished artifacts
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv,json
+          d=json.loads(Path('titan007_joined_nba_cba.json').read_text())
+          q=json.loads(Path('titan007_crown_quality_check.json').read_text())
+          with open('titan007_nba_cba_report.csv',encoding='utf-8-sig') as f:r=list(csv.DictReader(f))
+          assert len(r) == d['nba_cba_joined_for_date'] >= 1
+          assert q['matching_markets'] >= 4
+          assert q['mismatching_markets'] == 0
+          assert Path('titan007_nba_cba_report.html').stat().st_size > 1000
+          print('END_TO_END_PASS',len(r),'NBA/CBA matches; Crown verified markets',q['matching_markets'])
+          PY
+      - name: Upload full dataset and phone-ready files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-nba-cba-complete-daily-report
+          path: |
+            titan007_joined_nba_cba.json
+            titan007_crown_quality_check.json
+            titan007_nba_cba_report.csv
+            titan007_nba_cba_report.html
+          if-no-files-found: warn
