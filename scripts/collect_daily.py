@@ -9,9 +9,9 @@ def main():
   from odds_api_collector import fetch_odds,normalize_event
   events=[normalize_event(e) for e in fetch_odds('basketball_nba')]
   books=sorted({b.get('title') or b.get('key') for e in events for b in e.get('bookmakers',[])})
-  date=datetime.now(timezone.utc).date().isoformat(); os.makedirs('data/odds',exist_ok=True)
-  path=f'data/odds/{date}_the_odds_api.json'
-  with open(path,'w',encoding='utf-8') as f: json.dump({'captured_at':datetime.now(timezone.utc).isoformat(),'source':'The Odds API','sport':'basketball_nba','events':events},f,ensure_ascii=False,indent=2)
+  captured=datetime.now(timezone.utc); os.makedirs('data/odds',exist_ok=True)
+  path=f"data/odds/{captured:%Y-%m-%d_%H%M%S}_the_odds_api.json"
+  with open(path,'w',encoding='utf-8') as f: json.dump({'captured_at':captured.isoformat(),'source':'The Odds API','sport':'basketball_nba','events':events},f,ensure_ascii=False,indent=2)
   print('NBA odds events:',len(events)); print('bookmakers:',len(books)); print('saved:',path); print('source: The Odds API (not Crown)'); return 0
  except Exception:
   print('Odds collector failed: sanitized error'); return 1
