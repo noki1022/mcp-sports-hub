@@ -207,11 +207,26 @@ def link_outcomes_to_results(rows,results):
             "link_assurance":"UNVERIFIED_UTC_LOCAL_DATE_NEEDS_GAME_TIME_SOURCE"})
     return linked,dict(rejections)
 
+def convert_saved_repo_capture(obj):
+    """Normalize repo-owned current-day archive, not vendor historical endpoint."""
+    if not isinstance(obj,dict) or obj.get("source")!="The Odds API" or obj.get("sport")!="basketball_nba":
+        raise ValueError("not a recognized saved The Odds API NBA capture")
+    events=[]
+    for event in obj.get("events",[]):
+        e=dict(event)
+        e["id"]=e.get("event_id") or e.get("id")
+        e["commence_time"]=e.get("start_time") or e.get("commence_time")
+        e["sport_key"]="basketball_nba"
+        events.append(e)
+    return {"timestamp":obj["captured_at"],"data":events}
+
 def read_snapshots(path):
     s=Path(path).read_text(encoding="utf-8")
     if path.endswith(".jsonl"):
         return [json.loads(x) for x in s.splitlines() if x.strip()]
     o=json.loads(s)
+    if isinstance(o,dict) and o.get("source")=="The Odds API" and o.get("events") is not None:
+        return [convert_saved_repo_capture(o)]
     return o if isinstance(o,list) else [o]
 
 def self_test():
@@ -246,6 +261,10 @@ def self_test():
     no_ts=json.loads(json.dumps(snapshot))
     del no_ts["data"][0]["bookmakers"][0]["last_update"]
     assert not transform_history([no_ts])["rows"]
+    saved={"source":"The Odds API","sport":"basketball_nba",
+           "captured_at":snapshot["timestamp"],"events":[{**snapshot["data"][0],
+           "event_id":snapshot["data"][0]["id"],"start_time":snapshot["data"][0]["commence_time"]}]}
+    assert len(transform_history([convert_saved_repo_capture(saved)])["rows"])==2
     print("HISTORICAL_ODDS_ANTI_LEAK_TEST_PASS")
 
 if __name__=="__main__":
