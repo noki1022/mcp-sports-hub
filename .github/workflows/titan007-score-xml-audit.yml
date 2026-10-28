@@ -1,0 +1,61 @@
+name: Titan007 current basketball score XML audit
+on:
+  push:
+    branches: ["audit/titan007-live-20261028"]
+    paths: [".github/workflows/titan007-score-xml-audit.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read two actual page-referenced score files if permitted
+        shell: bash
+        run: |
+          cat > /tmp/readxml.py <<'PY'
+          import urllib.request,urllib.robotparser,urllib.error
+          import re,xml.etree.ElementTree as ET,json,time
+          from datetime import datetime,timezone
+          UA='Titan007DataResearch/1.0 (two file verification)'
+          base='https://lq3.titan007.com/'
+          with urllib.request.urlopen(urllib.request.Request(base+'robots.txt',headers={'User-Agent':UA}),timeout=10) as f:
+            lines=f.read(60000).decode('utf-8','replace').splitlines()
+          rp=urllib.robotparser.RobotFileParser();rp.parse(lines)
+          results=[]
+          for path in ['NBA/today2.xml','NBA/today.xml']:
+            url=base+path;item={'url':url,'robots_permits':rp.can_fetch(UA,url)}
+            if not item['robots_permits']:
+              item['status']='NOT_PERMITTED';results.append(item);continue
+            try:
+              rq=urllib.request.Request(url,headers={'User-Agent':UA,'Accept':'application/xml,text/xml,*/*;q=0.2'})
+              with urllib.request.urlopen(rq,timeout=15) as f:
+                raw=f.read(600001)
+                item.update(http_status=f.status,content_type=f.headers.get('Content-Type',''),bytes=len(raw))
+              if len(raw)>600000:item['status']='TOO_LARGE'
+              else:
+                t=raw.decode('gb18030','replace')
+                item['prefix']=t[:1800]
+                item['digit_ids']=list(dict.fromkeys(re.findall(r'(?<!\d)\d{6,8}(?!\d)',t)))[:35]
+                try:
+                  root=ET.fromstring(raw)
+                  item['xml_root']=root.tag
+                  item['root_attrs']=root.attrib
+                  item['direct_child_count']=len(root)
+                  item['child_examples']=[{'tag':e.tag,'attrib':e.attrib,'text':''.join(e.itertext())[:350]} for e in list(root)[:3]]
+                except Exception as e:item['xml_parse']=type(e).__name__+': '+str(e)[:100]
+                item['status']='FETCHED'
+            except urllib.error.HTTPError as e:item.update(status='HTTP_ERROR',http_status=e.code)
+            except Exception as e:item.update(status='NETWORK_ERROR',error=type(e).__name__+': '+str(e)[:170])
+            results.append(item);time.sleep(1)
+          output={'utc':datetime.now(timezone.utc).isoformat(),'results':results}
+          with open('current_basket_xml.json','w') as f:json.dump(output,f,indent=2,ensure_ascii=False)
+          print(json.dumps(output,indent=2,ensure_ascii=False))
+          PY
+          python3 /tmp/readxml.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: titan007-current-score-xml
+          path: current_basket_xml.json
