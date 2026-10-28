@@ -32,8 +32,17 @@ jobs:
           if x and not re.fullmatch(r'\d{4}-\d{2}-\d{2}',x): raise ValueError('invalid target date')
           print('TARGET_DATE='+ (x or datetime.now(ZoneInfo('Asia/Shanghai')).date().isoformat()))
           PY
-      - name: Join current 007 markets
-        run: python3 scripts/titan007_join_daily.py --date "$TARGET_DATE" --out titan007_joined_today.json
+      - name: Join current 007 markets with bounded retries
+        run: |
+          for attempt in 1 2 3; do
+            if python3 scripts/titan007_join_daily.py --date "$TARGET_DATE" --out titan007_joined_today.json; then
+              exit 0
+            fi
+            echo "007 fetch attempt $attempt failed; retrying"
+            sleep 8
+          done
+          echo "007 source unavailable after 3 attempts"
+          exit 1
       - name: Select 25–35 minute final window centered on 30 minutes
         run: python3 scripts/titan007_final_window.py --infile titan007_joined_today.json --outfile titan007_final_window.json
       - name: Render final mobile report when a game is in window
