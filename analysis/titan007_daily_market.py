@@ -15,7 +15,8 @@ sys.path.insert(0,str(ROOT/"analysis"))
 import titan007_market_math as odds
 from titan007_ev_analysis import NAMES
 
-def flatten_report(board,injury):
+def flatten_report(board,injury,quality=None):
+    check={(str(r.get("game_id")),r.get("market")):r for r in (quality or {}).get("details",[]) if r.get("game_id") and r.get("market")}
     stamp=datetime.now(timezone.utc).isoformat()
     rows=[]
     allgames=board.get("nba_cba_games",[])
@@ -43,6 +44,11 @@ def flatten_report(board,injury):
                   "matchup":matchup,
                   "value_signal":"UNAVAILABLE_UNCALIBRATED",
                   "recommendation":"NO_BET"}
+                qc=check.get((str(game["game_id"]),kind))
+                if qc is not None:
+                    row["independent_crown_check"]=qc["status"]
+                else:
+                    row["independent_crown_check"]="NOT_SAMPLED"
                 if None not in (line,a,b):
                     try:
                         p=odds.devig(a,b)
@@ -51,6 +57,9 @@ def flatten_report(board,injury):
                             devig_side1=p["no_vig_conditional_side1"],
                             devig_side2=p["no_vig_conditional_side2"],
                             overround=p["overround"])
+                        if qc is not None and qc["status"]!="MATCH":
+                            row["market_status"]="QUOTE_DRIFT_OR_UNVERIFIED"
+                            row["value_signal"]="BLOCKED_SOURCE_MISMATCH"
                     except (ValueError,OverflowError):
                         row["market_status"]="ODDS_INVALID"
                 rows.append(row)
@@ -59,6 +68,7 @@ def flatten_report(board,injury):
         "games":len(allgames),"market_rows":len(rows),
         "statistics_freshness":"NO_VERIFIED_CURRENT_TEAM_EFFICIENCY_PROVIDER",
         "real_ev_status":"DISABLED_PENDING_OUT_OF_SAMPLE_CALIBRATION_AND_FRESH_STATS",
+        "independent_crown_sample":{k:(quality or {}).get(k) for k in ("matching_markets","mismatching_markets","unverified_markets")},
         "row_data":rows,
         "recommendations":[],
         "warnings":["Market implied probability is not a model estimate.","Normalized no-vig probabilities conditional on non-push.","Site display timezone not independently verified.","Official injury report statuses are matchup-specific and may be outdated or NOT_SUBMITTED.",
@@ -70,7 +80,7 @@ def save(obj,out):
     base.write_text(json.dumps(obj,ensure_ascii=False,indent=2),encoding="utf-8")
     csvfile=base.with_suffix(".csv")
     rows=obj["row_data"]
-    cols=["display_date","display_clock","league","home_team","away_team","game_id","matchup","market","stage","line","hk_side1","hk_side2","decimal_side1","decimal_side2","devig_side1","devig_side2","overround","market_status","injury_home_state","injury_away_state","recommendation"]
+    cols=["display_date","display_clock","league","home_team","away_team","game_id","matchup","market","stage","line","hk_side1","hk_side2","decimal_side1","decimal_side2","devig_side1","devig_side2","overround","market_status","independent_crown_check","injury_home_state","injury_away_state","recommendation"]
     with csvfile.open("w",encoding="utf-8-sig",newline="") as f:
         writer=csv.DictWriter(f,fieldnames=cols,extrasaction="ignore")
         writer.writeheader()
@@ -118,10 +128,12 @@ if __name__=="__main__":
     p.add_argument("--joined",default="titan007_joined_nba_cba.json")
     p.add_argument("--injuries",default="nba_official_injuries.json")
     p.add_argument("--out",default="daily_market_analysis.json")
+    p.add_argument("--quality",default="titan007_crown_quality_check.json")
     p.add_argument("--self-test",action="store_true")
     a=p.parse_args()
     if a.self_test:self_test();raise SystemExit()
     board=json.loads(Path(a.joined).read_text(encoding="utf-8"))
     inj=json.loads(Path(a.injuries).read_text(encoding="utf-8")) if Path(a.injuries).exists() else None
-    output=flatten_report(board,inj)
+    check=json.loads(Path(a.quality).read_text(encoding="utf-8")) if Path(a.quality).exists() else None
+    output=flatten_report(board,inj,check)
     save(output,a.out)
