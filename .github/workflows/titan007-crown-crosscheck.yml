@@ -1,0 +1,67 @@
+name: Titan007 Crown line crosscheck
+on:
+  push:
+    branches: ["audit/titan007-live-20261028"]
+    paths: [".github/workflows/titan007-crown-crosscheck.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  crosscheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Compare labeled Crown mobile rows against bulk spread and total
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.error,urllib.robotparser,urllib.parse,re,html,json,time
+          from datetime import datetime,timezone
+          UA='Titan007BasketballResearch/1.0'
+          def check_robots(url):
+            p=urllib.parse.urlsplit(url);ru=f'{p.scheme}://{p.netloc}/robots.txt'
+            try:
+              with urllib.request.urlopen(urllib.request.Request(ru,headers={'User-Agent':UA}),timeout=9) as r:
+                t=r.read(30000).decode('utf-8','replace')
+              rp=urllib.robotparser.RobotFileParser();rp.parse(t.splitlines())
+              return rp.can_fetch(UA,url)
+            except urllib.error.HTTPError as e:return e.code in (404,410)
+            except Exception:return False
+          def download(url):
+            if not check_robots(url):return {'status':'UNVERIFIED_ACCESS_RULES'}
+            try:
+              with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':UA}),timeout=12) as r:
+                b=r.read(100001)
+                if len(b)>100000:return {'status':'TOO_LARGE'}
+                return {'status':'FETCHED','text':b.decode('utf-8','replace'),'bytes':len(b)}
+            except urllib.error.HTTPError as e:return {'status':'HTTP_ERROR','code':e.code}
+            except Exception as e:return {'status':'NETWORK_ERROR','error':type(e).__name__+':'+str(e)[:120]}
+          ids=['746353','746354','751320']
+          results=[]
+          for gid in ids:
+            for kind in ['handicap','overunder']:
+              url=f'https://m.titan007.com/lq/{kind}/{gid}.htm'
+              r=download(url)
+              o={'game_id':gid,'market':kind,'url':url,'status':r['status']}
+              if r['status']=='FETCHED':
+                t=r['text']
+                rows=re.findall(r'<tr\b[^>]*>.*?</tr>',t,re.I|re.S)
+                matches=[]
+                for row in rows:
+                  plain=html.unescape(re.sub(r'<[^>]*>',' | ',row))
+                  plain=re.sub(r'[\s|]+',' ',plain).strip()
+                  if re.search(r'Crow|Crown|皇冠',plain,re.I):
+                    matches.append({'text':plain[:500],'raw':row[:900]})
+                o.update(bytes=r['bytes'],title=html.unescape(re.search(r'<title[^>]*>(.*?)</title>',t,re.I|re.S).group(1)) if re.search(r'<title[^>]*>(.*?)</title>',t,re.I|re.S) else '',
+                         crown_rows=matches[:6],crown_mention_count=len(re.findall(r'Crow|Crown|皇冠',t,re.I)),
+                         crown_word_contexts=[t[max(0,m.start()-180):m.start()+320] for m in list(re.finditer(r'Crow|Crown|皇冠',t,re.I))[:3]])
+              results.append(o)
+              time.sleep(.55)
+          out={'utc':datetime.now(timezone.utc).isoformat(),'results':results}
+          with open('crown_mobile_crosscheck.json','w') as f:json.dump(out,f,ensure_ascii=False,indent=2)
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crown-mobile-crosscheck
+          path: crown_mobile_crosscheck.json
