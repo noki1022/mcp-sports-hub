@@ -3,6 +3,13 @@
 import argparse,json
 from pathlib import Path
 
+TEAM_NAMES={"ATL":"Atlanta Hawks","BOS":"Boston Celtics","BKN":"Brooklyn Nets","CHA":"Charlotte Hornets","CHI":"Chicago Bulls","CLE":"Cleveland Cavaliers","DAL":"Dallas Mavericks","DEN":"Denver Nuggets","DET":"Detroit Pistons","GSW":"Golden State Warriors","HOU":"Houston Rockets","IND":"Indiana Pacers","LAC":"Los Angeles Clippers","LAL":"Los Angeles Lakers","MEM":"Memphis Grizzlies","MIA":"Miami Heat","MIL":"Milwaukee Bucks","MIN":"Minnesota Timberwolves","NOP":"New Orleans Pelicans","NYK":"New York Knicks","OKC":"Oklahoma City Thunder","ORL":"Orlando Magic","PHI":"Philadelphia 76ers","PHX":"Phoenix Suns","POR":"Portland Trail Blazers","SAC":"Sacramento Kings","SAS":"San Antonio Spurs","TOR":"Toronto Raptors","UTA":"Utah Jazz","WAS":"Washington Wizards"}
+def canonical(name):
+    s=str(name or '').strip().lower()
+    for code,full in TEAM_NAMES.items():
+        if s==code.lower() or s==full.lower(): return full.lower()
+    return s
+
 def settle(row, score):
     if not score.get("completed") or score.get("home_points") is None or score.get("away_points") is None:
         return "UNSETTLED"
@@ -22,7 +29,7 @@ def run(odds_path,scores_path,out):
     for row in odds.get("rows",[]):
         s=by_id.get(row.get("event_id"))
         if not s: rejects["MISSING_EVENT_ID_RESULT"]=rejects.get("MISSING_EVENT_ID_RESULT",0)+1; continue
-        if (row["home"] not in (s.get("home_team") or "") and row["home"] not in (s.get("away_team") or "")):
+        if canonical(row["home"])!=canonical(s.get("home_team")) or canonical(row["away"])!=canonical(s.get("away_team")):
             rejects["TEAM_IDENTITY_MISMATCH"]=rejects.get("TEAM_IDENTITY_MISMATCH",0)+1; continue
         rows.append({**row,"home_points":s.get("home_points"),"away_points":s.get("away_points"),"settlement":settle(row,s)})
     counts={}
