@@ -2,7 +2,7 @@ name: Titan007 real NBA/CBA identity join acceptance
 on:
   push:
     branches: ["audit/titan007-live-20261028"]
-    paths: [".github/workflows/titan007-join-accept.yml"]
+    paths: [".github/workflows/titan007-join-accept.yml", "audit/titan007_join_daily.py"]
   workflow_dispatch:
 permissions:
   contents: read
