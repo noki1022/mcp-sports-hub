@@ -50,6 +50,14 @@ MIN_LEAD_MINUTES=30
 MAX_LEAD_HOURS=48
 MAX_PRICE_AGE_MINUTES=90
 
+def snapshot_phase(lead_minutes):
+    """Classify a quote by time-to-tip without pretending it is an official book timestamp."""
+    if lead_minutes >= 12 * 60:
+        return "OPENING_WINDOW"
+    if lead_minutes >= 2 * 60:
+        return "PRE_GAME_FIXED"
+    return "NEAR_LINE"
+
 def dt(s):
     if not isinstance(s,str):raise ValueError("missing ISO timestamp")
     value=datetime.fromisoformat(s.replace("Z","+00:00"))
@@ -133,6 +141,7 @@ def transform_history(snapshots,allowed_bookmakers=None):
                     raise ValueError("snapshot outside pregame time window")
             except (KeyError,ValueError,TypeError):
                 reasons["BAD_EVENT_OR_SNAPSHOT_TIME"]+=1;continue
+            phase=snapshot_phase(lead)
             for book in evt.get("bookmakers",[]):
                 key=book.get("key")
                 if not key or (allowed_bookmakers and key not in allowed_bookmakers):continue
@@ -161,6 +170,9 @@ def transform_history(snapshots,allowed_bookmakers=None):
                         "commence_time_utc":iso(evt["commence_time"]),
                         "snapshot_time_utc":snapshot_time.isoformat().replace("+00:00","Z"),
                         "price_last_update_utc":priced_at.isoformat().replace("+00:00","Z"),
+                        "lead_minutes":round(lead,3),
+                        "quote_age_minutes":round(age,3),
+                        "snapshot_phase":phase,
                         "bookmaker":key,"bookmaker_title":book.get("title",key),
                         **item
                     })
@@ -174,9 +186,14 @@ def transform_history(snapshots,allowed_bookmakers=None):
             continue
         unique[key]=row
     entries=sorted(unique.values(),key=lambda x:(x["commence_time_utc"],x["event_id"],x["bookmaker"],x["market"],x["snapshot_time_utc"]))
+    phase_counts=Counter(x["snapshot_phase"] for x in entries)
+    market_counts=Counter(x["market"] for x in entries)
     return {"rows":entries,"audit":{"accepted_rows":len(entries),"rejections":dict(reasons),
+               "accepted_by_snapshot_phase":dict(sorted(phase_counts.items())),
+               "accepted_by_market":dict(sorted(market_counts.items())),
                "rules":{"min_lead_min":MIN_LEAD_MINUTES,"max_lead_hours":MAX_LEAD_HOURS,
                         "max_quote_staleness_minutes":MAX_PRICE_AGE_MINUTES,
+                        "snapshot_phase_boundaries_hours":{"opening_window_min":12,"pre_game_fixed_min":2,"near_line_min":0.5},
                         "price_must_precede_snapshot_and_tip":True,
                         "moneyline_no_vig_is_not_model_probability":True},
                "source":"The Odds API v4 historical snapshots, local input ONLY"}}
@@ -248,6 +265,7 @@ def self_test():
     assert sp["home_handicap_point"]==-3.5 and tot["total_point"]==222.5
     assert abs(tot["p_first_no_vig"]-.5)<1e-12
     assert sp["first_side"]=="home"
+    assert sp["snapshot_phase"]=="PRE_GAME_FIXED" and sp["lead_minutes"]==300.0
     # Postgame snapshots, missing updates, wrong side signs, and too-stale
     # bookmaker quotes cannot create a fake historical bet record.
     after={**snapshot,"timestamp":"2025-02-13T00:00:00Z"}
