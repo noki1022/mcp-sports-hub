@@ -48,7 +48,7 @@ def check_score(v):
 
 def flag(s):
     v=str(s).strip().lower()
-    if v in ("0","0.0","false","f","no",""):return False
+    if v in ("0","0.0","false","f","no","","na"):return False
     if v in ("1","1.0","true","t","yes"):return True
     raise ValueError("FLAG_INVALID")
 
@@ -172,6 +172,7 @@ def self_test():
     assert audit["crosscheck_exclusions"]["NO_REFERENCE_PAIR"]==1 or audit["crosscheck_exclusions"].get("SCORE_CONFLICT")==1
     assert audit["source_audit"]["row_rejections"]["NEUTRAL_SITE_NO_HOME"]==1
     assert audit["betting_odds_qualified"] is False
+    assert flag("NA") is False  # Source uses NA to represent non-playoff rows
     print("NBA_2015_22_EXPANSION_SELF_TEST_PASS")
 
 def main():
