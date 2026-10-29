@@ -115,6 +115,7 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
                      calibration["total"]["residual_bias"])
     margin_sigma = float(calibration["margin"]["sigma"])
     total_sigma = float(calibration["total"]["sigma"])
+    p_home = p_greater(margin_mu, margin_sigma, 0.0)
     target = target_day.isoformat()
     base = {
         "game_id": str(fixture["game_id"]), "date": target,
@@ -123,6 +124,9 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
         "max_feature_source_date": value["proof"]["max_input_game_date"],
         "margin_mean_home_minus_away": margin_mu, "margin_sigma": margin_sigma,
         "total_mean": total_mu, "total_sigma": total_sigma,
+        "moneyline_home_probability": p_home,
+        "moneyline_away_probability": 1.0 - p_home,
+        "moneyline_probability_semantics": "主队最终得分高于客队；不含加时单独校正",
         "prediction_intervals": {
             "margin_home_minus_away": _intervals(margin_mu, margin_sigma),
             "total": _intervals(total_mu, total_sigma),
