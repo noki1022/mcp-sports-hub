@@ -92,6 +92,18 @@ def _predict_extended(rows, model):
     x = _extended_design(rows)
     return model["mean_y"] + ((x-model["means"])/model["stds"]) @ model["beta"]
 
+def _fit_extended_calibration(rows, fits):
+    calibration = {}
+    for target in ("margin", "total"):
+        residuals = np.asarray([x[target] for x in rows]) - _predict_extended(rows, fits[target])
+        bias = float(residuals.mean())
+        calibration[target] = {
+            "residual_bias": bias,
+            "sigma": max(1.0, float(np.sqrt(np.mean((residuals-bias)**2)))),
+            "empirical_n": len(residuals),
+        }
+    return calibration
+
 def _rows_with_dynamic_strength(games):
     from collections import defaultdict
     by_day = defaultdict(list)
@@ -203,7 +215,7 @@ def _fit_production_model(rows, target_day):
         raise RuntimeError("Production train/calibration split too small")
     fits = {target: _fit_extended(train, target, 100.0)
             for target in ("margin", "total")}
-    calibration = fit_calibration(cal, "form_h2h", fits)
+    calibration = _fit_extended_calibration(cal, fits)
     for target in ("margin", "total"):
         residuals = [x[target] - _predict_extended([x], fits[target])[0] for x in cal]
         bias = calibration[target]["residual_bias"]
