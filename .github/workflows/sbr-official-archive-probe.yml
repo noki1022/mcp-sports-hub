@@ -1,0 +1,25 @@
+name: SBR official NBA archive availability investigation
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - scripts/probe_sbr_official_nba_archive.py
+      - .github/workflows/sbr-official-archive-probe.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 scripts/probe_sbr_official_nba_archive.py
+      - name: Confirm no raw files written
+        if: always()
+        run: test -z "$(git status --porcelain)"
