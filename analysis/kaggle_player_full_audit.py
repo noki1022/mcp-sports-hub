@@ -21,11 +21,13 @@ def get_rows(total,m,read_range=remote.read_range):
     z=zlib.decompressobj(-15)
     carry=b""
     decoded=0
+    crc=0
     for pos in range(begin,begin+m["compressed_bytes"],400_000):
         compressed=read_range(pos,min(pos+400_000,begin+m["compressed_bytes"])-1,total)
         data=z.decompress(compressed,16_000_000)
         if z.unconsumed_tail:raise ValueError("INFLATE_LIMIT")
         decoded+=len(data)
+        crc=zlib.crc32(data,crc)
         if decoded>800_000_000:raise ValueError("UNBOUNDED_EXPANSION")
         chunks=(carry+data).split(b"\n")
         carry=chunks.pop()
@@ -33,10 +35,12 @@ def get_rows(total,m,read_range=remote.read_range):
             if line:yield next(csv.reader([line.decode("utf-8-sig")]))
     rest=z.flush()
     decoded+=len(rest)
+    crc=zlib.crc32(rest,crc)
     if carry+rest:
         tail=(carry+rest).strip()
         if tail:yield next(csv.reader([tail.decode("utf-8-sig")]))
-    if not z.eof or decoded!=m["uncompressed_bytes"]:raise ValueError("ZIP_INTEGRITY_FAILED")
+    if not z.eof or decoded!=m["uncompressed_bytes"] or crc!=m["crc32"]:
+        raise ValueError("ZIP_INTEGRITY_CRC_OR_LENGTH_FAILED")
     print("PLAYER_FILE_STREAM_VERIFIED",decoded,flush=True)
 def check():
     total,m=base.archive_entries()
