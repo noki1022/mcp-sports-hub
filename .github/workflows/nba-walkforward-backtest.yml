@@ -18,6 +18,10 @@ jobs:
         run: python3 analysis/nba_chronological_backtest.py --self-test
       - name: Run frozen chronological training validation calibration and holdout
         run: python3 analysis/nba_chronological_backtest.py --out nba_chronological_backtest.json --predictions nba_holdout_predictions.csv
+      - name: Generate reliability bins and clustered Brier intervals
+        run: |
+          python3 analysis/nba_reliability_diagnostics.py --self-test
+          python3 analysis/nba_reliability_diagnostics.py --predictions nba_holdout_predictions.csv --out nba_reliability_diagnostics.json
       - name: Verify fixed partitions and proper probability metrics
         run: |
           python3 - <<'PY'
@@ -45,5 +49,6 @@ jobs:
           path: |
             nba_chronological_backtest.json
             nba_holdout_predictions.csv
+            nba_reliability_diagnostics.json
           if-no-files-found: warn
           retention-days: 14
