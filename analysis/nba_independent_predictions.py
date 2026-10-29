@@ -22,6 +22,11 @@ from nba_chronological_backtest import (
 from nba_settlement_probabilities import settlement_probs
 
 MODEL_VERSION = "nba-independent-v1-form-h2h-ridge-gaussian"
+_INTERVAL_Z = {"50": 0.67448975, "80": 1.28155157, "95": 1.95996398}
+
+def _intervals(mu, sigma):
+    return {level: {"low": float(mu - z * sigma), "high": float(mu + z * sigma)}
+            for level, z in _INTERVAL_Z.items()}
 MIN_TARGET_FIELDS = ("game_id", "date", "home", "away")
 
 
@@ -118,6 +123,17 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
         "max_feature_source_date": value["proof"]["max_input_game_date"],
         "margin_mean_home_minus_away": margin_mu, "margin_sigma": margin_sigma,
         "total_mean": total_mu, "total_sigma": total_sigma,
+        "prediction_intervals": {
+            "margin_home_minus_away": _intervals(margin_mu, margin_sigma),
+            "total": _intervals(total_mu, total_sigma),
+        },
+        "data_quality": {
+            "home_recent_games": len(value["proof"]["team_game_dates_home"]),
+            "away_recent_games": len(value["proof"]["team_game_dates_away"]),
+            "h2h_games": int(value["h2h"][0]),
+            "max_feature_source_date": value["proof"]["max_input_game_date"],
+            "quality": "PASS" if len(value["proof"]["team_game_dates_home"]) >= 5 and len(value["proof"]["team_game_dates_away"]) >= 5 else "LIMITED_SAMPLE",
+        },
         "calibration": {
             "model_version": MODEL_VERSION, "out_of_sample": True,
             "calibrated_through": calibration["_calibrated_through"],
