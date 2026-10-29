@@ -1,0 +1,40 @@
+name: Build NBA third-route verified score candidate
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - analysis/build_three_route_scores.py
+      - .github/workflows/nba-three-route-training-candidate.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 analysis/build_three_route_scores.py --self-test
+      - run: python3 analysis/build_three_route_scores.py
+      - name: Reject non-quarantined artifacts
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('/tmp/nba-three-route-candidate/manifest.json')
+          j=json.loads(p.read_text())
+          assert j['status']=='QUARANTINED_TRAINING_CANDIDATE'
+          assert j['count']>=18000 and not j['production_training_promoted']
+          print('STRICT_THIRD_ROUTE_CANDIDATE_READY',j['count'])
+          PY
+          test -z "$(git status --porcelain)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-scores-three-route-quarantined
+          path: /tmp/nba-three-route-candidate/
+          retention-days: 7
+          if-no-files-found: error
