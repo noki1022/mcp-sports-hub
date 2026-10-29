@@ -31,8 +31,8 @@ def verify(row,match):
         # Index stores date without timezone; lack of timezone forbids
         # inferring precise start-of-game timing.
         return "INDEX_TIP_TIME_UNVERIFIED"
-    label=(row.get("odds_date") or "").strip().lower()
-    if label in ("open","close","opening","closing"):return "UNTIMED_"+label.upper()
+    label=(row.get("odds_date") or "").strip()
+    if label.lower() in ("open","close","opening","closing"):return "UNTIMED_"+label.upper()
     stamp=iso(label)
     if not stamp:return "MISSING_OR_INVALID_ODDS_DATE"
     if stamp>=game:return "NON_PREGAME_REJECT"
