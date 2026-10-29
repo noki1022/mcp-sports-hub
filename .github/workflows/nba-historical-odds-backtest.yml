@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "analysis/nba_odds_feature_backtest.py"
+      - "scripts/fetch_historical_odds_candidates.py"
       - "data/odds/**"
       - "data/results/**"
       - "reports/odds/**"
@@ -19,7 +20,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install --disable-pip-version-check --quiet numpy
-      - name: Run deterministic self-test
+      - name: Validate source fetcher
+        run: python scripts/fetch_historical_odds_candidates.py --self-test
+      - name: Fetch licensed public candidate files for audit
+        run: python scripts/fetch_historical_odds_candidates.py --out tmp/historical-odds-candidates
+      - name: Run deterministic odds feature self-test
         run: python analysis/nba_odds_feature_backtest.py --self-test
       - name: Run settled historical odds backtest
         run: |
@@ -27,5 +32,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: nba-odds-feature-backtest
-          path: odds_feature_backtest_report.json
+          path: |
+            odds_feature_backtest_report.json
+            tmp/historical-odds-candidates/download_manifest.json
           retention-days: 14
