@@ -54,6 +54,7 @@ jobs:
           python3 scripts/titan007_report.py --joined titan007_final_window.json --html titan007_final_hour_report.html --csv titan007_final_hour_report.csv
           python3 analysis/titan007_daily_market.py --joined titan007_final_window.json --out titan007_final_hour_market.json
           python3 analysis/market_decision_gate.py --market titan007_final_hour_market.json --predictions nba_independent_predictions_gate.json --out titan007_final_decision.json
+          python3 analysis/nba_model_report.py --joined titan007_final_window.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html
       - name: Restore PushPlus sent-state cache
         uses: actions/cache@v4
         with:
