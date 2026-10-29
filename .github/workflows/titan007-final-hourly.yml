@@ -129,7 +129,7 @@ jobs:
             stamp=$(date -u +%Y%m%dT%H%M%SZ)
             dir="reports/final-window/${TARGET_DATE}/${stamp}"
             mkdir -p "$dir"
-            cp titan007_final_window.json titan007_final_hour_report.html titan007_final_hour_report.csv titan007_final_hour_market.json "$dir"/ titan007_final_decision.json
+            cp titan007_final_window.json titan007_final_hour_report.html titan007_final_hour_report.csv titan007_final_hour_market.json titan007_final_decision.json "$dir"/
             git config user.name github-actions[bot]
             git config user.email 41898282+github-actions[bot]@users.noreply.github.com
             git add "$dir"
