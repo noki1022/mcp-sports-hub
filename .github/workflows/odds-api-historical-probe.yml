@@ -1,0 +1,36 @@
+name: One-shot The Odds API historical NBA probe
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "UTC snapshot time, e.g. 2025-01-15T18:00:00Z"
+        required: true
+        type: string
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      ODD: ${{ secrets.ODD }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/odds_api_historical_probe.py --date "${{ inputs.date }}" --out /tmp/historical.json
+      - run: |
+          test -s /tmp/historical.json
+          mkdir -p data/odds/historical-probe
+          stamp=$(date -u +%Y%m%dT%H%M%SZ)
+          cp /tmp/historical.json data/odds/historical-probe/$stamp.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add data/odds/historical-probe
+          git commit -m "Save one-shot historical odds probe"
+          git push
+      - uses: actions/upload-artifact@v4
+        with:
+          name: historical-odds-probe
+          path: /tmp/historical.json
+          retention-days: 7

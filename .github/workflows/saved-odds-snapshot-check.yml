@@ -1,0 +1,35 @@
+name: Verify saved The Odds API snapshot against anti-leak rules
+on:
+  push:
+    branches: ["research/odds-history-walkforward-v2"]
+    paths: [".github/workflows/saved-odds-snapshot-check.yml", "analysis/historical_odds_validator.py"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate live archive without calling odds provider
+        run: |
+          python3 analysis/historical_odds_validator.py --self-test
+          python3 analysis/historical_odds_validator.py \
+            --infile data/odds/2026-10-28_the_odds_api.json \
+            --outfile historical_odds_validated.json
+      - name: Verify timestamp integrity and explicit missing-history limitation
+        run: |
+          python3 - <<'PY'
+          import json
+          z=json.load(open('historical_odds_validated.json'))
+          assert z['audit']['accepted_rows'] > 0, z['audit']
+          assert all(x['snapshot_time_utc'] < x['commence_time_utc'] for x in z['rows'])
+          assert all(x['price_last_update_utc'] <= x['snapshot_time_utc'] for x in z['rows'])
+          print('SAVED_ODDS_POINT_IN_TIME_VALID', z['audit']['accepted_rows'], 'market rows')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: historical-odds-no-paid-api-audit
+          path: historical_odds_validated.json
