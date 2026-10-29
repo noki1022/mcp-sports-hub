@@ -49,6 +49,7 @@ jobs:
         run: |
           python3 scripts/titan007_report.py --joined titan007_final_window.json --html titan007_final_hour_report.html --csv titan007_final_hour_report.csv
           python3 analysis/titan007_daily_market.py --joined titan007_final_window.json --out titan007_final_hour_market.json
+          python3 analysis/market_decision_gate.py --market titan007_final_hour_market.json --out titan007_final_decision.json
       - name: Restore PushPlus sent-state cache
         uses: actions/cache@v4
         with:
@@ -128,7 +129,7 @@ jobs:
             stamp=$(date -u +%Y%m%dT%H%M%SZ)
             dir="reports/final-window/${TARGET_DATE}/${stamp}"
             mkdir -p "$dir"
-            cp titan007_final_window.json titan007_final_hour_report.html titan007_final_hour_report.csv titan007_final_hour_market.json "$dir"/
+            cp titan007_final_window.json titan007_final_hour_report.html titan007_final_hour_report.csv titan007_final_hour_market.json titan007_final_decision.json "$dir"/
             git config user.name github-actions[bot]
             git config user.email 41898282+github-actions[bot]@users.noreply.github.com
             git add "$dir"
@@ -147,5 +148,6 @@ jobs:
             titan007_final_hour_report.html
             titan007_final_hour_report.csv
             titan007_final_hour_market.json
+            titan007_final_decision.json
           if-no-files-found: warn
           retention-days: 14
