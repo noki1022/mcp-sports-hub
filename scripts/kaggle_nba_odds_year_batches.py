@@ -115,6 +115,7 @@ def stream_odds(total,entry,gameids):
       "source_archive_crc32":f"{actual_crc:08x}",
       "source_domains":dict(source_hosts.most_common(10)),
       "unique_pregame_candidate_games":len(candidate_ids),
+      "timestamp_candidate_quotes":timestamp_candidate_quotes,
       "source_provenance_not_verified":True,
       "strict_train_eligible":0}
 
