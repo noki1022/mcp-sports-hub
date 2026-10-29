@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Small (<1MiB) verified range inspection of a single ZIP member, no archive download."""
 import csv,io,json,re,struct,zlib
+from collections import Counter
+from urllib.parse import urlparse
 from urllib.request import Request,urlopen
 URL="https://www.kaggle.com/api/v1/datasets/download/chevronronson/nba-stats-dataset"
 # Proven in 2026-10-29 central-directory audit: game_odds member offset 0.
@@ -26,11 +28,19 @@ def main():
     lines=text.splitlines()
     if not lines:raise RuntimeError("EMPTY_CSV")
     header_line=next(csv.reader([lines[0]]))
+    # Inspect only bounded partial rows; do not persist source prices.
+    sampled=list(csv.DictReader(io.StringIO("\\n".join(lines[:-1]))))
+    hosts=Counter(urlparse(x.get("source_url","")).hostname or "none" for x in sampled)
+    date_stats={k:{"filled":sum(bool(x.get(k)) for x in sampled),
+                   "first":next((x.get(k) for x in sampled if x.get(k)),""),
+                   "last":next((x.get(k) for x in reversed(sampled) if x.get(k)),"")}
+                for k in ("game_date","odds_date","last_fetched")}
     # Only safe metadata: observed column names and date-like fields; no odds/raw rows persisted.
     print("KAGGLE_GAME_ODDS_PARTIAL_SCHEMA "+json.dumps({
       "member":name,"compressed_member_bytes":COMPRESSED_MEMBER_BYTES,
       "downloaded_range_bytes":len(raw),"expanded_sample_bytes":len(sample),
-      "header":header_line,
+      "header":header_line,"source_hosts":dict(hosts.most_common(8)),
+      "distinct_game_ids_in_sample":len({x.get("game_id") for x in sampled}),"date_stats":date_stats,
       "preview_full_rows":max(0,len(lines)-2),
       "timestamp_candidates":[c for c in header_line if any(t in c.lower() for t in ("time","date","updated","created","stamp","asof"))],
       "valid_full_csv_not_yet_proven":True,
