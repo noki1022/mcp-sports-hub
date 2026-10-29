@@ -127,8 +127,12 @@ def selftest():
 
 def main():
     if len(sys.argv)>1 and sys.argv[1]=="--self-test":return selftest()
-    for name in ("export_nba_train_ready.py","nba_team_enriched_training.py","nba_player_aggregate_training.py"):
-        subprocess.run([sys.executable,str(ROOT/"analysis"/name)],check=True)
+    if "--from-artifacts" not in sys.argv:
+        for name in ("export_nba_train_ready.py","nba_team_enriched_training.py","nba_player_aggregate_training.py"):
+            subprocess.run([sys.executable,str(ROOT/"analysis"/name)],check=True)
+    else:
+        for label,folder in SOURCE_FILES.items():
+            if not folder.is_dir():raise RuntimeError("VERIFIED_ARTIFACT_NOT_AVAILABLE_"+label)
     OUT.mkdir(parents=True,exist_ok=True)
     input_files={};artifacts={};counts={};rejects={}
     for part in SPLITS:
