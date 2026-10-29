@@ -48,8 +48,8 @@ def check_score(v):
 
 def flag(s):
     v=str(s).strip().lower()
-    if v in ("0","false","f","no",""):return False
-    if v in ("1","true","t","yes"):return True
+    if v in ("0","0.0","false","f","no",""):return False
+    if v in ("1","1.0","true","t","yes"):return True
     raise ValueError("FLAG_INVALID")
 
 def source_games(raw):
