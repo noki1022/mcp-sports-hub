@@ -1,0 +1,28 @@
+name: NBA 2015-22 strict training source expansion
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - analysis/nba_2015_22_training_expansion.py
+      - .github/workflows/nba-2015-22-training-expansion.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  accept:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify strict pair, score, neutral and leakage tests
+        run: python3 analysis/nba_2015_22_training_expansion.py --self-test
+      - name: Independently cross-verify 2015-22 source in temporary memory
+        run: python3 analysis/nba_2015_22_training_expansion.py --output /tmp/nba_2015_22_score_candidates.csv
+      - name: Prevent storage bloat and production data mutation
+        if: always()
+        run: test -z "$(git status --porcelain)"
