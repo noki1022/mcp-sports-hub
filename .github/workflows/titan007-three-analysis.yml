@@ -45,11 +45,15 @@ jobs:
             sleep 8
           done
           exit 1
+      - name: Generate odds-blind NBA prediction artifact
+        run: |
+          python3 analysis/nba_prediction_adapter.py --self-test
+          python3 analysis/nba_prediction_adapter.py --joined titan007_three_joined.json --out nba_independent_predictions_gate.json
       - name: Render mobile report and market analysis
         run: |
           python3 scripts/titan007_report.py --joined titan007_three_joined.json --html titan007_three_report.html --csv titan007_three_report.csv
           python3 analysis/titan007_daily_market.py --joined titan007_three_joined.json --out titan007_three_market.json
-          python3 analysis/market_decision_gate.py --market titan007_three_market.json --out titan007_three_decision.json
+          python3 analysis/market_decision_gate.py --market titan007_three_market.json --predictions nba_independent_predictions_gate.json --out titan007_three_decision.json
       - name: Archive analysis in repository
         if: ${{ success() }}
         run: |
@@ -77,7 +81,7 @@ jobs:
           games=board.get('nba_cba_games',[])
           if not games: print('NO_NEXT_DAY_GAMES_NO_PUSH'); raise SystemExit(0)
           rows=[f"{g.get('display_clock')} 主队：{g.get('home_team')} vs 客队：{g.get('away_team')}" for g in games]
-          data=urllib.parse.urlencode({'token':os.environ['PUSHPLUS_TOKEN'],'title':'NBA/CBA 次日比赛阶段分析','content':f"目标日期：{board.get('requested_display_date')}\\n\\n"+'\\n'.join(rows)+"\\n\\n阶段性市场分析，盘口和伤停仍可能变化，统一 NO_BET。",'template':'txt'}).encode()
+          data=urllib.parse.urlencode({'token':os.environ['PUSHPLUS_TOKEN'],'title':'NBA/CBA 次日比赛阶段分析','content':f"目标日期：{board.get('requested_display_date')}\\n\\n"+'\\n'.join(rows)+"\\n\\n独立模型已生成；盘口原始槽位方向和临场伤停仍待核验，统一 NO_BET。",'template':'txt'}).encode()
           req=urllib.request.Request('https://www.pushplus.plus/send',data=data,method='POST')
           with urllib.request.urlopen(req,timeout=15) as r:
               body=r.read().decode('utf-8','replace')
@@ -94,5 +98,6 @@ jobs:
             titan007_three_report.csv
             titan007_three_market.json
             titan007_three_decision.json
+            nba_independent_predictions_gate.json
           if-no-files-found: warn
           retention-days: 14

@@ -45,11 +45,15 @@ jobs:
           exit 1
       - name: Select 3–30 minute final window
         run: python3 scripts/titan007_final_window.py --infile titan007_joined_today.json --outfile titan007_final_window.json
+      - name: Generate odds-blind NBA prediction artifact
+        run: |
+          python3 analysis/nba_prediction_adapter.py --self-test
+          python3 analysis/nba_prediction_adapter.py --joined titan007_final_window.json --out nba_independent_predictions_gate.json
       - name: Render final mobile report when a game is in window
         run: |
           python3 scripts/titan007_report.py --joined titan007_final_window.json --html titan007_final_hour_report.html --csv titan007_final_hour_report.csv
           python3 analysis/titan007_daily_market.py --joined titan007_final_window.json --out titan007_final_hour_market.json
-          python3 analysis/market_decision_gate.py --market titan007_final_hour_market.json --out titan007_final_decision.json
+          python3 analysis/market_decision_gate.py --market titan007_final_hour_market.json --predictions nba_independent_predictions_gate.json --out titan007_final_decision.json
       - name: Restore PushPlus sent-state cache
         uses: actions/cache@v4
         with:
@@ -102,7 +106,7 @@ jobs:
                   "独赢：本次007临场源未提供可验证的独赢市场",
                   "伤停：本次临场工作流未取得匹配的官方临场伤停确认",
                   "数据质量：主客队和比赛ID已匹配；007显示时区及水位方向仍未独立核验",
-                  "结论：仅市场倾向；没有经过校准的独立模型，NO_BET"
+                  "结论：独立模型已生成；盘口原始槽位方向未核验，NO_BET"
               ]))
           title='NBA/CBA 开赛前3–30分钟临场报告'
           content="\n\n".join(messages)
@@ -149,5 +153,6 @@ jobs:
             titan007_final_hour_report.csv
             titan007_final_hour_market.json
             titan007_final_decision.json
+            nba_independent_predictions_gate.json
           if-no-files-found: warn
           retention-days: 14

@@ -54,6 +54,10 @@ jobs:
       - name: Join currently published match IDs with public odds
         run: |
           python3 scripts/titan007_join_daily.py --date "$TARGET_DATE" --out titan007_joined_nba_cba.json
+      - name: Generate odds-blind NBA prediction artifact
+        run: |
+          python3 analysis/nba_prediction_adapter.py --self-test
+          python3 analysis/nba_prediction_adapter.py --joined titan007_joined_nba_cba.json --out nba_independent_predictions_gate.json
       - name: Refresh NBA recent five games, possession efficiency, and five historical H2H
         shell: bash
         run: |
@@ -118,7 +122,7 @@ jobs:
         run: |
           python3 analysis/titan007_daily_market.py --self-test
           python3 analysis/titan007_daily_market.py --joined titan007_joined_nba_cba.json --out daily_market_analysis.json
-          python3 analysis/market_decision_gate.py --market daily_market_analysis.json --out daily_market_decision.json
+          python3 analysis/market_decision_gate.py --market daily_market_analysis.json --predictions nba_independent_predictions_gate.json --out daily_market_decision.json
       - name: Verify zero betting signals and valid live de-vig rows
         run: |
           python3 - <<'PY'
@@ -143,6 +147,7 @@ jobs:
             titan007_nba_cba_report.html
             daily_market_analysis.json
             daily_market_decision.json
+            nba_independent_predictions_gate.json
             daily_market_analysis.csv
             daily_market_analysis.html
             nba_official_injuries.json
