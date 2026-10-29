@@ -140,7 +140,7 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
         p = p_greater(total_mu, total_sigma, total_line)
         base["markets"].append({"market": "full_total", "line": total_line,
                                 "p_side1": p, "p_side2": 1.0-p,
-                                "direction_verified": True})
+                                "direction_verified": False})
     if not base["markets"]:
         base["status"] = "PARTIAL"
         base["reasons"] = ["NO_EXACT_MARKET_LINES_SUPPLIED"]
