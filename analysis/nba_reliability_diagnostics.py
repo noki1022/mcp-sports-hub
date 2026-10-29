@@ -80,9 +80,9 @@ def diagnose(path, variant="form_h2h"):
 
 def self_test():
     p = Path("/tmp/reliability.csv")
-    p.write_text("date,actual_margin,actual_total,form_h2h_p_home,form_h2h_p_over225_5\\n"
-                 "2026-01-01,10,230,0.8,0.7\\n"
-                 "2026-01-02,-5,220,0.2,0.3\\n", encoding="utf-8")
+    p.write_text("date,actual_margin,actual_total,form_h2h_p_home,form_h2h_p_over225_5\n"
+                 "2026-01-01,10,230,0.8,0.7\n"
+                 "2026-01-02,-5,220,0.2,0.3\n", encoding="utf-8")
     out = diagnose(p)
     assert out["n"] == 2
     assert len(out["moneyline_home"]["reliability_bins"]) == 10
