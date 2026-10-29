@@ -43,7 +43,7 @@ jobs:
           done
           echo "007 source unavailable after 3 attempts"
           exit 1
-      - name: Select 25–35 minute final window centered on 30 minutes
+      - name: Select 3–30 minute final window
         run: python3 scripts/titan007_final_window.py --infile titan007_joined_today.json --outfile titan007_final_window.json
       - name: Render final mobile report when a game is in window
         run: |
@@ -79,7 +79,7 @@ jobs:
               m=by_game.get(g.get('game_id'),{})
               sp=m.get('full_spread',{}); tt=m.get('full_total',{})
               rows.append(f"{g.get('display_clock')} 主队：{g.get('home_team')} vs 客队：{g.get('away_team')}\\n让分：{sp.get('line','—')}（主/客去水 {sp.get('devig_side1','—')} / {sp.get('devig_side2','—')}）\\n总分：{tt.get('line','—')}（大/小去水 {tt.get('devig_side1','—')} / {tt.get('devig_side2','—')}）")
-          title='NBA/CBA 开赛前30分钟临场报告'
+          title='NBA/CBA 开赛前3–30分钟临场报告'
           content='\\n\\n'.join(rows)+'\\n\\n盘口已重新抓取；以上为市场倾向，不是独立校准模型，统一 NO_BET。'
           data=urllib.parse.urlencode({'token':os.environ['PUSHPLUS_TOKEN'],'title':title,'content':content,'template':'txt'}).encode()
           req=urllib.request.Request('https://www.pushplus.plus/send',data=data,method='POST')
