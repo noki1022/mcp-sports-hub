@@ -1,0 +1,54 @@
+sources:
+  - id: hf_nba_odds_2026_27
+    url: https://huggingface.co/datasets/minmaxxxer/nba-odds-2026-27
+    license: CC-BY-4.0
+    coverage: 43 real NBA games, 2026-27 season to 2026-10-26
+    fields: [start_time_utc, home_team, away_team, scores, open_moneyline_prob, close_moneyline_prob, open_spread, close_spread, open_total, close_total, settlements]
+    time_semantics: explicit_open_close
+    status: research_smoke_only
+    reason: Too few games for model fitting; useful for parser and settlement validation.
+
+  - id: github_nba_line_sheet
+    url: https://github.com/aaryanshah607/nba-line-sheet
+    license: MIT
+    coverage: 23586 games, 2007-08 through 2025-26
+    fields: [date, home, away, moneyline, spread, total, final_score, rest]
+    time_semantics: game_level_quote; opening_or_closing_not_verified
+    status: closing_market_benchmark_only
+    reason: Real paired odds/results, but no verified quote timestamp or open/close label.
+
+  - id: lines_monitor
+    url: https://thefantasymonitor.com/lines/
+    license: CC0_and_CC-BY-SA_and-MIT_by_component
+    coverage: 2020-21 through 2025-26
+    fields: [closing_moneyline, closing_spread, closing_total, final_score]
+    time_semantics: closing_only; no_historical_open_timestamp
+    status: closing_market_benchmark_only
+    reason: Openly licensed and score-checked, but cannot support open-to-close or pre-close timing claims.
+
+  - id: sean_qin_opening_lines_research
+    url: https://github.com/sean-qin-usa/nba-prediction-model/blob/main/docs/OPENING_LINES.md
+    license: mixed_upstream_sources
+    coverage: documented 23758 games with both prices; 5938 model-corpus games with opening lines
+    fields: [opening_spread, closing_spread, opening_total, closing_total, opening_moneyline, closing_moneyline, source]
+    time_semantics: explicit_open_close; source-dependent timestamps
+    status: highest_priority_external_audit
+    reason: Promising large open/close corpus, but raw files are not present in that repository and each upstream license must be checked before import.
+
+  - id: sportsbookreview_archives
+    url: https://www.sportsbookreviewsonline.com/scoresoddsarchives/nba/nbaoddsarchives.htm
+    license: unverified
+    coverage: 2007-08 through 2022-23, 2022-23 truncated midseason
+    fields: [open_spread, close_spread, open_total, close_total, closing_moneyline, final_score]
+    time_semantics: explicit_open_close
+    status: pending_license_and_raw_fetch_audit
+    reason: Historical archive is useful, but public availability alone is not sufficient for redistribution.
+
+  - id: espn_action_network_open_close
+    url: https://github.com/sean-qin-usa/nba-prediction-model/blob/main/docs/OPENING_LINES.md
+    license: public_endpoints;_terms_to_audit
+    coverage: documented 2023-24 through 2025-26
+    fields: [open_close_spread, open_close_total, open_close_moneyline, final_score]
+    time_semantics: explicit_open_close; ESPN and Action Network date conventions differ
+    status: pending_endpoint_replay_and_terms_audit
+    reason: Must independently verify joins, timezone conversion, field meanings, and permitted retention before use.
