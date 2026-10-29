@@ -65,7 +65,8 @@ def stream_odds(total,entry,gameids):
     ids=defaultdict(set)
     num_rows=0
     source_hosts=Counter()
-    candidate_ids=set()\n    timestamp_candidate_quotes=0
+    candidate_ids=set()
+    timestamp_candidate_quotes=0
     for i in range(begin,end,131072):
         data=remote.read_range(i,min(i+131072,end)-1,total)
         output=decompressor.decompress(data)
@@ -91,7 +92,9 @@ def stream_odds(total,entry,gameids):
             status=verify(row,game)
             counts[year][status]+=1
             source_hosts[urlparse(row.get("source_url","")).hostname or "MISSING"]+=1
-            if status=="PREGAME_TIME_CANDIDATE":\n                candidate_ids.add(row["game_id"])\n                timestamp_candidate_quotes+=1
+            if status=="PREGAME_TIME_CANDIDATE":
+                candidate_ids.add(row["game_id"])
+                timestamp_candidate_quotes+=1
             if len(ids[year])<5000:ids[year].add(row["game_id"])
     leftover=decompressor.flush()
     actual_crc=zlib.crc32(leftover,actual_crc)
@@ -132,6 +135,15 @@ def main():
     for k,row in index.items():
         if k in schedules:row["game_date"]=schedules[k]["game_date"]
     result=stream_odds(total,entry[TARGET],index)
+    result["timestamp_gate"]={
+      "status":"PASSED_FOR_EXPLICIT_PRETIP_QUOTES" if result.get("timestamp_candidate_quotes",0)>0 else "NO_EXPLICIT_PRETIP_QUOTES",
+      "passed_quote_rows":result.get("timestamp_candidate_quotes",0),
+      "passed_game_ids":result.get("unique_pregame_candidate_games",0),
+      "tip_time_source":"games_schedule.csv",
+      "comparison":"odds_date < game_date",
+      "untimed_open_close_excluded":True,
+      "old_seasons_without_tip_time":"QUARANTINED"
+    }
     print("KAGGLE_ODDS_SEASON_BATCH_AUDIT "+json.dumps(result,sort_keys=True,ensure_ascii=False),flush=True)
     print("KAGGLE_ODDS_BATCH_VERDICT "+json.dumps({
        "train_admitted":0,"timestamp_gate_passed":result.get("timestamp_gate",{}),"zip_downloaded_in_full":False,
