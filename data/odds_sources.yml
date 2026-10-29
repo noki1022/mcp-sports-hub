@@ -26,6 +26,24 @@ sources:
     status: closing_market_benchmark_only
     reason: Openly licensed and score-checked, but cannot support open-to-close or pre-close timing claims.
 
+  - id: chevronronson_nba_stats_dataset
+    url: https://www.kaggle.com/datasets/chevronronson/nba-stats-dataset
+    license: unknown
+    coverage: documented 2003-04 through 2025-26
+    fields: [game_id, opening_moneyline, closing_moneyline, intraday_moneyline_path]
+    time_semantics: opening_closing_and_intraday_moneyline
+    status: REJECTED_UNLICENSED_NOT_DOWNLOADED
+    reason: Screenshot/source notes identify useful moneyline history, but Kaggle license and redistribution terms are not verified. Do not download or retain.
+
+  - id: ehallmar_nba_historical_stats_betting
+    url: https://www.kaggle.com/datasets/ehallmar/nba-historical-stats-and-betting-data
+    license: unknown
+    coverage: historical NBA odds and match stats
+    fields: [game_id, bookmaker, moneyline, spread, totals, results]
+    time_semantics: no_verified_timestamp; one_row_per_game_book
+    status: REJECTED_UNLICENSED_AND_NO_TIMESTAMP
+    reason: Kaggle reports an unknown license; source audit reports no timestamp and no verified open/close semantics. Do not download or retain.
+
   - id: sean_qin_opening_lines_research
     url: https://github.com/sean-qin-usa/nba-prediction-model/blob/main/docs/OPENING_LINES.md
     license: mixed_upstream_sources
