@@ -29,7 +29,7 @@ def main():
     if not lines:raise RuntimeError("EMPTY_CSV")
     header_line=next(csv.reader([lines[0]]))
     # Inspect only bounded partial rows; do not persist source prices.
-    sampled=list(csv.DictReader(io.StringIO("\\n".join(lines[:-1]))))
+    sampled=list(csv.DictReader(io.StringIO("\n".join(lines[:-1]))))
     hosts=Counter(urlparse(x.get("source_url","")).hostname or "none" for x in sampled)
     date_stats={k:{"filled":sum(bool(x.get(k)) for x in sampled),
                    "first":next((x.get(k) for x in sampled if x.get(k)),""),
