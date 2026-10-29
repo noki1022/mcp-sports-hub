@@ -158,6 +158,23 @@ def _finite(value):
     return x if math.isfinite(x) else None
 
 
+
+
+def _market_moneyline(odds):
+    """Return normalized two-way market probability from verified decimal odds."""
+    if not isinstance(odds, dict):
+        return None
+    try:
+        home, away = float(odds["home_decimal"]), float(odds["away_decimal"])
+        if not (math.isfinite(home) and math.isfinite(away) and home > 1.01 and away > 1.01):
+            return None
+        ih, ia = 1.0 / home, 1.0 / away
+        if not 0.90 <= ih + ia <= 1.25:
+            return None
+        return {"home": ih / (ih + ia), "away": ia / (ih + ia), "overround": ih + ia - 1.0}
+    except (KeyError, TypeError, ValueError):
+        return None
+
 def _history_before(games, target_day):
     from collections import defaultdict
     hist = defaultdict(list)
@@ -283,6 +300,7 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
     raw_p_over_225_5 = p_greater(total_mu, total_sigma, TOTAL_LINE)
     p_over_225_5 = _isotonic_predict(calibration.get("total_over_225_5_isotonic"), raw_p_over_225_5)
     target = target_day.isoformat()
+    market_ml = _market_moneyline(fixture.get("moneyline_odds"))
     base = {
         "game_id": str(fixture["game_id"]), "date": target,
         "home": fixture["home"], "away": fixture["away"], "status": "OK",
@@ -295,6 +313,8 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
         "total_over_225_5_probability": p_over_225_5,
         "total_over_225_5_probability_raw": raw_p_over_225_5,
         "moneyline_away_probability": 1.0 - p_home,
+        "market_moneyline": market_ml,
+        "odds_features_used": bool(market_ml),
         "moneyline_probability_semantics": "主队最终得分高于客队；不含加时单独校正",
         "prediction_intervals": {
             "margin_home_minus_away": _intervals(margin_mu, margin_sigma),
@@ -373,7 +393,7 @@ def generate(board):
         "target_display_date": board.get("target_display_date") or cutoff_day.isoformat(),
         "data_cutoff_date": feature_cutoff_day.isoformat(),
         "model_version": MODEL_VERSION,
-        "odds_as_features": False,
+        "odds_as_features": True,
         "data_sources": sources,
         "verified_independent_games": len(games),
         "unpaired_or_invalid_records": len(rejected),
@@ -382,7 +402,7 @@ def generate(board):
             "calibration_start": CAL_FIRST, "holdout_season": TEST_SEASON,
             "same_day_results_excluded": True,
             "feature_cutoff_strictly_before_target": True,
-            "historical_bookmaker_odds_used": False,
+            "historical_bookmaker_odds_used": True,
             "moneyline_comparison": "DISABLED",
         },
         "tuning": tuning,
@@ -415,7 +435,7 @@ def self_test():
     except Exception as exc:
         print("PREDICTOR_SELF_TEST_SKIPPED", type(exc).__name__, str(exc))
         return
-    assert result["odds_as_features"] is False
+    assert result["odds_as_features"] is True
     assert result["decision"] == "NO_BET"
     assert all(x.get("status") in {"OK", "PARTIAL", "DISABLED"} for x in result["predictions"])
     print("NBA_INDEPENDENT_PREDICTOR_SELF_TEST_PASS")
