@@ -1,0 +1,29 @@
+name: NBA chrono pretip lag features leakage gate
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - analysis/nba_chronological_feature_gate.py
+      - .github/workflows/nba-chrono-feature-gate.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 analysis/nba_chronological_feature_gate.py --self-test
+      - run: python3 analysis/nba_chronological_feature_gate.py
+      - run: test -z "$(git status --porcelain)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-chronological-lagged-research-only
+          path: /tmp/nba-pregame-lagged-research/
+          retention-days: 7
+          if-no-files-found: error
