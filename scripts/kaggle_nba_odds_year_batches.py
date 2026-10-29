@@ -6,7 +6,7 @@ integrity, one-to-one game IDs and per-quote pregame time. 'open'/'close' labels
 are NOT presumed timestamped. Sources must be separately licensed and audited.
 """
 from __future__ import annotations
-import csv,io,json,math,re,struct,zlib
+import csv,io,json,math,re,struct,zlib,os
 from urllib.parse import urlparse
 from collections import Counter,defaultdict
 from datetime import datetime
