@@ -123,7 +123,7 @@ jobs:
           python3 analysis/titan007_daily_market.py --self-test
           python3 analysis/titan007_daily_market.py --joined titan007_joined_nba_cba.json --out daily_market_analysis.json
           python3 analysis/market_decision_gate.py --market daily_market_analysis.json --predictions nba_independent_predictions_gate.json --out daily_market_decision.json
-          python3 analysis/nba_model_report.py --joined titan007_joined_nba_cba.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html
+          python3 analysis/nba_model_report.py --joined titan007_joined_nba_cba.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html --injuries nba_official_injuries.json
       - name: Verify zero betting signals and valid live de-vig rows
         run: |
           python3 - <<'PY'

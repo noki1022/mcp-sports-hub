@@ -3,8 +3,33 @@
 from __future__ import annotations
 import argparse, html, json
 from pathlib import Path
+from titan007_ev_analysis import NAMES
 
-def render(joined, gate, out_json, out_html):
+def injury_summary(game, injuries):
+    if not injuries:
+        return {"status": "NOT_PROVIDED"}
+    home = NAMES.get(game.get("home_team", ""))
+    away = NAMES.get(game.get("away_team", ""))
+    if not home or not away:
+        return {"status": "TEAM_MAPPING_MISSING"}
+    matchup = away[0] + "@" + home[0]
+    teams = (injuries.get("matchups") or {}).get(matchup)
+    if not teams:
+        return {"status": "MATCHUP_NOT_FOUND", "matchup": matchup}
+    result = {"status": "PUBLISHED", "matchup": matchup, "teams": {}}
+    for label, name in (("home", home[1]), ("away", away[1])):
+        info = teams.get(name) or {"report_state": "NO_ROWS_FOUND", "status_counts": {}}
+        counts = info.get("status_counts", {})
+        result["teams"][label] = {"report_state": info.get("report_state"), "status_counts": counts}
+        if info.get("report_state") != "PUBLISHED":
+            result["status"] = "NOT_SUBMITTED_OR_MISSING"
+        if counts.get("Questionable", 0) or counts.get("Doubtful", 0):
+            result["status"] = "UNCERTAIN_PLAYERS"
+        if counts.get("Out", 0):
+            result["status"] = "OUT_PLAYERS_CORE_MODEL_NOT_ADJUSTED"
+    return result
+
+def render(joined, gate, out_json, out_html, injuries=None):
     games = {str(g.get("game_id")): g for g in joined.get("nba_cba_games", [])}
     preds = {str(g.get("game_id")): g for g in gate.get("game_predictions", [])}
     gate_rows = {}
@@ -15,6 +40,7 @@ def render(joined, gate, out_json, out_html):
     for gid, game in games.items():
         p = preds.get(gid, {})
         quality = p.get("data_quality", {})
+        injury = injury_summary(game, injuries)
         intervals = p.get("prediction_intervals", {})
         markets = {m.get("market"): m for m in p.get("markets", [])}
         decision = gate_rows.get(gid, [])
@@ -28,6 +54,7 @@ def render(joined, gate, out_json, out_html):
             "total_mean": p.get("total_mean"),
             "prediction_intervals": intervals,
             "data_quality": quality,
+            "injury_quality": injury,
             "markets": markets,
             "gate_reasons": reasons or ["INDEPENDENT_MODEL_MISSING"],
             "recommendation": "NO_BET",
@@ -44,6 +71,7 @@ def render(joined, gate, out_json, out_html):
         def fmt(x):
             return "—" if x is None else f"{float(x):.1f}"
         quality_text = quality.get("quality", "NO_MODEL_DATA")
+        injury_text = injury.get("status", "NOT_PROVIDED")
         sections.append(
             "<section><h2>" + html.escape(str(game.get("display_clock", "—"))) + " "
             + html.escape(str(game.get("home_team", "—"))) + " vs "
@@ -53,6 +81,7 @@ def render(joined, gate, out_json, out_html):
             + "[" + fmt((mi.get("80") or {}).get("low")) + ", " + fmt((mi.get("80") or {}).get("high")) + "]</p>"
             + "<p>模型总分：<b>" + fmt(total) + "</b>；80%区间 "
             + "[" + fmt((ti.get("80") or {}).get("low")) + ", " + fmt((ti.get("80") or {}).get("high")) + "]</p>"
+            + "<p>伤停质量：" + html.escape(str(injury_text)) + "</p>"
             + "<p>样本质量：" + html.escape(str(quality_text))
             + "；近五场 " + str(quality.get("home_recent_games", "—")) + "/"
             + str(quality.get("away_recent_games", "—")) + "；交锋 "
@@ -92,12 +121,14 @@ if __name__ == "__main__":
     ap.add_argument("--joined"); ap.add_argument("--predictions")
     ap.add_argument("--out-json", default="nba_model_analysis.json")
     ap.add_argument("--out-html", default="nba_model_analysis.html")
+    ap.add_argument("--injuries")
     ap.add_argument("--self-test", action="store_true")
     a = ap.parse_args()
     if a.self_test:
         self_test(); print("NBA_MODEL_REPORT_SELF_TEST_PASS")
     else:
         if not a.joined or not a.predictions: raise SystemExit("--joined and --predictions are required")
+        injuries = json.loads(Path(a.injuries).read_text(encoding="utf-8")) if a.injuries and Path(a.injuries).exists() else None
         render(json.loads(Path(a.joined).read_text(encoding="utf-8")),
                json.loads(Path(a.predictions).read_text(encoding="utf-8")),
-               a.out_json, a.out_html)
+               a.out_json, a.out_html, injuries)
