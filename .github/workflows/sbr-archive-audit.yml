@@ -1,0 +1,29 @@
+name: SBR archive no-bloat validation
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/sbr-archive-parser-20261029
+    paths:
+      - analysis/sbr_archive_import.py
+      - analysis/README-sbr-archive-audit.md
+      - .github/workflows/sbr-archive-audit.yml
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail-closed source format self test
+        run: python3 analysis/sbr_archive_import.py --self-test
+      - name: Verify no external fetch or repository raw-data artifact
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path("analysis/sbr_archive_import.py").read_text()
+          assert "urlopen(" not in src and "requests.get(" not in src
+          assert "training_eligible\": False" in src
+          print("NO_NETWORK_NO_TRAINING_PROMOTION_PASS")
+          PY
