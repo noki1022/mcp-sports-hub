@@ -6,6 +6,9 @@ import io
 import json
 import re
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "analysis"))
+from sbr_archive_import import rows_from_grid, transform
 from urllib.request import Request, urlopen
 
 CANDIDATES = {
@@ -42,10 +45,20 @@ def profile(name, url):
             counts["bad_column_count"] += 1
         if len(sample) < 2:
             sample.append(row[:min(len(row), 16)])
+    extra = {}
+    if name.startswith("sbr_"):
+        season = name[len("sbr_"):]
+        verdict = transform(rows_from_grid(csv.reader(io.StringIO(raw))), season, hashlib.sha256(body).hexdigest())
+        extra = {"paired_game_audit": verdict["audit"], "parser_status": verdict["status"]}
+        # Deliberately discard per-game rows: never persist research odds before admission.
+        del verdict
+    else:
+        # Structured row-only checks. A full verified season join is still required.
+        extra = {"requires_score_crosscheck": True, "requires_quote_timestamp_audit": True}
     return {"source": name, "url": url, "sha256": hashlib.sha256(body).hexdigest(),
             "size_bytes": len(body), "header": header, "sample_rows": sample,
             "counts": counts, "downloaded_for_audit_only": True,
-            "train_eligible": False, "raw_files_committed": False}
+            "train_eligible": False, "raw_files_committed": False, **extra}
 
 def main():
     inventory = []
