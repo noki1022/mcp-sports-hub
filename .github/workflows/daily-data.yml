@@ -2,7 +2,9 @@ name: Daily basketball data
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 10 * * *'
+    # 22:00 Beijing opening-window capture and 05:30 pregame-window capture.
+    - cron: '0 14 * * *'
+    - cron: '30 21 * * *'
 permissions:
   contents: write
 jobs:
@@ -20,8 +22,15 @@ jobs:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: |
           python scripts/collect_daily.py
+          latest=$(find data/odds -maxdepth 1 -name "*_the_odds_api.json" -type f | sort | tail -1)
+          if [ -n "$latest" ]; then
+            python analysis/historical_odds_validator.py --infile "$latest" --outfile "${latest%.json}_validated.json"
+          fi
+          mkdir -p reports/odds
+          python analysis/odds_snapshot_alignment.py --self-test
+          python analysis/odds_snapshot_alignment.py --glob "data/odds/*_validated.json" --out reports/odds/snapshot_alignment.json
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add data/odds
+          git add data/odds reports/odds
           git diff --cached --quiet || git commit -m "Save daily NBA odds snapshot"
           git push
