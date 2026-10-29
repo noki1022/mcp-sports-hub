@@ -38,6 +38,7 @@ def _valid_prediction(pred, target_date, market, line):
     if not exact: reasons.append("LINE_MISMATCH")
     p1=_prob(pred.get("p_side1")); p2=_prob(pred.get("p_side2"))
     if p1 is None or p2 is None or abs((p1+p2)-1)>1e-6: reasons.append("INVALID_MODEL_PROBABILITIES")
+    if pred.get("direction_verified") is not True: reasons.append("MARKET_SIDE_DIRECTION_UNVERIFIED")
     return not reasons,reasons
 
 def analyze(market_report, predictions=None):
@@ -83,7 +84,7 @@ def self_test():
     board={"target_display_date":"2026-10-30","row_data":[{"game_id":"1","league":"NBA","display_date":"2026-10-30","display_clock":"07:00","home_team":"主","away_team":"客","market":"full_spread","stage":"current","line":-3.5,"market_status":"OK","devig_side1":.52,"devig_side2":.48}]}
     x=analyze(board)
     assert x["validated_prediction_rows"]==0 and x["rows"][0]["recommendation"]=="NO_BET"
-    pred={"predictions":[{"game_id":"1","market":"full_spread","line":-3.5,"feature_cutoff_date":"2026-10-29","calibration":{"model_version":"v1","out_of_sample":True,"calibrated_through":"2026-10-30"},"p_side1":.55,"p_side2":.45}]}
+    pred={"predictions":[{"game_id":"1","market":"full_spread","line":-3.5,"feature_cutoff_date":"2026-10-29","calibration":{"model_version":"v1","out_of_sample":True,"calibrated_through":"2026-10-30"},"p_side1":.55,"p_side2":.45,"direction_verified":True}]}
     x=analyze(board,pred)
     assert x["validated_prediction_rows"]==0 and x["rows"][0]["model_status"]=="DISABLED"
     pred["predictions"][0]["calibration"]["calibrated_through"]="2026-10-29"
