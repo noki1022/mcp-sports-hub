@@ -80,13 +80,26 @@ def main():
            "api_endpoint":URL,"raw_archive_downloaded":False,
            "training_approved":False,"no_disk_writes":True}
     try:
-        with headers("HEAD") as r:
+        try:
+            r=headers("HEAD")
+        except HTTPError as error:
+            if error.code not in (403,404,405):raise
+            r=headers("GET","bytes=0-0")
+        with r:
             head={"http":r.status,"content_length":r.headers.get("Content-Length"),
                   "accept_ranges":r.headers.get("Accept-Ranges"),
                   "content_type":r.headers.get("Content-Type"),
                   "final_host":urlparse(r.url).hostname}
         probe["head"]=head
         size=int(head["content_length"] or 0)
+        if head["http"]==206:
+            # 206 single-byte probe returns a 1-byte Content-Length; actual size is Content-Range.
+            with headers("GET","bytes=0-0") as r2:
+                if r2.status!=206:raise ValueError("RANGE_NOT_SUPPORTED")
+                cr=r2.headers.get("Content-Range","")
+                m=re.fullmatch(r"bytes 0-0/(\d+)",cr)
+                if not m:raise ValueError("CONTENT_RANGE_SIZE_NOT_VERIFIED")
+                size=int(m[1])
         if size<1000 or size>30*1024**3:raise ValueError("BAD_ARCHIVE_SIZE_OR_MISSING_HEAD")
         tail_n=min(131072,size)
         tail=read_range(size-tail_n,size-1,size)
