@@ -8,6 +8,9 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"analysis"))
 from sbr_archive_import import canonical_team
 from nba_archive_crosscheck import bounded_fetch,LINE_SHEET,score_row
+ABBR={"sa":"SAS","gs":"GSW","utah":"UTA","wsh":"WAS","ny":"NYK","no":"NOP","nj":"BKN","pho":"PHX","phx":"PHX","okc":"OKC","lac":"LAC","lal":"LAL","por":"POR","tor":"TOR","phi":"PHI","ind":"IND","hou":"HOU","atl":"ATL","bos":"BOS","bkn":"BKN","brk":"BKN","cha":"CHA","chi":"CHI","cle":"CLE","dal":"DAL","den":"DEN","det":"DET","mem":"MEM","mia":"MIA","mil":"MIL","min":"MIN","nop":"NOP","orl":"ORL","sac":"SAC","sea":"SEA","sas":"SAS","uta":"UTA","was":"WAS"}
+def norm(x):
+    return ABBR.get(str(x).strip().lower()) or canonical_team(x)
 URL="https://www.kaggle.com/api/v1/datasets/download/cviaxmiwnptr/nba-betting-data-october-2007-to-june-2024"
 def main():
     with urlopen(Request(URL,headers={"User-Agent":"nba-integrity-audit/1.0"}),timeout=35) as r: blob=r.read(6000001)
@@ -38,7 +41,7 @@ def main():
                 except ValueError:
                     try:day=datetime.strptime(d,"%m/%d/%Y").date().isoformat()
                     except ValueError:day=None
-                home,away=canonical_team(r["home"]),canonical_team(r["away"])
+                home,away=norm(r["home"]),norm(r["away"])
                 h,a=int(r["score_home"]),int(r["score_away"])
                 if not day or not home or not away or home==away or not 40<=h<=200 or not 40<=a<=200 or h==a:raise ValueError("IDENTITY_OR_SCORE")
                 if not all(0<float(r[x])<350 for x in ("total",)):raise ValueError("TOTAL_INVALID")
