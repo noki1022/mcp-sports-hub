@@ -1,0 +1,31 @@
+name: NBA unified strict score team player training package
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - analysis/build_nba_unified_train_bundle.py
+      - .github/workflows/nba-unified-strict-training.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  final:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 analysis/build_nba_unified_train_bundle.py --self-test
+      - name: Rebuild all source-verified and lagged features, join strictly
+        run: python3 analysis/build_nba_unified_train_bundle.py
+      - name: Ensure raw data and training datasets not committed into Git
+        run: test -z "$(git status --porcelain)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-unified-verified-train-validation-research
+          path: /tmp/nba-unified-strict-train-v1/
+          retention-days: 7
+          if-no-files-found: error
