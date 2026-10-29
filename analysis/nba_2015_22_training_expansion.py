@@ -56,7 +56,7 @@ def source_games(raw):
     reader=csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))
     if not REQUIRED.issubset(reader.fieldnames or []):
         raise ValueError("ELO_SCHEMA_MISMATCH:"+str(reader.fieldnames)[:200])
-    accepted=defaultdict(list); rejects=Counter(); scanned=0
+    accepted=defaultdict(list); rejects=Counter(); scanned=0; flag_sample=defaultdict(Counter)
     for r in reader:
         scanned+=1
         try:
@@ -67,6 +67,8 @@ def source_games(raw):
             if flag(r["neutral"]):
                 rejects["NEUTRAL_SITE_NO_HOME"]+=1
                 continue
+            flag_sample["neutral"][str(r["neutral"]).strip()]+=1
+            flag_sample["playoff"][str(r["playoff"]).strip()]+=1
             home,away=team(r["team1"]),team(r["team2"])
             if not home or not away or home==away:
                 raise ValueError("UNMAPPED_TEAM")
@@ -86,7 +88,7 @@ def source_games(raw):
             continue
         unique[k]=rs[0]
     return unique,{"raw_rows_scanned":scanned,"pre_crosscheck_unique":len(unique),
-                   "row_rejections":dict(rejects),"duplicate_keys":dict(duplicate)}
+                   "row_rejections":dict(rejects),"duplicate_keys":dict(duplicate),"flag_values":{k:dict(v.most_common(8)) for k,v in flag_sample.items()}}
 
 def reference_games(raw):
     reader=csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))
