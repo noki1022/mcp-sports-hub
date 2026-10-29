@@ -8,6 +8,8 @@ fail closed instead of guessing.
 """
 from __future__ import annotations
 import argparse, json, math, sys
+import numpy as np
+from collections import defaultdict
 from datetime import date, datetime, timezone, timedelta
 from pathlib import Path
 
@@ -19,6 +21,7 @@ from nba_chronological_backtest import (
     choose_hyperparameter, train_ridge, fit_calibration, features,
     model_forecasts, predict, p_greater,
 )
+import nba_chronological_backtest as B
 from nba_settlement_probabilities import settlement_probs
 
 MODEL_VERSION = "nba-independent-v3-isotonic-rolling-production"
@@ -71,6 +74,73 @@ def _intervals(mu, sigma):
     return {level: {"low": float(mu - z * sigma), "high": float(mu + z * sigma)}
             for level, z in _INTERVAL_Z.items()}
 MIN_TARGET_FIELDS = ("game_id", "date", "home", "away")
+
+ELO_START, ELO_K, HOME_ADV = 1500.0, 20.0, 35.0
+
+def _extended_design(rows):
+    return np.asarray([r["form"] + r["h2h"] + [r["elo_diff"]] for r in rows], dtype=float)
+
+def _fit_extended(rows, target, alpha=100.0):
+    x, y = _extended_design(rows), np.asarray([r[target] for r in rows], dtype=float)
+    means, stds = x.mean(0), np.where(x.std(0) > 1e-6, x.std(0), 1.0)
+    z = (x-means)/stds
+    mean_y = float(y.mean())
+    beta = np.linalg.solve(z.T @ z + alpha*np.eye(z.shape[1]), z.T @ (y-mean_y))
+    return {"means": means, "stds": stds, "mean_y": mean_y, "beta": beta}
+
+def _predict_extended(rows, model):
+    x = _extended_design(rows)
+    return model["mean_y"] + ((x-model["means"])/model["stds"]) @ model["beta"]
+
+def _fit_extended_calibration(rows, fits):
+    calibration = {}
+    for target in ("margin", "total"):
+        residuals = np.asarray([x[target] for x in rows]) - _predict_extended(rows, fits[target])
+        bias = float(residuals.mean())
+        calibration[target] = {
+            "residual_bias": bias,
+            "sigma": max(1.0, float(np.sqrt(np.mean((residuals-bias)**2)))),
+            "empirical_n": len(residuals),
+        }
+    return calibration
+
+def _rows_with_dynamic_strength(games):
+    from collections import defaultdict
+    by_day = defaultdict(list)
+    for g in games: by_day[g["date"]].append(g)
+    hist, pairs = defaultdict(list), defaultdict(list)
+    ratings = defaultdict(lambda: ELO_START)
+    out = []
+    for day in sorted(by_day):
+        for g in by_day[day]:
+            vals = features(g, hist, pairs)
+            if vals is None: continue
+            home, away = g["home"], g["away"]
+            out.append({"date": day, "season": g["season"], "home": home, "away": away,
+                        "game_id": f"{day}:{home}:{away}", "form": vals["form"],
+                        "h2h": vals["h2h"], "elo_diff": float(ratings[home] + HOME_ADV - ratings[away]),
+                        "proof": vals["proof"], "margin": float(g["margin_home"]),
+                        "total": float(g["total"])})
+        for g in by_day[day]:
+            home, away = g["home"], g["away"]
+            expected = 1/(1+10**(-(ratings[home]+HOME_ADV-ratings[away])/400))
+            actual = float(g["margin_home"] > 0)
+            delta = ELO_K*(1+math.log1p(abs(g["margin_home"]))/2)*(actual-expected)
+            ratings[home] += delta; ratings[away] -= delta
+            hist[home].append(B.team_entry(g, home)); hist[away].append(B.team_entry(g, away))
+            pairs[tuple(sorted((home, away)))].append(g)
+    return out
+
+def _elo_before(games, target_day):
+    ratings = defaultdict(lambda: ELO_START)
+    for g in sorted((x for x in games if x["date"] < target_day.isoformat()), key=lambda x: (x["date"], x["home"], x["away"])):
+        home, away = g["home"], g["away"]
+        expected = 1/(1+10**(-(ratings[home]+HOME_ADV-ratings[away])/400))
+        actual = float(g["margin_home"] > 0)
+        delta = ELO_K*(1+math.log1p(abs(g["margin_home"]))/2)*(actual-expected)
+        ratings[home] += delta; ratings[away] -= delta
+    return ratings
+
 
 
 def _iso_day(value):
@@ -143,11 +213,11 @@ def _fit_production_model(rows, target_day):
     train = eligible[:-240]
     if len(train) < 1500 or len(cal) < 100:
         raise RuntimeError("Production train/calibration split too small")
-    fits = {target: train_ridge(train, target, "form_h2h", 100.0)
+    fits = {target: _fit_extended(train, target, 100.0)
             for target in ("margin", "total")}
-    calibration = fit_calibration(cal, "form_h2h", fits)
+    calibration = _fit_extended_calibration(cal, fits)
     for target in ("margin", "total"):
-        residuals = [x[target] - predict([x], "form_h2h", fits[target])[0] for x in cal]
+        residuals = [x[target] - _predict_extended([x], fits[target])[0] for x in cal]
         bias = calibration[target]["residual_bias"]
         centered = [r - bias for r in residuals]
         calibration[target]["residual_quantiles"] = {
@@ -155,8 +225,8 @@ def _fit_production_model(rows, target_day):
             "80": [_quantile(centered, .10), _quantile(centered, .90)],
             "95": [_quantile(centered, .025), _quantile(centered, .975)],
         }
-    margin_cal_mu = [predict([x], "form_h2h", fits["margin"])[0] + calibration["margin"]["residual_bias"] for x in cal]
-    total_cal_mu = [predict([x], "form_h2h", fits["total"])[0] + calibration["total"]["residual_bias"] for x in cal]
+    margin_cal_mu = [_predict_extended([x], fits["margin"])[0] + calibration["margin"]["residual_bias"] for x in cal]
+    total_cal_mu = [_predict_extended([x], fits["total"])[0] + calibration["total"]["residual_bias"] for x in cal]
     raw_home = [p_greater(mu, calibration["margin"]["sigma"], 0.0) for mu in margin_cal_mu]
     raw_over = [p_greater(mu, calibration["total"]["sigma"], TOTAL_LINE) for mu in total_cal_mu]
     calibration["moneyline_isotonic"] = _isotonic_fit(raw_home, [float(x["margin"] > 0.5) for x in cal])
@@ -172,6 +242,7 @@ def _fit_production_model(rows, target_day):
         "calibration_through": cal_through,
         "embargo_end": embargo_end.isoformat(),
         "holdout_metrics_preserved": True,
+        "dynamic_strength": {"elo_start": ELO_START, "elo_k": ELO_K, "home_advantage": HOME_ADV},
     }
     return fits, calibration, metadata
 
@@ -188,6 +259,7 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
         return {"game_id": fixture.get("game_id"), "status": "DISABLED",
                 "reasons": ["CANONICAL_TEAM_IDS_REQUIRED"]}
     hist, pairs = _history_before(games, target_day)
+    ratings = _elo_before(games, target_day)
     synthetic = {
         "date": target_day.isoformat(), "home": fixture["home"], "away": fixture["away"],
         "season": fixture.get("season", "unknown"),
@@ -199,10 +271,10 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
     row = {"date": target_day.isoformat(), "season": synthetic["season"],
            "home": fixture["home"], "away": fixture["away"],
            "game_id": str(fixture["game_id"]), "form": value["form"],
-           "h2h": value["h2h"], "proof": value["proof"]}
-    margin_mu = float(predict([row], "form_h2h", fits["margin"])[0] +
+           "h2h": value["h2h"], "elo_diff": float(ratings[fixture["home"]] + HOME_ADV - ratings[fixture["away"]]), "proof": value["proof"]}
+    margin_mu = float(_predict_extended([row], fits["margin"])[0] +
                       calibration["margin"]["residual_bias"])
-    total_mu = float(predict([row], "form_h2h", fits["total"])[0] +
+    total_mu = float(_predict_extended([row], fits["total"])[0] +
                      calibration["total"]["residual_bias"])
     margin_sigma = float(calibration["margin"]["sigma"])
     total_sigma = float(calibration["total"]["sigma"])
@@ -291,7 +363,7 @@ def generate(board):
     if not games:
         raise RuntimeError("No historical games before target board")
     feature_cutoff_day = max(_iso_day(x["date"]) for x in games)
-    rows = chronological_rows(games)
+    rows = _rows_with_dynamic_strength(games)
     fits, calibration, production = _fit_production_model(rows, cutoff_day)
     tuning = {"production_fixed_alpha": 100.0, "selection_source": "previous_development_only"}
     cal_through = calibration["_calibrated_through"]
