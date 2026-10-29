@@ -21,7 +21,7 @@ from nba_chronological_backtest import (
 )
 from nba_settlement_probabilities import settlement_probs
 
-MODEL_VERSION = "nba-independent-v2-rolling-production-form-h2h"
+MODEL_VERSION = "nba-independent-v3-isotonic-rolling-production"
 _INTERVAL_Z = {"50": 0.67448975, "80": 1.28155157, "95": 1.95996398}
 
 def _quantile(values, probability):
@@ -31,6 +31,41 @@ def _quantile(values, probability):
     pos = (len(xs) - 1) * probability
     lo, hi = int(pos), min(int(pos) + 1, len(xs) - 1)
     return xs[lo] + (xs[hi] - xs[lo]) * (pos - lo)
+
+def _isotonic_fit(probabilities, outcomes):
+    pairs = sorted((float(p), float(y)) for p, y in zip(probabilities, outcomes))
+    blocks = []
+    for p, y in pairs:
+        blocks.append({"p_sum": p, "y_sum": y, "n": 1})
+        while len(blocks) >= 2:
+            left, right = blocks[-2], blocks[-1]
+            if left["y_sum"] / left["n"] <= right["y_sum"] / right["n"]:
+                break
+            merged = {"p_sum": left["p_sum"] + right["p_sum"],
+                      "y_sum": left["y_sum"] + right["y_sum"],
+                      "n": left["n"] + right["n"]}
+            blocks[-2:] = [merged]
+    return {
+        "probability_knots": [b["p_sum"] / b["n"] for b in blocks],
+        "rate_knots": [b["y_sum"] / b["n"] for b in blocks],
+        "sample": len(pairs),
+    }
+
+def _isotonic_predict(model, probability):
+    if not model or not model.get("rate_knots"):
+        return float(probability)
+    ps, ys = model["probability_knots"], model["rate_knots"]
+    if probability <= ps[0]:
+        return float(ys[0])
+    if probability >= ps[-1]:
+        return float(ys[-1])
+    for i in range(1, len(ps)):
+        if probability <= ps[i]:
+            if ps[i] <= ps[i-1]:
+                return float(ys[i])
+            w = (probability - ps[i-1]) / (ps[i] - ps[i-1])
+            return float(ys[i-1] + w * (ys[i] - ys[i-1]))
+    return float(ys[-1])
 
 def _intervals(mu, sigma):
     return {level: {"low": float(mu - z * sigma), "high": float(mu + z * sigma)}
@@ -120,6 +155,12 @@ def _fit_production_model(rows, target_day):
             "80": [_quantile(centered, .10), _quantile(centered, .90)],
             "95": [_quantile(centered, .025), _quantile(centered, .975)],
         }
+    margin_cal_mu = [predict([x], "form_h2h", fits["margin"])[0] + calibration["margin"]["residual_bias"] for x in cal]
+    total_cal_mu = [predict([x], "form_h2h", fits["total"])[0] + calibration["total"]["residual_bias"] for x in cal]
+    raw_home = [p_greater(mu, calibration["margin"]["sigma"], 0.0) for mu in margin_cal_mu]
+    raw_over = [p_greater(mu, calibration["total"]["sigma"], TOTAL_LINE) for mu in total_cal_mu]
+    calibration["moneyline_isotonic"] = _isotonic_fit(raw_home, [float(x["margin"] > 0.5) for x in cal])
+    calibration["total_over_225_5_isotonic"] = _isotonic_fit(raw_over, [float(x["total"] > TOTAL_LINE) for x in cal])
     cal_through = max(x["date"] for x in cal)
     calibration["_calibrated_through"] = cal_through
     calibration["_sample"] = len(cal)
@@ -165,7 +206,10 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
                      calibration["total"]["residual_bias"])
     margin_sigma = float(calibration["margin"]["sigma"])
     total_sigma = float(calibration["total"]["sigma"])
-    p_home = p_greater(margin_mu, margin_sigma, 0.0)
+    raw_p_home = p_greater(margin_mu, margin_sigma, 0.0)
+    p_home = _isotonic_predict(calibration.get("moneyline_isotonic"), raw_p_home)
+    raw_p_over_225_5 = p_greater(total_mu, total_sigma, TOTAL_LINE)
+    p_over_225_5 = _isotonic_predict(calibration.get("total_over_225_5_isotonic"), raw_p_over_225_5)
     target = target_day.isoformat()
     base = {
         "game_id": str(fixture["game_id"]), "date": target,
@@ -175,6 +219,9 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
         "margin_mean_home_minus_away": margin_mu, "margin_sigma": margin_sigma,
         "total_mean": total_mu, "total_sigma": total_sigma,
         "moneyline_home_probability": p_home,
+        "moneyline_home_probability_raw": raw_p_home,
+        "total_over_225_5_probability": p_over_225_5,
+        "total_over_225_5_probability_raw": raw_p_over_225_5,
         "moneyline_away_probability": 1.0 - p_home,
         "moneyline_probability_semantics": "主队最终得分高于客队；不含加时单独校正",
         "prediction_intervals": {
@@ -199,6 +246,8 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
             "quality": "PASS" if len(value["proof"]["team_game_dates_home"]) >= 5 and len(value["proof"]["team_game_dates_away"]) >= 5 else "LIMITED_SAMPLE",
         },
         "calibration": {
+            "moneyline_isotonic": calibration.get("moneyline_isotonic"),
+            "total_over_225_5_isotonic": calibration.get("total_over_225_5_isotonic"),
             "model_version": MODEL_VERSION, "out_of_sample": True,
             "calibrated_through": calibration["_calibrated_through"],
             "calibration_sample": calibration["_sample"],
