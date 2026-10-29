@@ -18,8 +18,12 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
       - name: Test duplicate and parity rejection before network access
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
         run: python3 analysis/nba_archive_crosscheck.py --self-test
       - name: Cross-verify real SBR scores against Line Sheet and assess odds
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
         run: python3 analysis/nba_archive_crosscheck.py
       - name: Verify repository remains unchanged
         if: always()
