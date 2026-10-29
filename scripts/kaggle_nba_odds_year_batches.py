@@ -66,7 +66,7 @@ def stream_odds(total,entry,gameids):
     for i in range(begin,end,131072):
         data=remote.read_range(i,min(i+131072,end)-1,total)
         output=decompressor.decompress(data)
-        if len(output)>2_000_000:raise ValueError("UNEXPECTED_INFLATE_BURST")
+        if len(output)>8_000_000 or decoded+len(output)>110_000_000:raise ValueError("UNEXPECTED_INFLATE_BURST")
         decoded+=len(output)
         actual_crc=zlib.crc32(output,actual_crc)
         carry+=output.decode("utf-8","strict")
