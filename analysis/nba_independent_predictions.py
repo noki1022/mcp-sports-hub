@@ -225,8 +225,8 @@ def _fit_production_model(rows, target_day):
             "80": [_quantile(centered, .10), _quantile(centered, .90)],
             "95": [_quantile(centered, .025), _quantile(centered, .975)],
         }
-    margin_cal_mu = [predict([x], "form_h2h", fits["margin"])[0] + calibration["margin"]["residual_bias"] for x in cal]
-    total_cal_mu = [predict([x], "form_h2h", fits["total"])[0] + calibration["total"]["residual_bias"] for x in cal]
+    margin_cal_mu = [_predict_extended([x], fits["margin"])[0] + calibration["margin"]["residual_bias"] for x in cal]
+    total_cal_mu = [_predict_extended([x], fits["total"])[0] + calibration["total"]["residual_bias"] for x in cal]
     raw_home = [p_greater(mu, calibration["margin"]["sigma"], 0.0) for mu in margin_cal_mu]
     raw_over = [p_greater(mu, calibration["total"]["sigma"], TOTAL_LINE) for mu in total_cal_mu]
     calibration["moneyline_isotonic"] = _isotonic_fit(raw_home, [float(x["margin"] > 0.5) for x in cal])
