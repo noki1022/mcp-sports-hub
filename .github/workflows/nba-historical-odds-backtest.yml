@@ -1,0 +1,31 @@
+name: NBA historical odds feature backtest
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "analysis/nba_odds_feature_backtest.py"
+      - "data/odds/**"
+      - "data/results/**"
+      - "reports/odds/**"
+permissions:
+  contents: read
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --disable-pip-version-check --quiet numpy
+      - name: Run deterministic self-test
+        run: python analysis/nba_odds_feature_backtest.py --self-test
+      - name: Run settled historical odds backtest
+        run: |
+          python analysis/nba_odds_feature_backtest.py             --odds reports/odds/latest_settlement.json             --scores data/results/odds_api_scores.json             --out odds_feature_backtest_report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-odds-feature-backtest
+          path: odds_feature_backtest_report.json
+          retention-days: 14
