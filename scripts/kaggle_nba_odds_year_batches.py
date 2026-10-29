@@ -65,7 +65,7 @@ def stream_odds(total,entry,gameids):
     ids=defaultdict(set)
     num_rows=0
     source_hosts=Counter()
-    candidate_ids=set()
+    candidate_ids=set()\n    timestamp_candidate_quotes=0
     for i in range(begin,end,131072):
         data=remote.read_range(i,min(i+131072,end)-1,total)
         output=decompressor.decompress(data)
@@ -91,7 +91,7 @@ def stream_odds(total,entry,gameids):
             status=verify(row,game)
             counts[year][status]+=1
             source_hosts[urlparse(row.get("source_url","")).hostname or "MISSING"]+=1
-            if status=="PREGAME_TIME_CANDIDATE":candidate_ids.add(row["game_id"])
+            if status=="PREGAME_TIME_CANDIDATE":\n                candidate_ids.add(row["game_id"])\n                timestamp_candidate_quotes+=1
             if len(ids[year])<5000:ids[year].add(row["game_id"])
     leftover=decompressor.flush()
     actual_crc=zlib.crc32(leftover,actual_crc)
@@ -134,7 +134,7 @@ def main():
     result=stream_odds(total,entry[TARGET],index)
     print("KAGGLE_ODDS_SEASON_BATCH_AUDIT "+json.dumps(result,sort_keys=True,ensure_ascii=False),flush=True)
     print("KAGGLE_ODDS_BATCH_VERDICT "+json.dumps({
-       "train_admitted":0,"zip_downloaded_in_full":False,
+       "train_admitted":0,"timestamp_gate_passed":result.get("timestamp_gate",{}),"zip_downloaded_in_full":False,
        "raw_data_saved":False,"bytes_fetched":remote.spent,
        "unmatched_old_game_times_do_not_enter_training":True
     },sort_keys=True))
