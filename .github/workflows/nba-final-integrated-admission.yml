@@ -4,6 +4,7 @@ on:
     branches: [research/sbr-archive-parser-20261029]
     paths:
       - analysis/nba_final_admission_gate.py
+      - analysis/data/nba_final_admission_evidence.json
       - .github/workflows/nba-final-integrated-admission.yml
   workflow_dispatch:
 permissions:
@@ -21,7 +22,7 @@ jobs:
       - name: Test false attestations and missing inputs are rejected
         run: python3 analysis/nba_final_admission_gate.py --self-test
       - name: Audit integration eligibility without inventing upstream approvals
-        run: python3 analysis/nba_final_admission_gate.py
+        run: python3 analysis/nba_final_admission_gate.py --input analysis/data/nba_final_admission_evidence.json
       - name: Assert production cannot be changed without upstream attestations
         run: |
           python3 - <<'PY'
