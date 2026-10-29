@@ -67,7 +67,23 @@ def parse_central(raw,expected):
         name=raw[i+46:i+46+fn_len].decode("utf-8","replace")
         if fn_len<1 or fn_len>1000:raise ValueError("BAD_ZIP_ENTRY_NAME")
         if len(result)>=100000:raise ValueError("UNBOUNDED_ZIP_ENTRIES")
-        result.append({"path":name[:210],"compressed_bytes":comp_size,"uncompressed_bytes":uncomp_size,
+        local_offset=head[16]
+        # ZIP64 extended information contains the true compressed and uncompressed sizes.
+        extra=raw[i+46+fn_len:i+46+fn_len+extra_len]
+        pos=0
+        while pos+4<=len(extra):
+            xid,xlen=struct.unpack_from("<HH",extra,pos)
+            payload=extra[pos+4:pos+4+xlen]
+            if xid==1:
+                off=0
+                if uncomp_size==4294967295:
+                    uncomp_size=struct.unpack_from("<Q",payload,off)[0];off+=8
+                if comp_size==4294967295:
+                    comp_size=struct.unpack_from("<Q",payload,off)[0];off+=8
+                if local_offset==4294967295:
+                    local_offset=struct.unpack_from("<Q",payload,off)[0];off+=8
+            pos+=4+xlen
+        result.append({"path":name[:210],"local_header_offset":local_offset,"compressed_bytes":comp_size,"uncompressed_bytes":uncomp_size,
                        "method":head[4],"is_directory":name.endswith("/")})
         i+=46+fn_len+extra_len+comment_len
     if i!=len(raw) or len(result)!=expected:
