@@ -96,7 +96,7 @@ def stream_odds(total,entry,gameids):
             if status=="PREGAME_TIME_CANDIDATE":
                 candidate_ids.add(row["game_id"])
                 timestamp_candidate_quotes+=1
-                candidate_rows.append({**row,"season_year":year,"tip_time_verified":True,"admission":"PREGAME_TIME_CANDIDATE"})
+                candidate_rows.append({**row,**{"index_"+str(k):v for k,v in (game or {}).items()},"season_year":year,"tip_time_verified":True,"admission":"PREGAME_TIME_CANDIDATE"})
             if len(ids[year])<5000:ids[year].add(row["game_id"])
     leftover=decompressor.flush()
     actual_crc=zlib.crc32(leftover,actual_crc)
