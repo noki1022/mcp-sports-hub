@@ -66,6 +66,7 @@ def stream_odds(total,entry,gameids):
     num_rows=0
     source_hosts=Counter()
     candidate_ids=set()
+    candidate_rows=[]
     timestamp_candidate_quotes=0
     for i in range(begin,end,131072):
         data=remote.read_range(i,min(i+131072,end)-1,total)
@@ -95,6 +96,7 @@ def stream_odds(total,entry,gameids):
             if status=="PREGAME_TIME_CANDIDATE":
                 candidate_ids.add(row["game_id"])
                 timestamp_candidate_quotes+=1
+                candidate_rows.append({**row,"season_year":year,"tip_time_verified":True,"admission":"PREGAME_TIME_CANDIDATE"})
             if len(ids[year])<5000:ids[year].add(row["game_id"])
     leftover=decompressor.flush()
     actual_crc=zlib.crc32(leftover,actual_crc)
@@ -116,6 +118,7 @@ def stream_odds(total,entry,gameids):
       "source_domains":dict(source_hosts.most_common(10)),
       "unique_pregame_candidate_games":len(candidate_ids),
       "timestamp_candidate_quotes":timestamp_candidate_quotes,
+      "eligible_rows":candidate_rows,
       "source_provenance_not_verified":True,
       "strict_train_eligible":0}
 
@@ -145,6 +148,11 @@ def main():
       "untimed_open_close_excluded":True,
       "old_seasons_without_tip_time":"QUARANTINED"
     }
+    out=os.getenv("KAGGLE_CANDIDATE_OUT")
+    if out:
+        Path(out).write_text(json.dumps({"rows":result.pop("eligible_rows",[]),"audit":result.get("timestamp_gate",{})},ensure_ascii=False),encoding="utf-8")
+    else:
+        result.pop("eligible_rows",None)
     print("KAGGLE_ODDS_SEASON_BATCH_AUDIT "+json.dumps(result,sort_keys=True,ensure_ascii=False),flush=True)
     print("KAGGLE_ODDS_BATCH_VERDICT "+json.dumps({
        "train_admitted":0,"timestamp_gate_passed":result.get("timestamp_gate",{}),"zip_downloaded_in_full":False,
