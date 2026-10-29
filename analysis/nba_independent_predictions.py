@@ -315,6 +315,9 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
         "moneyline_away_probability": 1.0 - p_home,
         "market_moneyline": market_ml,
         "odds_features_used": bool(market_ml),
+        "moneyline_home_probability_with_market": (0.75 * p_home + 0.25 * market_ml["home"]) if market_ml else None,
+        "moneyline_fusion_weight_model": 0.75,
+        "moneyline_fusion_weight_market": 0.25,
         "moneyline_probability_semantics": "主队最终得分高于客队；不含加时单独校正",
         "prediction_intervals": {
             "margin_home_minus_away": _intervals(margin_mu, margin_sigma),
