@@ -7,7 +7,7 @@ on:
       - .github/workflows/kaggle-nba-odds-year-batches.yml
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   verify:
     runs-on: ubuntu-latest
