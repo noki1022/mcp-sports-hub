@@ -20,9 +20,9 @@ def get_rows(total,m):
     z=zlib.decompressobj(-15)
     carry=b""
     decoded=0
-    for pos in range(begin,begin+m["compressed_bytes"],100_000):
-        compressed=remote.read_range(pos,min(pos+100_000,begin+m["compressed_bytes"])-1,total)
-        data=z.decompress(compressed,4_000_000)
+    for pos in range(begin,begin+m["compressed_bytes"],400_000):
+        compressed=remote.read_range(pos,min(pos+400_000,begin+m["compressed_bytes"])-1,total)
+        data=z.decompress(compressed,16_000_000)
         if z.unconsumed_tail:raise ValueError("INFLATE_LIMIT")
         decoded+=len(data)
         if decoded>800_000_000:raise ValueError("UNBOUNDED_EXPANSION")
