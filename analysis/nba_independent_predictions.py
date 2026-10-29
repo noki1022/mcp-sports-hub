@@ -8,7 +8,7 @@ fail closed instead of guessing.
 """
 from __future__ import annotations
 import argparse, json, math, sys
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,7 +21,7 @@ from nba_chronological_backtest import (
 )
 from nba_settlement_probabilities import settlement_probs
 
-MODEL_VERSION = "nba-independent-v1-form-h2h-ridge-gaussian"
+MODEL_VERSION = "nba-independent-v2-rolling-production-form-h2h"
 _INTERVAL_Z = {"50": 0.67448975, "80": 1.28155157, "95": 1.95996398}
 
 def _intervals(mu, sigma):
@@ -83,6 +83,39 @@ def _fit_frozen_model(rows):
     cal_through = max(x["date"] for x in splits["calibration"])
     return splits, fits, calibration, tuning, cal_through
 
+
+def _fit_production_model(rows, target_day):
+    """Fit a deployable model using only data published before target_day.
+
+    Alpha stays fixed at the previously validated development value. The final
+    seven calendar days are embargoed, then the latest 240 eligible rows are
+    calibration-only; no target-day or future results enter the fit.
+    """
+    embargo_end = target_day - timedelta(days=8)
+    eligible = [r for r in rows if _iso_day(r["date"]) <= embargo_end]
+    if len(eligible) < 500:
+        raise RuntimeError("Insufficient point-in-time production history")
+    eligible.sort(key=lambda r: (r["date"], r["game_id"]))
+    cal = eligible[-240:]
+    train = eligible[:-240]
+    if len(train) < 1500 or len(cal) < 100:
+        raise RuntimeError("Production train/calibration split too small")
+    fits = {target: train_ridge(train, target, "form_h2h", 100.0)
+            for target in ("margin", "total")}
+    calibration = fit_calibration(cal, "form_h2h", fits)
+    cal_through = max(x["date"] for x in cal)
+    calibration["_calibrated_through"] = cal_through
+    calibration["_sample"] = len(cal)
+    metadata = {
+        "mode": "ROLLING_PRODUCTION",
+        "fixed_alpha": 100.0,
+        "training_games": len(train),
+        "calibration_games": len(cal),
+        "calibration_through": cal_through,
+        "embargo_end": embargo_end.isoformat(),
+        "holdout_metrics_preserved": True,
+    }
+    return fits, calibration, metadata
 
 def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_day):
     missing = [k for k in MIN_TARGET_FIELDS if not fixture.get(k)]
@@ -183,11 +216,9 @@ def generate(board):
         raise RuntimeError("No historical games before target board")
     feature_cutoff_day = max(_iso_day(x["date"]) for x in games)
     rows = chronological_rows(games)
-    _, fits, calibration, tuning, cal_through = _fit_frozen_model(rows)
-    calibration["margin"]["_calibrated_through"] = cal_through
-    calibration["total"]["_calibrated_through"] = cal_through
-    calibration["_calibrated_through"] = cal_through
-    calibration["_sample"] = len([x for x in rows if x["season"] == VAL_SEASON and x["date"] >= CAL_FIRST])
+    fits, calibration, production = _fit_production_model(rows, cutoff_day)
+    tuning = {"production_fixed_alpha": 100.0, "selection_source": "previous_development_only"}
+    cal_through = calibration["_calibrated_through"]
     output = {
         "schema_version": "nba-independent-predictions-v1",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -207,6 +238,7 @@ def generate(board):
             "moneyline_comparison": "DISABLED",
         },
         "tuning": tuning,
+        "production_fit": production,
         "calibration": {
             "out_of_sample": True, "model_version": MODEL_VERSION,
             "calibrated_through": cal_through,
