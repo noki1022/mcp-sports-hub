@@ -19,6 +19,7 @@ from nba_chronological_backtest import (
     choose_hyperparameter, train_ridge, fit_calibration, features,
     model_forecasts, predict, p_greater,
 )
+from nba_settlement_probabilities import settlement_probs
 
 MODEL_VERSION = "nba-independent-v1-form-h2h-ridge-gaussian"
 MIN_TARGET_FIELDS = ("game_id", "date", "home", "away")
