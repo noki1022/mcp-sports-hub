@@ -274,8 +274,8 @@ def self_test():
     sample = (
         "1022,501,V,NewOrleans,122,231.5,229.5,230\n"
         "1022,502,H,Toronto,130,6.5,6.5,-280\n"
-        "1023,503,V,LALakers,102,3.5,224,-180\n"
-        "1023,504,H,LAClippers,112,227,3.5,150\n"
+        "1023,503,V,LALakers,102,3.5,224,150\n"
+        "1023,504,H,LAClippers,112,227,3.5,-180\n"
         "1024,505,V,Milwaukee,117,230,230,-110\n"
         "1024,506,H,GoldenState,122,pk,pk,-110\n"
     )
@@ -287,7 +287,7 @@ def self_test():
     # Opening favorite is the visitor, closing pick-em: do not infer from ML.
     assert x["GSW"]["close_home_handicap"] == 0
     assert x["LAC"]["open_home_handicap"] == 3.5
-    assert x["LAC"]["close_home_handicap"] == 3.5
+    assert x["LAC"]["close_home_handicap"] == -3.5
     assert x["TOR"]["date"] == "2019-10-22"
     assert abs(x["TOR"]["close_home_ml_no_vig"] - .715) < .02
     bad = (head + "1022,501,V,NewOrleans,122,231.5,229.5,230\n"
