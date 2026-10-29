@@ -1,0 +1,35 @@
+name: NBA final integrated data admission gate
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - analysis/nba_final_admission_gate.py
+      - .github/workflows/nba-final-integrated-admission.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  final-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Test false attestations and missing inputs are rejected
+        run: python3 analysis/nba_final_admission_gate.py --self-test
+      - name: Audit integration eligibility without inventing upstream approvals
+        run: python3 analysis/nba_final_admission_gate.py
+      - name: Assert production cannot be changed without upstream attestations
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          v=json.loads(Path('/tmp/nba_final_admission_verdict.json').read_text())
+          assert not v['production_promote_allowed']
+          assert all(s['accepted_rows']==0 for s in v['per_dataset'].values())
+          print('NBA_FINAL_GATE_FAIL_CLOSED_PASS')
+          PY
+          test -z "$(git status --porcelain)"
