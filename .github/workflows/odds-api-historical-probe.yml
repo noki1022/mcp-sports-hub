@@ -2,7 +2,7 @@ name: One-shot The Odds API historical NBA probe
 on:
   workflow_dispatch:
     inputs:
-      date:
+      snapshot_time:
         description: "UTC snapshot time, e.g. 2025-01-15T18:00:00Z"
         required: true
         type: string
@@ -18,7 +18,7 @@ jobs:
       ODD: ${{ secrets.ODD }}
     steps:
       - uses: actions/checkout@v4
-      - run: python3 scripts/odds_api_historical_probe.py --date "${{ inputs.date }}" --out /tmp/historical.json
+      - run: python3 scripts/odds_api_historical_probe.py --date "${{ inputs.snapshot_time }}" --out /tmp/historical.json
       - run: |
           test -s /tmp/historical.json
           mkdir -p data/odds/historical-probe
