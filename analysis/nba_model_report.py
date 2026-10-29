@@ -35,6 +35,8 @@ def render(joined, gate, out_json, out_html):
         rows.append(record)
         margin = record["margin_mean_home_minus_away"]
         total = record["total_mean"]
+        home_prob = p.get("moneyline_home_probability")
+        away_prob = p.get("moneyline_away_probability")
         mi = intervals.get("margin_home_minus_away", {})
         ti = intervals.get("total", {})
         spread = markets.get("full_spread", {}).get("settlement", {})
@@ -46,6 +48,7 @@ def render(joined, gate, out_json, out_html):
             "<section><h2>" + html.escape(str(game.get("display_clock", "—"))) + " "
             + html.escape(str(game.get("home_team", "—"))) + " vs "
             + html.escape(str(game.get("away_team", "—"))) + "</h2>"
+            + "<p>独赢模型概率：主胜 <b>" + fmt(home_prob * 100 if home_prob is not None else None) + "%</b>；客胜 <b>" + fmt(away_prob * 100 if away_prob is not None else None) + "%</b></p>"
             + "<p>模型分差（主−客）：<b>" + fmt(margin) + "</b>；80%区间 "
             + "[" + fmt((mi.get("80") or {}).get("low")) + ", " + fmt((mi.get("80") or {}).get("high")) + "]</p>"
             + "<p>模型总分：<b>" + fmt(total) + "</b>；80%区间 "
