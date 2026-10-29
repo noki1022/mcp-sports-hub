@@ -135,12 +135,14 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
         p = p_greater(margin_mu, margin_sigma, spread_line)
         base["markets"].append({"market": "full_spread", "line": spread_line,
                                 "p_side1": p, "p_side2": 1.0-p,
+                                "settlement": settlement_probs(spread_line, margin_mu, margin_sigma),
                                 "direction_verified": False})
     total_line = _finite(fixture.get("total_line"))
     if total_line is not None:
         p = p_greater(total_mu, total_sigma, total_line)
         base["markets"].append({"market": "full_total", "line": total_line,
                                 "p_side1": p, "p_side2": 1.0-p,
+                                "settlement": settlement_probs(total_line, total_mu, total_sigma),
                                 "direction_verified": False})
     if not base["markets"]:
         base["status"] = "PARTIAL"
