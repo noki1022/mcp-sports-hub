@@ -26,8 +26,11 @@ jobs:
           if [ -n "$latest" ]; then
             python analysis/historical_odds_validator.py --infile "$latest" --outfile "${latest%.json}_validated.json"
           fi
+          mkdir -p reports/odds
+          python analysis/odds_snapshot_alignment.py --self-test
+          python analysis/odds_snapshot_alignment.py --glob "data/odds/*_validated.json" --out reports/odds/snapshot_alignment.json
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add data/odds
+          git add data/odds reports/odds
           git diff --cached --quiet || git commit -m "Save daily NBA odds snapshot"
           git push
