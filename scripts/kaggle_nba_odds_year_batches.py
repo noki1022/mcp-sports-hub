@@ -7,6 +7,7 @@ are NOT presumed timestamped. Sources must be separately licensed and audited.
 """
 from __future__ import annotations
 import csv,io,json,math,re,struct,zlib
+from urllib.parse import urlparse
 from collections import Counter,defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -63,6 +64,8 @@ def stream_odds(total,entry,gameids):
     counts=defaultdict(Counter)
     ids=defaultdict(set)
     num_rows=0
+    source_hosts=Counter()
+    candidate_ids=set()
     for i in range(begin,end,131072):
         data=remote.read_range(i,min(i+131072,end)-1,total)
         output=decompressor.decompress(data)
@@ -87,6 +90,8 @@ def stream_odds(total,entry,gameids):
             year=str(season)
             status=verify(row,game)
             counts[year][status]+=1
+            source_hosts[urlparse(row.get("source_url","")).hostname or "MISSING"]+=1
+            if status=="PREGAME_TIME_CANDIDATE":candidate_ids.add(row["game_id"])
             if len(ids[year])<5000:ids[year].add(row["game_id"])
     leftover=decompressor.flush()
     actual_crc=zlib.crc32(leftover,actual_crc)
@@ -105,6 +110,8 @@ def stream_odds(total,entry,gameids):
     return {"total_quote_rows":num_rows,"expanded_bytes":decoded,
       "by_season":{season:{"quote_statuses":dict(c),"sample_distinct_game_ids":len(ids[season])} for season,c in sorted(counts.items())},
       "source_archive_crc32":f"{actual_crc:08x}",
+      "source_domains":dict(source_hosts.most_common(10)),
+      "unique_pregame_candidate_games":len(candidate_ids),
       "source_provenance_not_verified":True,
       "strict_train_eligible":0}
 
