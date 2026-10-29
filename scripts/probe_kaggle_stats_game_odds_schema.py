@@ -39,8 +39,11 @@ def main():
     temporal=Counter()
     for rec in sampled:
         label=(rec.get("odds_date") or "").strip()
-        if label.lower()=="open":
-            temporal["OPEN_LABEL"]+=1
+        if label.lower() in ("open","close","closing","opening"):
+            temporal[label.upper()+"_LABEL"]+=1
+            continue
+        if not label:
+            temporal["MISSING_ODDS_DATE"]+=1
             continue
         try:
             game=datetime.fromisoformat(rec["game_date"].replace("Z","+00:00"))
