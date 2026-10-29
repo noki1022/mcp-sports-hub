@@ -83,7 +83,7 @@ def parse_central(raw,expected):
                 if local_offset==4294967295:
                     local_offset=struct.unpack_from("<Q",payload,off)[0];off+=8
             pos+=4+xlen
-        result.append({"path":name[:210],"local_header_offset":local_offset,"compressed_bytes":comp_size,"uncompressed_bytes":uncomp_size,
+        result.append({"path":name[:210],"local_header_offset":local_offset,"crc32":head[7],"compressed_bytes":comp_size,"uncompressed_bytes":uncomp_size,
                        "method":head[4],"is_directory":name.endswith("/")})
         i+=46+fn_len+extra_len+comment_len
     if i!=len(raw) or len(result)!=expected:
