@@ -83,6 +83,8 @@ if __name__ == "__main__":
         if not args.joined:
             raise SystemExit("--joined is required")
         joined = json.loads(Path(args.joined).read_text(encoding="utf-8"))
-        model = generate(build_board(joined))
+        board = build_board(joined)
+        model = ({"target_display_date": board.get("target_display_date"), "model_version": None, "predictions": []}
+                 if not board.get("games") else generate(board))
         Path(args.out).write_text(json.dumps(flatten(model), ensure_ascii=False, indent=2), encoding="utf-8")
         print(json.dumps({"out": args.out, "predictions": len(flatten(model)["predictions"]), "decision": "NO_BET"}, ensure_ascii=False))
