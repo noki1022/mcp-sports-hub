@@ -78,13 +78,13 @@ def _fit_frozen_model(rows):
     return splits, fits, calibration, tuning, cal_through
 
 
-def _prediction_for_fixture(fixture, games, fits, calibration, cutoff_day):
+def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_day):
     missing = [k for k in MIN_TARGET_FIELDS if not fixture.get(k)]
     target_day = _iso_day(fixture.get("date"))
     if missing or target_day is None:
         return {"game_id": fixture.get("game_id"), "status": "DISABLED",
                 "reasons": ["TARGET_FIELDS_MISSING"] + [f"MISSING_{x.upper()}" for x in missing]}
-    if target_day <= cutoff_day:
+    if target_day <= feature_cutoff_day:
         return {"game_id": fixture.get("game_id"), "status": "DISABLED",
                 "reasons": ["TARGET_DATE_NOT_AFTER_FEATURE_CUTOFF"]}
     if not isinstance(fixture.get("home"), str) or not isinstance(fixture.get("away"), str):
@@ -113,7 +113,7 @@ def _prediction_for_fixture(fixture, games, fits, calibration, cutoff_day):
     base = {
         "game_id": str(fixture["game_id"]), "date": target,
         "home": fixture["home"], "away": fixture["away"], "status": "OK",
-        "model_version": MODEL_VERSION, "feature_cutoff_date": cutoff_day.isoformat(),
+        "model_version": MODEL_VERSION, "feature_cutoff_date": feature_cutoff_day.isoformat(),
         "max_feature_source_date": value["proof"]["max_input_game_date"],
         "margin_mean_home_minus_away": margin_mu, "margin_sigma": margin_sigma,
         "total_mean": total_mu, "total_sigma": total_sigma,
@@ -156,6 +156,9 @@ def generate(board):
         raise ValueError("Every fixture needs an ISO date")
     cutoff_day = min(target_days)
     games, rejected, sources = extract_history(cutoff_day)
+    if not games:
+        raise RuntimeError("No historical games before target board")
+    feature_cutoff_day = max(_iso_day(x["date"]) for x in games)
     rows = chronological_rows(games)
     _, fits, calibration, tuning, cal_through = _fit_frozen_model(rows)
     calibration["margin"]["_calibrated_through"] = cal_through
@@ -166,7 +169,7 @@ def generate(board):
         "schema_version": "nba-independent-predictions-v1",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "target_display_date": board.get("target_display_date") or cutoff_day.isoformat(),
-        "data_cutoff_date": cutoff_day.isoformat(),
+        "data_cutoff_date": feature_cutoff_day.isoformat(),
         "model_version": MODEL_VERSION,
         "odds_as_features": False,
         "data_sources": sources,
@@ -187,7 +190,7 @@ def generate(board):
             "sample": calibration["_sample"],
         },
         "predictions": [
-            _prediction_for_fixture(x, games, fits, calibration, cutoff_day)
+            _prediction_for_fixture(x, games, fits, calibration, feature_cutoff_day)
             for x in fixtures
         ],
         "decision": "NO_BET",
