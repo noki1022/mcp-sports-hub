@@ -1,0 +1,26 @@
+name: NBA Line Sheet 23k second-stage independent score audit
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - analysis/nba_line_sheet_acceptance.py
+      - .github/workflows/nba-line-sheet-second-stage.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 analysis/nba_line_sheet_acceptance.py --self-test
+      - name: Inspect entire source and cross-check independent season scores
+        run: python3 analysis/nba_line_sheet_acceptance.py
+      - name: Guarantee no dataset change
+        if: always()
+        run: test -z "$(git status --porcelain)"
