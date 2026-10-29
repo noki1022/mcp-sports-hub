@@ -184,5 +184,5 @@ def main():
        "The upstream reuse rights and exact original publication times have not been independently proven.\n"
        "Do not use this bundle for public redistribution or production auto-promotion.\n",encoding="utf-8")
     print("NBA_UNIFIED_FINAL_TRAIN_PACKAGE "+json.dumps(manifest,ensure_ascii=False,sort_keys=True),flush=True)
-    assert len(COLS)==len(set(COLS)) and len(FEATURES)==48
+    assert len(COLS)==len(set(COLS)) and len(FEATURES)==50
 if __name__=="__main__":main()
