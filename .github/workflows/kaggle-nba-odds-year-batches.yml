@@ -22,6 +22,15 @@ jobs:
           python-version: '3.12'
       - run: python3 scripts/kaggle_nba_odds_year_batches.py --self-test
       - run: python3 scripts/kaggle_nba_odds_year_batches.py
+      - name: Commit timestamp-qualified odds candidate file
+        run: |
+          mkdir -p reports/odds
+          cp /tmp/kaggle_timestamp_qualified_odds.json reports/odds/kaggle_timestamp_qualified_odds.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add reports/odds/kaggle_timestamp_qualified_odds.json
+          git commit -m "Save timestamp-qualified odds candidate file"
+          git push
       - name: Upload timestamp-qualified odds candidates
         uses: actions/upload-artifact@v4
         with:
