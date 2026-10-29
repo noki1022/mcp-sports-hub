@@ -54,6 +54,7 @@ jobs:
           python3 scripts/titan007_report.py --joined titan007_three_joined.json --html titan007_three_report.html --csv titan007_three_report.csv
           python3 analysis/titan007_daily_market.py --joined titan007_three_joined.json --out titan007_three_market.json
           python3 analysis/market_decision_gate.py --market titan007_three_market.json --predictions nba_independent_predictions_gate.json --out titan007_three_decision.json
+          python3 analysis/nba_model_report.py --joined titan007_three_joined.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html
       - name: Archive analysis in repository
         if: ${{ success() }}
         run: |
@@ -99,5 +100,7 @@ jobs:
             titan007_three_market.json
             titan007_three_decision.json
             nba_independent_predictions_gate.json
+            nba_model_analysis.json
+            nba_model_analysis.html
           if-no-files-found: warn
           retention-days: 14

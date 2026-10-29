@@ -53,6 +53,11 @@ def flatten(model):
                 "p_side1": market["p_side1"],
                 "p_side2": market["p_side2"],
                 "direction_verified": bool(market.get("direction_verified", False)),
+                "settlement": market.get("settlement"),
+                "model_margin_mean": game.get("margin_mean_home_minus_away"),
+                "model_total_mean": game.get("total_mean"),
+                "prediction_intervals": game.get("prediction_intervals"),
+                "data_quality": game.get("data_quality"),
             })
     return {
         "schema_version": "nba-independent-gate-predictions-v1",
@@ -60,6 +65,7 @@ def flatten(model):
         "model_version": model.get("model_version"),
         "odds_as_features": False,
         "predictions": rows,
+        "game_predictions": model.get("predictions", []),
         "decision": "NO_BET",
     }
 
