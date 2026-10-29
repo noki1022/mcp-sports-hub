@@ -24,6 +24,14 @@ from nba_settlement_probabilities import settlement_probs
 MODEL_VERSION = "nba-independent-v2-rolling-production-form-h2h"
 _INTERVAL_Z = {"50": 0.67448975, "80": 1.28155157, "95": 1.95996398}
 
+def _quantile(values, probability):
+    xs = sorted(float(x) for x in values)
+    if not xs:
+        return 0.0
+    pos = (len(xs) - 1) * probability
+    lo, hi = int(pos), min(int(pos) + 1, len(xs) - 1)
+    return xs[lo] + (xs[hi] - xs[lo]) * (pos - lo)
+
 def _intervals(mu, sigma):
     return {level: {"low": float(mu - z * sigma), "high": float(mu + z * sigma)}
             for level, z in _INTERVAL_Z.items()}
@@ -103,6 +111,15 @@ def _fit_production_model(rows, target_day):
     fits = {target: train_ridge(train, target, "form_h2h", 100.0)
             for target in ("margin", "total")}
     calibration = fit_calibration(cal, "form_h2h", fits)
+    for target in ("margin", "total"):
+        residuals = [x[target] - predict([x], "form_h2h", fits[target])[0] for x in cal]
+        bias = calibration[target]["residual_bias"]
+        centered = [r - bias for r in residuals]
+        calibration[target]["residual_quantiles"] = {
+            "50": [_quantile(centered, .25), _quantile(centered, .75)],
+            "80": [_quantile(centered, .10), _quantile(centered, .90)],
+            "95": [_quantile(centered, .025), _quantile(centered, .975)],
+        }
     cal_through = max(x["date"] for x in cal)
     calibration["_calibrated_through"] = cal_through
     calibration["_sample"] = len(cal)
@@ -163,6 +180,16 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
         "prediction_intervals": {
             "margin_home_minus_away": _intervals(margin_mu, margin_sigma),
             "total": _intervals(total_mu, total_sigma),
+        },
+        "empirical_prediction_intervals": {
+            "margin_home_minus_away": {
+                level: {"low": float(margin_mu + qs[0]), "high": float(margin_mu + qs[1])}
+                for level, qs in calibration["margin"]["residual_quantiles"].items()
+            },
+            "total": {
+                level: {"low": float(total_mu + qs[0]), "high": float(total_mu + qs[1])}
+                for level, qs in calibration["total"]["residual_quantiles"].items()
+            },
         },
         "data_quality": {
             "home_recent_games": len(value["proof"]["team_game_dates_home"]),
