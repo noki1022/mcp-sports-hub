@@ -1,0 +1,32 @@
+name: NBA historical scores cross-source acceptance audit
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - analysis/nba_archive_crosscheck.py
+      - analysis/sbr_archive_import.py
+      - .github/workflows/nba-historical-cross-source.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Test duplicate and parity rejection before network access
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 analysis/nba_archive_crosscheck.py --self-test
+      - name: Cross-verify real SBR scores against Line Sheet and assess odds
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 analysis/nba_archive_crosscheck.py
+      - name: Verify repository remains unchanged
+        if: always()
+        run: |
+          test -z "$(git status --porcelain)"
+          echo "NO_RAW_ARCHIVES_OR_INVALID_ROWS_COMMITTED"

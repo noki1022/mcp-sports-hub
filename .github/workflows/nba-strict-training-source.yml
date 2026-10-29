@@ -1,0 +1,28 @@
+name: Strict licensed historical NBA score training source acceptance
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - analysis/nba_538_training_source.py
+      - .github/workflows/nba-strict-training-source.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 analysis/nba_538_training_source.py --self-test
+      - name: Fetch, validate and cross-verify licensed historical results
+        run: python3 analysis/nba_538_training_source.py --out /tmp/nba_train_scores_verified.csv --manifest /tmp/nba_train_scores_manifest.json
+      - name: Verify candidate is temporary, training directory unchanged
+        if: always()
+        run: |
+          test -z "$(git status --porcelain)"
+          echo "RAW_FILES_NOT_COMMITTED"

@@ -1,0 +1,34 @@
+name: NBA SBR historical archive parser safety checks
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - analysis/sbr_archive_import.py
+      - analysis/README-sbr-archive-audit.md
+      - .github/workflows/nba-sbr-archive-audit.yml
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reject malformed pairs and verify SBR line direction
+        run: python3 analysis/sbr_archive_import.py --self-test
+      - name: Verify no network / no automatic import / no tracked raw sources
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import ast
+          p = Path("analysis/sbr_archive_import.py")
+          tree = ast.parse(p.read_text())
+          imports = {n.names[0].name.split('.')[0] for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom)) for _ in [0] if isinstance(n, ast.Import)}
+          assert not imports.intersection({"requests", "urllib", "httpx"})
+          source = p.read_text()
+          assert '"training_eligible": False' in source
+          print("SBR_NO_NETWORK_NO_TRAINING_IMPORT_PASS")
+          PY

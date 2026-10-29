@@ -1,0 +1,28 @@
+name: Kaggle NBA two-dataset metadata admission audit
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - scripts/probe_kaggle_nba_sources.py
+      - .github/workflows/kaggle-nba-source-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: No-network metadata schema tests
+        run: python3 scripts/probe_kaggle_nba_sources.py --self-test
+      - name: Inspect the actual public Kaggle API metadata
+        run: python3 scripts/probe_kaggle_nba_sources.py
+      - name: Zero committed raw data
+        if: always()
+        run: test -z "$(git status --porcelain)"

@@ -1,0 +1,53 @@
+name: NBA unified strict score team player training package
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - analysis/build_nba_unified_train_bundle.py
+      - .github/workflows/nba-unified-strict-training.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  final:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 analysis/build_nba_unified_train_bundle.py --self-test
+      - name: Download already validated score training artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nba-train-ready-2007-2021-research-only
+          run-id: 40853058388
+          github-token: ${{ github.token }}
+          path: /tmp/nba-train-ready-v1
+      - name: Download already validated team training artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nba-team-enriched-training-research
+          run-id: 40853671977
+          github-token: ${{ github.token }}
+          path: /tmp/nba-team-stats-train-ready
+      - name: Download already validated player training artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nba-player-aggregates-lagged-research-only
+          run-id: 40853947428
+          github-token: ${{ github.token }}
+          path: /tmp/nba-player-aggregate-research
+      - name: Join verified immutable artifacts without fetching sources
+        run: python3 analysis/build_nba_unified_train_bundle.py --from-artifacts
+      - name: Ensure raw data and training datasets not committed into Git
+        run: test -z "$(git status --porcelain)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-unified-verified-train-validation-research
+          path: /tmp/nba-unified-strict-train-v1/
+          retention-days: 7
+          if-no-files-found: error

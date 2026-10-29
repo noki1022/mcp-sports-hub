@@ -1,0 +1,32 @@
+name: NBA train-ready historical package final build
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - analysis/export_nba_train_ready.py
+      - .github/workflows/nba-train-ready-package.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Validate train and validation isolation unit tests
+        run: python3 analysis/export_nba_train_ready.py --self-test
+      - name: Export auditable train and validation only
+        run: python3 analysis/export_nba_train_ready.py
+      - name: Verify no files written into Git
+        run: test -z "$(git status --porcelain)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-train-ready-2007-2021-research-only
+          path: /tmp/nba-train-ready-v1/
+          retention-days: 7
+          if-no-files-found: error

@@ -1,0 +1,26 @@
+name: Kaggle NBA 10GB ZIP range-only inspection
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - scripts/probe_kaggle_stats_remote_zip.py
+      - .github/workflows/kaggle-stats-zip-range-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Bounded range and ZIP64 central directory audit (no full download)
+        run: python3 scripts/probe_kaggle_stats_remote_zip.py
+      - name: Confirm no raw files or repository modifications
+        if: always()
+        run: test -z "$(git status --porcelain)"

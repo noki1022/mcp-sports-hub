@@ -1,0 +1,43 @@
+name: Build verified NBA historical score-only training candidate
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - analysis/build_verified_historical_training.py
+      - .github/workflows/nba-verified-historical-training.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build independent research-only training input
+        run: python3 analysis/build_verified_historical_training.py
+      - name: Confirm no production dataset changed
+        run: |
+          test -z "$(git status --porcelain)"
+          python3 - <<'PY'
+          import json,csv
+          from pathlib import Path
+          p=Path('/tmp/nba-historical-training-candidate')
+          m=json.loads((p/'manifest.json').read_text())
+          with (p/m['dataset_filename']).open() as f: rows=list(csv.DictReader(f))
+          assert len(rows)==m['games'] and m['games']>=18500
+          assert all(r['date']<'2022-08-01' for r in rows)
+          assert not any(any(c in k for c in ('odds','moneyline','elo','forecast')) for k in rows[0])
+          print('NBA_TRAINING_ARTIFACT_STRICT_ACCEPTED',len(rows))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-score-only-verified-training-candidate
+          path: /tmp/nba-historical-training-candidate/
+          retention-days: 7
+          if-no-files-found: error

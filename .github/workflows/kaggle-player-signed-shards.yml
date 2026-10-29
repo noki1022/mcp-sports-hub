@@ -1,0 +1,27 @@
+name: NBA player archive signed URL shard diagnostics
+on:
+  push:
+    branches: [research/sbr-archive-parser-20261029]
+    paths:
+      - scripts/kaggle_player_signed_shard_audit.py
+      - .github/workflows/kaggle-player-signed-shards.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  shards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 7, 15]
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 scripts/kaggle_player_signed_shard_audit.py --shard ${{ matrix.shard }} --shards 16
+      - if: always()
+        run: test -z "$(git status --porcelain)"
