@@ -9,6 +9,7 @@ fail closed instead of guessing.
 from __future__ import annotations
 import argparse, json, math, sys
 import numpy as np
+from collections import defaultdict
 from datetime import date, datetime, timezone, timedelta
 from pathlib import Path
 
