@@ -21,7 +21,7 @@ def main():
     z=zipfile.ZipFile(io.BytesIO(blob))
     names=[n for n in z.namelist() if n.endswith(".csv")]
     if len(names)!=1:raise RuntimeError("UNEXPECTED_CSV_FILE_COUNT")
-    counts=Counter();seen=defaultdict(list); date_examples=[]; errors=Counter()
+    counts=Counter();seen=defaultdict(list); date_examples=[]; team_examples=[]; errors=Counter()
     with z.open(names[0]) as f:
         reader=csv.DictReader(io.TextIOWrapper(f,encoding="utf-8-sig",newline=""))
         needed={"date","home","away","score_home","score_away","spread","total","moneyline_home","moneyline_away"}
@@ -31,6 +31,7 @@ def main():
             try:
                 d=r["date"].strip()
                 if len(date_examples)<5:date_examples.append(d)
+                if len(team_examples)<5:team_examples.append([r["home"],r["away"],r["score_home"],r["score_away"],r["total"]])
                 from datetime import datetime
                 from datetime import date as Date
                 try:day=datetime.fromisoformat(d.replace("Z","+00:00")).date().isoformat()
@@ -57,7 +58,7 @@ def main():
             counts["conflicting_score_or_ref"]+=1
         else:
             counts["score_matched_candidate_only"]+=1
-    print("KAGGLE_BETTING_CROSS_AUDIT "+json.dumps({"counts":dict(counts),"date_examples":date_examples,"reject_details":dict(errors.most_common(7)),"source_sha256":hashlib.sha256(blob).hexdigest(),
+    print("KAGGLE_BETTING_CROSS_AUDIT "+json.dumps({"counts":dict(counts),"date_examples":date_examples,"team_examples":team_examples,"reject_details":dict(errors.most_common(7)),"source_sha256":hashlib.sha256(blob).hexdigest(),
       "no_quote_timestamp":True,"no_independent_provenance_proof":True,
       "not_training_approved":True,"raw_persisted":False},sort_keys=True))
 if __name__=="__main__":main()
