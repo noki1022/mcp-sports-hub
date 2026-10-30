@@ -1,0 +1,45 @@
+name: NBA A B C timestamped market fusion research
+on:
+  push:
+    branches: [research/nba-abc-timestamped-market-fusion-backtest-20261030]
+  pull_request:
+    branches: [main]
+    paths:
+      - analysis/nba_abc_market_fusion_backtest.py
+      - .github/workflows/nba-abc-fusion-research.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Numerical dependencies
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Structural negative tests
+        run: |
+          python3 -m py_compile analysis/nba_abc_market_fusion_backtest.py
+          python3 analysis/nba_abc_market_fusion_backtest.py --self-test
+      - name: Audited archived-market B and A/B/C eligibility
+        run: |
+          python3 analysis/nba_abc_market_fusion_backtest.py --out nba_abc_market_fusion_report.json --include-a
+          python3 - <<'PY'
+          import json
+          x=json.load(open('nba_abc_market_fusion_report.json'))
+          assert x['decision']=='NO_BET'
+          assert x['production_fusion_enabled'] is False
+          assert x['input_unique_events']>0
+          assert all(z['C']['status']=='BLOCKED' for z in x['comparisons'].values())
+          print('ABC_NO_UNEARNED_FUSION_PASS',x['input_unique_events'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-abc-market-fusion-audit
+          path: nba_abc_market_fusion_report.json
+          if-no-files-found: warn
+          retention-days: 30
