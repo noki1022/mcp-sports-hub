@@ -154,11 +154,11 @@ def render_v2(games,model_map,title,target,mode):
                         "，区间 "+f(q.get("line_min"))+"—"+f(q.get("line_max"))+
                         "；同机构跨采样上调 "+str(rising)+" / 下调 "+str(falling))
                 else:
-                    parts.append(text(label)+" 前十机构暂无可靠公开数据")
+                    parts.append(text(label)+" 多机构接口暂无可靠报价")
             body+=("<div style='border:1px solid #dae5f1;padding:8px;border-radius:7px;"
-                   "font-size:11px;line-height:1.55;'><b>007机构横向比较 · 展示顺序前十</b><div>"+
+                   "font-size:11px;line-height:1.55;'><b>007多机构横向比较 · 10个真实ID（排序待核）</b><div>"+
                    "</div><div>".join(parts)+"</div>"+
-                   "<div>机构排序、报价时间与盘口方向尚未独立验证；不作为盈利信号。</div></div>")
+                   "<div>公司名称及排名尚待核验；报价时间、盘口方向未独立验证，不作为盈利信号。</div></div>")
 
         if status=="FIRST_SNAPSHOT":
             summary="首次采样，仅建立基线，暂不能计算小时涨跌。"
