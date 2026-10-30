@@ -112,19 +112,38 @@ def verdict_summary(v):
       " · 总分 "+text(side(tot,"TOTAL"))+" ("+f(tot.get("line"))+")"+
       "；信心 "+text(sp.get("strength","—"))+"/"+text(tot.get("strength","—"))+"</div>")
 
-def jingcai_status(x):
+def jingcai_status(x, detailed=False):
     if not x.get("jingcai_source_status"):return ""
     j=x.get("jingcai_markets") or {}
     markets=j.get("markets") or {}
-    def item(key,title):
+    shadow=x.get("jc_007_price_shadow") or {}
+    observed=shadow.get("markets") or {}
+    def legacy(key,title):
         row=markets.get(key) or {}
-        if row.get("status")!="VERIFIED":
-            return title+"：赔率未核实"
-        return title+"：已核实"
-    items=[item("WIN_LOSE","胜负"),item("HANDICAP_WIN_LOSE","让分胜负"),item("TOTAL","大小分")]
+        if row.get("status")=="VERIFIED":return title+"：已核实"
+        return title+"：官方奖金未核实"
+    base=(" · ".join(legacy(k,t) for k,t in (
+        ("WIN_LOSE","胜负"),("HANDICAP_WIN_LOSE","让分"),("TOTAL","大小分"))))
+    shown=[(k,t) for k,t in (("win_lose","胜负"),("handicap","让分"),("total","总分"))
+           if (observed.get(k) or {}).get("status")=="OBSERVED"]
+    if shown:
+        header="<b>007竞彩数据快照</b>　"+"/".join(t for _,t in shown)+" 已抓取"
+        if detailed:
+            lines=[]
+            for key,title in shown:
+                value=(observed[key].get("data") or {})
+                cur=value.get("current") or {}
+                op=value.get("opening") or {}
+                ln=(("　盘 "+f(op.get("line"))+" → "+f(cur.get("line"))) if key!="win_lose" else "")
+                lines.append(title+ln+"　槽1 "+f(cur.get("first_side"))+
+                   " / 槽2 "+f(cur.get("second_side")))
+            header+="<div>"+"</div><div>".join(lines)+"</div>"
+        header+="<div>数据源：007竞彩展示；两侧方向仍需核验，非体彩官方出票奖金。</div>"
+        body=header
+    else:
+        body="<b>竞彩三玩法报价</b>　"+base+"<div>未获取可验证的实时竞彩赔率。</div>"
     return ("<div style='font-size:11px;background:#fff5e8;color:#83430d;border-radius:6px;"
-      "padding:6px;margin-top:4px;line-height:1.6'><b>竞彩三玩法报价</b>　"+
-      " · ".join(items)+"<div>缺失时不使用商业机构赔率冒充竞彩固定奖金；投注前核对官方出票赔率。</div></div>")
+      "padding:6px;margin-top:4px;line-height:1.6'>"+body+"</div>")
 
 def render_v2(games,model_map,title,target,mode):
     g=sorted(games,key=lambda x:(-signal(x),str(x.get("display_clock") or ""),str(x.get("game_id"))))
@@ -163,7 +182,7 @@ def render_v2(games,model_map,title,target,mode):
         status=x.get("status","FIRST_SNAPSHOT")
         body="<div style='font-size:11px;color:#68788e;'>#"+str(i).zfill(2)+" · "+text(x.get("display_clock"))+" · "+text(status_label(status))+"</div>"
         body+="<div style='font-size:15px;font-weight:750;margin:4px 0 7px;'>"+"客队："+text(x.get("away_team"))+"　｜　主队："+text(x.get("home_team"))+"</div>"
-        body+=jingcai_status(x)
+        body+=jingcai_status(x, detailed=True)
         body+=verdict_summary(x.get('two_market_verdict'))
         body+=score_prediction(pred)
         body+=market_change(spread,"full_spread")+market_change(total,"full_total")
