@@ -7,8 +7,9 @@ on:
         required: false
         type: string
   schedule:
-    # Beijing 21:30 through next-day 06:30, hourly (UTC 13:30-22:30).
-    - cron: "30 13-22 * * *"
+    # 21:30 belongs exclusively to priority pre-22:00 full report.
+    # Continue ordinary conditional alerts Beijing 22:30-06:30.
+    - cron: "30 14-22 * * *"
 permissions:
   contents: write
 concurrency:
