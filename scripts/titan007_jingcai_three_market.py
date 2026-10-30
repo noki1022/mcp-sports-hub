@@ -74,7 +74,7 @@ def test():
         def read(self,*a):return self.txt.encode()
     def fake(req,timeout=8):
         assert req.full_url.endswith("/robots.txt")
-        return Response("User-agent: *\\nDisallow: /\\n")
+        return Response("User-agent: *\nDisallow: /\n")
     board={"requested_display_date":"2026-10-31","captured_at_utc":"2026-10-30T10:00:00+00:00",
         "nba_cba_games":[{"league":"NBA","game_id":"728165","nba_game_id":"401909277",
                           "home_team":"奇才","away_team":"黄蜂"}]}
@@ -94,6 +94,6 @@ if __name__=="__main__":
     else:
         if not a.joined or not a.out:raise SystemExit("MISSING_ARGS")
         x=inspect_sources(json.loads(Path(a.joined).read_text(encoding="utf-8")))
-        Path(a.out).write_text(json.dumps(x,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+        Path(a.out).write_text(json.dumps(x,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         print("JINGCAI_THREE_MARKET_AUDIT",x["game_count"],x["verified_games_with_all_three"],
              {k:v["status"] for k,v in x["source_status"].items()})
