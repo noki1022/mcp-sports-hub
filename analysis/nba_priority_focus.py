@@ -135,7 +135,7 @@ def self_test():
     assert "5" not in [x["game_id"] for x in choose(j,md,jd,sop,"0630")["focus_games"]]
     # A fresh, correctly identified 007 quote with major divergence blocks focus.
     jd["jc_007_public_odds_shadow"]["games"]=[{"game_id":"3","markets":{"win_lose":{
-       "status":"OBSERVED","data":{"current":{"first_side":1.25,"second_side":4.0}}}}}]
+       "status":"OBSERVED","data":{"current":{"first_side":1.95,"second_side":1.95}}}}}]
     sop["games"][2]["jingcai"]["fresh_for_comparison"]=True
     assert "3" not in [x["game_id"] for x in choose(j,md,jd,sop,"2130")["focus_games"]]
     for row in md["games"]:row["model_status"]="DISABLED"
