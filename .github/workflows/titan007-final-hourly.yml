@@ -119,7 +119,14 @@ jobs:
         run: |
           python3 analysis/nba_hourly_dynamic_review.py --movement titan007_hourly_movement.json --model nba_model_analysis.json --injury nba_injury_context.json --out nba_hourly_dynamic_review.json
       - name: Audit all three user-supplied Jingcai pricing sources before market fusion
+        env:
+          MARZDATA_APP_ID: ${{ secrets.MARZDATA_APP_ID }}
+          MARZDATA_APP_SECRET: ${{ secrets.MARZDATA_APP_SECRET }}
+          MARZDATA_STATIC_EGRESS_CONFIRMED: ${{ vars.MARZDATA_STATIC_EGRESS_CONFIRMED }}
+          MARZDATA_SLOT_ORDER_CONFIRMED: ${{ vars.MARZDATA_SLOT_ORDER_CONFIRMED }}
         run: |
+          # Authorized data remains disabled unless both secrets and approved fixed egress are set.
+          # No credentials are ever written to artifacts or logs.
           python3 scripts/titan007_jingcai_three_market.py --joined titan007_joined_today.json --out nba_jingcai_three_market.json
           python3 - <<'PY'
           import json

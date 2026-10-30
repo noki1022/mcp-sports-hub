@@ -50,6 +50,7 @@ def get_quotes(target_date, app_id, app_secret, fetcher=None):
     headers = {"app_id": app_id, "app_secret": app_secret,
                "Accept": "application/json", "User-Agent": "NBA-DataAudit/1.0"}
     rows, exhausted, calls = [], False, 0
+    declared_total = None
     for page in range(1, 5):  # 4 requests < documented 5/min suggestion
         query = urllib.parse.urlencode({
             "sport_id": 201, "start_time": earliest,
@@ -63,16 +64,19 @@ def get_quotes(target_date, app_id, app_secret, fetcher=None):
         if not isinstance(data, dict) or not isinstance(data.get("list"), list):
             raise RuntimeError("MARZDATA_SCHEMA_UNEXPECTED")
         batch = data["list"]
+        declared_total = data.get("total") if isinstance(data.get("total"), int) else declared_total
         rows.extend(batch)
-        if not batch or len(batch) < 200:
+        if declared_total is not None and len(rows) >= declared_total:
             exhausted = True
             break
-        total = data.get("total")
-        if isinstance(total, int) and page * 200 >= total:
-            exhausted = True
+        if not batch:
+            exhausted = declared_total in (None, len(rows))
+            break
+        if len(batch) < 200:
+            exhausted = declared_total is None
             break
     return rows, {"calls": calls, "page_exhausted": exhausted,
-                  "rows_retrieved": len(rows),
+                  "rows_retrieved": len(rows), "reported_total": declared_total,
                   "pagination_complete": exhausted}
 
 def split_odds(value, expected):
@@ -131,6 +135,8 @@ def enrich(board, audit, *, app_id=None, app_secret=None, fetcher=None,
     app_secret = app_secret if app_secret is not None else os.getenv("MARZDATA_APP_SECRET", "")
     approved_order = (slot_order_confirmed if slot_order_confirmed is not None
                       else os.getenv("MARZDATA_SLOT_ORDER_CONFIRMED") == "1")
+    egress_approved = (fetcher is not None or
+                       os.getenv("MARZDATA_STATIC_EGRESS_CONFIRMED") == "1")
     status = {"provider": "MARZDATA_THIRD_PARTY_NOT_OFFICIAL",
               "documentation": "https://doc.marzdata.cn/api-252526119",
               "credentials_present": bool(app_id and app_secret),
@@ -139,6 +145,10 @@ def enrich(board, audit, *, app_id=None, app_secret=None, fetcher=None,
     audit["alternate_provider_status"] = status
     if not (app_id and app_secret):
         return audit
+    if not egress_approved:
+        status["status"] = "STATIC_EGRESS_NOT_CONFIRMED"
+        status["reason"] = "APPROVED_FIXED_PUBLIC_IP_REQUIRED"
+        return audit
     try:
         rows, paging = get_quotes(board["requested_display_date"], app_id, app_secret, fetcher)
     except (OSError, ValueError, KeyError, RuntimeError, TypeError) as exc:
@@ -146,6 +156,10 @@ def enrich(board, audit, *, app_id=None, app_secret=None, fetcher=None,
         status["reason"] = type(exc).__name__  # never log credentials or URL header
         return audit
     status.update(paging)
+    if not paging["pagination_complete"]:
+        status["status"] = "PARTIAL_PROVIDER_PAGE_COVERAGE"
+        status["reason"] = "CANNOT_EXCLUDE_DUPLICATE_MATCHES_OR_MISSING_GAMES"
+        return audit
     status["status"] = "FETCHED_UNVERIFIED"
     stamp = datetime.now(timezone.utc).isoformat()
     for game in audit.get("games", []):
@@ -223,6 +237,8 @@ def self_test():
     import copy
     d = enrich(board, copy.deepcopy(empty), app_id="", app_secret="")
     assert d["alternate_provider_status"]["status"] == "NOT_CONFIGURED"
+    d = enrich(board, copy.deepcopy(empty), app_id="test", app_secret="test")
+    assert d["alternate_provider_status"]["status"] == "STATIC_EGRESS_NOT_CONFIRMED"
     d = enrich(board, copy.deepcopy(empty), app_id="test", app_secret="test", fetcher=fixture)
     assert d["alternate_provider_status"]["three_market_games"] == 1
     assert d["verified_games_with_all_three"] == 0
