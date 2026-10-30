@@ -1,0 +1,45 @@
+name: Verify 007 first-ten visible institution capture
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/titan007_top10_companies.py'
+      - 'scripts/pushplus_mobile.py'
+      - 'scripts/pushplus_mobile_v2.py'
+      - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/nba-priority-2130.yml'
+      - '.github/workflows/nba-priority-0630.yml'
+      - '.github/workflows/verify-007-top10.yml'
+permissions: {contents: read}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: |
+          python3 -m py_compile scripts/titan007_top10_companies.py scripts/pushplus_mobile.py scripts/pushplus_mobile_v2.py
+          python3 scripts/titan007_top10_companies.py --self-test
+          python3 scripts/pushplus_mobile.py --mode smoke --self-test
+      - name: Verify complete pipeline coverage and no made-up company IDs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("scripts/titan007_top10_companies.py").read_text()
+          assert 'company_id":"UNVERIFIED"' in p
+          assert 'limit=10' in p
+          assert 'ROBOTS_NOT_ALLOWED_OR_UNVERIFIED' in p
+          for path in [
+            ".github/workflows/titan007-three-analysis.yml",
+            ".github/workflows/titan007-final-hourly.yml",
+            ".github/workflows/nba-priority-2130.yml",
+            ".github/workflows/nba-priority-0630.yml"]:
+              s=Path(path).read_text()
+              assert "scripts/titan007_top10_companies.py" in s
+              assert "--top10 nba_top10_comparison.json" in s
+              assert "--history-root reports/top10" in s
+              assert "git add reports/top10/" in s
+          print("007_TOP10_ALL_SLOTS_WIRED_PASS")
+          PY

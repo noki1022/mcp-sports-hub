@@ -178,6 +178,7 @@ def main():
     a.add_argument("--window")
     a.add_argument("--model")
     a.add_argument("--dynamic")
+    a.add_argument("--top10")
     a.add_argument("--preview",default="pushplus_mobile_preview.html")
     a.add_argument("--status",default="pushplus_status.json")
     a.add_argument("--send",action="store_true")
@@ -222,6 +223,11 @@ def main():
         count=len(rows)
         title="NBA/CBA 盘口动态 V2｜"+str(movement.get("target_date","未知"))
         html=render_v2(rows,model,"NBA/CBA 盘口动态 V2",movement.get("target_date","未知"),"hourly")
+    if args.top10 and args.mode!="smoke":
+        multi=read(args.top10)
+        top={str(x.get("game_id")):x for x in multi.get("games",[])}
+        for row in rows:row["top10_comparison"]=top.get(str(row.get("game_id")))
+        html=render_v2(rows,model,title,joined.get("requested_display_date") if args.mode=="three" else movement.get("target_date"),args.mode)
     html="<div style='"+style()+"max-width:560px;margin:0 auto;'>"+html+"</div>"
     Path(args.preview).write_text(html,encoding="utf-8")
     state={"mode":args.mode,"games_considered":count,"template":"html","preview":args.preview}

@@ -99,6 +99,24 @@ jobs:
           python3 analysis/nba_hourly_dynamic_review.py --movement titan007_priority_movement.json --model nba_priority_model.json --injury nba_priority_injury_context.json --out nba_priority_dynamic.json
           python3 analysis/nba_market_bc_diagnostics.py --joined titan007_priority_joined.json --movement titan007_priority_movement.json --model nba_priority_model.json --out nba_priority_bc.json
       - if: steps.gate.outputs.sent != 'true'
+        name: Capture 007 visible top-ten companies and compare last stored sample
+        run: |
+          python3 scripts/titan007_top10_companies.py --joined titan007_priority_joined.json --out nba_top10_companies.json --analysis nba_top10_comparison.json --history-root reports/top10
+      - if: steps.gate.outputs.sent != 'true'
+        name: Persist top-ten institution snapshot
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add reports/top10/
+          if ! git diff --cached --quiet; then
+            git commit -m "Archive 007 top-ten company market capture $TARGET_DATE"
+            for n in 1 2 3; do
+              if git push origin HEAD:main; then break; fi
+              git pull --rebase origin main
+              if [ "$n" -eq 3 ]; then exit 1; fi
+            done
+          fi
+      - if: steps.gate.outputs.sent != 'true'
         name: Enforce same-capture market trend and full-board model review
         run: |
           python3 scripts/verify_nba_capture_analysis.py --joined titan007_priority_joined.json --movement titan007_priority_movement.json --model nba_priority_model.json --dynamic nba_priority_dynamic.json --out nba_capture_audit.json
@@ -115,7 +133,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode three --joined titan007_priority_joined.json --movement titan007_priority_movement.json --dynamic nba_priority_dynamic.json --model nba_priority_model.json --preview nba_priority_iphone.html --status nba_priority_pushplus_status.json --send --require-token
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_priority_joined.json --movement titan007_priority_movement.json --dynamic nba_priority_dynamic.json --top10 nba_top10_comparison.json --model nba_priority_model.json --preview nba_priority_iphone.html --status nba_priority_pushplus_status.json --send --require-token
           python3 - <<'PY'
           import json
           s=json.load(open('nba_priority_pushplus_status.json'))
@@ -149,6 +167,8 @@ jobs:
             titan007_priority_joined.json
             titan007_priority_movement.json
             nba_priority_model.json
+            nba_top10_companies.json
+            nba_top10_comparison.json
             nba_capture_audit.json
             reports/overnight-cohorts/**/*.json
             nba_priority_dynamic.json
