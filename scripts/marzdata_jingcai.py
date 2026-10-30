@@ -57,7 +57,7 @@ def get_quotes(target_date, app_id, app_secret, fetcher=None):
         })
         payload = fetcher(ENDPOINT + "?" + query, headers)
         calls += 1
-        if not isinstance(payload, dict) or payload.get("code") != 0:
+        if not isinstance(payload, dict) or str(payload.get("code")) != "0":
             raise RuntimeError("MARZDATA_API_NOT_SUCCESS")
         data = payload.get("data")
         if not isinstance(data, dict) or not isinstance(data.get("list"), list):
