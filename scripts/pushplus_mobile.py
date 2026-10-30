@@ -178,6 +178,7 @@ def main():
     a.add_argument("--window")
     a.add_argument("--model")
     a.add_argument("--dynamic")
+    a.add_argument("--top10")
     a.add_argument("--preview",default="pushplus_mobile_preview.html")
     a.add_argument("--status",default="pushplus_status.json")
     a.add_argument("--send",action="store_true")
