@@ -1,0 +1,28 @@
+name: Parse real 007 JC three-market NBA lottery odds
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/parse_007_jc_three_market.py'
+      - '.github/workflows/parse-007-jc-three-market.yml'
+permissions: {contents: read}
+jobs:
+  parse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 scripts/parse_007_jc_three_market.py --self-test
+      - run: |
+          python3 scripts/parse_007_jc_three_market.py \
+            --board reports/daily/2026-10-31/1800/titan007_three_joined.json \
+            --output 007-jc-three-real-prices.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 007-jc-three-real-prices
+          path: 007-jc-three-real-prices.json
+          retention-days: 3
+          if-no-files-found: ignore
