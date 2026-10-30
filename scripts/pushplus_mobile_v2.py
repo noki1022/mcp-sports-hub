@@ -222,6 +222,9 @@ def self_test():
        "full_total":{"opening":{"line":220},"previous":{"line":221},"current":{"line":223},"delta_line_previous":2}}}
     m={"1":{"model_status":"OK","model_probability":{"home":.62},"total_mean":224,"margin_mean_home_minus_away":5,
             "data_quality":{"quality":"PASS"}}}
+    q["two_market_verdict"]={"markets":{
+        "SPREAD":{"direction":"HOME","line":-5.0,"strength":"LOW"},
+        "TOTAL":{"direction":"OVER","line":223.0,"strength":"LOW"}}}
     html=render_v2([q],m,"模拟","2026-10-31","hourly")
     assert "114.5" in html and "109.5" in html and "223.0" in html
     assert "LINE_MOVE" not in html and "让分或总分变动" in html
