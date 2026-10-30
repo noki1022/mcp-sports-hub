@@ -77,6 +77,25 @@ def freeze(board):
             "official_count":len(fixture),"baseline_quote_count":len(prices),
             "rule":"SAME_OFFICIAL_EVENT_IDS_AND_TEAMS_ALL_SLOTS"}
 
+def recover(archive,target):
+    """Create an immutable cohort from a genuine, timestamped archived noon report.
+    Its actual capture time is recorded; no imaginary 12:00 observation is made.
+    """
+    if archive.get("requested_display_date")!=target:abort("ARCHIVE_DATE_MISMATCH")
+    cap=aware(archive["captured_at_utc"])
+    if cap.date()!=date.fromisoformat(target)-timedelta(days=1):
+        abort("ARCHIVE_NOT_PREVIOUS_DAY")
+    if not time(12,0)<=cap.time().replace(tzinfo=None)<time(14,0):
+        abort("ARCHIVE_NOT_NOON_RECOVERY_WINDOW")
+    result=freeze(archive) if cap.hour==12 else {
+        "schema_version":VERSION,"target_beijing_date":target,"baseline_slot":"1200",
+        "captured_at_utc":archive["captured_at_utc"],
+        "official_games":official_identity(archive),
+        "first_available_007":market_identity(archive,official_identity(archive)),
+        "recovery_source":"ARCHIVED_NOON_SLOT_ACTUAL_CAPTURE_TIMESTAMP",
+        "noon_on_time":False}
+    return result
+
 def enforce(board,locked):
     if locked.get("schema_version")!=VERSION or locked.get("baseline_slot")!="1200":
         abort("MISSING_VALID_NOON_LOCK")
@@ -153,11 +172,22 @@ def self_test():
 
 def cli():
     p=argparse.ArgumentParser()
-    p.add_argument("mode",choices=("freeze","enforce","self-test"))
-    p.add_argument("--joined");p.add_argument("--lock");p.add_argument("--out")
+    p.add_argument("mode",choices=("freeze","enforce","recover","self-test"))
+    p.add_argument("--joined");p.add_argument("--lock");p.add_argument("--out");p.add_argument("--archive")
     a=p.parse_args()
     if a.mode=="self-test":return self_test()
-    if not a.joined or not a.out:raise SystemExit("JOINED_AND_OUT_REQUIRED")
+    if not a.out:raise SystemExit("OUT_REQUIRED")
+    if a.mode=="recover":
+        if not a.archive or not a.joined:raise SystemExit("ARCHIVE_AND_JOINED_REQUIRED")
+        board=json.loads(Path(a.joined).read_text(encoding="utf-8"))
+        archived=json.loads(Path(a.archive).read_text(encoding="utf-8"))
+        result=recover(archived,board["requested_display_date"])
+        dest=Path(a.out);dest.parent.mkdir(parents=True,exist_ok=True)
+        if dest.exists():abort("ALREADY_LOCKED_NO_OVERWRITE")
+        dest.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n")
+        print("NBA_NOON_ARCHIVE_RECOVERED",result["captured_at_utc"])
+        return
+    if not a.joined:raise SystemExit("JOINED_REQUIRED")
     board=json.loads(Path(a.joined).read_text(encoding="utf-8"))
     dest=Path(a.out);dest.parent.mkdir(parents=True,exist_ok=True)
     if a.mode=="freeze":
