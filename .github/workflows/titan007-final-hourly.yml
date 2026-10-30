@@ -73,7 +73,7 @@ jobs:
       - name: Enforce same official NBA slate locked at noon
         run: |
           python3 scripts/nba_noon_slate.py enforce --joined titan007_joined_today.json --lock "reports/noon-cohorts/$TARGET_DATE/1200.json" --out nba_same_slate.json
-
+      - name: Preserve full-board snapshot and compare prior market movement
         run: |
           python3 analysis/titan007_hourly_history.py capture --current titan007_joined_today.json --root reports/hourly --daily-root reports/daily --out-movement titan007_hourly_movement.json
       - name: Commit valid compact snapshot for next hour
