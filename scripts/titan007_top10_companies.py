@@ -133,4 +133,7 @@ if __name__=="__main__":
         prior=json.loads(older.read_text()) if older and older.is_file() else {}
         Path(a.out).write_text(json.dumps(snap,ensure_ascii=False,indent=2)+"\n")
         Path(a.analysis).write_text(json.dumps(analyze(snap,prior),ensure_ascii=False,indent=2)+"\n")
+        if a.history_root:
+            filename=snap["captured_at_utc"].replace(":","-").replace("+","_")+".json"
+            (root/filename).write_text(json.dumps(snap,ensure_ascii=False,indent=2)+"\\n")
         print("NBA_TOP10_007",len(snap["games"]))
