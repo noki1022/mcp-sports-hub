@@ -40,19 +40,28 @@ def _isotonic_fit(probabilities, outcomes):
     pairs = sorted((float(p), float(y)) for p, y in zip(probabilities, outcomes))
     blocks = []
     for p, y in pairs:
-        blocks.append({"p_sum": p, "y_sum": y, "n": 1})
+        blocks.append({"p_sum": p, "y_sum": y, "n": 1,
+                       "p_min": p, "p_max": p})
         while len(blocks) >= 2:
             left, right = blocks[-2], blocks[-1]
             if left["y_sum"] / left["n"] <= right["y_sum"] / right["n"]:
                 break
             merged = {"p_sum": left["p_sum"] + right["p_sum"],
                       "y_sum": left["y_sum"] + right["y_sum"],
-                      "n": left["n"] + right["n"]}
+                      "n": left["n"] + right["n"],
+                      "p_min": left["p_min"], "p_max": right["p_max"]}
             blocks[-2:] = [merged]
     return {
         "probability_knots": [b["p_sum"] / b["n"] for b in blocks],
         "rate_knots": [b["y_sum"] / b["n"] for b in blocks],
         "sample": len(pairs),
+        # Diagnostics-only provenance. Do not change the interpolation or
+        # probability calibration in existing production predictions.
+        "knot_sample_counts": [b["n"] for b in blocks],
+        "knot_wins": [b["y_sum"] for b in blocks],
+        "knot_input_probability_ranges": [
+            [b["p_min"], b["p_max"]] for b in blocks
+        ],
     }
 
 def _isotonic_predict(model, probability):
