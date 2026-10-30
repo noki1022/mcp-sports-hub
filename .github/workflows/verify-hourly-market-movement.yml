@@ -20,6 +20,7 @@ jobs:
       - name: Dynamic multi-snapshot and iPhone narrative tests
         run: |
           python3 analysis/nba_hourly_dynamic_review.py --self-test
+          python3 scripts/verify_nba_capture_analysis.py --self-test
           python3 scripts/pushplus_mobile.py --mode smoke --self-test
           python3 -m py_compile analysis/titan007_hourly_history.py analysis/nba_hourly_dynamic_review.py scripts/pushplus_mobile.py scripts/pushplus_mobile_v2.py
       - name: Confirm persistence occurs before 3-30 minute final window filtering
@@ -35,6 +36,14 @@ jobs:
           assert 'nba_prediction_adapter.py --joined titan007_joined_today.json' in s
           assert 'nba_model_report.py --joined titan007_joined_today.json' in s
           assert 'reports/hourly/**/*.json' in s
+          for workflow in ('.github/workflows/titan007-three-analysis.yml',
+                           '.github/workflows/titan007-final-hourly.yml',
+                           '.github/workflows/nba-priority-2130.yml'):
+              src=Path(workflow).read_text()
+              assert 'scripts/verify_nba_capture_analysis.py --joined' in src
+              assert 'nba_capture_audit.json' in src
+              assert src.index('verify_nba_capture_analysis.py --joined')<src.index('pushplus_mobile.py --mode')
+          print('ALL_CAPTURE_DYNAMIC_GATES_PASS')
           assert 'nba_hourly_dynamic_review.py' in s
           assert 'reports/hourly-reviews/' in s
           assert '--dynamic nba_hourly_dynamic_review.json' in s
