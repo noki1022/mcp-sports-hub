@@ -1,6 +1,11 @@
 name: Read-only 007 JC basketball public access audit
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/probe_007_jc_public.py'
+      - '.github/workflows/probe-007-jc-public.yml'
 permissions: {contents: read}
 jobs:
   audit:
