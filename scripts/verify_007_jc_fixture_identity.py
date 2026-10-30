@@ -58,7 +58,7 @@ def reconcile(raw,board,screen=None):
         "exclamation_count":decoded.count("!"),
         "caret_count":decoded.count("^"),
         "byte_count":len(raw),
-        "expected_id_occurrences":{str(x["game_id"]):len(re.findall(r"(?<!\\d)"+re.escape(str(x["game_id"]))+r"(?!\\d)",decoded))
+        "expected_id_occurrences":{str(x["game_id"]):len(re.findall(r"(?<!\d)"+re.escape(str(x["game_id"]))+r"(?!\d)",decoded))
                                    for x in board.get("nba_cba_games",[])}}
     feed=records(raw)
     games=board.get("nba_cba_games",[])
@@ -92,7 +92,7 @@ def reconcile(raw,board,screen=None):
                 price_number_status="SCREENSHOT_TEAM_IDENTITY_UNMATCHED"
             else:
                 screenshot_no=str(screenshot_matches[0]["match_no"])
-                found=re.search(r"(?<!\\d)(\\d{3})(?!\\d)$",raw_label)
+                found=re.search(r"(?<!\d)(\d{3})(?!\d)$",raw_label)
                 if status!="ID_AND_TEAM_ORDER_MATCH":
                     price_number_status="FIXTURE_ID_OR_TEAM_NOT_VERIFIED"
                 elif found is None:
