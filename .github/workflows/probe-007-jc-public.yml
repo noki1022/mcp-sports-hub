@@ -1,0 +1,23 @@
+name: Read-only 007 JC basketball public access audit
+on:
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Test fail-closed access checks
+        run: python3 scripts/probe_007_jc_public.py --self-test
+      - name: Inspect published robots and permitted public HTML metadata only
+        run: python3 scripts/probe_007_jc_public.py --output jc_007_access_audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jc-007-access-audit
+          path: jc_007_access_audit.json
+          if-no-files-found: ignore
+          retention-days: 2
