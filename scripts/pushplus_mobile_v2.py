@@ -100,6 +100,18 @@ def signal(g):
     n=sum(abs(num((moves.get(k) or {}).get("delta_line_previous")) or 0) for k in ("full_spread","full_total"))
     return n+(2 if g.get("status") in ("LINE_AND_WATER_MOVE","LINE_MOVE","WATER_MOVE") else 0)
 
+def verdict_summary(v):
+    if not v:return "<div style='font-size:11px;color:#98520b;'>两项研究方向：缺少可核实的预测数据</div>"
+    m=v.get("markets") or {}
+    sp=m.get("SPREAD") or {};tot=m.get("TOTAL") or {}
+    def side(q,kind):
+        d=q.get("direction")
+        return ("主队方向" if d=="HOME" else "客队方向" if d=="AWAY" else "未评估") if kind=="SPREAD" else ("大分" if d=="OVER" else "小分" if d=="UNDER" else "未评估")
+    return ("<div style='font-size:11px;line-height:1.55;color:#264564;'><b>研究倾向</b>　让分 "+
+      text(side(sp,"SPREAD"))+" ("+f(sp.get("line"))+")"+
+      " · 总分 "+text(side(tot,"TOTAL"))+" ("+f(tot.get("line"))+")"+
+      "；信心 "+text(sp.get("strength","—"))+"/"+text(tot.get("strength","—"))+"</div>")
+
 def render_v2(games,model_map,title,target,mode):
     g=sorted(games,key=lambda x:(-signal(x),str(x.get("display_clock") or ""),str(x.get("game_id"))))
     css="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:14px;color:#1d3045;max-width:540px;margin:0 auto;line-height:1.52;"
@@ -127,7 +139,7 @@ def render_v2(games,model_map,title,target,mode):
                    "<div style='font-size:11px;color:#61758a;margin-top:2px;'>"
                    "主胜 "+(f(win*100)+"%" if win is not None and 0<=win<=1 else "—")+
                    "　· 模总 "+f(total)+"　· 现盘 "+f(q)+
-                   "　· 差 "+f(gap,True)+"</div><div style='font-size:11px;color:#718297;'>"+text(status)+"</div></div>")
+                   "　· 差 "+f(gap,True)+"</div>"+verdict_summary(x.get("two_market_verdict"))+"<div style='font-size:11px;color:#718297;'>"+text(status)+"</div></div>")
     out.append("<div style='font-size:14px;font-weight:700;margin:14px 0 7px;'>逐场模型与盘口</div>")
     for i,x in enumerate(g,1):
         markets=x.get("markets") or {}
@@ -137,6 +149,7 @@ def render_v2(games,model_map,title,target,mode):
         status=x.get("status","FIRST_SNAPSHOT")
         body="<div style='font-size:11px;color:#68788e;'>#"+str(i).zfill(2)+" · "+text(x.get("display_clock"))+" · "+text(status_label(status))+"</div>"
         body+="<div style='font-size:15px;font-weight:750;margin:4px 0 7px;'>"+"客队："+text(x.get("away_team"))+"　｜　主队："+text(x.get("home_team"))+"</div>"
+        body+=verdict_summary(x.get('two_market_verdict'))
         body+=score_prediction(pred)
         body+=market_change(spread,"full_spread")+market_change(total,"full_total")
         body+=compare(pred,spread,total)
@@ -213,6 +226,7 @@ def self_test():
     assert "114.5" in html and "109.5" in html and "223.0" in html
     assert "LINE_MOVE" not in html and "让分或总分变动" in html
     assert "主胜 62.0%" in html and "模总 224.0" in html
+    assert "研究倾向" in html
     assert "客队：乙" in html and "主队：甲" in html
     assert "方向待核" in html and "NO_BET" in html
     assert "<table" not in html
