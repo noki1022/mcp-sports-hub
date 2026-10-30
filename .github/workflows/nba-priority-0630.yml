@@ -91,6 +91,17 @@ jobs:
           python3 analysis/nba_hourly_dynamic_review.py --movement titan007_priority_movement.json --model nba_priority_model.json --injury nba_priority_injury_context.json --out nba_priority_dynamic.json
           python3 analysis/nba_market_bc_diagnostics.py --joined titan007_priority_joined.json --movement titan007_priority_movement.json --model nba_priority_model.json --out nba_priority_bc.json
       - if: steps.gate.outputs.sent != 'true'
+        name: Audit all three user-supplied Jingcai pricing sources before market fusion
+        run: |
+          python3 scripts/titan007_jingcai_three_market.py --joined titan007_priority_joined.json --out nba_jingcai_three_market.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open("nba_jingcai_three_market.json"))
+          assert set(x["source_status"])==set(("WIN_LOSE","HANDICAP_WIN_LOSE","TOTAL"))
+          assert x["game_count"]==len(x["games"])
+          print("JINGCAI_REQUIRED_SOURCE_AUDIT",x["status"],x["verified_games_with_all_three"])
+          PY
+      - if: steps.gate.outputs.sent != 'true'
         name: Capture 007 visible top-ten companies and compare last stored sample
         run: |
           python3 scripts/titan007_top10_companies.py --joined titan007_priority_joined.json --out nba_top10_companies.json --analysis nba_top10_comparison.json --history-root reports/top10
@@ -136,7 +147,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode three --joined titan007_priority_joined.json --movement titan007_priority_movement.json --dynamic nba_priority_dynamic.json --top10 nba_top10_comparison.json --verdict nba_two_market_forecast.json --model nba_priority_model.json --preview nba_priority_iphone.html --status nba_priority_pushplus_status.json --send --require-token
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_priority_joined.json --movement titan007_priority_movement.json --dynamic nba_priority_dynamic.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --model nba_priority_model.json --preview nba_priority_iphone.html --status nba_priority_pushplus_status.json --send --require-token
           python3 - <<'PY'
           import json
           s=json.load(open('nba_priority_pushplus_status.json'))
@@ -147,7 +158,7 @@ jobs:
         name: Archive snapshot, complete analysis and successful PushPlus marker
         run: |
           mkdir -p "reports/daily/$TARGET_DATE/0630" "reports/pushplus-sent/$TARGET_DATE"
-          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_two_market_forecast.json nba_priority_iphone.html "reports/daily/$TARGET_DATE/0630/"
+          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_priority_iphone.html "reports/daily/$TARGET_DATE/0630/"
           python3 - <<'PY'
           import os,json
           from pathlib import Path
@@ -172,6 +183,7 @@ jobs:
             nba_priority_model.json
             nba_top10_companies.json
             nba_top10_comparison.json
+            nba_jingcai_three_market.json
             nba_two_market_forecast.json
             nba_capture_audit.json
             reports/overnight-cohorts/**/*.json
