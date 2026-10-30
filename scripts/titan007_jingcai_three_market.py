@@ -93,7 +93,10 @@ if __name__=="__main__":
     if a.self_test:test()
     else:
         if not a.joined or not a.out:raise SystemExit("MISSING_ARGS")
-        x=inspect_sources(json.loads(Path(a.joined).read_text(encoding="utf-8")))
+        board=json.loads(Path(a.joined).read_text(encoding="utf-8"))
+        x=inspect_sources(board)
+        from marzdata_jingcai import enrich
+        x=enrich(board,x)
         Path(a.out).write_text(json.dumps(x,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         print("JINGCAI_THREE_MARKET_AUDIT",x["game_count"],x["verified_games_with_all_three"],
              {k:v["status"] for k,v in x["source_status"].items()})
