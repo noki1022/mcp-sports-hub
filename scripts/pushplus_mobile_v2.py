@@ -72,6 +72,32 @@ def score_prediction(pred):
             "<div style='font-size:12px;color:#415875;'>净胜 "+f(margin,True)+
             "　｜　预测总分 "+f(total)+"</div></div>")
 
+def probability_disagreement(pred, game):
+    """Explicit market/model anomaly; no automatic odds-based model overwrite."""
+    if not pred or pred.get("model_status") not in ("OK","PARTIAL"):
+        return ""
+    p=num((pred.get("model_probability") or {}).get("home"))
+    raw=num((pred.get("model_probability_raw") or {}).get("home"))
+    odds=((game.get("jc_007_price_shadow") or {}).get("markets") or {}).get("win_lose") or {}
+    current=(odds.get("data") or {}).get("current") or {}
+    home_price=num(current.get("first_side"))
+    away_price=num(current.get("second_side"))
+    if odds.get("status")!="OBSERVED" or home_price is None or away_price is None or home_price<=1 or away_price<=1 or p is None:
+        return ""
+    implied_home=(1/home_price)/((1/home_price)+(1/away_price))
+    gap=abs(implied_home-p)
+    calibration_gap=abs(raw-p) if raw is not None else None
+    if gap<0.20 and (calibration_gap is None or calibration_gap<0.15):
+        return ""
+    raw_text=(f(raw*100)+"%" if raw is not None else "未提供")
+    return ("<div style='padding:9px;margin:7px 0;background:#fff1e4;"
+      "border-left:3px solid #cf721a;border-radius:5px;color:#764014;font-size:12px;'>"
+      "<b>主胜概率异常 · 暂不采信极端胜率</b>"
+      "<div>007 竞彩去水约 "+f(implied_home*100)+"%　｜　模型原始 "+raw_text+
+      "　｜　校准后 "+f(p*100)+"%</div>"
+      "<div>校准后与市场相差 "+f(gap*100)+" 个百分点。需检查历史样本、校准尾部、伤停和盘口时效；"
+      "市场概率不是比赛真实概率，禁止直接按此差距认定价值。</div></div>")
+
 def compare(pred, spread, total):
     if not pred or pred.get("model_status") not in ("OK","PARTIAL"):
         return para("<b>模型与盘口：</b>尚无可核实的模型差值")
@@ -331,6 +357,7 @@ def render_v2(games,model_map,title,target,mode):
         body+=sop_evidence(x)
         body+=five_market_panel(x)
         body+=score_prediction(pred)
+        body+=probability_disagreement(pred,x)
         body+=market_change(spread,"full_spread")+market_change(total,"full_total")
         body+=compare(pred,spread,total)
         cross=x.get("top10_comparison") or {}
@@ -502,4 +529,20 @@ def self_test():
     exact["five_market_forecast"]["markets"]["JINGCAI_WIN"]={"status":"NOT_ON_SALE_USER_CONFIRMED"}
     no_sale=render_v2([exact],m,"赛前模型","2026-10-31","three")
     assert "未开售，不计入该玩法命中率" in no_sale
+    # Actual 2026-10-31 JC #309 Wizards home (1.44) vs Hornets away (2.06).
+    # Discrepancy is between a 9.86% calibrated model and 58.86% no-vig market.
+    # Never promote either number to a proven "true" probability.
+    extreme={**q,"game_id":"728165","home_team":"华盛顿奇才",
+      "away_team":"夏洛特黄蜂","jc_match_label":"周五309",
+      "jc_match_identity_status":"VERIFIED_JC_NUMBER",
+      "jc_007_price_shadow":{"markets":{"win_lose":{"status":"OBSERVED",
+      "data":{"current":{"first_side":1.44,"second_side":2.06}}}}}}
+    diag={"model_status":"OK","model_probability":{"home":0.098588},
+      "model_probability_raw":{"home":0.306},
+      "margin_mean_home_minus_away":-7.982,"total_mean":226.16}
+    report=probability_disagreement(diag,extreme)
+    assert "主胜概率异常" in report and "校准后 9.9%" in report
+    assert "模型原始 30.6%" in report
+    assert "007 竞彩去水约 58.9%" in report
+    assert probability_disagreement(diag,{**extreme,"jc_007_price_shadow":{"markets":{}}})==""
     print("PUSHPLUS_V2_COMPACT_SELF_TEST_PASS")
