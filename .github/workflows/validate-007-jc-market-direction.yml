@@ -1,0 +1,29 @@
+name: Validate 007 lottery home/away and total market quote field direction
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/validate_007_jc_market_direction.py'
+      - '.github/workflows/validate-007-jc-market-direction.yml'
+permissions: {contents: read}
+jobs:
+  direction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: |
+          python3 scripts/validate_007_jc_market_direction.py --self-test
+          python3 scripts/validate_007_jc_market_direction.py \
+            --board reports/daily/2026-10-31/1800/titan007_three_joined.json \
+            --screenshot analysis/data/007_jingcai_manual_20261030.json \
+            --output 007-verified-market-direction.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 007-verified-market-direction
+          path: 007-verified-market-direction.json
+          retention-days: 3
+          if-no-files-found: ignore
