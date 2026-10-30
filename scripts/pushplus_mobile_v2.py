@@ -151,6 +151,13 @@ def render_v2(games,model_map,title,target,mode):
                 summary="检测到盘口变化，但缺乏完整的逐小时数值证据。"
         else:
             summary="盘口相对上一采样暂无明确异常。"
+        review=x.get("dynamic_review") or {}
+        if review:
+            body+=("<div style='background:#f1f5f9;border-radius:7px;padding:8px;font-size:12px;line-height:1.6;'>"+
+                   "<b>本小时动态研判</b><div>让分："+text(review.get("spread_observation","—"))+
+                   "</div><div>总分："+text(review.get("total_observation","—"))+
+                   "</div><div>模型与总分盘差："+text(review.get("total_model_market_gap","—"))+
+                   "；结论：仅观察，未核验方向，不改写独立概率。</div></div>")
         body+=("<div style='font-size:12px;line-height:1.55;margin-top:6px;'>"
                "<b>观察：</b>"+summary+"</div>")
         body+=("<div style='border-top:1px solid #e8edf2;margin-top:8px;padding-top:6px;"
