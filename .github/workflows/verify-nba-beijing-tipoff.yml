@@ -1,7 +1,7 @@
 name: Verify NBA US game day to Beijing tipoff mapping
 on:
   push:
-    branches: [fix/nba-us-day-beijing-fixture-reconcile-20261030]
+    branches: [fix/nba-us-day-beijing-fixture-reconcile-20261030, fix/permanent-nba-beijing-market-coverage-20261030]
     paths:
       - scripts/nba_official_beijing_schedule.py
       - scripts/titan007_join_beijing_verified.py
@@ -21,6 +21,35 @@ jobs:
           python-version: '3.12'
       - run: python3 scripts/nba_official_beijing_schedule.py --self-test
       - run: python3 scripts/titan007_join_beijing_verified.py --self-test
+      - name: Compile UTC/007 integration
+        run: python3 -m py_compile scripts/titan007_join_beijing_verified.py
+      - name: Regression on 007 source windows and deterministic missing-price behavior
+        run: |
+          python3 - <<'PY'
+          import sys
+          from unittest.mock import patch
+          sys.path.insert(0,"scripts")
+          import titan007_join_beijing_verified as m
+          official={"nba_game_id":"one","home":"WAS","away":"CHA",
+            "beijing_tip":"2026-10-31T07:00+08:00","beijing_date":"2026-10-31",
+            "utc_tip":"2026-10-30T23:00:00+00:00","us_eastern_date":"2026-10-30"}
+          site={"game_id":"55555","league":"NBA","home_team":"华盛顿奇才","away_team":"夏洛特黄蜂",
+            "display_date":"2026-10-31","display_clock":"07:00"}
+          def fetch(url,limit=0):
+            from urllib.parse import urlparse,parse_qs
+            date=parse_qs(urlparse(url).query)["date"][0]
+            if date=="2026-10-30":raise OSError("neighbor outage")
+            if "Oddsdata" in url:return b'<c><match><m>55555,1.5,0.88,0.88,220.5,0.88,0.88,1</m></match></c>'
+            row=("55555^NBA,NBA^4^#fff^10月31日<br>07:00^0^^13^华盛顿奇才,Washington Wizards^3^夏洛特黄蜂,Charlotte Hornets^0^2026")
+            if date!="2026-10-31":row=row.replace("55555","99999").replace("31日","01日")
+            return ('<c><m><h><![CDATA['+row+']]></h></m></c>').encode("gb18030")
+          with patch.object(m,"public_get",side_effect=fetch):
+            ids,odds,coverage,_,errors=m.source_for_date("2026-10-31")
+            assert "2026-10-31" in coverage and errors and errors[0]["site_date"]=="2026-10-30"
+            matches,reasons=m.reconcile([official],ids,odds,"2026-10-31")
+            assert len(matches)==1 and not reasons, (matches,reasons)
+          print("PERMANENT_BEIJING_DATE_AND_PARTIAL_007_OUTAGE_PASS")
+          PY
       - run: python3 scripts/nba_official_beijing_schedule.py --target 2026-10-31
       - run: python3 scripts/titan007_join_beijing_verified.py --date 2026-10-31 --out /tmp/verified-titan-20261031.json
       - run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
