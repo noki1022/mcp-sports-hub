@@ -181,6 +181,7 @@ def main():
     a.add_argument("--top10")
     a.add_argument("--verdict")
     a.add_argument("--jingcai")
+    a.add_argument("--sop")
     a.add_argument("--preview",default="pushplus_mobile_preview.html")
     a.add_argument("--status",default="pushplus_status.json")
     a.add_argument("--send",action="store_true")
@@ -225,7 +226,7 @@ def main():
         count=len(rows)
         title="NBA/CBA 盘口动态 V2｜"+str(movement.get("target_date","未知"))
         html=render_v2(rows,model,"NBA/CBA 盘口动态 V2",movement.get("target_date","未知"),"hourly")
-    if (args.top10 or args.verdict or args.jingcai) and args.mode!="smoke":
+    if (args.top10 or args.verdict or args.jingcai or args.sop) and args.mode!="smoke":
         multi=read(args.top10)
         top={str(x.get("game_id")):x for x in multi.get("games",[])}
         verdict={str(x.get("game_id")):x for x in read(args.verdict).get("games",[])}
@@ -233,7 +234,12 @@ def main():
         jc_rows={str(x.get("game_id")):x for x in jingcai.get("games",[])}
         shadow_rows={str(x.get("game_id")):x for x in (jingcai.get("jc_007_public_odds_shadow") or {}).get("games",[])}
         jc_identity=(jingcai.get("jc_007_match_numbers") or {}).get("games") or {}
+        sop_doc=read(args.sop) if args.sop else {}
+        sop_rows={str(x.get("game_id")):x for x in sop_doc.get("games",[])}
         for row in rows:
+            if args.sop and str(row.get("game_id")) not in sop_rows:
+                raise RuntimeError("SOP_MISSING_GAME_"+str(row.get("game_id")))
+            row["analysis_sop"]=sop_rows.get(str(row.get("game_id")))
             row["top10_comparison"]=top.get(str(row.get("game_id")))
             row["two_market_verdict"]=verdict.get(str(row.get("game_id")))
             row["jingcai_markets"]=jc_rows.get(str(row.get("game_id")))
