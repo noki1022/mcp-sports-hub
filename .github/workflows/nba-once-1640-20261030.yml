@@ -1,0 +1,30 @@
+name: One-time NBA Beijing 16:40 capture, model and PushPlus
+on:
+  schedule:
+    - cron: "40 8 * * *"
+  workflow_dispatch:
+permissions:
+  actions: write
+  contents: read
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Only once at 16:40 Beijing on 2026-10-30
+        id: gate
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          n=datetime.now(ZoneInfo("Asia/Shanghai"))
+          valid=n.date().isoformat()=="2026-10-30" and n.hour==16 and 38<=n.minute<=54
+          print("run="+str(valid).lower())
+          print("BEIJING_ONE_SHOT_GATE",n.isoformat(),"enabled",valid)
+          PY
+      - name: Dispatch same-day full model analysis once
+        if: steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run titan007-three-analysis.yml --ref main -f target_date=2026-10-31 -f report_slot=1640
+          echo "ONE_SHOT_1640_DISPATCH_ACCEPTED_NOT_MODEL_COMPLETED"
