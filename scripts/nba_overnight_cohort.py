@@ -91,7 +91,14 @@ if __name__=="__main__":
         if a.command=="lock":
             result=lock(board)
             dest=Path(a.out)
-            if dest.exists() and json.loads(dest.read_text())!=result:abort("LOCK_ALREADY_EXISTS")
+            if dest.exists():
+                previous=json.loads(dest.read_text())
+                if (previous.get("target_date")!=result["target_date"] or
+                    previous.get("official_games")!=result["official_games"] or
+                    previous.get("priced_nba_to_007")!=result["priced_nba_to_007"]):
+                    abort("LOCK_IDENTITY_CHANGED")
+                print("OVERNIGHT_2130_LOCK_REUSED",dest)
+                return
         else:
             if not a.cohort or not Path(a.cohort).is_file():abort("NO_PRIOR_2130_LOCK")
             result=enforce(board,json.loads(Path(a.cohort).read_text()),a.phase)
