@@ -1,0 +1,46 @@
+name: Verify mandatory NBA two-market choices and nightly settlement
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'analysis/nba_two_market_forecast.py'
+      - 'analysis/nba_nightly_two_market_settlement.py'
+      - 'analysis/nba_nightly_review_push.py'
+      - 'scripts/pushplus_mobile.py'
+      - 'scripts/pushplus_mobile_v2.py'
+      - '.github/workflows/nba-two-market-nightly-2200.yml'
+      - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/nba-priority-2130.yml'
+      - '.github/workflows/nba-priority-0630.yml'
+      - '.github/workflows/verify-nba-two-market-nightly.yml'
+permissions: {contents: read}
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Syntax and per-market direction tests
+        run: |
+          python3 -m py_compile analysis/nba_two_market_forecast.py analysis/nba_nightly_two_market_settlement.py analysis/nba_nightly_review_push.py scripts/pushplus_mobile.py scripts/pushplus_mobile_v2.py
+          python3 analysis/nba_two_market_forecast.py --self-test
+          python3 analysis/nba_nightly_two_market_settlement.py --self-test
+          python3 analysis/nba_nightly_review_push.py --self-test
+          python3 scripts/pushplus_mobile.py --mode smoke --self-test
+      - name: Verify production paths and send wiring
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for x in ('titan007-three-analysis','titan007-final-hourly','nba-priority-2130','nba-priority-0630'):
+              s=Path('.github/workflows/'+x+'.yml').read_text()
+              assert 'analysis/nba_two_market_forecast.py' in s,x
+              assert '--verdict nba_two_market_forecast.json' in s,x
+              assert 'nba_two_market_forecast.json' in s,x
+          a=Path('.github/workflows/nba-two-market-nightly-2200.yml').read_text()
+          assert '0 14 * * *' in a and 'nba_nightly_two_market_settlement.py' in a and 'nba_nightly_review_push.py' in a
+          assert 'reports/daily/$day/0630/nba_two_market_forecast.json' in a
+          assert 'PUSHPLUS_TOKEN:' in a
+          print('NBA_TWO_MARKET_COMPLETE_PRODUCTION_WIRING_PASS')
+          PY
