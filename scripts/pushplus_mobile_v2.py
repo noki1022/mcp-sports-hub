@@ -123,7 +123,7 @@ def render_v2(games,model_map,title,target,mode):
         home=text(x.get("home_team"));away=text(x.get("away_team"))
         out.append("<div style='padding:7px 2px;border-bottom:1px solid #e8edf2;'>"
                    "<div style='font-size:13px;font-weight:650;'>#"+str(i).zfill(2)+"　"+
-                   text(x.get("display_clock"))+"　"+home+" / "+away+"</div>"
+                   text(x.get("display_clock"))+"　客队："+away+"　｜　主队："+home+"</div>"
                    "<div style='font-size:11px;color:#61758a;margin-top:2px;'>"
                    "主胜 "+(f(win*100)+"%" if win is not None and 0<=win<=1 else "—")+
                    "　· 模总 "+f(total)+"　· 现盘 "+f(q)+
@@ -136,7 +136,7 @@ def render_v2(games,model_map,title,target,mode):
         pred=model_map.get(str(x.get("game_id")))
         status=x.get("status","FIRST_SNAPSHOT")
         body="<div style='font-size:11px;color:#68788e;'>#"+str(i).zfill(2)+" · "+text(x.get("display_clock"))+" · "+text(status_label(status))+"</div>"
-        body+="<div style='font-size:15px;font-weight:750;margin:4px 0 7px;'>"+text(x.get("home_team"))+" VS "+text(x.get("away_team"))+"</div>"
+        body+="<div style='font-size:15px;font-weight:750;margin:4px 0 7px;'>"+"客队："+text(x.get("away_team"))+"　｜　主队："+text(x.get("home_team"))+"</div>"
         body+=score_prediction(pred)
         body+=market_change(spread,"full_spread")+market_change(total,"full_total")
         body+=compare(pred,spread,total)
@@ -193,6 +193,7 @@ def self_test():
     assert "114.5" in html and "109.5" in html and "223.0" in html
     assert "LINE_MOVE" not in html and "让分或总分变动" in html
     assert "主胜 62.0%" in html and "模总 224.0" in html
+    assert "客队：乙" in html and "主队：甲" in html
     assert "方向待核" in html and "NO_BET" in html
     assert "<table" not in html
     assert "八场核心数据" in html and "模型 vs 盘口" in html
