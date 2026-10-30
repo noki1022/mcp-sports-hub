@@ -66,6 +66,8 @@ jobs:
             assert datetime.fromisoformat(game['start_time_beijing']).date().isoformat()==os.environ['TARGET_DATE']
           print('HOURLY_BEIJING_GAME_DAY_VALIDATED',len(data['nba_cba_games']))
           PY
+      - name: Refresh committed history before comparison
+        run: git pull --ff-only origin main
       - name: Preserve full-board snapshot and compare prior market movement
         run: |
           python3 analysis/titan007_hourly_history.py capture --current titan007_joined_today.json --root reports/hourly --daily-root reports/daily --out-movement titan007_hourly_movement.json
@@ -88,10 +90,10 @@ jobs:
           fi
       - name: Select 3–30 minute final window
         run: python3 scripts/titan007_final_window.py --infile titan007_joined_today.json --outfile titan007_final_window.json
-      - name: Generate odds-blind NBA prediction artifact
+      - name: Generate independent model for entire hourly board
         run: |
           python3 analysis/nba_prediction_adapter.py --self-test
-          python3 analysis/nba_prediction_adapter.py --joined titan007_final_window.json --out nba_independent_predictions_gate.json
+          python3 analysis/nba_prediction_adapter.py --joined titan007_joined_today.json --out nba_independent_predictions_gate.json
       - name: Render final mobile report when a game is in window
         run: |
           python3 scripts/titan007_report.py --joined titan007_final_window.json --html titan007_final_hour_report.html --csv titan007_final_hour_report.csv
@@ -99,7 +101,7 @@ jobs:
           python3 analysis/market_decision_gate.py --market titan007_final_hour_market.json --predictions nba_independent_predictions_gate.json --out titan007_final_decision.json
           python3 analysis/market_value_policy.py --self-test
           python3 analysis/market_value_policy.py --market-decision titan007_final_decision.json --out market_value_policy.json
-          python3 analysis/nba_model_report.py --joined titan007_final_window.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html
+          python3 analysis/nba_model_report.py --joined titan007_joined_today.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html
       - name: Render iPhone market movement with independent model
         run: python3 analysis/titan007_hourly_history.py render --movement titan007_hourly_movement.json --model nba_model_analysis.json --out-html titan007_hourly_movement.html
       - name: Send concise iPhone PushPlus alert on significant changes or final window
@@ -131,6 +133,7 @@ jobs:
           name: titan007-final-window-${{ env.TARGET_DATE }}
           path: |
             titan007_joined_today.json
+            reports/hourly/**/*.json
             titan007_final_window.json
             titan007_final_hour_report.html
             titan007_final_hour_report.csv
