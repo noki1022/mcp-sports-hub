@@ -1,0 +1,106 @@
+{
+  "schema_version": "nba-priority-focus-v1",
+  "slot": "0630",
+  "target_beijing_date": "2026-10-31",
+  "selection_method": "ODDS_BLIND_RELATIVE_MODEL_PROBABILITY_RANK_AFTER_MODEL_SAFETY_CHECKS",
+  "confidence_threshold": null,
+  "max_displayed": 3,
+  "focus_games": [
+    {
+      "game_id": "728171",
+      "jingcai_number": "周五315",
+      "home_team": "迈阿密热火",
+      "away_team": "印第安纳步行者",
+      "tipoff_beijing": "2026-10-31T08:00+08:00",
+      "model_direction": "主胜",
+      "model_direction_probability": 0.846578,
+      "model_home_probability": 0.846578,
+      "model_margin_home_minus_away": 8.94,
+      "model_total": 238.86,
+      "model_quality": "PASS",
+      "market_no_vig_home": 0.750552,
+      "model_minus_market_home_pp": 9.6,
+      "contrarian_market_signal": false,
+      "injury_quality": "UNKNOWN_OR_UNSUBMITTED",
+      "cautions": [
+        "伤停资料不完整"
+      ],
+      "explanation": "独立模型对主胜的相对倾向较明确；按同批比赛的概率偏离50%幅度排序",
+      "focus_rank": 1
+    },
+    {
+      "game_id": "728169",
+      "jingcai_number": "周五310",
+      "home_team": "多伦多猛龙",
+      "away_team": "奥兰多魔术",
+      "tipoff_beijing": "2026-10-31T07:30+08:00",
+      "model_direction": "主胜",
+      "model_direction_probability": 0.789716,
+      "model_home_probability": 0.789716,
+      "model_margin_home_minus_away": 7.79,
+      "model_total": 228.7,
+      "model_quality": "PASS",
+      "market_no_vig_home": 0.730858,
+      "model_minus_market_home_pp": 5.89,
+      "contrarian_market_signal": false,
+      "injury_quality": "PUBLISHED_AFFECTED",
+      "cautions": [
+        "已记录伤停；球员影响未量化"
+      ],
+      "explanation": "独立模型对主胜的相对倾向较明确；按同批比赛的概率偏离50%幅度排序",
+      "focus_rank": 2
+    },
+    {
+      "game_id": "728170",
+      "jingcai_number": "周五314",
+      "home_team": "达拉斯独行侠",
+      "away_team": "休斯顿火箭",
+      "tipoff_beijing": "2026-10-31T08:00+08:00",
+      "model_direction": "客胜",
+      "model_direction_probability": 0.784723,
+      "model_home_probability": 0.215277,
+      "model_margin_home_minus_away": -5.73,
+      "model_total": 229.64,
+      "model_quality": "PASS",
+      "market_no_vig_home": 0.28744,
+      "model_minus_market_home_pp": -7.22,
+      "contrarian_market_signal": false,
+      "injury_quality": "PUBLISHED_AFFECTED",
+      "cautions": [
+        "已记录伤停；球员影响未量化"
+      ],
+      "explanation": "独立模型对客胜的相对倾向较明确；按同批比赛的概率偏离50%幅度排序",
+      "focus_rank": 3
+    }
+  ],
+  "focus_count": 3,
+  "market_divergences": [],
+  "odds_independent_focus": true,
+  "eligible_count": 7,
+  "total_nba_games": 10,
+  "contrarian_signal_count": 0,
+  "excluded_count": 3,
+  "excluded": [
+    {
+      "game_id": "728165",
+      "reasons": [
+        "原始与校准概率分歧大，需核查校准样本"
+      ]
+    },
+    {
+      "game_id": "728166",
+      "reasons": [
+        "校准概率端点/均值缺失或异常"
+      ]
+    },
+    {
+      "game_id": "728167",
+      "reasons": [
+        "校准概率端点/均值缺失或异常",
+        "原始与校准概率分歧大，需核查校准样本"
+      ]
+    }
+  ],
+  "statement": "赔率高低不决定模型胜率；重点关注独立排序，逆向分歧单独观察；五玩法仍逐场展示",
+  "research_only": true
+}
