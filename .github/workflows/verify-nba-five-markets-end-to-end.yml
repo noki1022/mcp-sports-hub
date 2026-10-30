@@ -49,7 +49,7 @@ jobs:
           assert 'analysis/nba_final_review_gate.py' in nightly
           assert '--scores nba_final_review_scores.json' in nightly
           assert 'analysis/nba_five_market_review_push.py' in nightly
-          assert 'NO_FIVE_MARKET_PREGAME_ARCHIVE_NO_RETROFIT' in nightly
+          assert 'nba_final_review_readiness.json' in nightly
           print('NBA_FIVE_MARKET_FOUR_SCHEDULED_AND_NIGHTLY_WIRED_PASS')
           PY
       - name: Audit 10 pretip real 007 lottery games without posting PushPlus
