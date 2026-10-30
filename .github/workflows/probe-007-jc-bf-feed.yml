@@ -1,0 +1,30 @@
+name: One-shot audit permitted 007 JC basketball feed structure
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/probe_007_jc_bf_feed.py'
+      - '.github/workflows/probe-007-jc-bf-feed.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Verify fail-closed, bounded, read-only behavior
+        run: |
+          python3 -m py_compile scripts/probe_007_jc_bf_feed.py
+          python3 scripts/probe_007_jc_bf_feed.py --self-test
+      - name: Audit single previously discovered public text-feed path
+        run: python3 scripts/probe_007_jc_bf_feed.py --out jc_public_basketball_feed_audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jc-public-basketball-feed-audit
+          path: jc_public_basketball_feed_audit.json
+          if-no-files-found: ignore
+          retention-days: 2
