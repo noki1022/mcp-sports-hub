@@ -33,6 +33,26 @@ def audit(fetch=None):
     out["nba_fixture_ids_present"]={n:bool(re.search(r"(?<!\d)"+n+r"(?!\d)",content)) for n in ("728165","728166","728167","728169","728173")}
     out["first_240_chars_sanitized"]=re.sub(r"[^\x20-\x7e\u3400-\u9fff]","?",content[:240])
     out["contents_appear_html"]=bool(re.search(r"<html|<!doctype",content[:500],re.I))
+    segments=[]
+    for index,segment in enumerate(content.split("$")):
+        rows=[]
+        invalid=0
+        for item in segment.split("!"):
+            if not item.strip():continue
+            cells=item.split("^")
+            if not re.fullmatch(r"\d{4,12}",cells[0].strip()):
+                invalid+=1
+                continue
+            rows.append(cells)
+        wanted={row[0]:row[1:] for row in rows if row[0] in
+             {"728165","728166","728167","728168","728169","728170",
+              "728171","728172","728173","728174"}}
+        segments.append({"index":index,"record_count":len(rows),
+            "invalid_records":invalid,
+            "slot_counts":{str(n):sum(len(row)==n for row in rows) for n in sorted({len(row) for row in rows})},
+            "nba_records":wanted,
+            "first_record":rows[0] if rows else None})
+    out["segments"]=segments
     out["schema_validated"]=False
     return out
 
