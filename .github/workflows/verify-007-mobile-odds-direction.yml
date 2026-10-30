@@ -1,0 +1,51 @@
+name: Urgent 007 iPhone odds home-away and handicap labels regression
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/pushplus_mobile_v2.py'
+      - 'scripts/pushplus_mobile.py'
+      - '.github/workflows/verify-007-mobile-odds-direction.yml'
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Unit verify home/away, handicap +/-, totals, summary no duplication
+        run: |
+          python3 -m py_compile scripts/pushplus_mobile_v2.py scripts/pushplus_mobile.py
+          python3 scripts/pushplus_mobile.py --mode three --self-test
+      - name: Live source 007 lottery price snapshot and ten-game real iPhone preview
+        run: |
+          python3 scripts/titan007_jingcai_three_market.py             --joined reports/daily/2026-10-31/1800/titan007_three_joined.json             --out jc-snapshot.json
+          python3 scripts/pushplus_mobile.py --mode three             --joined reports/daily/2026-10-31/1800/titan007_three_joined.json             --jingcai jc-snapshot.json --preview corrected-iphone-preview.html             --status corrected-iphone-status.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          t=Path("corrected-iphone-preview.html").read_text(encoding="utf-8")
+          j=json.loads(Path("jc-snapshot.json").read_text(encoding="utf-8"))
+          assert j["jc_007_match_numbers"]["verified"]==10
+          assert all(("周五"+str(n)) in t for n in range(309,319))
+          assert "主队：达拉斯独行侠　｜　客队：休斯顿火箭" in t
+          assert "主胜（达拉斯独行侠）" in t and "客胜（休斯顿火箭）" in t
+          assert "槽1" not in t and "槽2" not in t
+          assert "用户认可为体彩赔率参考" not in t
+          assert "两侧方向仍需核验" not in t
+          assert t.count("竞彩赔率（007）")==10
+          assert "逐场模型与盘口" in t and "模型 vs 盘口" in t
+          print("007_IPHONE_REAL_ODDS_DIRECTION_AND_TEN_GAMES_PASS")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corrected-007-iphone-odds-preview
+          path: |
+            corrected-iphone-preview.html
+            corrected-iphone-status.json
+            jc-snapshot.json
+          retention-days: 3
+          if-no-files-found: ignore
