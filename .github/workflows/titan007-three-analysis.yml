@@ -84,8 +84,24 @@ jobs:
           board=json.loads(Path('titan007_three_joined.json').read_text())
           games=board.get('nba_cba_games',[])
           if not games: print('NO_NEXT_DAY_GAMES_NO_PUSH'); raise SystemExit(0)
-          rows=[f"{g.get('display_clock')} 主队：{g.get('home_team')} vs 客队：{g.get('away_team')}" for g in games]
-          data=urllib.parse.urlencode({'token':os.environ['PUSHPLUS_TOKEN'],'title':'NBA/CBA 次日比赛阶段分析','content':f"目标日期：{board.get('requested_display_date')}\\n\\n"+'\\n'.join(rows)+"\\n\\n独立模型已生成；盘口原始槽位方向和临场伤停仍待核验，统一 NO_BET。",'template':'txt'}).encode()
+          model=json.loads(Path('nba_model_analysis.json').read_text(encoding='utf-8'))
+          by_game={str(x.get('game_id')):x for x in model.get('games',[])}
+          rows=[]
+          for g in games:
+              m=by_game.get(str(g.get('game_id')), {})
+              p=m.get('model_probability') or {}
+              rows.append("\n".join([
+                  f"【{g.get('display_clock','—')}】",
+                  f"主队：{g.get('home_team','—')}",
+                  f"客队：{g.get('away_team','—')}",
+                  f"模型独赢：{p.get('home','—')} / {p.get('away','—')}",
+                  f"模型分差（主−客）：{m.get('margin_mean_home_minus_away','—')}",
+                  f"模型总分：{m.get('total_mean','—')}",
+                  "盘口与模型：未同时通过盘口方向、时间戳和校准验证，NO_BET",
+                  "数据质量："+str((m.get('data_quality') or {}).get('quality','NO_MODEL_DATA'))
+              ]))
+          content=f"目标日期：{board.get('requested_display_date')}\n\n"+'\n\n'.join(rows)
+          data=urllib.parse.urlencode({'token':os.environ['PUSHPLUS_TOKEN'],'title':'NBA/CBA 次日模型分析（手机适配）','content':content,'template':'txt'}).encode()
           req=urllib.request.Request('https://www.pushplus.plus/send',data=data,method='POST')
           with urllib.request.urlopen(req,timeout=15) as r:
               body=r.read().decode('utf-8','replace')
