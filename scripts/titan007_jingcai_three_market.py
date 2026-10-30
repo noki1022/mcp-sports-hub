@@ -97,6 +97,28 @@ if __name__=="__main__":
         x=inspect_sources(board)
         from marzdata_jingcai import enrich
         x=enrich(board,x)
+        # Independent 007-only public JC price feed. Shadow data only:
+        # do not promote unverified side orientation/third-party prices into
+        # official lottery payouts, wagering EV, or existing recommendation gates.
+        try:
+            from parse_007_jc_three_market import parse as parse_jc,PATH as jc_path
+            from probe_007_jc_scripts import ORIGIN as jc_origin, UA as jc_ua, get_bytes as jc_get, robots_policy as jc_robots
+            rp,robots_status=jc_robots()
+            if rp is False or (rp is not None and not rp.can_fetch(jc_ua,jc_origin+jc_path)):
+                raise RuntimeError("JC_SOURCE_NOT_PERMITTED_"+robots_status)
+            shadow=parse_jc(jc_get(jc_origin+jc_path,300000),board)
+            x["jc_007_public_odds_shadow"]={"status":"AVAILABLE_THIRD_PARTY_UNVERIFIED_SIDE",
+                "source":shadow["url"],"captured_at_utc":shadow["captured_at_utc"],
+                "nba_coverage":shadow["nba_coverage"],
+                "all_three_market_games":shadow["all_three_market_games"],
+                "games":shadow["matches"],
+                "official_fixed_bonus_verified":False,
+                "eligible_for_model_fusion":False}
+            print("JC_007_PUBLIC_THREE_MARKET_SHADOW",shadow["nba_coverage"],shadow["all_three_market_games"])
+        except (OSError,ValueError,RuntimeError,ImportError,KeyError) as exc:
+            x["jc_007_public_odds_shadow"]={"status":"UNAVAILABLE","error_type":type(exc).__name__,
+                "official_fixed_bonus_verified":False,"eligible_for_model_fusion":False,"games":[]}
+            print("JC_007_PUBLIC_THREE_MARKET_SHADOW_UNAVAILABLE",type(exc).__name__)
         Path(a.out).write_text(json.dumps(x,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         print("JINGCAI_THREE_MARKET_AUDIT",x["game_count"],x["verified_games_with_all_three"],
              {k:v["status"] for k,v in x["source_status"].items()})
