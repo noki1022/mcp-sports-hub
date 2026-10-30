@@ -44,6 +44,12 @@ jobs:
           done
           exit 1
       - if: steps.gate.outputs.sent != 'true'
+        name: Enforce same official games AND 007 IDs as last night's 21:30
+        run: |
+          git pull --ff-only origin main
+          python3 scripts/nba_overnight_cohort.py enforce --cohort "reports/overnight-cohorts/$TARGET_DATE/2130.json" --joined titan007_priority_joined.json --phase morning --out nba_priority_same_slate.json
+          mv nba_priority_same_slate.json titan007_priority_joined.json
+      - if: steps.gate.outputs.sent != 'true'
         name: Exclude started and wrong-day NBA games
         run: |
           python3 scripts/nba_0630_pretip_filter.py --joined titan007_priority_joined.json --out nba_priority_pretip.json
@@ -139,6 +145,7 @@ jobs:
             titan007_priority_movement.json
             nba_priority_model.json
             nba_capture_audit.json
+            reports/overnight-cohorts/**/*.json
             nba_priority_dynamic.json
             nba_priority_injury_context.json
             nba_priority_bc.json

@@ -44,6 +44,25 @@ jobs:
           done
           exit 1
       - if: steps.gate.outputs.sent != 'true'
+        name: Freeze identical NBA slate for tomorrow morning
+        run: |
+          mkdir -p "reports/overnight-cohorts/$TARGET_DATE"
+          python3 scripts/nba_overnight_cohort.py lock --joined titan007_priority_joined.json --out "reports/overnight-cohorts/$TARGET_DATE/2130.json"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "reports/overnight-cohorts/$TARGET_DATE/2130.json"
+          if git diff --cached --quiet; then
+            echo "OVERNIGHT_2130_COHORT_LOCK_ALREADY_PERSISTED"
+            exit 0
+          fi
+          git commit -m "Freeze 21:30 NBA slate for morning $TARGET_DATE"
+          for n in 1 2 3; do
+            if git push origin HEAD:main; then exit 0; fi
+            git pull --rebase origin main
+            python3 scripts/nba_overnight_cohort.py lock --joined titan007_priority_joined.json --out "reports/overnight-cohorts/$TARGET_DATE/2130.json"
+          done
+          exit 1
+      - if: steps.gate.outputs.sent != 'true'
         name: Verify all official games and Beijing tipoffs
         run: |
           python3 - <<'PY'
@@ -127,6 +146,7 @@ jobs:
             titan007_priority_movement.json
             nba_priority_model.json
             nba_capture_audit.json
+            reports/overnight-cohorts/**/*.json
             nba_priority_dynamic.json
             nba_priority_injury_context.json
             nba_priority_bc.json
