@@ -1,0 +1,47 @@
+name: Verify NBA fatigue, H2H recency and injury quality
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'analysis/nba_pregame_context.py'
+      - 'analysis/nba_injury_context.py'
+      - 'analysis/nba_independent_predictions.py'
+      - 'analysis/nba_model_report.py'
+      - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/verify-nba-context.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install model dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Context self tests and syntax
+        run: |
+          python3 -m py_compile analysis/nba_pregame_context.py analysis/nba_injury_context.py analysis/nba_model_report.py analysis/nba_independent_predictions.py
+          python3 analysis/nba_pregame_context.py
+          python3 analysis/nba_injury_context.py --self-test
+          python3 analysis/nba_model_report.py --self-test
+      - name: Verify strict reporting and frozen model policy
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          model=Path('analysis/nba_independent_predictions.py').read_text()
+          assert 'pregame_context' in model and 'used_in_production_probability": False' in model
+          assert 'margin_mu = float(_predict_extended' in model
+          for f in ('titan007-three-analysis.yml','titan007-final-hourly.yml'):
+              x=Path('.github/workflows')/f
+              src=x.read_text()
+              assert 'nba_injury_context.py' in src
+              assert '--injury-context nba_injury_context.json' in src
+              assert 'nba_official_injuries.json' in src
+          print('NBA_CONTEXT_WIRING_FAIL_CLOSED_PASS')
+          PY
