@@ -28,7 +28,10 @@ jobs:
           x=json.load(open('nba-isotonic-tail-evidence.json'))
           assert x['training_window_n']==240
           assert x['probe']['calibration_total_n']==240
-          assert x['forward_summary']['raw']['n']==120
+          assert x['strict_forward']['chronological_no_forward_outcome_leakage']
+          assert x['strict_forward']['summary']['raw']['n']==120
+          assert len(x['strict_forward']['folds'])==3
+          assert all(f['calibration_fit_through_index'] < f['forward_start_index'] for f in x['strict_forward']['folds'])
           assert x['candidate_policy']=='SHADOW_ONLY_NOT_ENABLED'
           print('NBA_REAL_ISOTONIC_KNOT_SUPPORT_AND_FORWARD_AUDIT_PASS')
           PY
