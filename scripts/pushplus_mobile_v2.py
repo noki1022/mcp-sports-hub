@@ -119,7 +119,7 @@ def jingcai_status(x, detailed=False):
     shadow=x.get("jc_007_price_shadow") or {}
     observed=shadow.get("markets") or {}
     not_on_sale=[t for k,t in (("win_lose","胜负"),("handicap","让分胜负"),("total","大小分"))
-                 if (observed.get(k) or {}).get("status")=="NOT_ON_SALE_USER_CONFIRMED"
+                 if (observed.get(k) or {}).get("status")=="NOT_ON_SALE_USER_CONFIRMED"]
     def legacy(key,title):
         row=markets.get(key) or {}
         if row.get("status")=="VERIFIED":return title+"：已核实"
