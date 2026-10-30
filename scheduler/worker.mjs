@@ -87,7 +87,7 @@ async function getJson(url,env,fetcher){
 async function markerAccepted(job,env,fetcher){
   if(job.kind==="hourly")return false;
   const uri=job.kind==="night_review"
-    ? BASE+"/contents/reports/two-market-settled/"+encodeURIComponent(job.target_date)+"/2200.json?ref=main"
+    ? BASE+"/contents/reports/five-market-settled/"+encodeURIComponent(job.target_date)+"/2200.json?ref=main"
     : BASE+"/contents/reports/pushplus-sent/"+encodeURIComponent(job.target_date)+"/"+job.slot+".json?ref=main";
   const resp=await fetcher(uri,{headers:ghHeaders(env)});
   if(resp.status===404)return false;
