@@ -181,7 +181,7 @@ def self_test():
     assert "114.5" in html and "109.5" in html and "223.0" in html
     assert "LINE_MOVE" not in html and "让分或总分变动" in html
     assert "主胜 62.0%" in html and "模总 224.0" in html
-    assert "方向未核验" in html and "NO_BET" in html
+    assert "方向待核" in html and "NO_BET" in html
     assert "<table" not in html
     assert "比赛速览" in html and "模型 vs 盘口" in html
     print("PUSHPLUS_V2_COMPACT_SELF_TEST_PASS")
