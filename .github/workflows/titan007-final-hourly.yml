@@ -94,6 +94,11 @@ jobs:
         run: |
           python3 analysis/nba_prediction_adapter.py --self-test
           python3 analysis/nba_prediction_adapter.py --joined titan007_joined_today.json --out nba_independent_predictions_gate.json
+      - name: Collect official injury status, fail closed if unavailable
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet "pdfplumber==0.11.7"
+          python3 analysis/nba_official_injury.py --date "$TARGET_DATE" --out nba_official_injuries.json || echo "OFFICIAL_INJURY_UNAVAILABLE_NO_INFERRED_HEALTH"
+          python3 analysis/nba_injury_context.py --joined titan007_joined_today.json --injuries nba_official_injuries.json --out nba_injury_context.json
       - name: Render final mobile report when a game is in window
         run: |
           python3 scripts/titan007_report.py --joined titan007_final_window.json --html titan007_final_hour_report.html --csv titan007_final_hour_report.csv
@@ -101,7 +106,7 @@ jobs:
           python3 analysis/market_decision_gate.py --market titan007_final_hour_market.json --predictions nba_independent_predictions_gate.json --out titan007_final_decision.json
           python3 analysis/market_value_policy.py --self-test
           python3 analysis/market_value_policy.py --market-decision titan007_final_decision.json --out market_value_policy.json
-          python3 analysis/nba_model_report.py --joined titan007_joined_today.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html
+          python3 analysis/nba_model_report.py --joined titan007_joined_today.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html --injury-context nba_injury_context.json
       - name: Render iPhone market movement with independent model
         run: python3 analysis/titan007_hourly_history.py render --movement titan007_hourly_movement.json --model nba_model_analysis.json --out-html titan007_hourly_movement.html
       - name: Send concise iPhone PushPlus alert on significant changes or final window
@@ -141,6 +146,8 @@ jobs:
             titan007_final_decision.json
             nba_independent_predictions_gate.json
             nba_model_analysis.json
+            nba_injury_context.json
+            nba_official_injuries.json
             nba_model_analysis.html
             titan007_hourly_movement.json
             titan007_hourly_movement.html

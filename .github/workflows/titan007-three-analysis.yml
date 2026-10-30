@@ -79,6 +79,11 @@ jobs:
         run: |
           python3 analysis/nba_prediction_adapter.py --self-test
           python3 analysis/nba_prediction_adapter.py --joined titan007_three_joined.json --out nba_independent_predictions_gate.json
+      - name: Collect official injury status, fail closed if unavailable
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet "pdfplumber==0.11.7"
+          python3 analysis/nba_official_injury.py --date "$TARGET_DATE" --out nba_official_injuries.json || echo "OFFICIAL_INJURY_UNAVAILABLE_NO_INFERRED_HEALTH"
+          python3 analysis/nba_injury_context.py --joined titan007_three_joined.json --injuries nba_official_injuries.json --out nba_injury_context.json
       - name: Render mobile report and market analysis
         run: |
           python3 scripts/titan007_report.py --joined titan007_three_joined.json --html titan007_three_report.html --csv titan007_three_report.csv
@@ -86,7 +91,7 @@ jobs:
           python3 analysis/market_decision_gate.py --market titan007_three_market.json --predictions nba_independent_predictions_gate.json --out titan007_three_decision.json
           python3 analysis/market_value_policy.py --self-test
           python3 analysis/market_value_policy.py --market-decision titan007_three_decision.json --out market_value_policy.json
-          python3 analysis/nba_model_report.py --joined titan007_three_joined.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html
+          python3 analysis/nba_model_report.py --joined titan007_three_joined.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html --injury-context nba_injury_context.json
           python3 analysis/market_movement_tracker.py --current titan007_three_joined.json --history-root reports/daily/$TARGET_DATE --out titan007_three_movement.json
       - name: Resolve canonical report slot and check already sent
         id: dedup
@@ -171,6 +176,8 @@ jobs:
             titan007_three_decision.json
             nba_independent_predictions_gate.json
             nba_model_analysis.json
+            nba_injury_context.json
+            nba_official_injuries.json
             nba_model_analysis.html
             titan007_three_movement.json
             pushplus_mobile_preview.html

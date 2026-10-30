@@ -23,6 +23,7 @@ from nba_chronological_backtest import (
 )
 import nba_chronological_backtest as B
 from nba_settlement_probabilities import settlement_probs
+from nba_pregame_context import build as build_pregame_context
 
 MODEL_VERSION = "nba-independent-v3-isotonic-rolling-production"
 _INTERVAL_Z = {"50": 0.67448975, "80": 1.28155157, "95": 1.95996398}
@@ -268,6 +269,9 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
     if value is None:
         return {"game_id": fixture.get("game_id"), "status": "DISABLED",
                 "reasons": ["INSUFFICIENT_PRETIP_HISTORY"]}
+    pregame = build_pregame_context(target_day.isoformat(), fixture["home"], fixture["away"],
+                                    hist[fixture["home"]], hist[fixture["away"]],
+                                    pairs.get(tuple(sorted((fixture["home"], fixture["away"]))), [])[-5:])
     row = {"date": target_day.isoformat(), "season": synthetic["season"],
            "home": fixture["home"], "away": fixture["away"],
            "game_id": str(fixture["game_id"]), "form": value["form"],
@@ -310,6 +314,12 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
                 for level, qs in calibration["total"]["residual_quantiles"].items()
             },
         },
+        "pregame_context": {"fatigue": pregame["fatigue"],
+                            "h2h_recency": pregame["h2h_recency"],
+                            "candidate_features": pregame["features"],
+                            "feature_names": pregame["names"],
+                            "used_in_production_probability": False,
+                            "validation": "PENDING_CHRONOLOGICAL_BACKTEST"},
         "data_quality": {
             "home_recent_games": len(value["proof"]["team_game_dates_home"]),
             "away_recent_games": len(value["proof"]["team_game_dates_away"]),

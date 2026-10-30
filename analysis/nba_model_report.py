@@ -4,7 +4,8 @@ from __future__ import annotations
 import argparse, html, json
 from pathlib import Path
 
-def render(joined, gate, out_json, out_html):
+def render(joined, gate, out_json, out_html, injury_context=None):
+    injuries={str(x.get("game_id")):x for x in (injury_context or {}).get("games",[])}
     games = {str(g.get("game_id")): g for g in joined.get("nba_cba_games", [])}
     preds = {str(g.get("game_id")): g for g in gate.get("game_predictions", [])}
     gate_rows = {}
@@ -32,6 +33,8 @@ def render(joined, gate, out_json, out_html):
             "data_quality": quality,
             "markets": markets,
             "gate_reasons": reasons or ["INDEPENDENT_MODEL_MISSING"],
+            "pregame_context": p.get("pregame_context"),
+            "injury_context": injuries.get(gid,{"quality":"NOT_PROVIDED","player_adjustment":"DISABLED_NOT_BACKTESTED"}),
             "recommendation": "NO_BET",
         }
         rows.append(record)
@@ -71,6 +74,7 @@ def render(joined, gate, out_json, out_html):
             + "<p>大小分结算概率：全赢 " + fmt(total_settle.get("full_win")) + "，半赢 "
             + fmt(total_settle.get("half_win")) + "，走盘 " + fmt(total_settle.get("push"))
             + "，半输 " + fmt(total_settle.get("half_loss")) + "，全输 " + fmt(total_settle.get("full_loss")) + "</p>"
+            + "<p>背靠背/交锋扩展：仅供研究，未通过回测，不改变本次胜率。伤停质量：" + html.escape(str(record["injury_context"].get("quality"))) + "；球员影响尚未定量校准。</p>"
             + "<p class='gate'>闸门：" + html.escape(", ".join(reasons or ["NO_BET"]))
             + "；结论：<b>NO_BET</b></p></section>"
         )
@@ -97,7 +101,7 @@ def self_test():
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--joined"); ap.add_argument("--predictions")
+    ap.add_argument("--joined"); ap.add_argument("--predictions"); ap.add_argument("--injury-context")
     ap.add_argument("--out-json", default="nba_model_analysis.json")
     ap.add_argument("--out-html", default="nba_model_analysis.html")
     ap.add_argument("--self-test", action="store_true")
@@ -108,4 +112,4 @@ if __name__ == "__main__":
         if not a.joined or not a.predictions: raise SystemExit("--joined and --predictions are required")
         render(json.loads(Path(a.joined).read_text(encoding="utf-8")),
                json.loads(Path(a.predictions).read_text(encoding="utf-8")),
-               a.out_json, a.out_html)
+               a.out_json, a.out_html, json.loads(Path(a.injury_context).read_text(encoding="utf-8")) if a.injury_context and Path(a.injury_context).exists() else None)
