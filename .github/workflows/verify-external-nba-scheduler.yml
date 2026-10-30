@@ -1,0 +1,27 @@
+name: Verify external NBA scheduler
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scheduler/**'
+      - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/verify-external-nba-scheduler.yml'
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: node scheduler/test-scheduler.mjs
+      - name: Check noon dispatch freezes cohort and passes explicit report slot
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          w=Path('.github/workflows/titan007-three-analysis.yml').read_text()
+          assert 'report_slot:' in w
+          assert 'EXTERNAL_REPORT_SLOT' in w
+          assert '"$EXTERNAL_REPORT_SLOT" = "1200"' in w
+          print('EXTERNAL_NOON_COHORT_INPUT_PASS')
+          PY

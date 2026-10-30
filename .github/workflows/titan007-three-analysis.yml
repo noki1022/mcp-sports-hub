@@ -2,6 +2,10 @@ name: Titan007 daily three analysis before lottery cutoff
 on:
   workflow_dispatch:
     inputs:
+      report_slot:
+        description: "Canonical Beijing slot: 1200, 1400, 1500, 1800, 2100"
+        required: false
+        type: string
       target_date:
         description: "Next-day Beijing tipoff date YYYY-MM-DD; default is tomorrow in Asia/Shanghai"
         required: false
@@ -36,6 +40,7 @@ jobs:
     env:
       REQUESTED_DATE: ${{ inputs.target_date || '' }}
       SCHEDULE_EXPR: ${{ github.event.schedule || '' }}
+      EXTERNAL_REPORT_SLOT: ${{ inputs.report_slot || '' }}
       PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
@@ -69,7 +74,7 @@ jobs:
         run: |
           git pull --ff-only origin main
           mkdir -p "reports/noon-cohorts/$TARGET_DATE"
-          if [ "$SCHEDULE_EXPR" = "0 4 * * *" ] || [ "$SCHEDULE_EXPR" = "15 4 * * *" ] || [ "$SCHEDULE_EXPR" = "30 4 * * *" ]; then
+          if [ "$EXTERNAL_REPORT_SLOT" = "1200" ] || [ "$SCHEDULE_EXPR" = "0 4 * * *" ] || [ "$SCHEDULE_EXPR" = "15 4 * * *" ] || [ "$SCHEDULE_EXPR" = "30 4 * * *" ]; then
             python3 scripts/nba_noon_slate.py freeze --joined titan007_three_joined.json --out "reports/noon-cohorts/$TARGET_DATE/1200.json"
             git add "reports/noon-cohorts/$TARGET_DATE/1200.json"
             if ! git diff --cached --quiet; then
@@ -179,7 +184,11 @@ jobs:
                  '0 10 * * *':'1800','15 10 * * *':'1800','30 10 * * *':'1800',
                  '0 13 * * *':'2100'}
           if expr and expr not in slots: raise RuntimeError('UNKNOWN_SCHEDULE')
-          slot=slots.get(expr) or datetime.now(ZoneInfo('Asia/Shanghai')).strftime('%H%M')
+          external=os.environ.get('EXTERNAL_REPORT_SLOT','')
+          if external and external not in ('1200','1400','1500','1800','2100'):
+              raise RuntimeError('INVALID_EXTERNAL_REPORT_SLOT')
+          if external and expr:raise RuntimeError('MIXED_SCHEDULE_DISPATCH')
+          slot=slots.get(expr) or external or datetime.now(ZoneInfo('Asia/Shanghai')).strftime('%H%M')
           print('REPORT_SLOT='+slot)
           PY
           git pull --ff-only origin main
