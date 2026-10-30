@@ -8,8 +8,9 @@ on:
         type: string
   schedule:
     # 21:30 belongs exclusively to priority pre-22:00 full report.
-    # Continue ordinary conditional alerts Beijing 22:30-06:30.
-    - cron: "30 14-22 * * *"
+    # 06:30 is exclusively the highest-priority complete morning report.
+    # Ordinary hourly conditional alerts run Beijing 22:30-05:30.
+    - cron: "30 14-21 * * *"
 permissions:
   contents: write
 concurrency:
