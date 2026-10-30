@@ -177,6 +177,7 @@ def main():
     a.add_argument("--movement")
     a.add_argument("--window")
     a.add_argument("--model")
+    a.add_argument("--dynamic")
     a.add_argument("--preview",default="pushplus_mobile_preview.html")
     a.add_argument("--status",default="pushplus_status.json")
     a.add_argument("--send",action="store_true")
@@ -197,6 +198,9 @@ def main():
         html=render_v2(rows,model,"NBA/CBA 赛前研判 V2",joined.get("requested_display_date","未知"),"three")
     else:
         movement=read(args.movement)
+        dynamic={str(g.get("game_id")):g for g in read(args.dynamic).get("games",[])}
+        for row in movement.get("games",[]):
+            row["dynamic_review"]=dynamic.get(str(row.get("game_id")))
         window=read(args.window)
         model={str(x.get("game_id")):x for x in read(args.model).get("games",[])}
         ids={str(x.get("game_id")) for x in window.get("nba_cba_games",[])}

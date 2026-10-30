@@ -95,6 +95,17 @@ def devig(q):
     x,y=1/(1+a),1/(1+b)
     return x/(x+y)
 
+def line_trend(values):
+    """Classify observed raw line movement, never infer a betting direction."""
+    nums=[number(v) for v in values]
+    if len(nums)<2 or any(v is None for v in nums):return "INSUFFICIENT_HISTORY"
+    changes=[b-a for a,b in zip(nums,nums[1:]) if abs(b-a)>1e-8]
+    if not changes:return "FLAT"
+    signs=[1 if v>0 else -1 for v in changes]
+    if len(set(signs))==1:return "RISING" if signs[0]>0 else "FALLING"
+    if len(signs)>=2 and signs[-1]!=signs[-2]:return "REVERSAL"
+    return "MIXED"
+
 def analyze(cur,previous):
     rows=[];now=utc(cur["captured_at_utc"])
     old=[(t,p,s) for t,p,s in previous if t<now and s.get("target_date")==cur["target_date"]]
@@ -108,6 +119,7 @@ def analyze(cur,previous):
         prev=same[-1] if same else None
         first=same[0] if same else None
         moves={};flags=[]
+        recent=same[-3:]
         for market in MARKETS:
             q=game["markets"][market]["current"]
             p=prev[2]["markets"][market]["current"] if prev else {}
@@ -115,13 +127,30 @@ def analyze(cur,previous):
             d=diff(p.get("line"),q.get("line"))
             w={k:diff(p.get(k),q.get(k)) for k in ("first_side_water","second_side_water")}
             pb=devig(p);pa=devig(q)
-            dp=diff(pb,pa)
+            same_line=(d is not None and abs(d)<1e-8)
+            # Raw slot implied probabilities on different lines refer to
+            # different events. Do not compare or raise water alarms across lines.
+            dp=diff(pb,pa) if same_line else None
             if d is not None and abs(d)>=(1 if "spread" in market else 2.5):flags.append("LINE")
-            if (dp is not None and abs(dp)>=.03) or any(v is not None and abs(v)>=.07 for v in w.values()):flags.append("WATER")
+            if same_line and ((dp is not None and abs(dp)>=.03) or
+                              any(v is not None and abs(v)>=.07 for v in w.values())):
+                flags.append("WATER")
+            trace=[{"captured_at_utc":t.isoformat(),
+                    "line":g["markets"][market]["current"]["line"]}
+                   for t,_,g in recent]
+            trace.append({"captured_at_utc":cur["captured_at_utc"],"line":q.get("line")})
+            gap_minutes=round((now-prev[0]).total_seconds()/60,1) if prev else None
+            three_delta=(diff(recent[0][2]["markets"][market]["current"].get("line"),q.get("line"))
+                         if len(recent)==3 else None)
             moves[market]={"opening":game["markets"][market]["opening"],"previous":p or None,
                 "current":q,"first_snapshot":initial or None,
                 "delta_line_previous":d,"delta_line_first":diff(initial.get("line"),q.get("line")),
-                "delta_water_previous":w,"devig_raw_slot1":pa,"delta_devig_raw_slot1":dp}
+                "delta_water_previous":w,"devig_raw_slot1":pa,"delta_devig_raw_slot1":dp,
+                "same_line_water_comparable":same_line,
+                "last_three_reference_delta_line":three_delta,
+                "recent_trace":trace,"trend":line_trend([v["line"] for v in trace]),
+                "minutes_since_previous_capture":gap_minutes,
+                "previous_is_within_95_minutes":gap_minutes is not None and gap_minutes<=95}
         status="FIRST_SNAPSHOT" if not prev else ("LINE_AND_WATER_MOVE" if set(flags)=={"LINE","WATER"} else
             "LINE_MOVE" if "LINE" in flags else "WATER_MOVE" if "WATER" in flags else "STABLE_OR_MINOR_MOVE")
         rows.append({"game_id":game["game_id"],"league":game["league"],"home_team":game["home_team"],
@@ -211,6 +240,17 @@ def selftest():
         assert a["games"][0]["status"]=="LINE_AND_WATER_MOVE"
         assert a["games"][0]["markets"]["full_total"]["delta_line_previous"]==3.5
         assert "独立模型" in render(a,None)
+        assert a["games"][0]["markets"]["full_total"]["delta_devig_raw_slot1"] is None
+        assert not a["games"][0]["markets"]["full_total"]["same_line_water_comparable"]
+        # Consecutive snapshots vs a line reversal, with no fake price delta.
+        mid=board(dict(g,markets={"full_total":{"current":{"line":222.5}},
+                                 "full_spread":{"current":{"line":-2.5}}}),"2026-10-30T13:20:00Z")
+        seq=analyze(current,[(utc(before["captured_at_utc"]),"a",before),
+                            (utc(mid["captured_at_utc"]),"b",mid)])
+        assert seq["games"][0]["markets"]["full_total"]["trend"]=="RISING"
+        assert line_trend([220,225,221])=="REVERSAL"
+        assert line_trend([220,221,222,223])=="RISING"
+        assert seq["games"][0]["markets"]["full_total"]["minutes_since_previous_capture"]==40.0
         wrong=board(dict(g,home_team="不同队"),"2026-10-30T13:00:00Z")
         assert analyze(current,[(utc(wrong["captured_at_utc"]),"wrong",wrong)])["games"][0]["status"]=="FIRST_SNAPSHOT"
     print("HOURLY_SNAPSHOT_MOVEMENT_SELF_TEST_PASS")
