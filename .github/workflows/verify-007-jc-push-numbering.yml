@@ -1,0 +1,67 @@
+name: Verify 007 lottery issue numbers across 10 NBA iPhone PushPlus games
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/verify_007_jc_push_numbering.py'
+      - 'scripts/titan007_jingcai_three_market.py'
+      - 'scripts/pushplus_mobile.py'
+      - 'scripts/pushplus_mobile_v2.py'
+      - '.github/workflows/verify-007-jc-push-numbering.yml'
+permissions: {contents: read}
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Test strict issue ID validation and iPhone mobile rendering
+        run: |
+          python3 -m py_compile scripts/verify_007_jc_push_numbering.py scripts/titan007_jingcai_three_market.py scripts/pushplus_mobile.py scripts/pushplus_mobile_v2.py
+          python3 scripts/verify_007_jc_push_numbering.py
+          python3 scripts/titan007_jingcai_three_market.py --self-test
+          python3 scripts/pushplus_mobile.py --mode three --self-test
+      - name: Fetch permitted 007 lottery fixture labels and prices on actual ten NBA games
+        run: |
+          python3 scripts/titan007_jingcai_three_market.py \
+            --joined reports/daily/2026-10-31/1800/titan007_three_joined.json \
+            --out verified-jingcai-with-numbers.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open("verified-jingcai-with-numbers.json"))
+          v=d["jc_007_match_numbers"]
+          print("JC_PUSH_ISSUE_REAL_AUDIT",v["verified"],v["total_games"],v["status"])
+          if v["verified"]!=10:
+              raise AssertionError("Expected 10/10 true 007 lottery issue numbers for the fixed historical NBA board")
+          codes={i["match_no"] for i in v["games"].values() if i["status"]=="VERIFIED_JC_NUMBER"}
+          assert codes=={str(i) for i in range(309,319)},codes
+          print("JC_PUSH_ISSUE_REAL_TEN_309_TO_318_PASS")
+          PY
+      - name: Render full iPhone PushPlus HTML with actual 007 issue labels, no send
+        run: |
+          python3 scripts/pushplus_mobile.py --mode three \
+            --joined reports/daily/2026-10-31/1800/titan007_three_joined.json \
+            --jingcai verified-jingcai-with-numbers.json \
+            --preview verified-jingcai-iphone-preview.html \
+            --status verified-jingcai-iphone-status.json
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("verified-jingcai-iphone-preview.html").read_text(encoding="utf-8")
+          for num in range(309,319):
+              assert "周五"+str(num) in s,num
+          assert "#01" not in s and "#02" not in s
+          assert "逐场模型与盘口" in s
+          print("JC_PUSH_IPHONE_TEN_CODES_NO_POSITION_ORDINALS_PASS")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: actual-007-numbered-iphone-preview
+          path: |
+            verified-jingcai-with-numbers.json
+            verified-jingcai-iphone-preview.html
+            verified-jingcai-iphone-status.json
+          retention-days: 3
+          if-no-files-found: ignore

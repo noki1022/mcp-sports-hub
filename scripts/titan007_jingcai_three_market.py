@@ -120,6 +120,19 @@ if __name__=="__main__":
             x["jc_007_public_odds_shadow"]={"status":"UNAVAILABLE","error_type":type(exc).__name__,
                 "official_fixed_bonus_verified":False,"eligible_for_model_fusion":False,"games":[]}
             print("JC_007_PUBLIC_THREE_MARKET_SHADOW_UNAVAILABLE",type(exc).__name__)
+        # All user-facing match numbers come from 007 JC *fixture* labels.
+        # A verified 007 ID, home/away identity and Beijing tipoff is mandatory.
+        # Each failure has an explicit reason: never generate 309 + report index.
+        try:
+            from verify_007_jc_push_numbering import live as read_jc_labels
+            x["jc_007_match_numbers"]=read_jc_labels(board)
+            print("JC_007_LOTTERY_MATCH_NUMBERS",x["jc_007_match_numbers"]["verified"],
+                  x["jc_007_match_numbers"]["total_games"])
+        except (OSError,ValueError,RuntimeError,ImportError,KeyError) as exc:
+            x["jc_007_match_numbers"]={"status":"UNAVAILABLE","verified":0,
+                "total_games":len([g for g in board.get("nba_cba_games",[]) if g.get("league")=="NBA"]),
+                "error_type":type(exc).__name__,"games":{}}
+            print("JC_007_LOTTERY_MATCH_NUMBERS_UNAVAILABLE",type(exc).__name__)
         Path(a.out).write_text(json.dumps(x,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         print("JINGCAI_THREE_MARKET_AUDIT",x["game_count"],x["verified_games_with_all_three"],
              {k:v["status"] for k,v in x["source_status"].items()})
