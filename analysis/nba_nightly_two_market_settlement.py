@@ -78,7 +78,7 @@ def selftest():
      "markets":{"SPREAD":{"direction":"HOME","line":-3.5},"TOTAL":{"direction":"UNDER","line":220.5}}}]}
     out=settle(f,{"e7":{"completed":True,"home_points":112,"away_points":105}},"2026-10-30")
     assert out["summary"]["SPREAD"]["HIT"]==1
-    assert out["summary"]["TOTAL"]["HIT"]==0 and out["summary"]["TOTAL"]["MISS"]==1
+    assert out["summary"]["TOTAL"]["HIT"]==1 and out["summary"]["TOTAL"]["MISS"]==0
     f["captured_at_utc"]="2026-10-30T10:00:00Z"
     assert settle(f,{"e7":{"completed":True,"home_points":112,"away_points":105}},"2026-10-30")["summary"]["SPREAD"]["UNSETTLED"]==1
     print("NBA_NIGHTLY_ASOF_SETTLEMENT_TEST_PASS")
