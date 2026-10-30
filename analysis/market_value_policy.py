@@ -19,8 +19,12 @@ def evaluate(decision, enabled=False, min_edge=0.03):
         if not row.get("direction_verified"):
             reasons.append("MARKET_SIDE_DIRECTION_UNVERIFIED")
         e1, e2 = row.get("edge_side1"), row.get("edge_side2")
-        best = max([(abs(e1), "SIDE1", e1), (abs(e2), "SIDE2", e2)],
-                   key=lambda x: x[0] if x[0] is not None else -1) if e1 is not None or e2 is not None else None
+        # A negative probability edge is never a candidate, regardless of magnitude.
+        # Do not use abs(edge): it reverses value decisions.
+        positive = [(float(edge), side) for edge, side in
+                    ((e1, "SIDE1"), (e2, "SIDE2"))
+                    if isinstance(edge, (int, float)) and __import__("math").isfinite(edge) and edge > 0]
+        best = max(positive, default=None)
         if not enabled:
             reasons.append("POLICY_DISABLED_PENDING_HISTORICAL_ODDS")
         elif best is None or best[0] < min_edge:
@@ -28,7 +32,7 @@ def evaluate(decision, enabled=False, min_edge=0.03):
         recommendation = "NO_BET"
         if enabled and not reasons and best:
             recommendation = "VALUE_CANDIDATE_" + best[1]
-            candidates.append({**row, "recommendation": recommendation, "edge": best[2]})
+            candidates.append({**row, "recommendation": recommendation, "edge": best[0]})
         rows.append({**row, "policy_reasons": reasons, "recommendation": recommendation})
     return {
         "schema_version": "market-value-policy-v1",
@@ -50,6 +54,10 @@ def self_test():
     assert evaluate(base)["candidate_count"] == 0
     x = evaluate(base, enabled=True)
     assert x["candidate_count"] == 1 and x["decision"].startswith("VALUE_CANDIDATE")
+    negative = {"rows": [{**base["rows"][0],"edge_side1":-0.20,"edge_side2":-0.04}]}
+    assert evaluate(negative, enabled=True)["candidate_count"] == 0
+    mixed = {"rows": [{**base["rows"][0],"edge_side1":-0.30,"edge_side2":0.035}]}
+    assert evaluate(mixed, enabled=True)["candidates"][0]["recommendation"]=="VALUE_CANDIDATE_SIDE2"
     print("MARKET_VALUE_POLICY_SELF_TEST_PASS")
 
 if __name__ == "__main__":

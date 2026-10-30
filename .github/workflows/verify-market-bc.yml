@@ -1,0 +1,37 @@
+name: Verify NBA market B and fusion C safety
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'analysis/nba_market_bc_diagnostics.py'
+      - 'analysis/market_value_policy.py'
+      - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/verify-market-bc.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Run model and value selection safety tests
+        run: |
+          python3 -m py_compile analysis/nba_market_bc_diagnostics.py analysis/market_value_policy.py
+          python3 analysis/nba_market_bc_diagnostics.py --self-test
+          python3 analysis/market_value_policy.py --self-test
+      - name: Verify artifact wiring and safe default
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for path in ('.github/workflows/titan007-three-analysis.yml','.github/workflows/titan007-final-hourly.yml'):
+              s=Path(path).read_text()
+              assert 'analysis/nba_market_bc_diagnostics.py' in s
+              assert 'nba_market_bc_diagnostics.json' in s
+              assert s.index('nba_model_report.py')<s.index('nba_market_bc_diagnostics.py')
+          print('BC_SCHEDULED_WIRING_PASS')
+          PY

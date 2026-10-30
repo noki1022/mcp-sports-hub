@@ -107,6 +107,9 @@ jobs:
           python3 analysis/market_value_policy.py --self-test
           python3 analysis/market_value_policy.py --market-decision titan007_final_decision.json --out market_value_policy.json
           python3 analysis/nba_model_report.py --joined titan007_joined_today.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html --injury-context nba_injury_context.json
+      - name: Audit market B and fusion C without directional assumptions
+        run: |
+          python3 analysis/nba_market_bc_diagnostics.py --joined titan007_joined_today.json --movement titan007_hourly_movement.json --model nba_model_analysis.json --out nba_market_bc_diagnostics.json
       - name: Render iPhone market movement with independent model
         run: python3 analysis/titan007_hourly_history.py render --movement titan007_hourly_movement.json --model nba_model_analysis.json --out-html titan007_hourly_movement.html
       - name: Send concise iPhone PushPlus alert on significant changes or final window
@@ -146,6 +149,7 @@ jobs:
             titan007_final_decision.json
             nba_independent_predictions_gate.json
             nba_model_analysis.json
+            nba_market_bc_diagnostics.json
             nba_injury_context.json
             nba_official_injuries.json
             nba_model_analysis.html
