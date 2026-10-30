@@ -7,6 +7,7 @@ on:
       - scripts/titan007_schedule_endpoint_evidence.py
       - scripts/titan007_date_endpoint_probe.py
       - scripts/titan007_future_source_schema.py
+      - scripts/titan007_league_future_probe.py
       - .github/workflows/titan007-nextday-page-probe.yml
 permissions:
   contents: read
@@ -19,4 +20,4 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python3 scripts/titan007_future_source_schema.py
+      - run: python3 scripts/titan007_league_future_probe.py
