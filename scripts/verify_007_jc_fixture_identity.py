@@ -46,6 +46,15 @@ def comparable(name,aliases):
     return False
 
 def reconcile(raw,board):
+    # Diagnostic: count raw separators and exact-ID occurrences; do not
+    # interpret substring presence as a structural record.
+    decoded=raw.decode("utf-8-sig","replace")
+    raw_diagnostic={"dollar_count":decoded.count("$"),
+        "exclamation_count":decoded.count("!"),
+        "caret_count":decoded.count("^"),
+        "byte_count":len(raw),
+        "expected_id_occurrences":{str(x["game_id"]):len(re.findall(r"(?<!\\d)"+re.escape(str(x["game_id"]))+r"(?!\\d)",decoded))
+                                   for x in board.get("nba_cba_games",[])}}
     feed=records(raw)
     games=board.get("nba_cba_games",[])
     if not games:raise ValueError("NO_REFERENCE_GAMES")
@@ -63,7 +72,7 @@ def reconcile(raw,board):
           "status":status,"raw_fixture_time":row["raw_time"] if row else None})
     return {"schema_version":"007-jc-public-fixture-id-audit-v1",
       "source":ORIGIN+TARGET,"date":board.get("requested_display_date"),
-      "reference_games":len(games),"public_fixture_records":len(feed),
+      "reference_games":len(games),"public_fixture_records":len(feed),"raw_structure":raw_diagnostic,
       "confirmed_id_and_home_away":sum(x["status"]=="ID_AND_TEAM_ORDER_MATCH" for x in audit),
       "unconfirmed_count":sum(x["status"]!="ID_AND_TEAM_ORDER_MATCH" for x in audit),
       "betting_prices_verified":0,"official_fixed_payout_verified":False,
