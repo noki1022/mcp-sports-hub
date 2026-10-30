@@ -1,0 +1,44 @@
+name: One-shot audit 007 basketball company IDs from the working Crown feed
+on:
+  push:
+    branches: [main]
+    paths: ['ops/probe-007-multi-20261030.txt']
+permissions: {contents: read}
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Probe dated company IDs with public robots check and validate distinct quotes
+        run: |
+          python3 - <<'PY'
+          import sys,hashlib,urllib.parse,time,json,re
+          sys.path.insert(0,"scripts")
+          from titan007_join_daily import public_get
+          from titan007_join_beijing_verified import market_entries
+          day='2026-10-31'
+          for cid in [3,1,2,8,9,10,19,20,24,31,49]:
+            url="https://bf.titan007.com/nba_Oddsdata.aspx?"+urllib.parse.urlencode({"date":day,"id":str(cid),"h":"12","m":"00"})
+            try:
+              raw=public_get(url,limit=250000)
+              obj,reject=market_entries(raw)
+              first={g:(m["full_spread"]["current"]["line"],m["full_total"]["current"]["line"])
+                for g,m in obj.items() if g in ("728165","728166","728167")}
+              print("007_CANDIDATE",json.dumps({"id":cid,"rows":len(obj),"digest":hashlib.sha256(raw).hexdigest()[:12],
+               "matched":first,"reject":reject},ensure_ascii=False),flush=True)
+            except Exception as exc:
+              print("007_CANDIDATE_ERROR",cid,type(exc).__name__,str(exc)[:120],flush=True)
+            time.sleep(.3)
+          url="https://m.titan007.com/lq/handicap/728852.htm"
+          try:
+            raw=public_get(url,limit=180000).decode("utf-8","replace")
+            m=re.findall(r'<tr\\b[^>]*>.*?</tr>',raw,re.S|re.I)
+            print("007_REFERENCE_PAGE",len(raw),"rows",len(m),"showDetail_sample",re.findall(r'showDetail\\([^)]{1,110}\\)',raw)[:15],flush=True)
+            for row in m[:22]:
+              cell=re.sub("<[^>]*>"," ",row);cell=re.sub(r"\\s+"," ",cell).strip()
+              print("007_COMPANY_ROW",cell[:90],"click",re.search(r'showDetail\\([^)]*\\)',row).group(0) if re.search(r'showDetail\\([^)]*\\)',row) else "none",flush=True)
+          except Exception as e:print("007_REFERENCE_ERROR",type(e).__name__,str(e)[:120],flush=True)
+          PY
