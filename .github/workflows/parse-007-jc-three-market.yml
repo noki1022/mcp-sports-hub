@@ -19,10 +19,24 @@ jobs:
           python3 scripts/parse_007_jc_three_market.py \
             --board reports/daily/2026-10-31/1800/titan007_three_joined.json \
             --output 007-jc-three-real-prices.json
+      - name: Check existing source-audit workflow receives independent JC price shadow
+        run: |
+          python3 scripts/titan007_jingcai_three_market.py \
+            --joined reports/daily/2026-10-31/1800/titan007_three_joined.json \
+            --out nba-jc-shadow-verified.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open("nba-jc-shadow-verified.json"))
+          assert "jc_007_public_odds_shadow" in d
+          assert not d["jc_007_public_odds_shadow"]["eligible_for_model_fusion"]
+          print("JC_007_SHADOW_STATUS",d["jc_007_public_odds_shadow"]["status"])
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: 007-jc-three-real-prices
-          path: 007-jc-three-real-prices.json
+          path: |
+            007-jc-three-real-prices.json
+            nba-jc-shadow-verified.json
           retention-days: 3
           if-no-files-found: ignore
