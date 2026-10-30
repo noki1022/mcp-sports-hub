@@ -1,0 +1,48 @@
+name: Verify seven-stage NBA model and 007 market SOP
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'analysis/nba_analysis_sop.py'
+      - 'analysis/NBA_007_SOP_V1.md'
+      - '.github/workflows/verify-nba-007-analysis-sop.yml'
+permissions: {contents: read}
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Static and adversarial SOP regression
+        run: |
+          python3 -m py_compile analysis/nba_analysis_sop.py
+          python3 analysis/nba_analysis_sop.py --self-test
+      - name: Verify existing ten-game 007 board in fail-closed live-source context
+        run: |
+          python3 scripts/titan007_jingcai_three_market.py \
+            --joined reports/daily/2026-10-31/1800/titan007_three_joined.json \
+            --out sop-jingcai-source.json
+          python3 analysis/nba_analysis_sop.py \
+            --joined reports/daily/2026-10-31/1800/titan007_three_joined.json \
+            --jingcai sop-jingcai-source.json \
+            --out sop-ten-game-audit.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('sop-ten-game-audit.json'))
+          assert d['game_count']==10
+          assert d['verified_jingcai_ids']==10
+          assert d['candidate_count']==0 and d['decision']=='NO_BET'
+          assert all(x['recommendation']=='NO_BET' for x in d['games'])
+          print('NBA_SOP_TEN_REAL_JC_ID_FAIL_CLOSED_PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nba-007-sop-ten-game-audit
+          path: |
+            sop-jingcai-source.json
+            sop-ten-game-audit.json
+          retention-days: 3
+          if-no-files-found: ignore
