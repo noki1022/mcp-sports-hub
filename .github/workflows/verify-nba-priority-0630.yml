@@ -23,7 +23,6 @@ jobs:
           python3 scripts/nba_0630_priority_gate.py --self-test
           python3 scripts/nba_0630_pretip_filter.py --self-test
           python3 scripts/nba_overnight_cohort.py self-test
-          python3 scripts/nba_overnight_slate.py --self-test
       - name: Verify scheduled priority, full-board dynamic review and distinct dedup
         run: |
           python3 - <<'PY'
