@@ -111,7 +111,7 @@ def render_v2(games,model_map,title,target,mode):
     out=["<div style='"+css+"'><div style='padding:10px 12px;background:#eef3fa;border-radius:9px;'>"
          "<div style='font-size:17px;font-weight:750;'>"+text(heading)+"</div>"
          "<div style='color:#617389;font-size:12px;margin-top:3px;'>"+text(sub)+"</div></div>"]
-    out.append("<div style='font-size:14px;font-weight:700;margin:13px 0 5px;'>比赛速览</div>")
+    out.append("<div style='font-size:14px;font-weight:700;margin:13px 0 5px;'>八场核心数据</div>" if synthetic else "<div style='font-size:14px;font-weight:700;margin:13px 0 5px;'>比赛速览</div>")
     for i,x in enumerate(g,1):
         pred=model_map.get(str(x.get("game_id")),{})
         total=num((pred or {}).get("total_mean"))
@@ -127,7 +127,7 @@ def render_v2(games,model_map,title,target,mode):
                    "<div style='font-size:11px;color:#61758a;margin-top:2px;'>"
                    "主胜 "+(f(win*100)+"%" if win is not None and 0<=win<=1 else "—")+
                    "　· 模总 "+f(total)+"　· 现盘 "+f(q)+
-                   "　· 差 "+f(gap,True)+"　· "+text(status)+"</div></div>")
+                   "　· 差 "+f(gap,True)+"</div><div style='font-size:11px;color:#718297;'>"+text(status)+"</div></div>")
     out.append("<div style='font-size:14px;font-weight:700;margin:14px 0 7px;'>逐场模型与盘口</div>")
     for i,x in enumerate(g,1):
         markets=x.get("markets") or {}
@@ -143,13 +143,18 @@ def render_v2(games,model_map,title,target,mode):
         if status=="FIRST_SNAPSHOT":
             summary="首次采样，仅建立基线，暂不能计算小时涨跌。"
         elif status in ("LINE_MOVE","WATER_MOVE","LINE_AND_WATER_MOVE"):
-            summary="历史盘口发生变化，需结合模型误差与最新样本复核。"
+            sp=(spread.get("delta_line_previous") if spread else None)
+            tp=(total.get("delta_line_previous") if total else None)
+            if num(sp) is not None or num(tp) is not None:
+                summary="较上次采样：让分 "+f(sp,True)+"，总分 "+f(tp,True)+"；变化幅度不代表投注价值。"
+            else:
+                summary="检测到盘口变化，但缺乏完整的逐小时数值证据。"
         else:
             summary="盘口相对上一采样暂无明确异常。"
         body+=("<div style='font-size:12px;line-height:1.55;margin-top:6px;'>"
                "<b>观察：</b>"+summary+"</div>")
         body+=("<div style='border-top:1px solid #e8edf2;margin-top:8px;padding-top:6px;"
-               "font-size:11px;color:#61748a;'>"+text(confidence(pred,x))+
+               "font-size:11px;color:#61748a;'>"+text("纯模拟·未经真实验收" if synthetic else confidence(pred,x))+
                " · 方向待核 · <b>暂不参与</b></div>")
         out.append(cell(body))
     out.append("<div style='font-size:11px;color:#68788e;padding:12px 3px;'>"
@@ -183,5 +188,6 @@ def self_test():
     assert "主胜 62.0%" in html and "模总 224.0" in html
     assert "方向待核" in html and "NO_BET" in html
     assert "<table" not in html
-    assert "比赛速览" in html and "模型 vs 盘口" in html
+    assert "八场核心数据" in html and "模型 vs 盘口" in html
+    assert "纯模拟·未经真实验收" in html and "模型数据已验收" not in html
     print("PUSHPLUS_V2_COMPACT_SELF_TEST_PASS")

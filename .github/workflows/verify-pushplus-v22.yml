@@ -1,0 +1,18 @@
+name: Verify PushPlus V2.2 screenshot refinements
+on:
+  push:
+    branches: [fix/pushplus-v22-readability-20261030]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 scripts/pushplus_mobile_v2.py
+      - run: python3 scripts/pushplus_mobile.py --mode smoke --self-test
