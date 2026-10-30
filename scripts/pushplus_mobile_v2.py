@@ -124,6 +124,7 @@ def jingcai_status(x, detailed=False):
         return title+"：官方奖金未核实"
     base=(" · ".join(legacy(k,t) for k,t in (
         ("WIN_LOSE","胜负"),("HANDICAP_WIN_LOSE","让分"),("TOTAL","大小分"))))
+    odd=lambda v: ("—" if num(v) is None else f"{num(v):.2f}")
     shown=[(k,t) for k,t in (("win_lose","胜负"),("handicap","让分"),("total","总分"))
            if (observed.get(k) or {}).get("status")=="OBSERVED"]
     if shown:
@@ -135,8 +136,8 @@ def jingcai_status(x, detailed=False):
                 cur=value.get("current") or {}
                 op=value.get("opening") or {}
                 ln=(("　盘 "+f(op.get("line"))+" → "+f(cur.get("line"))) if key!="win_lose" else "")
-                lines.append(title+ln+"　槽1 "+f(cur.get("first_side"))+
-                   " / 槽2 "+f(cur.get("second_side")))
+                lines.append(title+ln+"　槽1 "+odd(cur.get("first_side"))+
+                   " / 槽2 "+odd(cur.get("second_side")))
             header+="<div>"+"</div><div>".join(lines)+"</div>"
         header+="<div>数据源：007竞彩展示；两侧方向仍需核验，非体彩官方出票奖金。</div>"
         body=header
