@@ -19,7 +19,11 @@ def records(raw):
         except UnicodeDecodeError:continue
     if decoded is None:raise ValueError("FEED_ENCODING_UNKNOWN")
     found={}
-    for chunk in decoded.split("$")[1:]:
+    # $ divides league metadata from match records; ! separates match rows.
+    # Splitting on $ alone collapses all games into one false record.
+    payload=decoded.partition("$")[2]
+    if not payload:raise ValueError("MISSING_FIXTURE_DATA_SECTION")
+    for chunk in payload.split("!"):
         f=chunk.split("^")
         game_id=f[0].strip() if f else ""
         if not re.fullmatch(r"\d{4,12}",game_id):continue
