@@ -72,8 +72,8 @@ def collect(board,limit=10):
         try:
             raw=public_get(url,limit=250000)
             quotes,reject=market_entries(raw)
-            status.update(status="PARSED","source_rows":len(quotes),"rejections":reject,
-                          "matched_games":sum(gid in quotes for gid in ids))
+            status.update({"status":"PARSED","source_rows":len(quotes),"rejections":reject,
+                          "matched_games":sum(gid in quotes for gid in ids)})
             for gid,src in bygame.items():
                 quote=quotes.get(gid)
                 if quote is None:continue
