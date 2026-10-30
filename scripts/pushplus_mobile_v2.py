@@ -36,20 +36,20 @@ def market_change(m,kind):
     opening=m.get("opening") or {}
     previous=m.get("previous") or {}
     first=m.get("first_snapshot") or {}
-    label="让分原始数值" if kind=="full_spread" else "全场总分"
+    label="机构让分（原始盘）" if kind=="full_spread" else "机构全场总分"
     current=num(q.get("line"))
     prior=num(previous.get("line"))
     op=num(opening.get("line"))
     base=num(first.get("line"))
-    current_display=f(current)
+    current_display=f(current,kind=="full_spread")
     head=("<div style='padding:6px 0;border-bottom:1px solid #f1f4f8;'>"
           "<div style='font-size:13px;'><b>"+label+"</b>　"+
-          "初 "+f(op)+" → <b>现 "+current_display+"</b></div>")
+          "初 "+f(op,kind=="full_spread")+" → <b>现 "+current_display+"</b></div>")
     if current is None:
         return head+"<div style='font-size:11px;color:#7a8999;'>当前未取得可靠盘口数值</div></div>"
     recent=current-prior if prior is not None else None
     cumulative=current-base if base is not None else None
-    last_info=("上次 "+f(prior)+"｜变化 "+f(recent,True)) if recent is not None else "无上一小时可比数据"
+    last_info=("上次 "+f(prior,kind=="full_spread")+"｜变化 "+f(recent,True)) if recent is not None else "无上一小时可比数据"
     accumulated=("｜首采累计 "+f(cumulative,True)) if cumulative is not None else ""
     return (head+"<div style='font-size:11px;color:#64758a;line-height:1.5;margin-top:3px;'>"+
             last_info+accumulated+"</div></div>")
@@ -67,7 +67,7 @@ def score_prediction(pred):
     prob="—" if num(p) is None or not 0<=num(p)<=1 else f"{num(p)*100:.1f}%"
     return ("<div style='background:#eef3f9;border-radius:8px;padding:9px 10px;margin:8px 0 5px;'>"
             "<div style='font-size:11px;color:#61738a;'>模型预测 · 得分均值（非精确比分）</div>"
-            "<div style='font-size:18px;font-weight:750;margin:2px 0;'>"+f(hp)+" : "+f(ap)+
+            "<div style='font-size:18px;font-weight:750;margin:2px 0;'>"+"主队 "+f(hp)+"　｜　客队 "+f(ap)+
             "<span style='font-size:12px;font-weight:500;color:#415875;'>　主胜 "+prob+"</span></div>"
             "<div style='font-size:12px;color:#415875;'>净胜 "+f(margin,True)+
             "　｜　预测总分 "+f(total)+"</div></div>")
@@ -113,41 +113,71 @@ def verdict_summary(v):
       "；信心 "+text(sp.get("strength","—"))+"/"+text(tot.get("strength","—"))+"</div>")
 
 def jingcai_status(x, detailed=False):
-    if not x.get("jingcai_source_status"):return ""
-    j=x.get("jingcai_markets") or {}
-    markets=j.get("markets") or {}
-    shadow=x.get("jc_007_price_shadow") or {}
-    observed=shadow.get("markets") or {}
-    not_on_sale=[t for k,t in (("win_lose","胜负"),("handicap","让分胜负"),("total","大小分"))
-                 if (observed.get(k) or {}).get("status")=="NOT_ON_SALE_USER_CONFIRMED"]
-    def legacy(key,title):
-        row=markets.get(key) or {}
-        if row.get("status")=="VERIFIED":return title+"：已核实"
-        return title+"：官方奖金未核实"
-    base=(" · ".join(legacy(k,t) for k,t in (
-        ("WIN_LOSE","胜负"),("HANDICAP_WIN_LOSE","让分"),("TOTAL","大小分"))))
-    odd=lambda v: ("—" if num(v) is None else f"{num(v):.2f}")
-    shown=[(k,t) for k,t in (("win_lose","胜负"),("handicap","让分"),("total","总分"))
-           if (observed.get(k) or {}).get("status")=="OBSERVED"]
-    if shown:
-        header="<b>007竞彩数据快照</b>　"+"/".join(t for _,t in shown)+" 已抓取"
-        if not_on_sale:header+="<div>"+"/".join(not_on_sale)+"：未开售（用户确认）</div>"
-        if detailed:
-            lines=[]
-            for key,title in shown:
-                value=(observed[key].get("data") or {})
-                cur=value.get("current") or {}
-                op=value.get("opening") or {}
-                ln=(("　盘 "+f(op.get("line"))+" → "+f(cur.get("line"))) if key!="win_lose" else "")
-                lines.append(title+ln+"　槽1 "+odd(cur.get("first_side"))+
-                   " / 槽2 "+odd(cur.get("second_side")))
-            header+="<div>"+"</div><div>".join(lines)+"</div>"
-        header+="<div>数据源：007竞彩报价（用户认可为体彩赔率参考）；两侧方向仍需核验，出票时以实际显示为准。</div>"
-        body=header
-    else:
-        body="<b>竞彩三玩法报价</b>　"+base+("<div>"+"/".join(not_on_sale)+"：未开售（用户确认）</div>" if not_on_sale else "<div>暂无本场报价。</div>")
-    return ("<div style='font-size:11px;background:#fff5e8;color:#83430d;border-radius:6px;"
-      "padding:6px;margin-top:4px;line-height:1.6'>"+body+"</div>")
+    """007 lottery sides: left=home and right=away, never anonymous slot labels.
+
+    Website confirmed: first odds are home, second away; positive handicap
+    gives points to HOME (away gives), negative handicap home gives points.
+    Total first=OVER, second=UNDER. Institution odds are rendered separately.
+    """
+    if not detailed:
+        return ""  # Summary contains match + model; no duplicate orange odds notice.
+    observed=((x.get("jc_007_price_shadow") or {}).get("markets") or {})
+    if not observed:
+        return ""
+    home=text(x.get("home_team"))
+    away=text(x.get("away_team"))
+    odd=lambda v: ("—" if num(v) is None else "{:.2f}".format(num(v)))
+    lines=[]
+    for key,title in (("win_lose","胜负"),("handicap","让分胜负"),("total","大小分")):
+        entry=observed.get(key) or {}
+        state=entry.get("status")
+        if state=="NOT_ON_SALE_USER_CONFIRMED":
+            lines.append("<div><b>"+title+"</b>　未开售（用户确认）</div>")
+            continue
+        if state!="OBSERVED":
+            lines.append("<div><b>"+title+"</b>　暂无竞彩报价</div>")
+            continue
+        data=entry.get("data") or {}
+        current=data.get("current") or {}
+        opening=data.get("opening") or {}
+        first=odd(current.get("first_side"))
+        second=odd(current.get("second_side"))
+        if key=="win_lose":
+            lines.append("<div><b>胜负</b>　主胜（"+home+"）<b>"+first+
+                         "</b>　｜　客胜（"+away+"）<b>"+second+"</b></div>")
+        elif key=="handicap":
+            line=num(current.get("line"))
+            if line is None:
+                lines.append("<div><b>让分胜负</b>　盘口缺失，方向不展示</div>")
+                continue
+            # Official lottery sign convention: + means away gives, home receives.
+            home_word="受让" if line>0 else "让分" if line<0 else "平手"
+            away_word="让分" if line>0 else "受让" if line<0 else "平手"
+            sign_home=f(line,True)
+            sign_away=f(-line,True)
+            opening_line=num(opening.get("line"))
+            movement=("　<small>初盘 "+f(opening_line,True)+" → 现盘 "+sign_home+"</small>"
+                      if opening_line is not None and opening_line!=line else "")
+            lines.append("<div><b>让分胜负</b>"+movement+"</div>"+
+                         "<div>主队 "+home+" <b>"+sign_home+"</b>（"+home_word+
+                         "）· 让分主胜 <b>"+first+"</b></div>"+
+                         "<div>客队 "+away+" <b>"+sign_away+"</b>（"+away_word+
+                         "）· 让分客胜 <b>"+second+"</b></div>")
+        else:
+            line=num(current.get("line"))
+            if line is None:
+                lines.append("<div><b>大小分</b>　盘口缺失，方向不展示</div>")
+                continue
+            opening_line=num(opening.get("line"))
+            movement=("　<small>初盘 "+f(opening_line)+" → 现盘 "+f(line)+"</small>"
+                      if opening_line is not None and opening_line!=line else "")
+            lines.append("<div><b>大小分</b>　总分线 <b>"+f(line)+"</b>"+movement+"</div>"+
+                         "<div>大分 <b>"+first+"</b>　｜　小分 <b>"+second+"</b></div>")
+    if not lines:return ""
+    return ("<div style='font-size:12px;line-height:1.7;padding:9px 10px;"
+            "margin:7px 0;background:#f5f7fa;border-radius:7px;color:#24364b;'>"
+            "<div style='font-weight:700;margin-bottom:3px;'>竞彩赔率（007）· 主队在左，客队在右</div>"+
+            "".join(lines)+"</div>")
 
 def lottery_label(game):
     """Validated 007 lottery issue code; never manufacture it from report order."""
@@ -184,7 +214,7 @@ def render_v2(games,model_map,title,target,mode):
         home=text(x.get("home_team"));away=text(x.get("away_team"))
         out.append("<div style='padding:7px 2px;border-bottom:1px solid #e8edf2;'>"
                    "<div style='font-size:13px;font-weight:650;'>"+text(lottery_label(x))+"　"+
-                   text(x.get("display_clock"))+"　客队："+away+"　｜　主队："+home+"</div>"
+                   text(x.get("display_clock"))+"　主队："+home+"　｜　客队："+away+"</div>"
                    "<div style='font-size:11px;color:#61758a;margin-top:2px;'>"
                    "主胜 "+(f(win*100)+"%" if win is not None and 0<=win<=1 else "—")+
                    "　· 模总 "+f(total)+"　· 现盘 "+f(q)+
@@ -197,7 +227,7 @@ def render_v2(games,model_map,title,target,mode):
         pred=model_map.get(str(x.get("game_id")))
         status=x.get("status","FIRST_SNAPSHOT")
         body="<div style='font-size:11px;color:#68788e;'>#"+text(lottery_label(x))+" · "+text(x.get("display_clock"))+" · "+text(status_label(status))+"</div>"
-        body+="<div style='font-size:15px;font-weight:750;margin:4px 0 7px;'>"+"客队："+text(x.get("away_team"))+"　｜　主队："+text(x.get("home_team"))+"</div>"
+        body+="<div style='font-size:15px;font-weight:750;margin:4px 0 7px;'>"+"主队："+text(x.get("home_team"))+"　｜　客队："+text(x.get("away_team"))+"</div>"
         body+=jingcai_status(x, detailed=True)
         body+=verdict_summary(x.get('two_market_verdict'))
         body+=score_prediction(pred)
@@ -276,11 +306,11 @@ def self_test():
         "SPREAD":{"direction":"HOME","line":-5.0,"strength":"LOW"},
         "TOTAL":{"direction":"OVER","line":223.0,"strength":"LOW"}}}
     html=render_v2([q],m,"模拟","2026-10-31","hourly")
-    assert "114.5" in html and "109.5" in html and "223.0" in html
+    assert "主队 114.5" in html and "客队 109.5" in html and "223.0" in html
     assert "LINE_MOVE" not in html and "让分或总分变动" in html
     assert "主胜 62.0%" in html and "模总 224.0" in html
     assert "研究倾向" in html
-    assert "客队：乙" in html and "主队：甲" in html
+    assert "主队：甲" in html and "客队：乙" in html
     assert "方向待核" in html and "NO_BET" in html
     assert "<table" not in html
     assert "八场核心数据" in html and "模型 vs 盘口" in html
@@ -290,14 +320,14 @@ def self_test():
         "opening":{"line":221.5,"first_side":1.66,"second_side":1.74},
         "current":{"line":222.5,"first_side":1.7,"second_side":1.7}}}}}
     jhtml=render_v2([q],m,"赛前模型","2026-10-31","three")
-    assert "007竞彩数据快照" in jhtml and "222.5" in jhtml
-    assert "槽1 1.70 / 槽2 1.70" in jhtml
-    assert "用户认可为体彩赔率参考" in jhtml
+    assert "竞彩赔率（007）" in jhtml and "222.5" in jhtml
+    assert "大分 <b>1.70</b>" in jhtml and "小分 <b>1.70</b>" in jhtml
+    assert "竞彩赔率（007）" in jhtml
     assert "NO_BET" in jhtml
     q["jc_007_price_shadow"]={"markets":{"win_lose":{"status":"NOT_ON_SALE_USER_CONFIRMED"},
        "handicap":{"status":"OBSERVED","data":{"opening":{"line":-3.5,"first_side":1.7,"second_side":1.7},"current":{"line":-4.5,"first_side":1.65,"second_side":1.75}}}}}
     ns=render_v2([q],m,"赛前模型","2026-10-31","three")
-    assert "胜负：未开售（用户确认）" in ns
+    assert "未开售（用户确认）" in ns
     assert "赔率未核实" not in ns
     q["jc_match_label"]="周五309"
     q["jc_match_no"]="309"
@@ -310,4 +340,29 @@ def self_test():
     other["jc_match_identity_status"]="UNVERIFIED"
     uncertain=render_v2([other],m,"赛前模型","2026-10-31","three")
     assert "竞彩编号待核" in uncertain and "周五318" not in uncertain
+    # Regression: 007 first-side price is assigned to HOME.
+    exact={**q,"game_id":"728170","home_team":"达拉斯独行侠",
+      "away_team":"休斯顿火箭","jc_match_label":"周五314",
+      "jc_match_no":"314","jc_match_identity_status":"VERIFIED_JC_NUMBER",
+      "jc_007_price_shadow":{"markets":{
+       "win_lose":{"status":"OBSERVED","data":{"current":{"first_side":2.95,"second_side":1.19}}},
+       "handicap":{"status":"OBSERVED","data":{"opening":{"line":5.5,"first_side":1.75,"second_side":1.65},
+          "current":{"line":7.5,"first_side":1.75,"second_side":1.65}}},
+       "total":{"status":"OBSERVED","data":{"current":{"line":225.5,"first_side":1.70,"second_side":1.70}}}}}}
+    html_exact=render_v2([exact],m,"赛前模型","2026-10-31","three")
+    assert "周五314" in html_exact
+    assert "主队：达拉斯独行侠　｜　客队：休斯顿火箭" in html_exact
+    assert "主胜（达拉斯独行侠）<b>2.95</b>" in html_exact
+    assert "客胜（休斯顿火箭）<b>1.19</b>" in html_exact
+    assert "达拉斯独行侠 <b>+7.5</b>（受让）" in html_exact
+    assert "休斯顿火箭 <b>-7.5</b>（让分）" in html_exact
+    assert "大分 <b>1.70</b>" in html_exact and "小分 <b>1.70</b>" in html_exact
+    assert "槽1" not in html_exact and "槽2" not in html_exact
+    assert "两侧方向仍需核验" not in html_exact
+    assert html_exact.count("竞彩赔率（007）")==1
+    negative={**exact,"jc_007_price_shadow":{"markets":{"handicap":{
+      "status":"OBSERVED","data":{"current":{"line":-6.5,"first_side":1.70,"second_side":1.70}}}}}}
+    neg=render_v2([negative],m,"赛前模型","2026-10-31","three")
+    assert "达拉斯独行侠 <b>-6.5</b>（让分）" in neg
+    assert "休斯顿火箭 <b>+6.5</b>（受让）" in neg
     print("PUSHPLUS_V2_COMPACT_SELF_TEST_PASS")
