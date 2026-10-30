@@ -1,0 +1,21 @@
+name: Diagnose Titan007 next-day match identity
+on:
+  push:
+    branches: [diagnostics/titan007-future-date-20261030]
+    paths:
+      - scripts/titan007_next_day_diagnostic.py
+      - .github/workflows/diagnose-titan-next-day.yml
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 scripts/titan007_next_day_diagnostic.py
