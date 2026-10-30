@@ -20,6 +20,7 @@ jobs:
         run: |
           python3 scripts/verify_007_jc_fixture_identity.py \
             --board reports/daily/2026-10-31/1800/titan007_three_joined.json \
+            --screen analysis/data/007_jingcai_manual_20261030.json \
             --out jc-fixture-id-audit.json
       - uses: actions/upload-artifact@v4
         if: always()
