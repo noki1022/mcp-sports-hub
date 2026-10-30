@@ -11,8 +11,10 @@ for s in (daily,three,final):
     assert 'Generate odds-blind NBA prediction artifact' in s
 assert 'cron: "30 13-22 * * *"' in final
 assert '*/10 * * * *' not in final
-assert "contents: read" in final
-assert "git push" not in final
+assert "contents: write" in final
+assert "git add reports/hourly/" in final
+assert "git add reports/final-window/" not in final
+assert final.index("titan007_hourly_history.py capture") < final.index("Select 3–30 minute final window")
 assert "if: success()" in final
 assert "if: ${{ success() && env.PUSHPLUS_TOKEN != '' }}" in final
 assert "except ET.ParseError:" in join
