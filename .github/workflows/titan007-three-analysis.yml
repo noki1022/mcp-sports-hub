@@ -183,6 +183,21 @@ jobs:
               if [ "$n" -eq 3 ]; then exit 1; fi
             done
           fi
+      - name: Freeze five independent Jingcai/Crown NBA research directions
+        run: |
+          python3 analysis/nba_five_markets.py \
+            --joined titan007_three_joined.json \
+            --model nba_model_analysis.json \
+            --jingcai nba_jingcai_three_market.json \
+            --top10 nba_top10_comparison.json \
+            --out nba_five_market_forecast.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open("nba_five_market_forecast.json"))
+          assert x["game_count"]>0 and len(x["market_keys"])==5
+          assert all(set(g["markets"])==set(x["market_keys"]) for g in x["games"])
+          print("FIVE_MARKET_SNAPSHOT_FROZEN",x["game_count"],x["ready_counts"])
+          PY
       - name: Generate mandatory NBA spread and total research verdicts from ten institutions
         run: |
           python3 analysis/nba_two_market_forecast.py --joined titan007_three_joined.json --model nba_model_analysis.json --top10 nba_top10_comparison.json --out nba_two_market_forecast.json
@@ -262,7 +277,7 @@ jobs:
           if [ "$count" -gt 0 ]; then
             dir="reports/daily/${TARGET_DATE}/${REPORT_SLOT}"
             mkdir -p "$dir"
-            cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json titan007_three_decision.json titan007_three_movement.json nba_two_market_forecast.json "$dir"/
+            cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json titan007_three_decision.json titan007_three_movement.json nba_two_market_forecast.json nba_five_market_forecast.json "$dir"/
             git config user.name github-actions[bot]
             git config user.email 41898282+github-actions[bot]@users.noreply.github.com
             git add "$dir"
@@ -275,7 +290,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_slot_movement.json --dynamic nba_slot_dynamic_review.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --sop nba_analysis_sop.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_slot_movement.json --dynamic nba_slot_dynamic_review.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --sop nba_analysis_sop.json --five nba_five_market_forecast.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token
       - name: Save confirmed accepted notification slot
         if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
         run: |
