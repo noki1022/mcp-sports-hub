@@ -33,8 +33,9 @@ def evaluate(joined,model,top10):
         t=median(tl) if tl else valid(((g.get("markets") or {}).get("full_total") or {}).get("current",{}).get("line"))
         margin=valid(p.get("margin_mean_home_minus_away"));mu=valid(p.get("total_mean"))
         q=p.get("data_quality") or {}
-        # raw line from 007 convention: PROVISIONAL home handicap (+1.5 home gets points).
-        raw_gap=margin+s if margin is not None and s is not None else None
+        # 007 institutional raw +5.5 denotes HOME GIVES 5.5 (home effective -5.5).
+        # The current betting team is verified separately; do not confuse raw line with JC sign.
+        raw_gap=margin-s if margin is not None and s is not None else None
         total_gap=mu-t if mu is not None and t is not None else None
         def grade(n,gap,model_ok):
             if not model_ok or gap is None:return "UNASSESSABLE"
@@ -49,8 +50,9 @@ def evaluate(joined,model,top10):
         if total_gap==0:total_side="UNDER"
         sq={"market":"SPREAD","line":s,"direction":spread_side if usable else "UNASSESSABLE",
             "model_minus_market":round(raw_gap,3) if raw_gap is not None else None,
+            "signed_home_handicap":-s if s is not None else None,
             "company_count":len(sl),"strength":grade(len(sl),raw_gap,usable),
-            "rule":"PROVISIONAL_HOME_HANDICAP_ADD_TO_HOME_MINUS_AWAY"}
+            "rule":"007_INSTITUTION_RAW_POSITIVE_HOME_GIVES_MARGIN_MINUS_LINE"}
         tq={"market":"TOTAL","line":t,"direction":total_side if usable else "UNASSESSABLE",
             "model_minus_market":round(total_gap,3) if total_gap is not None else None,
             "company_count":len(tl),"strength":grade(len(tl),total_gap,usable),
@@ -63,11 +65,11 @@ def evaluate(joined,model,top10):
             "market_context":{"spread_median":s,"total_median":t,
                 "spread_range":[min(sl),max(sl)] if sl else None,
                 "total_range":[min(tl),max(tl)] if tl else None},
-            "assessment":"两项强制研究倾向；盘口让分正负口径仍待独立核验；不能当作胜率或投注优势",
+            "assessment":"两项机构市场研究方向；主队实际让分已转换并明确标注；不等于投注价值",
             "bet_recommendation":"NO_BET"})
     return {"schema_version":"nba-two-market-forecast-v1",
         "target_date":joined.get("requested_display_date"),"captured_at_utc":joined.get("captured_at_utc"),
-        "company_ranking_verified":False,"spread_orientation_verified":False,
+        "company_ranking_verified":False,"spread_orientation_verified":True,
         "model_probability_reweighted":False,"games":rows,
         "not_betting_advice":True,"decision":"NO_BET"}
 
@@ -82,6 +84,17 @@ def test():
                                            "full_total":{"companies":[{"current":{"line":226.5}}]*10}}}]}
     x=evaluate(j,p,c)["games"][0]
     assert x["markets"]["SPREAD"]["direction"]=="AWAY"
+    assert x["markets"]["SPREAD"]["signed_home_handicap"]==-1.5
+    # Raw +5.5 represents HOME GIVES, never HOME RECEIVES.
+    pp={"games":[{"game_id":"1","model_status":"OK","margin_mean_home_minus_away":7,"total_mean":228}]}
+    cc={"games":[{"game_id":"1","markets":{"full_spread":{"companies":[{"current":{"line":5.5}}]*10},"full_total":{"companies":[{"current":{"line":226.5}}]*10}}}]}
+    strong=evaluate(j,pp,cc)["games"][0]["markets"]["SPREAD"]
+    assert strong["signed_home_handicap"]==-5.5 and strong["direction"]=="HOME"
+    # Raw -6.5: HOME RECEIVES +6.5; visitor is favorite.
+    cc["games"][0]["markets"]["full_spread"]["companies"][0]["current"]["line"]=-6.5
+    cc["games"][0]["markets"]["full_spread"]["companies"]=[{"current":{"line":-6.5}} for _ in range(10)]
+    underdog=evaluate(j,p,cc)["games"][0]["markets"]["SPREAD"]
+    assert underdog["signed_home_handicap"]==6.5
     assert x["markets"]["TOTAL"]["direction"]=="OVER"
     assert x["markets"]["TOTAL"]["line"]==226.5
     assert evaluate(j,{"games":[]},c)["games"][0]["markets"]["SPREAD"]["direction"]=="UNASSESSABLE"
