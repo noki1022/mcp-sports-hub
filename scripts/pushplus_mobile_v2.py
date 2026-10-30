@@ -343,6 +343,26 @@ def priority_focus_panel(document):
        "模型概率不是经保证的真实胜率；不代表投注价值。</div>"+
        "".join(lines)+"</div>")
 
+def independent_market_divergence_panel(document):
+    """Market is compared only AFTER the independent model focus is frozen."""
+    cases=(document or {}).get("market_divergences") or []
+    if not cases:return ""
+    lines=[]
+    for item in cases:
+        p=num(item.get("model_home_probability"))
+        q=num(item.get("market_no_vig_home"))
+        lines.append("<div style='border-bottom:1px solid #e4e9f1;padding:6px 0;'>"+
+            "<b>"+text(item.get("jingcai_number") or "竞彩编号待核")+"　"+
+            text(item.get("home_team"))+" vs "+text(item.get("away_team"))+"</b>"+
+            "<div>独立模型主胜 "+(f(p*100)+"%" if p is not None else "—")+
+            "｜竞彩去水约 "+(f(q*100)+"%" if q is not None else "—")+
+            "｜差 "+f(item.get("model_minus_market_home_pp"),True)+" 个百分点</div></div>")
+    return ("<div style='padding:10px 11px;margin:10px 0;border:1px solid #dfd5c9;"
+        "border-radius:8px;font-size:12px;line-height:1.6;'>"+
+        "<b>模型与市场分歧 · 独立观察</b>"+
+        "<div style='color:#626f7f;'>仅对照，不改模型胜率，不改变重点排名；分歧不自动等于价值。</div>"+
+        "".join(lines)+"</div>")
+
 def render_v2(games,model_map,title,target,mode,priority_focus=None):
     g=sorted(games,key=lambda x:(lottery_sort(x),str(x.get("display_clock") or ""),str(x.get("game_id"))))
     css="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:14px;color:#1d3045;max-width:540px;margin:0 auto;line-height:1.52;"
@@ -354,7 +374,9 @@ def render_v2(games,model_map,title,target,mode,priority_focus=None):
     out=["<div style='"+css+"'><div style='padding:10px 12px;background:#eef3fa;border-radius:9px;'>"
          "<div style='font-size:17px;font-weight:750;'>"+text(heading)+"</div>"
          "<div style='color:#617389;font-size:12px;margin-top:3px;'>"+text(sub)+"</div></div>"]
-    if priority_focus is not None:out.append(priority_focus_panel(priority_focus))
+    if priority_focus is not None:
+        out.append(priority_focus_panel(priority_focus))
+        out.append(independent_market_divergence_panel(priority_focus))
     out.append("<div style='font-size:14px;font-weight:700;margin:13px 0 5px;'>八场核心数据</div>" if synthetic else "<div style='font-size:14px;font-weight:700;margin:13px 0 5px;'>比赛速览</div>")
     for i,x in enumerate(g,1):
         pred=model_map.get(str(x.get("game_id")),{})
