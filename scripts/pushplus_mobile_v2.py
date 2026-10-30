@@ -36,20 +36,20 @@ def market_change(m,kind):
     opening=m.get("opening") or {}
     previous=m.get("previous") or {}
     first=m.get("first_snapshot") or {}
-    label="让分原始数值" if kind=="full_spread" else "全场总分"
+    label="机构让分（原始盘）" if kind=="full_spread" else "机构全场总分"
     current=num(q.get("line"))
     prior=num(previous.get("line"))
     op=num(opening.get("line"))
     base=num(first.get("line"))
-    current_display=f(current)
+    current_display=f(current,kind=="full_spread")
     head=("<div style='padding:6px 0;border-bottom:1px solid #f1f4f8;'>"
           "<div style='font-size:13px;'><b>"+label+"</b>　"+
-          "初 "+f(op)+" → <b>现 "+current_display+"</b></div>")
+          "初 "+f(op,kind=="full_spread")+" → <b>现 "+current_display+"</b></div>")
     if current is None:
         return head+"<div style='font-size:11px;color:#7a8999;'>当前未取得可靠盘口数值</div></div>"
     recent=current-prior if prior is not None else None
     cumulative=current-base if base is not None else None
-    last_info=("上次 "+f(prior)+"｜变化 "+f(recent,True)) if recent is not None else "无上一小时可比数据"
+    last_info=("上次 "+f(prior,kind=="full_spread")+"｜变化 "+f(recent,True)) if recent is not None else "无上一小时可比数据"
     accumulated=("｜首采累计 "+f(cumulative,True)) if cumulative is not None else ""
     return (head+"<div style='font-size:11px;color:#64758a;line-height:1.5;margin-top:3px;'>"+
             last_info+accumulated+"</div></div>")
@@ -67,7 +67,7 @@ def score_prediction(pred):
     prob="—" if num(p) is None or not 0<=num(p)<=1 else f"{num(p)*100:.1f}%"
     return ("<div style='background:#eef3f9;border-radius:8px;padding:9px 10px;margin:8px 0 5px;'>"
             "<div style='font-size:11px;color:#61738a;'>模型预测 · 得分均值（非精确比分）</div>"
-            "<div style='font-size:18px;font-weight:750;margin:2px 0;'>"+f(hp)+" : "+f(ap)+
+            "<div style='font-size:18px;font-weight:750;margin:2px 0;'>"+"主队 "+f(hp)+"　｜　客队 "+f(ap)+
             "<span style='font-size:12px;font-weight:500;color:#415875;'>　主胜 "+prob+"</span></div>"
             "<div style='font-size:12px;color:#415875;'>净胜 "+f(margin,True)+
             "　｜　预测总分 "+f(total)+"</div></div>")
@@ -306,7 +306,7 @@ def self_test():
         "SPREAD":{"direction":"HOME","line":-5.0,"strength":"LOW"},
         "TOTAL":{"direction":"OVER","line":223.0,"strength":"LOW"}}}
     html=render_v2([q],m,"模拟","2026-10-31","hourly")
-    assert "114.5" in html and "109.5" in html and "223.0" in html
+    assert "主队 114.5" in html and "客队 109.5" in html and "223.0" in html
     assert "LINE_MOVE" not in html and "让分或总分变动" in html
     assert "主胜 62.0%" in html and "模总 224.0" in html
     assert "研究倾向" in html
