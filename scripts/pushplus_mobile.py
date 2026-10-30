@@ -231,10 +231,12 @@ def main():
         verdict={str(x.get("game_id")):x for x in read(args.verdict).get("games",[])}
         jingcai=read(args.jingcai)
         jc_rows={str(x.get("game_id")):x for x in jingcai.get("games",[])}
+        shadow_rows={str(x.get("game_id")):x for x in (jingcai.get("jc_007_public_odds_shadow") or {}).get("games",[])}
         for row in rows:
             row["top10_comparison"]=top.get(str(row.get("game_id")))
             row["two_market_verdict"]=verdict.get(str(row.get("game_id")))
             row["jingcai_markets"]=jc_rows.get(str(row.get("game_id")))
+            row["jc_007_price_shadow"]=shadow_rows.get(str(row.get("game_id")))
             row["jingcai_source_status"]=jingcai.get("status")
         html=render_v2(rows,model,title,joined.get("requested_display_date") if args.mode=="three" else movement.get("target_date"),args.mode)
     html="<div style='"+style()+"max-width:560px;margin:0 auto;'>"+html+"</div>"

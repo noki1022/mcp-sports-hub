@@ -1,0 +1,19 @@
+name: 007 JC lottery vs institutional JS odds semantics audit
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/audit_007_jc_odds_semantics.py'
+      - '.github/workflows/audit-007-jc-odds-semantics.yml'
+permissions: {contents: read}
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: |
+          python3 scripts/audit_007_jc_odds_semantics.py --self-test
+          python3 scripts/audit_007_jc_odds_semantics.py

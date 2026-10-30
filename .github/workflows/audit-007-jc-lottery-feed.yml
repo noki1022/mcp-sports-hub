@@ -1,0 +1,19 @@
+name: Verify actual 007 JC basketball lottery odds public feed
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/audit_007_jc_lottery_feed.py'
+      - '.github/workflows/audit-007-jc-lottery-feed.yml'
+permissions: {contents: read}
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: |
+          python3 scripts/audit_007_jc_lottery_feed.py --self-test
+          python3 scripts/audit_007_jc_lottery_feed.py
