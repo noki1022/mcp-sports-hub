@@ -1,0 +1,21 @@
+name: NBA Beijing date site-window verification
+on:
+  push:
+    branches: [fix/titan007-beijing-game-day-20261030]
+    paths:
+      - scripts/titan007_join_daily.py
+      - scripts/diagnose_nba_site_date_window.py
+      - .github/workflows/verify-beijing-nba-date.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 scripts/titan007_join_daily.py --self-test
+      - run: python3 scripts/diagnose_nba_site_date_window.py
+      - run: python3 scripts/titan007_join_daily.py --date 2026-10-31 --out /tmp/nba_beijing_join.json
