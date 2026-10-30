@@ -7,9 +7,8 @@ on:
         required: false
         type: string
   schedule:
-    # Beijing 22:00 for next morning; 05:30 for pre-game follow-up.
+    # Beijing 22:00 previous-day review.
     - cron: "0 14 * * *"
-    - cron: "30 21 * * *"
   push:
     branches: ["feature/nba-daily-form-h2h-efficiency"]
     paths: [".github/workflows/titan007-daily-free.yml"]
@@ -42,7 +41,7 @@ jobs:
               target=specified
           else:
               local=datetime.now(ZoneInfo('Asia/Shanghai'))
-              d=local.date()+timedelta(days=1 if local.hour>=12 else 0)
+              d=local.date()-timedelta(days=1)
               target=d.isoformat()
           print('TARGET_DATE='+target)
           PY

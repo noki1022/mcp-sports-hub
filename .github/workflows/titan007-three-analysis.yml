@@ -7,9 +7,10 @@ on:
         required: false
         type: string
   schedule:
+    # 06:00, 12:00, 21:00 Asia/Shanghai
+    - cron: "0 22 * * *"
     - cron: "0 4 * * *"
-    - cron: "0 10 * * *"
-    - cron: "30 13 * * *"
+    - cron: "0 13 * * *"
 permissions:
   contents: write
 concurrency:
