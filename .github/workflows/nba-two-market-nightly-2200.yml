@@ -1,10 +1,12 @@
-name: NBA 22:00 Beijing settle five Jingcai and Crown markets
+name: NBA official-final-triggered five-market postgame review
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 14 * * *"
-    - cron: "10 14 * * *"
-    - cron: "20 14 * * *"
+    # Check every 15 minutes across late-night/late-start games, Beijing 08:00–23:45.
+    # Official FINAL, not local clock, is the condition for pushing a review.
+    - cron: "*/15 0-15 * * *"
+    # Catch any overnight delayed NBA final without missing the previous Beijing slate.
+    - cron: "*/15 16-23 * * *"
 permissions:
   contents: write
 concurrency:
@@ -18,33 +20,19 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
-      - name: Select Beijing date and actually frozen five-market forecast
+      - name: Check last frozen game has official Final before review
         run: |
           git pull --ff-only origin main
-          day=$(TZ=Asia/Shanghai date +%F)
-          echo "REVIEW_DAY=$day" >> "$GITHUB_ENV"
-          marker="reports/five-market-settled/$day/2200.json"
-          if [ -f "$marker" ]; then
-            echo "RUN_REPORT=false" >> "$GITHUB_ENV"
-            echo "ALREADY_SENT"
-            exit 0
-          fi
-          source="reports/daily/$day/0630/nba_five_market_forecast.json"
-          if [ ! -f "$source" ]; then source="reports/daily/$day/2130/nba_five_market_forecast.json"; fi
-          if [ ! -f "$source" ]; then
-            echo "RUN_REPORT=false" >> "$GITHUB_ENV"
-            echo "NO_FIVE_MARKET_PREGAME_ARCHIVE_NO_RETROFIT"
-            exit 0
-          fi
-          echo "FROZEN_FORECAST=$source" >> "$GITHUB_ENV"
-          echo "RUN_REPORT=true" >> "$GITHUB_ENV"
+          python3 analysis/nba_final_review_gate.py --github-env "$GITHUB_ENV" \
+            --status-out nba_final_review_readiness.json \
+            --scores-out nba_final_review_scores.json
       - name: Settle five locked directions against official completed NBA scores
         if: env.RUN_REPORT == 'true'
         run: |
           mkdir -p "reports/five-market-settled/$REVIEW_DAY"
           python3 analysis/nba_five_market_settlement.py --self-test
           python3 analysis/nba_five_market_settlement.py --forecast "$FROZEN_FORECAST" --day "$REVIEW_DAY" \
-            --out "reports/five-market-settled/$REVIEW_DAY/settlement.json"
+            --scores nba_final_review_scores.json --out "reports/five-market-settled/$REVIEW_DAY/settlement.json"
       - name: Send one iPhone five-market review
         if: env.RUN_REPORT == 'true'
         env:
@@ -77,6 +65,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nba-five-market-2200
-          path: reports/five-market-settled/
+          path: |
+            reports/five-market-settled/
+            nba_final_review_readiness.json
+            nba_final_review_scores.json
           if-no-files-found: ignore
           retention-days: 14
