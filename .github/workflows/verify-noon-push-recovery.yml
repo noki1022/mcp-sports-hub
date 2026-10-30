@@ -17,3 +17,15 @@ jobs:
           python-version: '3.12'
       - run: python3 scripts/check_noon_push_recovery.py
       - run: python3 scripts/pushplus_mobile.py --mode smoke --self-test
+      - name: Verify Beijing 14:00 fixed report and recovery slot mapping
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('.github/workflows/titan007-three-analysis.yml').read_text()
+          for cron in ('0 6 * * *','15 6 * * *','30 6 * * *'):
+              assert f'- cron: "{cron}"' in s
+              assert f"'{cron}':'1400'" in s
+          assert 'marker="reports/pushplus-sent/${TARGET_DATE}/${REPORT_SLOT}.json"' in s
+          assert 'python3 scripts/pushplus_mobile.py --mode three' in s
+          print('BEIJING_1400_RECOVERY_SLOT_TEST_PASS')
+          PY
