@@ -113,41 +113,71 @@ def verdict_summary(v):
       "；信心 "+text(sp.get("strength","—"))+"/"+text(tot.get("strength","—"))+"</div>")
 
 def jingcai_status(x, detailed=False):
-    if not x.get("jingcai_source_status"):return ""
-    j=x.get("jingcai_markets") or {}
-    markets=j.get("markets") or {}
-    shadow=x.get("jc_007_price_shadow") or {}
-    observed=shadow.get("markets") or {}
-    not_on_sale=[t for k,t in (("win_lose","胜负"),("handicap","让分胜负"),("total","大小分"))
-                 if (observed.get(k) or {}).get("status")=="NOT_ON_SALE_USER_CONFIRMED"]
-    def legacy(key,title):
-        row=markets.get(key) or {}
-        if row.get("status")=="VERIFIED":return title+"：已核实"
-        return title+"：官方奖金未核实"
-    base=(" · ".join(legacy(k,t) for k,t in (
-        ("WIN_LOSE","胜负"),("HANDICAP_WIN_LOSE","让分"),("TOTAL","大小分"))))
-    odd=lambda v: ("—" if num(v) is None else f"{num(v):.2f}")
-    shown=[(k,t) for k,t in (("win_lose","胜负"),("handicap","让分"),("total","总分"))
-           if (observed.get(k) or {}).get("status")=="OBSERVED"]
-    if shown:
-        header="<b>007竞彩数据快照</b>　"+"/".join(t for _,t in shown)+" 已抓取"
-        if not_on_sale:header+="<div>"+"/".join(not_on_sale)+"：未开售（用户确认）</div>"
-        if detailed:
-            lines=[]
-            for key,title in shown:
-                value=(observed[key].get("data") or {})
-                cur=value.get("current") or {}
-                op=value.get("opening") or {}
-                ln=(("　盘 "+f(op.get("line"))+" → "+f(cur.get("line"))) if key!="win_lose" else "")
-                lines.append(title+ln+"　槽1 "+odd(cur.get("first_side"))+
-                   " / 槽2 "+odd(cur.get("second_side")))
-            header+="<div>"+"</div><div>".join(lines)+"</div>"
-        header+="<div>数据源：007竞彩报价（用户认可为体彩赔率参考）；两侧方向仍需核验，出票时以实际显示为准。</div>"
-        body=header
-    else:
-        body="<b>竞彩三玩法报价</b>　"+base+("<div>"+"/".join(not_on_sale)+"：未开售（用户确认）</div>" if not_on_sale else "<div>暂无本场报价。</div>")
-    return ("<div style='font-size:11px;background:#fff5e8;color:#83430d;border-radius:6px;"
-      "padding:6px;margin-top:4px;line-height:1.6'>"+body+"</div>")
+    """007 lottery sides: left=home and right=away, never anonymous slot labels.
+
+    Website confirmed: first odds are home, second away; positive handicap
+    gives points to HOME (away gives), negative handicap home gives points.
+    Total first=OVER, second=UNDER. Institution odds are rendered separately.
+    """
+    if not detailed:
+        return ""  # Summary contains match + model; no duplicate orange odds notice.
+    observed=((x.get("jc_007_price_shadow") or {}).get("markets") or {})
+    if not observed:
+        return ""
+    home=text(x.get("home_team"))
+    away=text(x.get("away_team"))
+    odd=lambda v: ("—" if num(v) is None else "{:.2f}".format(num(v)))
+    lines=[]
+    for key,title in (("win_lose","胜负"),("handicap","让分胜负"),("total","大小分")):
+        entry=observed.get(key) or {}
+        state=entry.get("status")
+        if state=="NOT_ON_SALE_USER_CONFIRMED":
+            lines.append("<div><b>"+title+"</b>　未开售（用户确认）</div>")
+            continue
+        if state!="OBSERVED":
+            lines.append("<div><b>"+title+"</b>　暂无竞彩报价</div>")
+            continue
+        data=entry.get("data") or {}
+        current=data.get("current") or {}
+        opening=data.get("opening") or {}
+        first=odd(current.get("first_side"))
+        second=odd(current.get("second_side"))
+        if key=="win_lose":
+            lines.append("<div><b>胜负</b>　主胜（"+home+"）<b>"+first+
+                         "</b>　｜　客胜（"+away+"）<b>"+second+"</b></div>")
+        elif key=="handicap":
+            line=num(current.get("line"))
+            if line is None:
+                lines.append("<div><b>让分胜负</b>　盘口缺失，方向不展示</div>")
+                continue
+            # Official lottery sign convention: + means away gives, home receives.
+            home_word="受让" if line>0 else "让分" if line<0 else "平手"
+            away_word="让分" if line>0 else "受让" if line<0 else "平手"
+            sign_home=f(line,True)
+            sign_away=f(-line,True)
+            opening_line=num(opening.get("line"))
+            movement=("　<small>初盘 "+f(opening_line,True)+" → 现盘 "+sign_home+"</small>"
+                      if opening_line is not None and opening_line!=line else "")
+            lines.append("<div><b>让分胜负</b>"+movement+"</div>"+
+                         "<div>主队 "+home+" <b>"+sign_home+"</b>（"+home_word+
+                         "）· 让分主胜 <b>"+first+"</b></div>"+
+                         "<div>客队 "+away+" <b>"+sign_away+"</b>（"+away_word+
+                         "）· 让分客胜 <b>"+second+"</b></div>")
+        else:
+            line=num(current.get("line"))
+            if line is None:
+                lines.append("<div><b>大小分</b>　盘口缺失，方向不展示</div>")
+                continue
+            opening_line=num(opening.get("line"))
+            movement=("　<small>初盘 "+f(opening_line)+" → 现盘 "+f(line)+"</small>"
+                      if opening_line is not None and opening_line!=line else "")
+            lines.append("<div><b>大小分</b>　总分线 <b>"+f(line)+"</b>"+movement+"</div>"+
+                         "<div>大分 <b>"+first+"</b>　｜　小分 <b>"+second+"</b></div>")
+    if not lines:return ""
+    return ("<div style='font-size:12px;line-height:1.7;padding:9px 10px;"
+            "margin:7px 0;background:#f5f7fa;border-radius:7px;color:#24364b;'>"
+            "<div style='font-weight:700;margin-bottom:3px;'>竞彩赔率（007）· 主队在左，客队在右</div>"+
+            "".join(lines)+"</div>")
 
 def lottery_label(game):
     """Validated 007 lottery issue code; never manufacture it from report order."""
