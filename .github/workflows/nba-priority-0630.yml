@@ -44,6 +44,10 @@ jobs:
           done
           exit 1
       - if: steps.gate.outputs.sent != 'true'
+        name: Enforce official NBA cohort originally frozen at 12:00
+        run: |
+          python3 scripts/nba_noon_slate.py enforce --joined titan007_priority_joined.json --lock "reports/noon-cohorts/$TARGET_DATE/1200.json" --out nba_same_slate.json
+      - if: steps.gate.outputs.sent != 'true'
         name: Enforce same official games AND 007 IDs as last night's 21:30
         run: |
           git pull --ff-only origin main
