@@ -22,6 +22,8 @@ jobs:
           python3 -m py_compile scripts/nba_0630_priority_gate.py scripts/nba_0630_pretip_filter.py
           python3 scripts/nba_0630_priority_gate.py --self-test
           python3 scripts/nba_0630_pretip_filter.py --self-test
+          python3 scripts/nba_overnight_cohort.py self-test
+          python3 scripts/nba_overnight_slate.py --self-test
       - name: Verify scheduled priority, full-board dynamic review and distinct dedup
         run: |
           python3 - <<'PY'
@@ -44,5 +46,14 @@ jobs:
           assert "'slot':'0630'" in s
           assert s.index('--phase presend')<s.index('pushplus_mobile.py --mode three')
           assert s.index('nba_hourly_dynamic_review.py')<s.index('pushplus_mobile.py --mode three')
+          old=Path('.github/workflows/nba-priority-2130.yml').read_text()
+          daily=Path('.github/workflows/titan007-three-analysis.yml').read_text()
+          assert '- cron: "0 22 * * *"' not in daily
+          assert "'0 22 * * *':'0600'" not in daily
+          assert 'nba_overnight_cohort.py lock' in old
+          assert 'nba_overnight_cohort.py enforce' in s
+          assert 'reports/overnight-cohorts/$TARGET_DATE/2130.json' in s
+          assert s.index('nba_overnight_cohort.py enforce') < s.index('nba_0630_pretip_filter.py --joined')
+          assert old.index('nba_overnight_cohort.py lock')<old.index('pushplus_mobile.py --mode three')
           print('NBA_0630_PRIORITY_FULL_ANALYSIS_WIRING_PASS')
           PY
