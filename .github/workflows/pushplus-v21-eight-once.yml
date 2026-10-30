@@ -1,0 +1,30 @@
+name: One-time PushPlus V2.1 eight-game simulated preview
+on:
+  push:
+    branches: [demo/pushplus-v21-eight-preview-20261030]
+    paths:
+      - scripts/send_pushplus_v21_once.py
+      - .github/workflows/pushplus-v21-eight-once.yml
+permissions:
+  contents: read
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 scripts/send_pushplus_v21_once.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pushplus-v21-eight-synthetic-preview
+          path: |
+            /tmp/nba-v21-eight-preview.html
+            /tmp/nba-v21-eight-status.json
+          retention-days: 3
+          if-no-files-found: warn
