@@ -67,8 +67,10 @@ def choose(joined,model,jingcai,sop,slot):
         # Only compare after a verified, fresh 007 odds clock in the SOP.
         market_p=odds_home(shadow.get(gid) or {})
         fresh=bool((info.get("jingcai") or {}).get("fresh_for_comparison"))
-        if verified and fresh and home is not None and market_p is not None and abs(home-market_p)>=MARKET_DISAGREEMENT_FLAG:
-            reasons.append("模型与007竞彩去水概率分歧显著，需复核")
+        # Divergence from bookmaker odds is a RESEARCH SIGNAL, not a veto.
+        # Never anchor an independent model to market-implied probabilities.
+        market_gap=(home-market_p) if verified and fresh and home is not None and market_p is not None else None
+        contrarian=market_gap is not None and abs(market_gap)>=MARKET_DISAGREEMENT_FLAG
         if reasons:
             excluded.append({"game_id":gid,"reasons":reasons})
             continue
@@ -83,6 +85,8 @@ def choose(joined,model,jingcai,sop,slot):
             caution.append("已记录伤停；球员影响未量化")
         if market_p is None or not fresh:
             caution.append("竞彩胜负价格未同步核验，不推断价值")
+        if contrarian:
+            caution.append("与竞彩去水概率显著相反：独立逆向研究信号，必须复核，不等于正期望")
         if raw is None:caution.append("缺少原始胜率，不把校准概率视为真实命中率")
         if favorite_prob>0.95:caution.append("模型概率处于极端尾部，需关注校准稳定性")
         candidates.append({
@@ -93,12 +97,21 @@ def choose(joined,model,jingcai,sop,slot):
             "model_margin_home_minus_away":round(margin,2),
             "model_total":round(total,2),"model_quality":"PASS",
             "market_no_vig_home":round(market_p,6) if fresh and market_p is not None else None,
+            "model_minus_market_home_pp":round(100*market_gap,2) if market_gap is not None else None,
+            "contrarian_market_signal":bool(contrarian),
             "injury_quality":injury,"cautions":caution,
             "explanation":"独立模型对"+side+"的相对倾向较明确；按同批比赛的概率偏离50%幅度排序"
         })
     candidates.sort(key=lambda x:(-abs(x["model_home_probability"]-.5),
                                   x["jingcai_number"],x["game_id"]))
+    # Show the strongest validated contrarian case even when it falls outside
+    # the ordinary top three; this is attention, not an odds-based model update.
     top=candidates[:min(3,len(candidates))]
+    divergence=[x for x in candidates if x["contrarian_market_signal"]]
+    if divergence and not any(x["contrarian_market_signal"] for x in top):
+        strongest=max(divergence,key=lambda x:abs(x["model_minus_market_home_pp"]))
+        if len(top)==3:top[-1]=strongest
+        elif strongest not in top:top.append(strongest)
     for index,record in enumerate(top,1):record["focus_rank"]=index
     return {
         "schema_version":VERSION,"slot":slot,
@@ -107,6 +120,7 @@ def choose(joined,model,jingcai,sop,slot):
         "confidence_threshold":None,"max_displayed":3,
         "focus_games":top,"focus_count":len(top),
         "eligible_count":len(candidates),"total_nba_games":len(source),
+        "contrarian_signal_count":len(divergence),
         "excluded_count":len(excluded),"excluded":excluded,
         "statement":"重点关注是同批模型相对排序，不是绝对高置信度或投注收益预测；完整五玩法仍逐场展示",
         "research_only":True
@@ -137,7 +151,9 @@ def self_test():
     jd["jc_007_public_odds_shadow"]["games"]=[{"game_id":"3","markets":{"win_lose":{
        "status":"OBSERVED","data":{"current":{"first_side":1.95,"second_side":1.95}}}}}]
     sop["games"][2]["jingcai"]["fresh_for_comparison"]=True
-    assert "3" not in [x["game_id"] for x in choose(j,md,jd,sop,"2130")["focus_games"]]
+    contrary=choose(j,md,jd,sop,"2130")
+    assert "3" in [x["game_id"] for x in contrary["focus_games"]]
+    assert any(x["contrarian_market_signal"] for x in contrary["focus_games"])
     for row in md["games"]:row["model_status"]="DISABLED"
     empty=choose(j,md,jd,sop,"2130")
     assert empty["focus_count"]==0 and empty["total_nba_games"]==6

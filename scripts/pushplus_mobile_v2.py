@@ -327,10 +327,12 @@ def priority_focus_panel(document):
         home=text(item.get("home_team"));away=text(item.get("away_team"))
         why=text(item.get("explanation"))
         caution="；".join(text(x) for x in (item.get("cautions") or [])[:2])
+        contrarian=bool(item.get("contrarian_market_signal"))
+        divergence=(("<div style=\'font-size:12px;color:#964c14;\'><b>逆向重点：模型与竞彩去水差 "+f(item.get("model_minus_market_home_pp"),True)+" 个百分点</b> · 保留独立判断，不等于已验证价值</div>") if contrarian else "")
         lines.append("<div style='padding:7px 0;border-bottom:1px solid #d7e2ef;'>"+
            "<b>"+str(item.get("focus_rank"))+" · "+name+"　"+home+" vs "+away+"</b>"+
            "<div>模型倾向：<b>"+side+"</b>　模型概率 "+prob+"</div>"+
-           "<div style='font-size:11px;color:#465b73;'>依据："+why+"</div>"+
+           "<div style='font-size:11px;color:#465b73;'>依据："+why+"</div>"+divergence+
            "<div style='font-size:11px;color:#836028;'>风险："+(caution or "请关注临场变化")+"</div></div>")
     if not items:
         lines=["<div>本批次没有通过完整数据核验的重点场次，不强行指定。</div>"]
