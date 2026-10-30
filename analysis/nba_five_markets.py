@@ -105,8 +105,12 @@ def make(joined,model,jc,top10):
         im=(institution.get(gid) or {}).get("markets") or {}
         for kind,market in (("full_spread","CROWN_HANDICAP"),("full_total","CROWN_TOTAL")):
             company=(im.get(kind) or {}).get("companies") or []
-            matches=[c for c in company if str(c.get("company_id"))=="3"
-                     and c.get("source")=="DATED_007_COMPANY_ID"]
+            live=[c for c in company if str(c.get("company_id"))=="3"
+                  and c.get("source")=="DATED_007_COMPANY_ID"]
+            archived=[c for c in company if str(c.get("company_id"))=="3"
+                      and c.get("source")=="DATED_007_COMPANY_ID_ARCHIVED_PRETIP"]
+            matches=live if live else archived
+            archived_fallback=not live and bool(archived)
             if len(matches)!=1 or not crow_valid:
                 selected[market]=selection(market,None,None,source="007_CROWN_ID3",
                     status="CROWN_QUOTE_NOT_VERIFIED",source_id="3")
@@ -120,8 +124,17 @@ def make(joined,model,jc,top10):
             # Crow* raw positive line denotes home gives, not the JC home receiver.
             gap=((margin-line) if kind=="full_spread" and margin is not None else
                  (total-line) if kind=="full_total" and total is not None else None)
-            selected[market]=selection(market,gap,line,source="007_CROWN_ID3",
-                source_id="3",observed_at=top10.get("captured_at_utc"))
+            quote_time=(matches[0].get("observed_capture_utc") if archived_fallback
+                        else top10.get("captured_at_utc"))
+            actual_time=when(quote_time)
+            if actual_time is None or tip is None or actual_time>=tip:
+                selected[market]=selection(market,None,line,status="CROWN_ARCHIVE_NOT_PRETIP",
+                    source="007_CROWN_ID3",source_id="3")
+                continue
+            selected[market]=selection(market,gap,line,
+                source="007_CROWN_ID3_ARCHIVED_PRETIP" if archived_fallback else "007_CROWN_ID3",
+                source_id="3",observed_at=quote_time)
+            selected[market]["quote_freshness"]=("ARCHIVED_PRIOR_NOT_LIVE" if archived_fallback else "CURRENT_CAPTURE")
         assert set(selected)==set(MARKETS)
         rows.append({"game_id":gid,"nba_game_id":g.get("nba_game_id"),
           "jingcai_number":label if verified else None,
@@ -181,6 +194,17 @@ def self_test():
     assert missing["ready_counts"]["JINGCAI_WIN"]==0
     top["games"][0]["markets"]["full_spread"]["companies"][0]["company_id"]="9"
     assert make(joined,model,jc,top)["games"][0]["markets"]["CROWN_HANDICAP"]["direction"] is None
+    top["games"][0]["markets"]["full_spread"]["companies"]=[{
+        "company_id":"3","source":"DATED_007_COMPANY_ID_ARCHIVED_PRETIP",
+        "observed_capture_utc":"2026-10-30T13:00:00Z","current":{"line":6.5}}]
+    top["games"][0]["markets"]["full_total"]["companies"]=[{
+        "company_id":"3","source":"DATED_007_COMPANY_ID_ARCHIVED_PRETIP",
+        "observed_capture_utc":"2026-10-30T13:00:00Z","current":{"line":229.5}}]
+    recovered=make(joined,model,jc,top)["games"][0]["markets"]
+    assert recovered["CROWN_HANDICAP"]["direction"]=="AWAY_COVER"
+    assert recovered["CROWN_TOTAL"]["direction"]=="OVER"
+    assert recovered["CROWN_TOTAL"]["quote_freshness"]=="ARCHIVED_PRIOR_NOT_LIVE"
+    assert recovered["CROWN_TOTAL"]["source_id"]=="3"
     print("NBA_FIVE_MARKETS_DIRECTION_AND_SOURCE_SELFTEST_PASS")
 
 if __name__=="__main__":
