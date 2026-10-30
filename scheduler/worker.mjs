@@ -43,6 +43,11 @@ export function plannedJob(timestamp) {
         date:x.day,kind:"full",attempt:m};
     }
   }
+  if(h===22 && [0,10,20].includes(m)){
+    return {workflow:"nba-two-market-nightly-2200.yml",slot:"2200",
+      target_date:x.day,start_hour:22,start_minute:0,
+      date:x.day,kind:"night_review",attempt:m};
+  }
   if(h===21 && [25,30,40,49].includes(m)){
     return {workflow:"nba-priority-2130.yml",slot:"2130",target_date:x.tomorrow,
       start_hour:21,start_minute:25,date:x.day,kind:"priority",attempt:m};
@@ -81,8 +86,9 @@ async function getJson(url,env,fetcher){
 
 async function markerAccepted(job,env,fetcher){
   if(job.kind==="hourly")return false;
-  const uri=BASE+"/contents/reports/pushplus-sent/"+
-    encodeURIComponent(job.target_date)+"/"+job.slot+".json?ref=main";
+  const uri=job.kind==="night_review"
+    ? BASE+"/contents/reports/two-market-settled/"+encodeURIComponent(job.target_date)+"/2200.json?ref=main"
+    : BASE+"/contents/reports/pushplus-sent/"+encodeURIComponent(job.target_date)+"/"+job.slot+".json?ref=main";
   const resp=await fetcher(uri,{headers:ghHeaders(env)});
   if(resp.status===404)return false;
   if(!resp.ok)throw new Error("MARKER_READ_HTTP_"+resp.status);
@@ -90,6 +96,7 @@ async function markerAccepted(job,env,fetcher){
   if(typeof file.content!=="string")throw new Error("MARKER_CONTENT_MISSING");
   const raw=atob(file.content.replace(/\s/g,""));
   let body;try{body=JSON.parse(raw)}catch{throw new Error("BAD_MARKER_JSON")}
+  if(job.kind==="night_review")return body.state==="API_ACCEPTED_NOT_DEVICE_CONFIRMED";
   return body.slot===job.slot&&body.state==="API_ACCEPTED_NOT_DEVICE_CONFIRMED";
 }
 
