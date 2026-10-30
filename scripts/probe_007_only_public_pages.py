@@ -11,7 +11,7 @@ from urllib.parse import urljoin,urlsplit
 from datetime import datetime,timezone
 
 UA="NBA-007-Authorized-Source-Audit/1.0"
-TARGETS={"cp5":"https://cp5.titan007.com/","jc":"https://jc.titan007.com/nba/index.aspx"}
+TARGETS={"cp5":"https://cp5.titan007.com/","cp5_basketball":"https://cp5.titan007.com/basketball.shtml","jc":"https://jc.titan007.com/nba/index.aspx"}
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,req,fp,code,msg,headers,newurl):return None
 opener=urllib.request.build_opener(NoRedirect)
