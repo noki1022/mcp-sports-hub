@@ -128,6 +128,8 @@ def dated_source(target_date):
             spread=float(values[1]);a=float(values[2]);b=float(values[3])
             total=float(values[4]);c=float(values[5]);d=float(values[6])
         except ValueError:continue
+        import math
+        if not all(math.isfinite(x) for x in (spread,a,b,total,c,d)):continue
         if not (100<=total<=400 and abs(spread)<=100):continue
         records.append({"game_id":values[0],"markets":{
           "full_spread":{"current":{"line":spread,"first_side_water":a,"second_side_water":b}},
@@ -186,6 +188,9 @@ def run(out,date):
         # This date is the site display date, not proven Beijing kickoff date.
         linked=join(matches,market["records"],date)
         nba_cba=linked["nba_cba_matches"]
+        scheduled=[v for v in matches.values() if v["league"] in VALID_LEAGUES and v["display_date"]==date]
+        market_ids=set(market_by_id)
+        missing=[{"game_id":v["game_id"],"league":v["league"],"display_date":v["display_date"],"display_clock":v["display_clock"],"home_team":v["home_team"],"away_team":v["away_team"],"reason":"MISSING_VERIFIED_MARKET"} for v in scheduled if v["game_id"] not in market_ids]
         output={"captured_at_utc":datetime.now(timezone.utc).isoformat(),
             "requested_display_date":date,"requested_beijing_date":date,
             "score_source":DATE_SCORES_URL,"odds_source":DATE_ODDS_URL,
@@ -196,6 +201,9 @@ def run(out,date):
             "nba_cba_joined_for_date":len(nba_cba),
             "league_counts_joined_for_date":dict(Counter(r["league"] for r in linked["all_markets_joined"])),
             "nba_cba_games":nba_cba,"unmatched_odds_ids":linked["markets_missing_identity_ids"],
+            "nba_cba_scheduled_for_date":len(scheduled),
+            "nba_cba_missing_market_count":len(missing),
+            "nba_cba_missing_market":missing,
             "identity_rejected_count":len(rejected),"market_rejected_count":0,
             "company_identity":"UNVERIFIED: dated endpoint id=3",
             "water_orientation":"UNVERIFIED; preserve slots",
@@ -206,55 +214,11 @@ def run(out,date):
         print(json.dumps({k:v for k,v in output.items() if k not in ("nba_cba_games","unmatched_odds_ids")},ensure_ascii=False))
         return output
     raise RuntimeError("All date-scoped Titan007 sources failed: "+str(dated_errors))
-    market_source=odds.download_once()
-    market=odds.parse(market_source)
-    if not market["records"]:raise RuntimeError("Missing market data")
-    # Treat malformed or truncated XML as source failure, never partial data.
-    # Retry only the scoreboard feed, with bounded attempts and no row salvage.
-    for attempt in range(3):
-        try:
-            matches,rejected=identify(public_get(SCORES_URL))
-            break
-        except ET.ParseError:
-            if attempt==2:
-                raise RuntimeError("Scoreboard XML malformed/truncated in all three downloads")
-            time.sleep(2*(attempt+1))
-    if not matches:raise RuntimeError("No identity data")
-    linked=join(matches,market["records"],date)
-    nba_cba=linked["nba_cba_matches"]
-    output={
-        "captured_at_utc":datetime.now(timezone.utc).isoformat(),
-        "requested_display_date":date,
-        "score_source":SCORES_URL,
-        "odds_source":odds.SOURCE,
-        "all_scoreboard_matches":len(matches),
-        "all_untargeted_market_matches":len(market["records"]),
-        "markets_joined_for_date":len(linked["all_markets_joined"]),
-        "nba_cba_joined_for_date":len(nba_cba),
-        "league_counts_joined_for_date":dict(Counter(r["league"] for r in linked["all_markets_joined"])),
-        "nba_cba_games":nba_cba,
-        "unmatched_odds_ids":linked["markets_missing_identity_ids"],
-        "identity_rejected_count":len(rejected),
-        "market_rejected_count":len(market["rejected"]),
-        "company_identity":"UNVERIFIED; compare Crown-labelled mobile prices",
-        "water_orientation":"UNVERIFIED; preserve slots",
-        "time_zone":"UNVERIFIED_SITE_DISPLAY"
-    }
-    Path(out).write_text(json.dumps(output,indent=2,ensure_ascii=False),encoding="utf-8")
-    print(json.dumps({k:v for k,v in output.items() if k not in ("nba_cba_games","unmatched_odds_ids")},indent=2,ensure_ascii=False))
-    print("NBA_CBA_GAMES",json.dumps([
-        {"id":g["game_id"],"league":g["league"],"date":g["display_date"],"clock":g["display_clock"],"home":g["home_team"],"away":g["away_team"],
-         "spread_open":g["markets"].get("full_spread",{}).get("opening",{}).get("line"),
-         "spread_current":g["markets"].get("full_spread",{}).get("current",{}).get("line"),
-         "total_open":g["markets"].get("full_total",{}).get("opening",{}).get("line"),
-         "total_current":g["markets"].get("full_total",{}).get("current",{}).get("line")}
-        for g in nba_cba],ensure_ascii=False))
-    return output
 
 if __name__=="__main__":
     p=argparse.ArgumentParser()
     p.add_argument("--out",default="titan007_joined_nba_cba.json")
-    p.add_argument("--date",default="2026-10-29")
+    p.add_argument("--date",default=datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat())
     p.add_argument("--self-test",action="store_true")
     a=p.parse_args()
     if a.self_test:self_test()
