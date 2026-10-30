@@ -1,0 +1,28 @@
+name: P0 P1 basketball workflow fix verification
+on:
+  push:
+    branches: [fix/p0-p1-basketball-workflows-20261030]
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/titan007-daily-free.yml'
+      - '.github/workflows/titan007-three-analysis.yml'
+      - 'scripts/titan007_join_daily.py'
+      - 'scripts/verify_p0_p1_workflows.py'
+      - '.github/workflows/verify-p0-p1-basketball.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 scripts/verify_p0_p1_workflows.py
+      - run: python3 scripts/titan007_join_daily.py --self-test
+      - run: python3 -m pip install --disable-pip-version-check --quiet 'numpy==2.2.6'
+      - run: python3 analysis/nba_prediction_adapter.py --self-test
