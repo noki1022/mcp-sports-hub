@@ -1,0 +1,19 @@
+name: Validate user-supplied 007 lottery snapshot schema
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/validate_007_jingcai_manual.py
+      - analysis/data/007_jingcai_manual_20261030.json
+      - .github/workflows/verify-007-jingcai-manual.yml
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: |
+          python3 scripts/validate_007_jingcai_manual.py --self-test
+          python3 scripts/validate_007_jingcai_manual.py --infile analysis/data/007_jingcai_manual_20261030.json --outfile /tmp/007-validated-snapshot.json
