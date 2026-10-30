@@ -14,7 +14,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
-      - run: python3 scripts/parse_007_jc_three_market.py --self-test
+      - run: |
+          python3 scripts/parse_007_jc_three_market.py --self-test
+          PYTHONPATH=scripts python3 -c "from pushplus_mobile_v2 import self_test; self_test()"
       - run: |
           python3 scripts/parse_007_jc_three_market.py \
             --board reports/daily/2026-10-31/1800/titan007_three_joined.json \
