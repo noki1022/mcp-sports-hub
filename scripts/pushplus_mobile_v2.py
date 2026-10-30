@@ -320,7 +320,7 @@ def self_test():
         "opening":{"line":221.5,"first_side":1.66,"second_side":1.74},
         "current":{"line":222.5,"first_side":1.7,"second_side":1.7}}}}}
     jhtml=render_v2([q],m,"赛前模型","2026-10-31","three")
-    assert "007竞彩数据快照" in jhtml and "222.5" in jhtml
+    assert "竞彩赔率（007）" in jhtml and "222.5" in jhtml
     assert "大分 <b>1.70</b>" in jhtml and "小分 <b>1.70</b>" in jhtml
     assert "竞彩赔率（007）" in jhtml
     assert "NO_BET" in jhtml
