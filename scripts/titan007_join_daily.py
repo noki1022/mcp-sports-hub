@@ -7,13 +7,15 @@ are accepted. Bookmaker company identity and market side orientation remain unve
 from __future__ import annotations
 import argparse
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 import json
 import re
 from pathlib import Path
 import sys
 import time
 import urllib.request
+import urllib.parse
 import urllib.robotparser
 from xml.etree import ElementTree as ET
 
@@ -21,6 +23,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parent))
 import titan007_bf_snapshot as odds
 
 SCORES_URL = "https://bf.titan007.com/NBA/today.xml"
+DATE_SCORES_URL = "https://bf.titan007.com/nba_date.aspx"
+DATE_ODDS_URL = "https://bf.titan007.com/nba_Oddsdata.aspx"
 ROBOTS_URL = "https://bf.titan007.com/robots.txt"
 DATE_RE = re.compile(r"(?P<month>\d{1,2})月(?P<day>\d{1,2})日(?:<br\s*/?>|\s)*(?P<clock>\d{1,2}:\d{2})")
 VALID_LEAGUES = {"NBA","CBA"}
@@ -105,6 +109,37 @@ def public_get(url,limit=250000):
     if len(raw)>limit:raise RuntimeError("Score XML too large")
     return raw
 
+def dated_source(target_date):
+    """Official date-scoped page, with exact ID join and no timezone guesses."""
+    from xml.etree import ElementTree as ET
+    from urllib.parse import urlencode
+    query=urlencode({"date":target_date,"h":0,"m":0,"s":1})
+    scores=public_get(DATE_SCORES_URL+"?"+query,limit=600000)
+    identities,rejected=identify(scores)
+    odds_query=urlencode({"date":target_date,"id":3,"h":0,"m":0})
+    raw=public_get(DATE_ODDS_URL+"?"+odds_query,limit=600000)
+    root=from_gb_xml(raw)
+    if root.tag!="c":raise ValueError("Unexpected dated odds XML")
+    records=[]
+    for node in root.findall(".//match/m"):
+        values=(node.text or "").split(",")
+        if len(values)<7 or not re.fullmatch(r"\\d{4,12}",values[0]):continue
+        try:
+            spread=float(values[1]);a=float(values[2]);b=float(values[3])
+            total=float(values[4]);c=float(values[5]);d=float(values[6])
+        except ValueError:continue
+        if not (100<=total<=400 and abs(spread)<=100):continue
+        records.append({"game_id":values[0],"markets":{
+          "full_spread":{"current":{"line":spread,"first_side_water":a,"second_side_water":b}},
+          "full_total":{"current":{"line":total,"first_side_water":c,"second_side_water":d}}
+        }})
+    return identities,rejected,records
+
+def beijing_target_candidates(target_date):
+    """Site date is not established as Beijing time. Query adjacent dates, never relabel them."""
+    d=datetime.fromisoformat(target_date).date()
+    return [(d+timedelta(days=k)).isoformat() for k in (-1,0,1)]
+
 def self_test():
     sample=('<?xml version="1.0" encoding="gb2312"?><c><m>'
         '<h><![CDATA[746353^NBA,NBA^4^#fff^10月29日<br>07:00^0^^13^亚特兰大老鹰[东7],Atlanta Hawks^3^迈阿密热火,Miami Heat^0^2026]]></h>'
@@ -128,6 +163,49 @@ def self_test():
     print("IDENTITY_JOIN_TEST_PASS")
 
 def run(out,date):
+    # First use official date-scoped endpoints rather than today-only static feeds.
+    # Adjacent site dates are checked but never silently relabeled as Beijing dates.
+    dated=[]
+    dated_errors=[]
+    for site_date in beijing_target_candidates(date):
+        try:
+            identity,rej,records=dated_source(site_date)
+            dated.append((site_date,identity,rej,records))
+        except Exception as e:
+            dated_errors.append({"site_date":site_date,"error":str(e)[:160]})
+    if dated:
+        matches={}
+        rejected=[]
+        market_by_id={}
+        for site_date,identity,rej,records in dated:
+            matches.update(identity)
+            rejected.extend(rej)
+            for record in records:market_by_id[record["game_id"]]=record
+        market={"records":list(market_by_id.values()),"rejected":[]}
+        if not market["records"]:raise RuntimeError("Dated endpoints returned no market rows")
+        # This date is the site display date, not proven Beijing kickoff date.
+        linked=join(matches,market["records"],date)
+        nba_cba=linked["nba_cba_matches"]
+        output={"captured_at_utc":datetime.now(timezone.utc).isoformat(),
+            "requested_display_date":date,"requested_beijing_date":date,
+            "score_source":DATE_SCORES_URL,"odds_source":DATE_ODDS_URL,
+            "source_dates_queried":[x[0] for x in dated],
+            "source_errors":dated_errors,"all_scoreboard_matches":len(matches),
+            "all_untargeted_market_matches":len(market["records"]),
+            "markets_joined_for_date":len(linked["all_markets_joined"]),
+            "nba_cba_joined_for_date":len(nba_cba),
+            "league_counts_joined_for_date":dict(Counter(r["league"] for r in linked["all_markets_joined"])),
+            "nba_cba_games":nba_cba,"unmatched_odds_ids":linked["markets_missing_identity_ids"],
+            "identity_rejected_count":len(rejected),"market_rejected_count":0,
+            "company_identity":"UNVERIFIED: dated endpoint id=3",
+            "water_orientation":"UNVERIFIED; preserve slots",
+            "time_zone":"UNVERIFIED_SITE_DISPLAY",
+            "beijing_kickoff_verified":False,
+            "market_stage":"CURRENT_ONLY; opening not verified"}
+        Path(out).write_text(json.dumps(output,indent=2,ensure_ascii=False),encoding="utf-8")
+        print(json.dumps({k:v for k,v in output.items() if k not in ("nba_cba_games","unmatched_odds_ids")},ensure_ascii=False))
+        return output
+    raise RuntimeError("All date-scoped Titan007 sources failed: "+str(dated_errors))
     market_source=odds.download_once()
     market=odds.parse(market_source)
     if not market["records"]:raise RuntimeError("Missing market data")
