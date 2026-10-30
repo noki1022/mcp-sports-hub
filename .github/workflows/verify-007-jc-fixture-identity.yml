@@ -1,0 +1,30 @@
+name: Validate 007 JC exact fixture ID and team ordering
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/verify_007_jc_fixture_identity.py
+      - .github/workflows/verify-007-jc-fixture-identity.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 scripts/verify_007_jc_fixture_identity.py --self-test
+      - name: Compare live public fixture records with stored verified NBA identity
+        run: |
+          python3 scripts/verify_007_jc_fixture_identity.py \
+            --board reports/daily/2026-10-31/1800/titan007_three_joined.json \
+            --out jc-fixture-id-audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jc-fixture-id-audit
+          path: jc-fixture-id-audit.json
+          if-no-files-found: ignore
+          retention-days: 2
