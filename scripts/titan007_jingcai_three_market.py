@@ -107,12 +107,13 @@ if __name__=="__main__":
             if rp is False or (rp is not None and not rp.can_fetch(jc_ua,jc_origin+jc_path)):
                 raise RuntimeError("JC_SOURCE_NOT_PERMITTED_"+robots_status)
             shadow=parse_jc(jc_get(jc_origin+jc_path,300000),board)
-            x["jc_007_public_odds_shadow"]={"status":"AVAILABLE_THIRD_PARTY_UNVERIFIED_SIDE",
+            x["jc_007_public_odds_shadow"]={"status":"AVAILABLE_007_JINGCAI_REFERENCE_SIDE_PENDING",
                 "source":shadow["url"],"captured_at_utc":shadow["captured_at_utc"],
                 "nba_coverage":shadow["nba_coverage"],
                 "all_three_market_games":shadow["all_three_market_games"],
                 "games":shadow["matches"],
                 "official_fixed_bonus_verified":False,
+                "007_jingcai_reference_user_confirmed":shadow.get("007_jingcai_reference_user_confirmed",False),
                 "eligible_for_model_fusion":False}
             print("JC_007_PUBLIC_THREE_MARKET_SHADOW",shadow["nba_coverage"],shadow["all_three_market_games"])
         except (OSError,ValueError,RuntimeError,ImportError,KeyError) as exc:

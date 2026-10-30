@@ -118,6 +118,8 @@ def jingcai_status(x, detailed=False):
     markets=j.get("markets") or {}
     shadow=x.get("jc_007_price_shadow") or {}
     observed=shadow.get("markets") or {}
+    not_on_sale=[t for k,t in (("win_lose","胜负"),("handicap","让分胜负"),("total","大小分"))
+                 if (observed.get(k) or {}).get("status")=="NOT_ON_SALE_USER_CONFIRMED"]
     def legacy(key,title):
         row=markets.get(key) or {}
         if row.get("status")=="VERIFIED":return title+"：已核实"
@@ -129,6 +131,7 @@ def jingcai_status(x, detailed=False):
            if (observed.get(k) or {}).get("status")=="OBSERVED"]
     if shown:
         header="<b>007竞彩数据快照</b>　"+"/".join(t for _,t in shown)+" 已抓取"
+        if not_on_sale:header+="<div>"+"/".join(not_on_sale)+"：未开售（用户确认）</div>"
         if detailed:
             lines=[]
             for key,title in shown:
@@ -139,10 +142,10 @@ def jingcai_status(x, detailed=False):
                 lines.append(title+ln+"　槽1 "+odd(cur.get("first_side"))+
                    " / 槽2 "+odd(cur.get("second_side")))
             header+="<div>"+"</div><div>".join(lines)+"</div>"
-        header+="<div>数据源：007竞彩展示；两侧方向仍需核验，非体彩官方出票奖金。</div>"
+        header+="<div>数据源：007竞彩报价（用户认可为体彩赔率参考）；两侧方向仍需核验，出票时以实际显示为准。</div>"
         body=header
     else:
-        body="<b>竞彩三玩法报价</b>　"+base+"<div>未获取可验证的实时竞彩赔率。</div>"
+        body="<b>竞彩三玩法报价</b>　"+base+("<div>"+"/".join(not_on_sale)+"：未开售（用户确认）</div>" if not_on_sale else "<div>暂无本场报价。</div>")
     return ("<div style='font-size:11px;background:#fff5e8;color:#83430d;border-radius:6px;"
       "padding:6px;margin-top:4px;line-height:1.6'>"+body+"</div>")
 
@@ -277,6 +280,11 @@ def self_test():
     jhtml=render_v2([q],m,"赛前模型","2026-10-31","three")
     assert "007竞彩数据快照" in jhtml and "222.5" in jhtml
     assert "槽1 1.70 / 槽2 1.70" in jhtml
-    assert "非体彩官方出票奖金" in jhtml
+    assert "用户认可为体彩赔率参考" in jhtml
     assert "NO_BET" in jhtml
+    q["jc_007_price_shadow"]={"markets":{"win_lose":{"status":"NOT_ON_SALE_USER_CONFIRMED"},
+       "handicap":{"status":"OBSERVED","data":{"opening":{"line":-3.5,"first_side":1.7,"second_side":1.7},"current":{"line":-4.5,"first_side":1.65,"second_side":1.75}}}}}
+    ns=render_v2([q],m,"赛前模型","2026-10-31","three")
+    assert "胜负：未开售（用户确认）" in ns
+    assert "赔率未核实" not in ns
     print("PUSHPLUS_V2_COMPACT_SELF_TEST_PASS")
