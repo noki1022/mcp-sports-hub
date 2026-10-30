@@ -51,6 +51,10 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add "reports/overnight-cohorts/$TARGET_DATE/2130.json"
+          if git diff --cached --quiet; then
+            echo "OVERNIGHT_2130_COHORT_LOCK_ALREADY_PERSISTED"
+            exit 0
+          fi
           git commit -m "Freeze 21:30 NBA slate for morning $TARGET_DATE"
           for n in 1 2 3; do
             if git push origin HEAD:main; then exit 0; fi
