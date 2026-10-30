@@ -91,6 +91,10 @@ jobs:
           python3 analysis/nba_hourly_dynamic_review.py --movement titan007_priority_movement.json --model nba_priority_model.json --injury nba_priority_injury_context.json --out nba_priority_dynamic.json
           python3 analysis/nba_market_bc_diagnostics.py --joined titan007_priority_joined.json --movement titan007_priority_movement.json --model nba_priority_model.json --out nba_priority_bc.json
       - if: steps.gate.outputs.sent != 'true'
+        name: Capture 007 visible top-ten companies and compare last stored sample
+        run: |
+          python3 scripts/titan007_top10_companies.py --joined titan007_priority_joined.json --out nba_top10_companies.json --analysis nba_top10_comparison.json
+      - if: steps.gate.outputs.sent != 'true'
         name: Enforce same-capture market trend and full-board model review
         run: |
           python3 scripts/verify_nba_capture_analysis.py --joined titan007_priority_joined.json --movement titan007_priority_movement.json --model nba_priority_model.json --dynamic nba_priority_dynamic.json --out nba_capture_audit.json
@@ -148,6 +152,8 @@ jobs:
             titan007_priority_joined.json
             titan007_priority_movement.json
             nba_priority_model.json
+            nba_top10_companies.json
+            nba_top10_comparison.json
             nba_capture_audit.json
             reports/overnight-cohorts/**/*.json
             nba_priority_dynamic.json
