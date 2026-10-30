@@ -133,7 +133,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode three --joined titan007_priority_joined.json --movement titan007_priority_movement.json --dynamic nba_priority_dynamic.json --model nba_priority_model.json --preview nba_priority_iphone.html --status nba_priority_pushplus_status.json --send --require-token
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_priority_joined.json --movement titan007_priority_movement.json --dynamic nba_priority_dynamic.json --top10 nba_top10_comparison.json --model nba_priority_model.json --preview nba_priority_iphone.html --status nba_priority_pushplus_status.json --send --require-token
           python3 - <<'PY'
           import json
           s=json.load(open('nba_priority_pushplus_status.json'))
