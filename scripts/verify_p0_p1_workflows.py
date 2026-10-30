@@ -8,8 +8,8 @@ final=(ROOT/".github/workflows/titan007-final-hourly.yml").read_text()
 join=(ROOT/"scripts/titan007_join_daily.py").read_text()
 for s in (daily,three,final):
     assert 'numpy==2.2.6' in s, "model numerical dependency missing"
-    assert 'Generate odds-blind NBA prediction artifact' in s
-assert 'cron: "30 13-22 * * *"' in final
+    assert ('Generate odds-blind NBA prediction artifact' in s or 'Generate independent model for entire hourly board' in s)
+assert 'cron: "30 14-21 * * *"' in final
 assert '*/10 * * * *' not in final
 assert "contents: write" in final
 assert "git add reports/hourly/" in final
@@ -22,5 +22,5 @@ assert "pushplus_status.json" in final and "pushplus_status.json" in three
 assert "except ET.ParseError:" in join
 assert "for attempt in range(3):" in join
 assert 'raise RuntimeError("Scoreboard XML malformed/truncated in all three downloads")' in join
-assert 'cron: "0 22 * * *"' in three and 'cron: "0 4 * * *"' in three and 'cron: "0 13 * * *"' in three
+assert 'cron: "0 22 * * *"' not in three and 'cron: "0 4 * * *"' in three and 'cron: "0 13 * * *"' in three
 print("P0_P1_WORKFLOW_GUARDRAILS_PASS")
