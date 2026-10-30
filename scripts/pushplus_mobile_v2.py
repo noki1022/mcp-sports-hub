@@ -269,4 +269,13 @@ def self_test():
     assert "<table" not in html
     assert "八场核心数据" in html and "模型 vs 盘口" in html
     assert "纯模拟·未经真实验收" in html and "模型数据已验收" not in html
+    q["jingcai_source_status"]="JINGCAI_PRICES_UNAVAILABLE_DO_NOT_USE_COMMERCIAL_ODDS_AS_PROXY"
+    q["jc_007_price_shadow"]={"markets":{"total":{"status":"OBSERVED","data":{
+        "opening":{"line":221.5,"first_side":1.66,"second_side":1.74},
+        "current":{"line":222.5,"first_side":1.7,"second_side":1.7}}}}}
+    jhtml=render_v2([q],m,"赛前模型","2026-10-31","three")
+    assert "007竞彩数据快照" in jhtml and "222.5" in jhtml
+    assert "槽1 1.70 / 槽2 1.70" in jhtml
+    assert "非体彩官方出票奖金" in jhtml
+    assert "NO_BET" in jhtml
     print("PUSHPLUS_V2_COMPACT_SELF_TEST_PASS")
