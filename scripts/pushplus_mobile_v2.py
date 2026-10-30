@@ -140,6 +140,22 @@ def render_v2(games,model_map,title,target,mode):
         body+=score_prediction(pred)
         body+=market_change(spread,"full_spread")+market_change(total,"full_total")
         body+=compare(pred,spread,total)
+        cross=x.get("top10_comparison") or {}
+        if cross:
+            parts=[]
+            for key,label in (("full_spread","让分"),("full_total","总分")):
+                q=(cross.get("markets") or {}).get(key) or {}
+                count=int(q.get("company_count") or 0)
+                if count:
+                    parts.append(text(label)+" 已识别 "+str(count)+" 家，盘口中位 "+f(q.get("median_line"))+
+                        "，区间 "+f(q.get("line_min"))+"—"+f(q.get("line_max")))
+                else:
+                    parts.append(text(label)+" 前十机构暂无可靠公开数据")
+            body+=("<div style='border:1px solid #dae5f1;padding:8px;border-radius:7px;"
+                   "font-size:11px;line-height:1.55;'><b>007机构横向比较 · 展示顺序前十</b><div>"+
+                   "</div><div>".join(parts)+"</div>"+
+                   "<div>机构排序、报价时间与盘口方向尚未独立验证；不作为盈利信号。</div></div>")
+
         if status=="FIRST_SNAPSHOT":
             summary="首次采样，仅建立基线，暂不能计算小时涨跌。"
         elif status in ("LINE_MOVE","WATER_MOVE","LINE_AND_WATER_MOVE"):
