@@ -16,7 +16,9 @@ assert "git add reports/hourly/" in final
 assert "git add reports/final-window/" not in final
 assert final.index("titan007_hourly_history.py capture") < final.index("Select 3–30 minute final window")
 assert "if: success()" in final
-assert "if: ${{ success() && env.PUSHPLUS_TOKEN != '' }}" in final
+assert "pushplus_mobile.py --mode hourly" in final
+assert "pushplus_mobile.py --mode three" in three
+assert "pushplus_status.json" in final and "pushplus_status.json" in three
 assert "except ET.ParseError:" in join
 assert "for attempt in range(3):" in join
 assert 'raise RuntimeError("Scoreboard XML malformed/truncated in all three downloads")' in join

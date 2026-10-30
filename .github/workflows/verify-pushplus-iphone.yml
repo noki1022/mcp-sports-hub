@@ -1,0 +1,35 @@
+name: Verify PushPlus iPhone layout and API
+on:
+  push:
+    branches: [fix/pushplus-iphone-mobile-verified-20261030]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 scripts/pushplus_mobile.py --mode smoke --self-test
+      - name: Real API smoke test when token configured (one message)
+        if: ${{ github.event_name == 'push' }}
+        run: python3 scripts/pushplus_mobile.py --mode smoke --send --preview /tmp/pushplus_preview.html --status /tmp/pushplus_status.json
+      - name: Show secret-safe API status
+        if: always()
+        run: |
+          if test -f /tmp/pushplus_status.json; then
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('/tmp/pushplus_status.json').read_text())
+          print('PUSHPLUS_SMOKE_RESULT',d['state'])
+          PY
+          fi

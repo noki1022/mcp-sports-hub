@@ -91,77 +91,12 @@ jobs:
           python3 analysis/nba_model_report.py --joined titan007_final_window.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html
       - name: Render iPhone market movement with independent model
         run: python3 analysis/titan007_hourly_history.py render --movement titan007_hourly_movement.json --model nba_model_analysis.json --out-html titan007_hourly_movement.html
-      - name: Restore PushPlus sent-state cache
-        uses: actions/cache@v4
-        with:
-          path: .pushplus-state
-          key: pushplus-state-${{ github.run_id }}
-          restore-keys: pushplus-state-
-      - name: Push readable final report to WeChat via PushPlus
-        if: ${{ success() && env.PUSHPLUS_TOKEN != '' }}
+      - name: Send concise iPhone PushPlus alert on significant changes or final window
+        if: ${{ success() }}
+        env:
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 - <<'PY'
-          import json,os,urllib.parse,urllib.request
-          from pathlib import Path
-          src=json.loads(Path('titan007_final_window.json').read_text(encoding='utf-8'))
-          games=src.get('nba_cba_games',[])
-          if not games:
-              print('NO_FINAL_WINDOW_GAME_NO_PUSH')
-              raise SystemExit(0)
-          state=Path('.pushplus-state/sent.json')
-          state.parent.mkdir(parents=True,exist_ok=True)
-          sent=set(json.loads(state.read_text()) if state.exists() else [])
-          fresh=[g for g in games if g.get('game_id') not in sent]
-          if not fresh:
-              print('FINAL_WINDOW_ALREADY_SENT_NO_PUSH')
-              raise SystemExit(0)
-          market_rows=json.loads(Path('titan007_final_hour_market.json').read_text(encoding='utf-8')).get('row_data',[])
-          by_game={}
-          for row in market_rows:
-              if row.get('stage')=='current':
-                  by_game.setdefault(str(row.get('game_id')),{})[row.get('market')]=row
-          messages=[]
-          for game in fresh:
-              game_id=str(game.get('game_id'))
-              markets=by_game.get(game_id,{})
-              spread=markets.get('full_spread',{})
-              total=markets.get('full_total',{})
-              opening=game.get('markets',{})
-              opening_spread=opening.get('full_spread',{}).get('opening',{})
-              opening_total=opening.get('full_total',{}).get('opening',{})
-              spread_move=f"{opening_spread.get('line','—')} → {spread.get('line','—')}"
-              total_move=f"{opening_total.get('line','—')} → {total.get('line','—')}"
-              messages.append("\n".join([
-                  f"比赛：{game.get('display_clock','—')}",
-                  f"主队：{game.get('home_team','—')}",
-                  f"客队：{game.get('away_team','—')}",
-                  f"距离开赛：{game.get('final_window_minutes_to_tip','—')} 分钟",
-                  f"让分变化：{spread_move}",
-                  f"让分市场去水：原始槽位1 {spread.get('devig_side1','—')} / 原始槽位2 {spread.get('devig_side2','—')}",
-                  f"总分变化：{total_move}",
-                  f"大小分市场去水：原始槽位1 {total.get('devig_side1','—')} / 原始槽位2 {total.get('devig_side2','—')}",
-                  "独赢：本次007临场源未提供可验证的独赢市场",
-                  "伤停：本次临场工作流未取得匹配的官方临场伤停确认",
-                  "数据质量：主客队和比赛ID已匹配；007显示时区及水位方向仍未独立核验",
-                  "结论：独立模型已生成；盘口原始槽位方向未核验，NO_BET"
-              ]))
-          title='NBA/CBA 开赛前3–30分钟临场报告'
-          content="\n\n".join(messages)
-          data=urllib.parse.urlencode({'token':os.environ['PUSHPLUS_TOKEN'],'title':title,'content':content,'template':'txt'}).encode()
-          request=urllib.request.Request('https://www.pushplus.plus/send',data=data,method='POST')
-          try:
-              with urllib.request.urlopen(request,timeout=15) as response:
-                  body=response.read().decode('utf-8','replace')
-                  print('PUSHPLUS_HTTP_STATUS',response.status)
-                  print('PUSHPLUS_RESPONSE_CODE',body[:300])
-                  if response.status != 200 or '"code":200' not in body and '"code": "200"' not in body:
-                      raise RuntimeError('PushPlus rejected request')
-          except Exception as exc:
-              print('PUSHPLUS_ERROR',type(exc).__name__,str(exc)[:300])
-              raise
-          state.write_text(json.dumps(sorted(sent|{g.get('game_id') for g in fresh}),ensure_ascii=False))
-          print('PUSHPLUS_SENT_GAMES',len(fresh))
-          PY
+          python3 scripts/pushplus_mobile.py --mode hourly --movement titan007_hourly_movement.json --window titan007_final_window.json --model nba_model_analysis.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send
       # Final-hour snapshots are short-retention artifacts. No scheduled commits
       # to main, and never archive incomplete runs.
       - name: Check final report completeness before publication
@@ -195,5 +130,7 @@ jobs:
             nba_model_analysis.html
             titan007_hourly_movement.json
             titan007_hourly_movement.html
+            pushplus_mobile_preview.html
+            pushplus_status.json
           if-no-files-found: warn
           retention-days: 7
