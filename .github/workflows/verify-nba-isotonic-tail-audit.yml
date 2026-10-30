@@ -1,0 +1,41 @@
+name: Audit NBA isotonic calibration tail support and forward reliability
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'analysis/nba_independent_predictions.py'
+      - 'analysis/nba_isotonic_tail_audit.py'
+      - '.github/workflows/verify-nba-isotonic-tail-audit.yml'
+permissions: {contents: read}
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 -m pip install -q numpy
+      - name: Verify deterministic isotonic knots and shadow forward evaluation
+        run: |
+          python3 -m py_compile analysis/nba_independent_predictions.py analysis/nba_isotonic_tail_audit.py
+          python3 analysis/nba_isotonic_tail_audit.py --self-test
+      - name: Audit real dated historical games for 2026-10-31 without modifying live model
+        run: |
+          python3 analysis/nba_isotonic_tail_audit.py --target 2026-10-31 --probe 0.306 --out nba-isotonic-tail-evidence.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open('nba-isotonic-tail-evidence.json'))
+          assert x['training_window_n']==240
+          assert x['probe']['calibration_total_n']==240
+          assert x['forward_summary']['raw']['n']==120
+          assert x['candidate_policy']=='SHADOW_ONLY_NOT_ENABLED'
+          print('NBA_REAL_ISOTONIC_KNOT_SUPPORT_AND_FORWARD_AUDIT_PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nba-isotonic-tail-forward-evidence
+          path: nba-isotonic-tail-evidence.json
+          retention-days: 7
+          if-no-files-found: ignore
