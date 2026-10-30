@@ -1,0 +1,43 @@
+name: Verify NBA 21:30 and 06:30 relative model focus
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'analysis/nba_priority_focus.py'
+      - 'scripts/pushplus_mobile.py'
+      - 'scripts/pushplus_mobile_v2.py'
+      - '.github/workflows/nba-priority-2130.yml'
+      - '.github/workflows/nba-priority-0630.yml'
+      - '.github/workflows/verify-nba-priority-focus.yml'
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Validate relative attention and rendering without real PushPlus sends
+        run: |
+          python3 -m py_compile analysis/nba_priority_focus.py scripts/pushplus_mobile.py scripts/pushplus_mobile_v2.py
+          python3 analysis/nba_priority_focus.py --self-test
+          python3 scripts/pushplus_mobile.py --mode three --self-test
+          python3 - <<'PY'
+          from pathlib import Path
+          from sys import path
+          path.insert(0,'scripts')
+          from pushplus_mobile_v2 import priority_focus_panel
+          doc={'slot':'2130','focus_games':[{'focus_rank':1,'jingcai_number':'周五314','home_team':'主','away_team':'客',
+               'model_direction':'主胜','model_direction_probability':0.75,
+               'explanation':'模型排序','cautions':['伤停待核']}]}
+          html=priority_focus_panel(doc)
+          assert '重点关注场次' in html and '周五314' in html and '75.0%' in html
+          assert '风险：伤停待核' in html
+          assert '不强行指定' in priority_focus_panel({'focus_games':[]})
+          for slot in ('2130','0630'):
+              s=Path('.github/workflows/nba-priority-'+slot+'.yml').read_text()
+              assert '--priority-focus nba_priority_focus.json' in s
+              assert '--slot '+slot+' --out nba_priority_focus.json' in s
+              assert 'nba_priority_focus.json nba_priority_iphone.html' in s
+          print('NBA_PRIORITY_MODEL_FOCUS_RENDER_AND_WIRING_PASS')
+          PY
