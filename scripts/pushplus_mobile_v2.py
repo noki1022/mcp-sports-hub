@@ -179,6 +179,36 @@ def jingcai_status(x, detailed=False):
             "<div style='font-weight:700;margin-bottom:3px;'>竞彩赔率（007）· 主队在左，客队在右</div>"+
             "".join(lines)+"</div>")
 
+def sop_evidence(x):
+    """Show short, evidence-derived model assessment, never generic confidence."""
+    data=x.get("analysis_sop") or {}
+    if not data:
+        return ""
+    stages=data.get("stages") or {}
+    verdict=text(data.get("assessment","数据不足，暂不判断"))
+    reason_map={
+       "UNVERIFIED_JINGCAI_NUMBER_OR_TEAM_OR_DATE":"竞彩身份待核",
+       "INDEPENDENT_MODEL_NOT_FULLY_VERIFIED":"模型证据不足",
+       "NO_PRIOR_MARKET_SNAPSHOT":"首次采样，仅有基线",
+       "JINGCAI_QUOTE_MISSING_STALE_OR_CLOCK_MISMATCH":"竞彩奖金时间不同步",
+       "JINGCAI_QUOTE_AFTER_TIPOFF":"赛后报价已排除",
+       "INJURY_DATA_NOT_CONFIRMED":"伤停信息待核",
+       "NO_AVAILABLE_JINGCAI_MARKET":"竞彩暂未报价",
+       "DUPLICATE_JINGCAI_MATCH_NUMBER":"竞彩编号冲突"
+    }
+    reasons=[reason_map.get(str(r)) for r in data.get("evidence_reasons",[])]
+    reasons=[r for r in reasons if r]
+    notes="；".join(reasons[:3]) if reasons else "关键证据已记录"
+    gaps=data.get("research_comparison") or {}
+    total_gap=gaps.get("total_gap_points")
+    diff=("　总分模型-竞彩线："+f(total_gap,True)+"分" if num(total_gap) is not None else "")
+    focus=data.get("research_focus") or []
+    focus_text=("；".join(text(t) for t in focus[:2]) if focus else "暂无明显模型/竞彩盘口差距")
+    return ("<div style='margin:7px 0;padding:8px 9px;border-left:3px solid #889bb2;"
+            "background:#f6f8fb;font-size:11px;line-height:1.55;'>"
+            "<b>七步分析研判</b>："+verdict+diff+"<div>观察："+focus_text+
+            "</div><div>核验："+text(notes)+"</div></div>")
+
 def lottery_label(game):
     """Validated 007 lottery issue code; never manufacture it from report order."""
     import re
@@ -230,6 +260,7 @@ def render_v2(games,model_map,title,target,mode):
         body+="<div style='font-size:15px;font-weight:750;margin:4px 0 7px;'>"+"主队："+text(x.get("home_team"))+"　｜　客队："+text(x.get("away_team"))+"</div>"
         body+=jingcai_status(x, detailed=True)
         body+=verdict_summary(x.get('two_market_verdict'))
+        body+=sop_evidence(x)
         body+=score_prediction(pred)
         body+=market_change(spread,"full_spread")+market_change(total,"full_total")
         body+=compare(pred,spread,total)
@@ -365,4 +396,13 @@ def self_test():
     neg=render_v2([negative],m,"赛前模型","2026-10-31","three")
     assert "达拉斯独行侠 <b>-6.5</b>（让分）" in neg
     assert "休斯顿火箭 <b>+6.5</b>（受让）" in neg
+    exact["analysis_sop"]={"assessment":"需要重点复核",
+       "research_focus":["大小分：模型与竞彩线差距较大"],
+       "research_comparison":{"total_gap_points":5.5},
+       "evidence_reasons":["NO_PRIOR_MARKET_SNAPSHOT","INJURY_DATA_NOT_CONFIRMED"]}
+    sop_html=render_v2([exact],m,"赛前模型","2026-10-31","three")
+    assert sop_html.count("七步分析研判")==1
+    assert "需要重点复核" in sop_html and "首次采样，仅有基线" in sop_html
+    assert "总分模型-竞彩线：+5.5分" in sop_html
+    assert sop_html.count("竞彩赔率（007）")==1
     print("PUSHPLUS_V2_COMPACT_SELF_TEST_PASS")
