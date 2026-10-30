@@ -48,7 +48,10 @@ def hourly_slot(now:datetime, requested:str="")->str:
 
 def infer_slot(schedule:str,now:datetime)->tuple[str,str]:
     local=now.astimezone(BJ)
-    if schedule.startswith("55 ") and schedule.split()[1].isdigit() and 14<=int(schedule.split()[1])<=21:
+    if schedule=="55 14-21 * * *":
+        if local.hour not in (22,23,0,1,2,3,4,5):raise ValueError("HOURLY_HEALTH_OUTSIDE_WINDOW")
+        slot=f"{local.hour:02d}30"
+    elif schedule.startswith("55 ") and schedule.split()[1].isdigit() and 14<=int(schedule.split()[1])<=21:
         h=(int(schedule.split()[1])+8)%24
         slot=f"{h:02d}30"
     else:
@@ -153,7 +156,8 @@ def self_test():
         ("40 4 * * *","2026-10-30T12:40:00+08:00","1200","2026-10-31"),
         ("55 13 * * *","2026-10-30T21:55:00+08:00","2130","2026-10-31"),
         ("40 14 * * *","2026-10-30T22:40:00+08:00","2200","2026-10-30"),
-        ("55 14-21 * * *","2026-10-30T22:55:00+08:00",None,None),
+        ("55 14-21 * * *","2026-10-30T22:55:00+08:00","2230","2026-10-31"),
+        ("55 14-21 * * *","2026-10-31T00:55:00+08:00","0030","2026-10-31"),
         ("55 14 * * *","2026-10-30T22:55:00+08:00","2230","2026-10-31"),
         ("55 15 * * *","2026-10-30T23:55:00+08:00","2330","2026-10-31"),
         ("55 16 * * *","2026-10-31T00:55:00+08:00","0030","2026-10-31"),
