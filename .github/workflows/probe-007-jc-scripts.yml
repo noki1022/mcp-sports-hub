@@ -1,0 +1,30 @@
+name: One-off audit of permitted 007 JC public script structure
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/probe_007_jc_scripts.py'
+      - '.github/workflows/probe-007-jc-scripts.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Verify no blocked requests or discovered-endpoint calls
+        run: |
+          python3 -m py_compile scripts/probe_007_jc_scripts.py
+          python3 scripts/probe_007_jc_scripts.py --self-test
+      - name: Inspect only discovered two JS resources, robots first
+        run: python3 scripts/probe_007_jc_scripts.py --out jc_public_script_metadata.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jc-script-public-metadata
+          path: jc_public_script_metadata.json
+          if-no-files-found: ignore
+          retention-days: 2
