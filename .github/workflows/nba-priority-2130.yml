@@ -117,6 +117,10 @@ jobs:
             done
           fi
       - if: steps.gate.outputs.sent != 'true'
+        name: Generate mandatory NBA spread and total research verdicts from ten institutions
+        run: |
+          python3 analysis/nba_two_market_forecast.py --joined titan007_priority_joined.json --model nba_priority_model.json --top10 nba_top10_comparison.json --out nba_two_market_forecast.json
+      - if: steps.gate.outputs.sent != 'true'
         name: Enforce same-capture market trend and full-board model review
         run: |
           python3 scripts/verify_nba_capture_analysis.py --joined titan007_priority_joined.json --movement titan007_priority_movement.json --model nba_priority_model.json --dynamic nba_priority_dynamic.json --out nba_capture_audit.json
@@ -133,7 +137,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode three --joined titan007_priority_joined.json --movement titan007_priority_movement.json --dynamic nba_priority_dynamic.json --top10 nba_top10_comparison.json --model nba_priority_model.json --preview nba_priority_iphone.html --status nba_priority_pushplus_status.json --send --require-token
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_priority_joined.json --movement titan007_priority_movement.json --dynamic nba_priority_dynamic.json --top10 nba_top10_comparison.json --verdict nba_two_market_forecast.json --model nba_priority_model.json --preview nba_priority_iphone.html --status nba_priority_pushplus_status.json --send --require-token
           python3 - <<'PY'
           import json
           s=json.load(open('nba_priority_pushplus_status.json'))
@@ -144,7 +148,7 @@ jobs:
         name: Archive snapshot, complete analysis and successful PushPlus marker
         run: |
           mkdir -p "reports/daily/$TARGET_DATE/2130" "reports/pushplus-sent/$TARGET_DATE"
-          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_priority_iphone.html "reports/daily/$TARGET_DATE/2130/"
+          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_two_market_forecast.json nba_priority_iphone.html "reports/daily/$TARGET_DATE/2130/"
           python3 - <<'PY'
           import os,json
           from pathlib import Path
@@ -169,6 +173,7 @@ jobs:
             nba_priority_model.json
             nba_top10_companies.json
             nba_top10_comparison.json
+            nba_two_market_forecast.json
             nba_capture_audit.json
             reports/overnight-cohorts/**/*.json
             nba_priority_dynamic.json
