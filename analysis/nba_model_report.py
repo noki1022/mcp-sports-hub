@@ -22,7 +22,7 @@ def render(joined, gate, out_json, out_html, injury_context=None):
         decision = gate_rows.get(gid, [])
         reasons = sorted({reason for r in decision for reason in r.get("model_reasons", [])})
         record = {
-            "game_id": gid, "display_date": game.get("display_date"),
+            "game_id": gid, "nba_game_id": game.get("nba_game_id"), "display_date": game.get("display_date"),
             "display_clock": game.get("display_clock"),
             "home_team": game.get("home_team"), "away_team": game.get("away_team"),
             "model_status": p.get("status", "DISABLED"),
