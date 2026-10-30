@@ -22,7 +22,7 @@ jobs:
           python3 -m py_compile scripts/verify_007_jc_push_numbering.py scripts/titan007_jingcai_three_market.py scripts/pushplus_mobile.py scripts/pushplus_mobile_v2.py
           python3 scripts/verify_007_jc_push_numbering.py
           python3 scripts/titan007_jingcai_three_market.py --self-test
-          python3 scripts/pushplus_mobile.py --self-test
+          python3 scripts/pushplus_mobile.py --mode three --self-test
       - name: Fetch permitted 007 lottery fixture labels and prices on actual ten NBA games
         run: |
           python3 scripts/titan007_jingcai_three_market.py \
