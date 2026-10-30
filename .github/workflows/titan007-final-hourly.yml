@@ -46,7 +46,31 @@ jobs:
               target=(now.date()+timedelta(days=1) if now.time()>=time(21,30) else now.date()).isoformat()
           print('TARGET_DATE='+target)
           PY
+      - name: Resolve canonical hourly slot; skip if API already accepted
+        id: hourly_gate
+        run: |
+          python3 scripts/nba_delivery_health.py --print-hourly-slot >> "$GITHUB_ENV"
+          git pull --ff-only origin main
+          slot=$(sed -n 's/^HOURLY_REPORT_SLOT=//p' "$GITHUB_ENV" | tail -1)
+          echo "HOURLY_REPORT_SLOT=$slot" >> "$GITHUB_ENV"
+          if test -f "reports/pushplus-sent/$TARGET_DATE/$slot.json"; then
+            python3 - <<'PY'
+          import os,json
+          from pathlib import Path
+          p=Path('reports/pushplus-sent')/os.environ['TARGET_DATE']/(os.environ['HOURLY_REPORT_SLOT']+'.json')
+          try: good=json.loads(p.read_text()).get('state')=='API_ACCEPTED_NOT_DEVICE_CONFIRMED'
+          except (OSError,ValueError):good=False
+          print('HOURLY_MARKER_VERIFIED',good)
+          if good:Path('/tmp/hourly_already_accepted').touch()
+          PY
+          fi
+          if test -f /tmp/hourly_already_accepted; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Join Beijing NBA fixtures to dated 007 markets with bounded retries
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           for attempt in 1 2 3; do
             if python3 scripts/titan007_join_beijing_verified.py --date "$TARGET_DATE" --out titan007_joined_today.json; then
@@ -58,6 +82,7 @@ jobs:
           echo "007 source unavailable after 3 attempts"
           exit 1
       - name: Verify all included NBA tipoffs are on requested Beijing day
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           python3 - <<'PY'
           import json,os
@@ -69,14 +94,18 @@ jobs:
           print('HOURLY_BEIJING_GAME_DAY_VALIDATED',len(data['nba_cba_games']))
           PY
       - name: Refresh committed history before comparison
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: git pull --ff-only origin main
       - name: Enforce same official NBA slate locked at noon
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           python3 scripts/nba_noon_slate.py enforce --joined titan007_joined_today.json --lock "reports/noon-cohorts/$TARGET_DATE/1200.json" --out nba_same_slate.json
       - name: Preserve full-board snapshot and compare prior market movement
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           python3 analysis/titan007_hourly_history.py capture --current titan007_joined_today.json --root reports/hourly --daily-root reports/daily --out-movement titan007_hourly_movement.json
       - name: Commit valid compact snapshot for next hour
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           if [ -n "$(find reports/hourly -type f -name '*.json' -print -quit 2>/dev/null)" ]; then
             git config user.name github-actions[bot]
@@ -94,17 +123,21 @@ jobs:
             fi
           fi
       - name: Select 3–30 minute final window
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: python3 scripts/titan007_final_window.py --infile titan007_joined_today.json --outfile titan007_final_window.json
       - name: Generate independent model for entire hourly board
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           python3 analysis/nba_prediction_adapter.py --self-test
           python3 analysis/nba_prediction_adapter.py --joined titan007_joined_today.json --out nba_independent_predictions_gate.json
       - name: Collect official injury status, fail closed if unavailable
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           python3 -m pip install --disable-pip-version-check --quiet "pdfplumber==0.11.7"
           python3 analysis/nba_official_injury.py --date "$TARGET_DATE" --out nba_official_injuries.json || echo "OFFICIAL_INJURY_UNAVAILABLE_NO_INFERRED_HEALTH"
           python3 analysis/nba_injury_context.py --joined titan007_joined_today.json --injuries nba_official_injuries.json --out nba_injury_context.json
       - name: Render final mobile report when a game is in window
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           python3 scripts/titan007_report.py --joined titan007_final_window.json --html titan007_final_hour_report.html --csv titan007_final_hour_report.csv
           python3 analysis/titan007_daily_market.py --joined titan007_final_window.json --out titan007_final_hour_market.json
@@ -113,12 +146,15 @@ jobs:
           python3 analysis/market_value_policy.py --market-decision titan007_final_decision.json --out market_value_policy.json
           python3 analysis/nba_model_report.py --joined titan007_joined_today.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html --injury-context nba_injury_context.json
       - name: Audit market B and fusion C without directional assumptions
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           python3 analysis/nba_market_bc_diagnostics.py --joined titan007_joined_today.json --movement titan007_hourly_movement.json --model nba_model_analysis.json --out nba_market_bc_diagnostics.json
       - name: Assess full-board hourly market dynamics against independent model
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           python3 analysis/nba_hourly_dynamic_review.py --movement titan007_hourly_movement.json --model nba_model_analysis.json --injury nba_injury_context.json --out nba_hourly_dynamic_review.json
       - name: Audit all three user-supplied Jingcai pricing sources before market fusion
+        if: steps.hourly_gate.outputs.skip != 'true'
         env:
           MARZDATA_APP_ID: ${{ secrets.MARZDATA_APP_ID }}
           MARZDATA_APP_SECRET: ${{ secrets.MARZDATA_APP_SECRET }}
@@ -136,9 +172,11 @@ jobs:
           print("JINGCAI_REQUIRED_SOURCE_AUDIT",x["status"],x["verified_games_with_all_three"])
           PY
       - name: Capture 007 visible top-ten companies and compare last stored sample
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           python3 scripts/titan007_top10_companies.py --joined titan007_joined_today.json --out nba_top10_companies.json --analysis nba_top10_comparison.json --history-root reports/top10
       - name: Persist top-ten institution snapshots for next scheduled comparison
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
@@ -152,6 +190,7 @@ jobs:
             done
           fi
       - name: Freeze five independent Jingcai/Crown NBA research directions
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           python3 analysis/nba_five_markets.py \
             --joined titan007_joined_today.json \
@@ -167,9 +206,11 @@ jobs:
           print("FIVE_MARKET_SNAPSHOT_FROZEN",x["game_count"],x["ready_counts"])
           PY
       - name: Generate mandatory NBA spread and total research verdicts from ten institutions
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           python3 analysis/nba_two_market_forecast.py --joined titan007_joined_today.json --model nba_model_analysis.json --top10 nba_top10_comparison.json --out nba_two_market_forecast.json
       - name: Enforce seven-stage 007 NBA analysis SOP before PushPlus
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           python3 analysis/nba_analysis_sop.py \
             --joined titan007_joined_today.json \
@@ -190,11 +231,14 @@ jobs:
           print('NBA_SOP_PRESEND_EVIDENCE_GATE_PASS',x['game_count'],x['verified_jingcai_ids'])
           PY
       - name: Enforce analyzed same-capture market and independent model
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           python3 scripts/verify_nba_capture_analysis.py --joined titan007_joined_today.json --movement titan007_hourly_movement.json --model nba_model_analysis.json --dynamic nba_hourly_dynamic_review.json --out nba_capture_audit.json
       - name: Render iPhone market movement with independent model
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: python3 analysis/titan007_hourly_history.py render --movement titan007_hourly_movement.json --model nba_model_analysis.json --out-html titan007_hourly_movement.html
       - name: Save full hourly review for next-hour model context
+        if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           mkdir -p "reports/hourly-reviews/$TARGET_DATE"
           cp nba_hourly_dynamic_review.json "reports/hourly-reviews/$TARGET_DATE/${GITHUB_RUN_ID}.json"
@@ -223,6 +267,30 @@ jobs:
           python3 scripts/pushplus_mobile.py --mode hourly --movement titan007_hourly_movement.json --window titan007_final_window.json --model nba_model_analysis.json --dynamic nba_hourly_dynamic_review.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --sop nba_analysis_sop.json --five nba_five_market_forecast.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token --require-delivery
       # Final-hour snapshots are short-retention artifacts. No scheduled commits
       # to main, and never archive incomplete runs.
+      - name: Persist actual hourly PushPlus API acceptance for dedup and monitoring
+        if: ${{ success() && steps.hourly_gate.outputs.skip != 'true' }}
+        run: |
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          data=json.loads(Path('pushplus_status.json').read_text())
+          if data.get('state')!='API_ACCEPTED_NOT_DEVICE_CONFIRMED':
+              raise RuntimeError('HOURLY_NOTIFICATION_NOT_API_ACCEPTED')
+          p=Path('reports/pushplus-sent')/os.environ['TARGET_DATE']/(os.environ['HOURLY_REPORT_SLOT']+'.json')
+          p.parent.mkdir(parents=True,exist_ok=True)
+          p.write_text(json.dumps({'state':data['state'],'slot':os.environ['HOURLY_REPORT_SLOT'],
+              'target_date':os.environ['TARGET_DATE'],'run_id':os.environ['GITHUB_RUN_ID']})+'\n')
+          print('HOURLY_DELIVERY_MARKED',p)
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "reports/pushplus-sent/$TARGET_DATE/$HOURLY_REPORT_SLOT.json"
+          git commit -m "Mark verified hourly PushPlus acceptance $TARGET_DATE $HOURLY_REPORT_SLOT"
+          for n in 1 2 3; do
+            if git push origin HEAD:main; then exit 0; fi
+            git pull --rebase origin main
+          done
+          exit 1
       - name: Check final report completeness before publication
         if: success()
         run: |
