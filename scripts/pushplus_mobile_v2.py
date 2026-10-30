@@ -149,8 +149,20 @@ def jingcai_status(x, detailed=False):
     return ("<div style='font-size:11px;background:#fff5e8;color:#83430d;border-radius:6px;"
       "padding:6px;margin-top:4px;line-height:1.6'>"+body+"</div>")
 
+def lottery_label(game):
+    """Validated 007 lottery issue code; never manufacture it from report order."""
+    import re
+    v=game.get("jc_match_label")
+    if game.get("jc_match_identity_status")=="VERIFIED_JC_NUMBER" and isinstance(v,str) and re.fullmatch(r"周[一二三四五六日天][0-9]{3}",v):
+        return v
+    return "竞彩编号待核"
+
+def lottery_sort(game):
+    label=lottery_label(game)
+    return (0,int(label[-3:])) if label!="竞彩编号待核" else (1,999)
+
 def render_v2(games,model_map,title,target,mode):
-    g=sorted(games,key=lambda x:(-signal(x),str(x.get("display_clock") or ""),str(x.get("game_id"))))
+    g=sorted(games,key=lambda x:(lottery_sort(x),str(x.get("display_clock") or ""),str(x.get("game_id"))))
     css="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:14px;color:#1d3045;max-width:540px;margin:0 auto;line-height:1.52;"
     synthetic="模拟" in str(title)
     heading=("模拟报告 · 8场速览" if synthetic else
@@ -171,7 +183,7 @@ def render_v2(games,model_map,title,target,mode):
         gap=(total-q) if total is not None and q is not None else None
         home=text(x.get("home_team"));away=text(x.get("away_team"))
         out.append("<div style='padding:7px 2px;border-bottom:1px solid #e8edf2;'>"
-                   "<div style='font-size:13px;font-weight:650;'>#"+str(i).zfill(2)+"　"+
+                   "<div style='font-size:13px;font-weight:650;'>"+text(lottery_label(x))+"　"+
                    text(x.get("display_clock"))+"　客队："+away+"　｜　主队："+home+"</div>"
                    "<div style='font-size:11px;color:#61758a;margin-top:2px;'>"
                    "主胜 "+(f(win*100)+"%" if win is not None and 0<=win<=1 else "—")+
@@ -184,7 +196,7 @@ def render_v2(games,model_map,title,target,mode):
         total=markets.get("full_total") or {}
         pred=model_map.get(str(x.get("game_id")))
         status=x.get("status","FIRST_SNAPSHOT")
-        body="<div style='font-size:11px;color:#68788e;'>#"+str(i).zfill(2)+" · "+text(x.get("display_clock"))+" · "+text(status_label(status))+"</div>"
+        body="<div style='font-size:11px;color:#68788e;'>#"+text(lottery_label(x))+" · "+text(x.get("display_clock"))+" · "+text(status_label(status))+"</div>"
         body+="<div style='font-size:15px;font-weight:750;margin:4px 0 7px;'>"+"客队："+text(x.get("away_team"))+"　｜　主队："+text(x.get("home_team"))+"</div>"
         body+=jingcai_status(x, detailed=True)
         body+=verdict_summary(x.get('two_market_verdict'))
@@ -287,4 +299,15 @@ def self_test():
     ns=render_v2([q],m,"赛前模型","2026-10-31","three")
     assert "胜负：未开售（用户确认）" in ns
     assert "赔率未核实" not in ns
+    q["jc_match_label"]="周五309"
+    q["jc_match_no"]="309"
+    q["jc_match_identity_status"]="VERIFIED_JC_NUMBER"
+    other={**q,"game_id":"2","jc_match_label":"周五318","jc_match_no":"318"}
+    result=render_v2([other,q],m,"赛前模型","2026-10-31","three")
+    assert result.count("周五309")>=2 and result.count("周五318")>=2
+    assert result.index("周五309") < result.index("周五318")
+    assert "#01" not in result and "#02" not in result
+    other["jc_match_identity_status"]="UNVERIFIED"
+    uncertain=render_v2([other],m,"赛前模型","2026-10-31","three")
+    assert "竞彩编号待核" in uncertain and "周五318" not in uncertain
     print("PUSHPLUS_V2_COMPACT_SELF_TEST_PASS")
