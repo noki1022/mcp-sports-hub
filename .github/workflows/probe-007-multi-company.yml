@@ -20,13 +20,17 @@ jobs:
           from titan007_join_daily import public_get
           from titan007_join_beijing_verified import market_entries
           day='2026-10-31'
-          for cid in [3,1,2,8,9,10,19,20,24,31,49]:
+          for cid in [3,1,2,8,9,10,19,20,24,31,30,49]:
             url="https://bf.titan007.com/nba_Oddsdata.aspx?"+urllib.parse.urlencode({"date":day,"id":str(cid),"h":"12","m":"00"})
             try:
               raw=public_get(url,limit=250000)
               obj,reject=market_entries(raw)
               first={g:(m["full_spread"]["current"]["line"],m["full_total"]["current"]["line"])
                 for g,m in obj.items() if g in ("728165","728166","728167")}
+              if cid==30:
+                import xml.etree.ElementTree as ET
+                sample=[(n.text or "")[:120] for n in ET.fromstring(raw).findall(".//match/m") if (n.text or "").startswith("728165,")]
+                print("007_CHINA_LOTTERY_RAW_ROW",sample[:2],flush=True)
               print("007_CANDIDATE",json.dumps({"id":cid,"rows":len(obj),"digest":hashlib.sha256(raw).hexdigest()[:12],
                "matched":first,"reject":reject},ensure_ascii=False),flush=True)
             except Exception as exc:
