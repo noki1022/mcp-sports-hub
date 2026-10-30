@@ -26,7 +26,7 @@ jobs:
           python3 analysis/nba_abc_market_fusion_backtest.py --self-test
       - name: Audited archived-market B and A/B/C eligibility
         run: |
-          python3 analysis/nba_abc_market_fusion_backtest.py --out nba_abc_market_fusion_report.json
+          python3 analysis/nba_abc_market_fusion_backtest.py --out nba_abc_market_fusion_report.json --include-a
           python3 - <<'PY'
           import json
           x=json.load(open('nba_abc_market_fusion_report.json'))
