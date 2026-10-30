@@ -76,6 +76,10 @@ jobs:
           python3 analysis/nba_hourly_dynamic_review.py --movement titan007_priority_movement.json --model nba_priority_model.json --injury nba_priority_injury_context.json --out nba_priority_dynamic.json
           python3 analysis/nba_market_bc_diagnostics.py --joined titan007_priority_joined.json --movement titan007_priority_movement.json --model nba_priority_model.json --out nba_priority_bc.json
       - if: steps.gate.outputs.sent != 'true'
+        name: Enforce same-capture market trend and full-board model review
+        run: |
+          python3 scripts/verify_nba_capture_analysis.py --joined titan007_priority_joined.json --movement titan007_priority_movement.json --model nba_priority_model.json --dynamic nba_priority_dynamic.json --out nba_capture_audit.json
+      - if: steps.gate.outputs.sent != 'true'
         name: Enforce strict presend 21:58 Beijing deadline and dedup
         run: |
           python3 scripts/nba_2130_priority_gate.py --phase presend
@@ -122,6 +126,7 @@ jobs:
             titan007_priority_joined.json
             titan007_priority_movement.json
             nba_priority_model.json
+            nba_capture_audit.json
             nba_priority_dynamic.json
             nba_priority_injury_context.json
             nba_priority_bc.json

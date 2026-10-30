@@ -114,6 +114,9 @@ jobs:
       - name: Assess full-board hourly market dynamics against independent model
         run: |
           python3 analysis/nba_hourly_dynamic_review.py --movement titan007_hourly_movement.json --model nba_model_analysis.json --injury nba_injury_context.json --out nba_hourly_dynamic_review.json
+      - name: Enforce analyzed same-capture market and independent model
+        run: |
+          python3 scripts/verify_nba_capture_analysis.py --joined titan007_joined_today.json --movement titan007_hourly_movement.json --model nba_model_analysis.json --dynamic nba_hourly_dynamic_review.json --out nba_capture_audit.json
       - name: Render iPhone market movement with independent model
         run: python3 analysis/titan007_hourly_history.py render --movement titan007_hourly_movement.json --model nba_model_analysis.json --out-html titan007_hourly_movement.html
       - name: Save full hourly review for next-hour model context
@@ -168,6 +171,7 @@ jobs:
             titan007_final_decision.json
             nba_independent_predictions_gate.json
             nba_model_analysis.json
+            nba_capture_audit.json
             nba_market_bc_diagnostics.json
             nba_hourly_dynamic_review.json
             reports/hourly-reviews/**/*.json
