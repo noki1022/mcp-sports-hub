@@ -203,6 +203,7 @@ jobs:
           mkdir -p "reports/five-market-intraday/$TARGET_DATE"
           cp nba_five_market_forecast.json "reports/five-market-intraday/$TARGET_DATE/${GITHUB_RUN_ID}.json"
           git add "reports/two-market-intraday/$TARGET_DATE/"
+          git add "reports/five-market-intraday/$TARGET_DATE/"
           git add reports/hourly-reviews/
           if ! git diff --cached --quiet; then
             git config user.name github-actions[bot]
