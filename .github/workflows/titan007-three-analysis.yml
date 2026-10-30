@@ -166,6 +166,9 @@ jobs:
               if [ "$n" -eq 3 ]; then exit 1; fi
             done
           fi
+      - name: Generate mandatory NBA spread and total research verdicts from ten institutions
+        run: |
+          python3 analysis/nba_two_market_forecast.py --joined titan007_three_joined.json --model nba_model_analysis.json --top10 nba_top10_comparison.json --out nba_two_market_forecast.json
       - name: Enforce analyzed same-capture market and independent model
         run: |
           python3 scripts/verify_nba_capture_analysis.py --joined titan007_three_joined.json --movement titan007_slot_movement.json --model nba_model_analysis.json --dynamic nba_slot_dynamic_review.json --out nba_capture_audit.json
@@ -222,7 +225,7 @@ jobs:
           if [ "$count" -gt 0 ]; then
             dir="reports/daily/${TARGET_DATE}/${REPORT_SLOT}"
             mkdir -p "$dir"
-            cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json titan007_three_decision.json titan007_three_movement.json "$dir"/
+            cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json titan007_three_decision.json titan007_three_movement.json nba_two_market_forecast.json "$dir"/
             git config user.name github-actions[bot]
             git config user.email 41898282+github-actions[bot]@users.noreply.github.com
             git add "$dir"
@@ -235,7 +238,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_slot_movement.json --dynamic nba_slot_dynamic_review.json --top10 nba_top10_comparison.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_slot_movement.json --dynamic nba_slot_dynamic_review.json --top10 nba_top10_comparison.json --verdict nba_two_market_forecast.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token
       - name: Save confirmed accepted notification slot
         if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
         run: |
@@ -277,6 +280,7 @@ jobs:
             nba_model_analysis.json
             nba_top10_companies.json
             nba_top10_comparison.json
+            nba_two_market_forecast.json
             nba_capture_audit.json
             nba_market_bc_diagnostics.json
             nba_injury_context.json
