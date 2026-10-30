@@ -1,0 +1,34 @@
+name: Verify 007 Jingcai 111/112/114 source status each NBA capture
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/titan007_jingcai_three_market.py'
+      - 'scripts/pushplus_mobile.py'
+      - 'scripts/pushplus_mobile_v2.py'
+      - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/nba-priority-2130.yml'
+      - '.github/workflows/nba-priority-0630.yml'
+      - '.github/workflows/verify-jingcai-three-pools.yml'
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Test access policy, no guessed odds, production audit and iPhone rendering
+        run: |
+          python3 -m py_compile scripts/titan007_jingcai_three_market.py scripts/pushplus_mobile.py scripts/pushplus_mobile_v2.py
+          python3 scripts/titan007_jingcai_three_market.py --self-test
+          python3 scripts/pushplus_mobile.py --mode smoke --self-test
+          python3 - <<'PY'
+          from pathlib import Path
+          for w in ("titan007-three-analysis","titan007-final-hourly","nba-priority-2130","nba-priority-0630"):
+              s=Path(".github/workflows/"+w+".yml").read_text()
+              assert "scripts/titan007_jingcai_three_market.py" in s,w
+              assert "--jingcai nba_jingcai_three_market.json" in s,w
+          print("JINGCAI_THREE_POOL_ALL_NBA_WORKFLOWS_WIRED_PASS")
+          PY
