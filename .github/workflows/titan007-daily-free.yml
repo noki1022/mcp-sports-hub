@@ -27,6 +27,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install locked NBA numerical dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet "numpy==2.2.6"
       - name: Select source display date, using Asia/Shanghai UTC+8
         run: |
           python3 - <<'PY' >> "$GITHUB_ENV"
@@ -52,7 +57,12 @@ jobs:
           python3 scripts/titan007_crown_crossverify.py --self-test
       - name: Join currently published match IDs with public odds
         run: |
-          python3 scripts/titan007_join_daily.py --date "$TARGET_DATE" --out titan007_joined_nba_cba.json
+          for attempt in 1 2 3; do
+            if python3 scripts/titan007_join_daily.py --date "$TARGET_DATE" --out titan007_joined_nba_cba.json; then exit 0; fi
+            echo "Titan007 feed unavailable (attempt ${attempt}/3)"
+            sleep 8
+          done
+          exit 1
       - name: Generate odds-blind NBA prediction artifact
         run: |
           python3 analysis/nba_prediction_adapter.py --self-test
