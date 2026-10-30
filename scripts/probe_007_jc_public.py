@@ -30,8 +30,13 @@ def inspect(fetch=None):
         rp=urllib.robotparser.RobotFileParser()
         rp.parse(lines)
     except urllib.error.HTTPError as exc:
-        report["status"]="ROBOTS_HTTP_"+str(exc.code)
-        return report
+        if exc.code in (404, 410):
+            rp=urllib.robotparser.RobotFileParser()
+            rp.parse([])
+            report["robots_status"]="UNAVAILABLE_"+str(exc.code)
+        else:
+            report["status"]="ROBOTS_HTTP_"+str(exc.code)
+            return report
     except (OSError, ValueError, RuntimeError) as exc:
         report["status"]="ROBOTS_CHECK_FAILED_"+type(exc).__name__
         return report
@@ -76,6 +81,12 @@ def self_test():
         return Reply("<table>竞彩 胜负</table>".encode("utf-8"))
     a=inspect(allowed)
     assert a["status"]=="PAGE_RETURNED" and a["fixed_bonus_verified"] is False
+    def missing(req,timeout=12):
+        if req.full_url.endswith("/robots.txt"):
+            raise urllib.error.HTTPError(req.full_url,404,"Not Found",{},None)
+        return Reply("<table>NBA 竞彩</table>".encode("utf-8"))
+    m=inspect(missing)
+    assert m["status"]=="PAGE_RETURNED" and m["robots_status"]=="UNAVAILABLE_404"
     print("JC_007_READ_ONLY_ACCESS_AUDIT_TEST_PASS")
 
 if __name__=="__main__":
