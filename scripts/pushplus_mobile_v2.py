@@ -112,6 +112,20 @@ def verdict_summary(v):
       " · 总分 "+text(side(tot,"TOTAL"))+" ("+f(tot.get("line"))+")"+
       "；信心 "+text(sp.get("strength","—"))+"/"+text(tot.get("strength","—"))+"</div>")
 
+def jingcai_status(x):
+    if not x.get("jingcai_source_status"):return ""
+    j=x.get("jingcai_markets") or {}
+    markets=j.get("markets") or {}
+    def item(key,title):
+        row=markets.get(key) or {}
+        if row.get("status")!="VERIFIED":
+            return title+"：赔率未核实"
+        return title+"：已核实"
+    items=[item("WIN_LOSE","胜负"),item("HANDICAP_WIN_LOSE","让分胜负"),item("TOTAL","大小分")]
+    return ("<div style='font-size:11px;background:#fff5e8;color:#83430d;border-radius:6px;"
+      "padding:6px;margin-top:4px;line-height:1.6'><b>竞彩三玩法报价</b>　"+
+      " · ".join(items)+"<div>缺失时不使用商业机构赔率冒充竞彩固定奖金；投注前核对官方出票赔率。</div></div>")
+
 def render_v2(games,model_map,title,target,mode):
     g=sorted(games,key=lambda x:(-signal(x),str(x.get("display_clock") or ""),str(x.get("game_id"))))
     css="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:14px;color:#1d3045;max-width:540px;margin:0 auto;line-height:1.52;"
@@ -139,7 +153,7 @@ def render_v2(games,model_map,title,target,mode):
                    "<div style='font-size:11px;color:#61758a;margin-top:2px;'>"
                    "主胜 "+(f(win*100)+"%" if win is not None and 0<=win<=1 else "—")+
                    "　· 模总 "+f(total)+"　· 现盘 "+f(q)+
-                   "　· 差 "+f(gap,True)+"</div>"+verdict_summary(x.get("two_market_verdict"))+"<div style='font-size:11px;color:#718297;'>"+text(status)+"</div></div>")
+                   "　· 差 "+f(gap,True)+"</div>"+jingcai_status(x)+verdict_summary(x.get("two_market_verdict"))+"<div style='font-size:11px;color:#718297;'>"+text(status)+"</div></div>")
     out.append("<div style='font-size:14px;font-weight:700;margin:14px 0 7px;'>逐场模型与盘口</div>")
     for i,x in enumerate(g,1):
         markets=x.get("markets") or {}
@@ -149,6 +163,7 @@ def render_v2(games,model_map,title,target,mode):
         status=x.get("status","FIRST_SNAPSHOT")
         body="<div style='font-size:11px;color:#68788e;'>#"+str(i).zfill(2)+" · "+text(x.get("display_clock"))+" · "+text(status_label(status))+"</div>"
         body+="<div style='font-size:15px;font-weight:750;margin:4px 0 7px;'>"+"客队："+text(x.get("away_team"))+"　｜　主队："+text(x.get("home_team"))+"</div>"
+        body+=jingcai_status(x)
         body+=verdict_summary(x.get('two_market_verdict'))
         body+=score_prediction(pred)
         body+=market_change(spread,"full_spread")+market_change(total,"full_total")
