@@ -82,7 +82,7 @@ def main():
     results={k:scan(k,u) for k,u in TARGETS.items()}
     print("TITAN007_EXCLUSIVE_PUBLIC_PAGE_AUDIT",json.dumps(results,ensure_ascii=False))
 def selftest():
-    fake=b"<html><a href='/buy/JingCaiBasket.aspx?TypeID=112'>x</a><script src='/js/basket.js'></script><table><tr><td>竞彩</td></tr></table></html>"
+    fake="<html><a href='/buy/JingCaiBasket.aspx?TypeID=112'>x</a><script src='/js/basket.js'></script><table><tr><td>竞彩</td></tr></table></html>".encode('utf-8')
     result=scan("mock",TARGETS["cp5"],lambda _:fake,lambda _:(True,"MOCK"))
     assert result["status"]=="PAGE_RETURNED" and result["lottery_fixed_prices_verified"]==0
     assert "/buy/JingCaiBasket.aspx" in result["candidate_paths"]
