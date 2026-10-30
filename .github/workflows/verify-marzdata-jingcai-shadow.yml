@@ -1,0 +1,21 @@
+name: Test Marzdata authorized lottery shadow adapter
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/marzdata_jingcai.py
+      - scripts/titan007_jingcai_three_market.py
+      - .github/workflows/verify-marzdata-jingcai-shadow.yml
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Test explicit unauthenticated no-network behavior and authorized fixture parsing
+        run: |
+          python3 -m py_compile scripts/marzdata_jingcai.py scripts/titan007_jingcai_three_market.py
+          python3 scripts/marzdata_jingcai.py
+          python3 scripts/titan007_jingcai_three_market.py --self-test
