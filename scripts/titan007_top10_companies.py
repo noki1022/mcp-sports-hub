@@ -50,31 +50,57 @@ def allowed(url):
     req=urllib.request.Request(HOST+"/robots.txt",headers={"User-Agent":UA})
     with urllib.request.urlopen(req,timeout=8) as r:rp.parse(r.read(50000).decode("utf-8","replace").splitlines())
     return rp.can_fetch(UA,url)
+# Independently verified with real 007 dated odds on 2026-10-31.
+# These are ten distinct SOURCE IDs, NOT a verified top-ten page ranking.
+VALIDATED_SOURCE_IDS=("3","1","2","8","9","10","19","20","24","31")
 def collect(board,limit=10):
-    games=[]
-    for g in board.get("nba_cba_games",[]):
-        if g.get("league")!="NBA":continue
-        markets={}
-        for market,route in (("full_spread","handicap"),("full_total","overunder")):
-            url=f"{HOST}/lq/{route}/{g['game_id']}.htm"
-            item={"status":"UNAVAILABLE","companies":[],"page":url}
-            try:
-                if not allowed(url):raise RuntimeError("ROBOTS_NOT_ALLOWED_OR_UNVERIFIED")
-                req=urllib.request.Request(url,headers={"User-Agent":UA})
-                with urllib.request.urlopen(req,timeout=9) as r:
-                    if r.status!=200:raise RuntimeError("NON_200")
-                    raw=r.read(200001)
-                if len(raw)>200000:raise RuntimeError("PAGE_TOO_LARGE")
-                comp=extract(raw.decode("utf-8","replace"),market,limit)
-                item.update(status="PARSED_VISIBLE_ROWS" if comp else "NO_VERIFIED_TOP10_ROWS",companies=comp)
-            except (OSError,ValueError,RuntimeError) as e:item["reason"]=str(e)[:120]
-            markets[market]=item
-        games.append({"game_id":str(g["game_id"]),"nba_game_id":str(g.get("nba_game_id")),
-                      "markets":markets})
-    return {"schema_version":"nba-007-visible-top10-v1","target_date":board["requested_display_date"],
-       "captured_at_utc":board["captured_at_utc"],"quote_timestamp":"NOT_VERIFIED",
-       "company_order":"VISIBLE_PAGE_ROW_ORDER_NOT_COMPANY_ID","games":games,
-       "model_probability_adjusted":False,"decision":"NO_BET"}
+    """Reuse the production Crown dated endpoint for ten distinct real company IDs."""
+    import urllib.parse
+    from titan007_join_daily import public_get
+    from titan007_join_beijing_verified import market_entries
+    target=board["requested_display_date"]
+    selected=VALIDATED_SOURCE_IDS[:limit]
+    ids={str(g["game_id"]):g for g in board.get("nba_cba_games",[]) if g.get("league")=="NBA"}
+    bygame={gid:{"game_id":gid,"nba_game_id":str(g.get("nba_game_id")),
+                  "markets":{k:{"status":"NO_QUOTE","companies":[],"source_id_order_unverified":True}
+                             for k in ("full_spread","full_total")}} for gid,g in ids.items()}
+    source_audit=[]
+    for cid in selected:
+        url="https://bf.titan007.com/nba_Oddsdata.aspx?"+urllib.parse.urlencode(
+            {"date":target,"id":cid,"h":"12","m":"00"})
+        status={"id":cid,"url":url,"status":"UNAVAILABLE","matched_games":0}
+        try:
+            raw=public_get(url,limit=250000)
+            quotes,reject=market_entries(raw)
+            status.update(status="PARSED","source_rows":len(quotes),"rejections":reject,
+                          "matched_games":sum(gid in quotes for gid in ids))
+            for gid,src in bygame.items():
+                quote=quotes.get(gid)
+                if quote is None:continue
+                for market in ("full_spread","full_total"):
+                    m=quote[market]
+                    if not all(m["current"].get(k) is not None
+                               for k in ("line","first_side_water","second_side_water")):continue
+                    src["markets"][market]["companies"].append({
+                        "display_rank":None,
+                        "company_display":"007机构ID "+cid+"（名称待核）",
+                        "company_id":cid,"market":market,
+                        "opening":m.get("opening") or {},
+                        "current":m["current"],"side_orientation":"UNVERIFIED_RAW_SLOTS",
+                        "source":"DATED_007_COMPANY_ID"})
+        except (OSError,ValueError,RuntimeError) as exc:
+            status["error"]=type(exc).__name__+": "+str(exc)[:105]
+        source_audit.append(status)
+    for src in bygame.values():
+        for market,item in src["markets"].items():
+            item["status"]="QUOTES_WITH_UNVERIFIED_COMPANY_RANK" if item["companies"] else "NO_VERIFIED_QUOTE"
+            item["company_ids"]=[c["company_id"] for c in item["companies"]]
+    return {"schema_version":"nba-007-visible-top10-v1",
+        "target_date":target,"captured_at_utc":board["captured_at_utc"],
+        "quote_timestamp":"NOT_VERIFIED","company_order":"TEN_VALIDATED_SOURCE_IDS_NOT_TOP_TEN_RANKED",
+        "candidate_ids":list(selected),"source_audit":source_audit,
+        "games":list(bygame.values()),"model_probability_adjusted":False,"decision":"NO_BET"}
+
 def analyze(current,prior):
     past={str(g["game_id"]):g for g in prior.get("games",[])} if prior else {}
     rows=[]
@@ -99,7 +125,7 @@ def analyze(current,prior):
     return {"schema_version":"nba-007-top10-comparison-v1",
         "target_date":current["target_date"],"captured_at_utc":current["captured_at_utc"],
         "games":rows,"decision":"NO_BET","model_probability_adjusted":False,
-        "caveat":"Displayed row order not independently confirmed as stable institutional ranking; do not infer bookmaker consensus if parsing failed."}
+        "caveat":"Ten independently tested company ID feeds; source company names and page top-ten ranking remain UNVERIFIED. These are candidate sources, not authenticated top-ten ranking."}
 def selftest():
     raw="<table>"+''.join(f"<tr><td>机构{i}</td><td>0.90</td><td>220.5</td><td>0.92</td><td>0.88</td><td>{220.5+i}</td><td>0.94</td></tr>" for i in range(12))+"</table>"
     x=extract(raw,"full_total")
@@ -108,6 +134,7 @@ def selftest():
     o=analyze({"target_date":"2026-10-31","captured_at_utc":"2026-10-30T08:00:00Z","games":[{"game_id":"1234","markets":{"full_total":{"status":"PARSED_VISIBLE_ROWS","companies":x}}}]},None)
     assert o["games"][0]["markets"]["full_total"]["company_count"]==10
     assert not o["model_probability_adjusted"]
+    assert len(VALIDATED_SOURCE_IDS)==10 and len(set(VALIDATED_SOURCE_IDS))==10
     print("TITAN007_TOP10_NO_INVENTED_COMPANY_TEST_PASS")
 if __name__=="__main__":
     p=argparse.ArgumentParser();p.add_argument("--joined");p.add_argument("--out");p.add_argument("--analysis")
