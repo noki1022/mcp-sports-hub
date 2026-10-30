@@ -180,6 +180,7 @@ def main():
     a.add_argument("--dynamic")
     a.add_argument("--top10")
     a.add_argument("--verdict")
+    a.add_argument("--jingcai")
     a.add_argument("--preview",default="pushplus_mobile_preview.html")
     a.add_argument("--status",default="pushplus_status.json")
     a.add_argument("--send",action="store_true")
@@ -224,13 +225,17 @@ def main():
         count=len(rows)
         title="NBA/CBA 盘口动态 V2｜"+str(movement.get("target_date","未知"))
         html=render_v2(rows,model,"NBA/CBA 盘口动态 V2",movement.get("target_date","未知"),"hourly")
-    if (args.top10 or args.verdict) and args.mode!="smoke":
+    if (args.top10 or args.verdict or args.jingcai) and args.mode!="smoke":
         multi=read(args.top10)
         top={str(x.get("game_id")):x for x in multi.get("games",[])}
         verdict={str(x.get("game_id")):x for x in read(args.verdict).get("games",[])}
+        jingcai=read(args.jingcai)
+        jc_rows={str(x.get("game_id")):x for x in jingcai.get("games",[])}
         for row in rows:
             row["top10_comparison"]=top.get(str(row.get("game_id")))
             row["two_market_verdict"]=verdict.get(str(row.get("game_id")))
+            row["jingcai_markets"]=jc_rows.get(str(row.get("game_id")))
+            row["jingcai_source_status"]=jingcai.get("status")
         html=render_v2(rows,model,title,joined.get("requested_display_date") if args.mode=="three" else movement.get("target_date"),args.mode)
     html="<div style='"+style()+"max-width:560px;margin:0 auto;'>"+html+"</div>"
     Path(args.preview).write_text(html,encoding="utf-8")
