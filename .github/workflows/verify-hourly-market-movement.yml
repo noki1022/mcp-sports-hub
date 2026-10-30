@@ -1,0 +1,30 @@
+name: Verify hourly NBA market snapshot movement
+on:
+  push:
+    branches: [fix/hourly-market-snapshots-and-movement-20261030]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Snapshot and historical movement tests
+        run: python3 analysis/titan007_hourly_history.py self-test
+      - name: Confirm persistence occurs before 3-30 minute final window filtering
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('.github/workflows/titan007-final-hourly.yml').read_text()
+          assert s.index('titan007_hourly_history.py capture') < s.index('Select 3–30 minute final window')
+          assert 'git add reports/hourly/' in s
+          assert 'cancel-in-progress: false' in s
+          assert 'titan007_hourly_movement.html' in s
+          print('HOURLY_PERSISTENCE_WIRING_PASS')
+          PY
