@@ -20,6 +20,19 @@ jobs:
       - name: Strict official slate and variable price availability
         run: |
           python3 scripts/nba_noon_slate.py self-test
+          python3 - <<'PY'
+          import sys
+          from datetime import datetime
+          sys.path.insert(0,"scripts")
+          from nba_noon_slate import recover
+          base={"requested_display_date":"2026-10-31","captured_at_utc":"2026-10-30T05:15:00Z",
+                "upcoming_nba_games":[{"nba_game_id":"101","home":"BOS","away":"NYK",
+                "beijing_date":"2026-10-31","utc_tip":"2026-10-30T23:00:00Z"}],
+                "official_schedule_count":1,"nba_cba_games":[]}
+          x=recover(base,"2026-10-31")
+          assert x["noon_on_time"] is False and x["captured_at_utc"]==base["captured_at_utc"]
+          print("ARCHIVED_NOON_LOCK_RECOVERY_PASS")
+          PY
           python3 -m py_compile scripts/nba_noon_slate.py
       - name: All seven capture stages must use the exact noon slate
         run: |
