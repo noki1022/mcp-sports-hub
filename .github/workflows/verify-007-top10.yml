@@ -30,7 +30,7 @@ jobs:
           p=Path("scripts/titan007_top10_companies.py").read_text()
           assert 'company_id":"UNVERIFIED"' in p
           assert 'limit=10' in p
-          assert 'ROBOTS_NOT_ALLOWED_OR_UNVERIFIED' in p
+          assert 'nba_Oddsdata.aspx' in p and 'VALIDATED_SOURCE_IDS' in p
           for path in [
             ".github/workflows/titan007-three-analysis.yml",
             ".github/workflows/titan007-final-hourly.yml",
