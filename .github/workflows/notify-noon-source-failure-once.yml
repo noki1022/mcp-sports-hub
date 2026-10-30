@@ -1,0 +1,32 @@
+name: One-time missed-noon source-failure PushPlus notice
+on:
+  push:
+    branches: [recovery/noon-real-push-20261030]
+    paths:
+      - .github/workflows/notify-noon-source-failure-once.yml
+permissions:
+  contents: read
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Recheck actual source for Beijing Oct 31
+        run: python3 scripts/titan007_join_daily.py --date 2026-10-31 --out titan007_three_joined.json
+      - name: Push real diagnostic only if still zero games
+        run: python3 scripts/noon_recovery_failure_notice_once.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noon-source-failure-notice-20261030
+          path: |
+            titan007_three_joined.json
+            /tmp/noon-recovery-error-status.json
+          if-no-files-found: warn
+          retention-days: 3
