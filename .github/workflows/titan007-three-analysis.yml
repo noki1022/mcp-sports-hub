@@ -65,7 +65,27 @@ jobs:
             sleep 8
           done
           exit 1
-      - name: Enforce Beijing date identity and report market coverage
+      - name: Lock the noon official NBA slate or enforce the locked cohort
+        run: |
+          git pull --ff-only origin main
+          mkdir -p "reports/noon-cohorts/$TARGET_DATE"
+          if [ "$SCHEDULE_EXPR" = "0 4 * * *" ] || [ "$SCHEDULE_EXPR" = "15 4 * * *" ] || [ "$SCHEDULE_EXPR" = "30 4 * * *" ]; then
+            python3 scripts/nba_noon_slate.py freeze --joined titan007_three_joined.json --out "reports/noon-cohorts/$TARGET_DATE/1200.json"
+            git add "reports/noon-cohorts/$TARGET_DATE/1200.json"
+            if ! git diff --cached --quiet; then
+              git config user.name github-actions[bot]
+              git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+              git commit -m "Freeze next-day official NBA slate at noon"
+              for i in 1 2 3; do
+                if git push origin HEAD:main; then break; fi
+                git pull --rebase origin main
+                if [ "$i" -eq 3 ]; then exit 1; fi
+              done
+            fi
+          else
+            python3 scripts/nba_noon_slate.py enforce --joined titan007_three_joined.json --lock "reports/noon-cohorts/$TARGET_DATE/1200.json" --out nba_same_slate.json
+          fi
+
         run: |
           python3 - <<'PY'
           import json,os
