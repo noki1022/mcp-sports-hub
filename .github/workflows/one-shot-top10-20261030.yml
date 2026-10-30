@@ -1,0 +1,25 @@
+name: One-time 007 top-ten companies capture, model and PushPlus
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/fire-top10-20261030-1710.txt'
+permissions:
+  actions: write
+  contents: read
+concurrency:
+  group: one-shot-top10-20261030
+  cancel-in-progress: false
+jobs:
+  start-complete-analysis:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch confirmed PR71 multi-company full NBA analysis
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: noki1022/mcp-sports-hub
+        run: |
+          gh workflow run titan007-three-analysis.yml --ref main -f target_date=2026-10-31
+          echo 'ONE_SHOT_TOP10_DISPATCH_ACCEPTED_NOT_DELIVERY_CONFIRMED'
