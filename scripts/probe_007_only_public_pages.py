@@ -73,6 +73,8 @@ def scan(name,url,fetcher=fetch,check=allowed):
     record.update({"status":"PAGE_RETURNED","bytes":len(raw),"tables":struct.tables,
         "rows":struct.rows,"cells":struct.cells,
         "same_site_links":len(struct.links),"same_site_scripts":len(struct.scripts),
+        "all_same_site_link_paths":sorted(struct.links)[:25],
+        "all_same_site_script_paths":sorted(struct.scripts)[:25],
         "candidate_paths":sorted(records)[:30],
         "markets_text_flags":{k:(k in decoded) for k in ("竞彩","让分胜负","大小分","胜负","固定奖金")},
         "machine_readable_price_rows":0})
