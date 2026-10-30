@@ -29,4 +29,19 @@ const fake={
   }
 };
 assert.equal((await dispatchAt(at("2026-10-30T07:00:00Z"),{GITHUB_TOKEN:"FAKE"},fake.fetch)).state,"DISPATCH_ACCEPTED_NOT_COMPLETED");
+// Regression: nightly watchdog must inspect five-market, not retired two-market marker.
+const nightly=plannedJob(at("2026-10-30T14:00:00Z"));
+assert.equal(nightly?.kind,"night_review");
+let markerUrl="";
+const already={
+  async fetch(url){
+    if(url.includes("/contents/")){
+      markerUrl=url;
+      return {status:200,ok:true,json:async()=>({content:btoa(JSON.stringify({state:"API_ACCEPTED_NOT_DEVICE_CONFIRMED"}))})};
+    }
+    throw Error("Unexpected additional GitHub dispatch: "+url);
+  }
+};
+assert.equal((await dispatchAt(at("2026-10-30T14:00:00Z"),{GITHUB_TOKEN:"FAKE"},already.fetch)).state,"API_ALREADY_ACCEPTED");
+assert.match(markerUrl,/five-market-settled/);
 console.log("CLOUDFLARE_SCHEDULER_UTC_SLOT_AND_DISPATCH_PASS");

@@ -220,7 +220,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode hourly --movement titan007_hourly_movement.json --window titan007_final_window.json --model nba_model_analysis.json --dynamic nba_hourly_dynamic_review.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --sop nba_analysis_sop.json --five nba_five_market_forecast.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send
+          python3 scripts/pushplus_mobile.py --mode hourly --movement titan007_hourly_movement.json --window titan007_final_window.json --model nba_model_analysis.json --dynamic nba_hourly_dynamic_review.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --sop nba_analysis_sop.json --five nba_five_market_forecast.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token --require-delivery
       # Final-hour snapshots are short-retention artifacts. No scheduled commits
       # to main, and never archive incomplete runs.
       - name: Check final report completeness before publication
