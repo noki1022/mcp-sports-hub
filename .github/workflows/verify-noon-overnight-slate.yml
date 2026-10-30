@@ -1,0 +1,40 @@
+name: Verify noon-to-06:30 identical NBA slate
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/nba_noon_slate.py'
+      - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/nba-priority-2130.yml'
+      - '.github/workflows/nba-priority-0630.yml'
+      - '.github/workflows/verify-noon-overnight-slate.yml'
+permissions: {contents: read}
+jobs:
+  same-batch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Strict official slate and variable price availability
+        run: |
+          python3 scripts/nba_noon_slate.py self-test
+          python3 -m py_compile scripts/nba_noon_slate.py
+      - name: All seven capture stages must use the exact noon slate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          daily=Path('.github/workflows/titan007-three-analysis.yml').read_text()
+          hourly=Path('.github/workflows/titan007-final-hourly.yml').read_text()
+          night=Path('.github/workflows/nba-priority-2130.yml').read_text()
+          morning=Path('.github/workflows/nba-priority-0630.yml').read_text()
+          assert 'nba_noon_slate.py freeze' in daily
+          for text in (daily,hourly,night,morning):
+              assert 'nba_noon_slate.py enforce' in text
+              assert 'reports/noon-cohorts/$TARGET_DATE/1200.json' in text
+          for text in (daily,hourly,night,morning):
+              assert text.index('nba_noon_slate.py enforce')<text.index('titan007_hourly_history.py capture')
+          assert '- cron: "0 22 * * *"' not in daily
+          print('NOON_TO_MORNING_ALL_CAPTURE_SLOTS_LOCKED_PASS')
+          PY
