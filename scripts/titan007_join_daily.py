@@ -123,7 +123,7 @@ def dated_source(target_date):
     records=[]
     for node in root.findall(".//match/m"):
         values=(node.text or "").split(",")
-        if len(values)<7 or not re.fullmatch(r"\\d{4,12}",values[0]):continue
+        if len(values)<7 or not re.fullmatch(r"\d{4,12}",values[0]):continue
         try:
             spread=float(values[1]);a=float(values[2]);b=float(values[3])
             total=float(values[4]);c=float(values[5]);d=float(values[6])
