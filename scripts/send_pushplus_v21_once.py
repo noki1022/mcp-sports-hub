@@ -27,7 +27,7 @@ for i,(clock,home,away,op,now,ot,nt,ph,margin,total) in enumerate(gamespec,1):
                  "data_quality":{"quality":"PASS"}}
 html=render_v2(games,models,"【全模拟】NBA 八场 V2.1 排版测试","2026-10-31","hourly")
 html="<div style='font-size:13px;padding:10px;background:#fff4e7;color:#934500;font-weight:bold;'>仅排版测试：8场球队对阵、比分预测、模型概率及盘口均为虚构，非真实比赛分析、非投注建议。</div>"+html
-assert len(games)==8 and html.count("NO_BET")>=8 and "比赛速览" in html
+assert len(games)==8 and html.count("暂不参与")>=8 and "比赛速览" in html
 Path("/tmp/nba-v21-eight-preview.html").write_text(html,encoding="utf-8")
 print("V21_EIGHT_LAYOUT_PASS",len(html.encode("utf-8")),flush=True)
 result=send({"title":"【全模拟】NBA 8场 V2.1 版｜微信排版测试","html":html},os.environ.get("PUSHPLUS_TOKEN",""))
