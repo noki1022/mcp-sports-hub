@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       report_slot:
-        description: "Canonical Beijing slot: 1200, 1400, 1500, 1800, 2100"
+        description: "Canonical Beijing slot: 1200, 1400, 1500, 1640 (one-off 2026-10-30), 1800, 2100"
         required: false
         type: string
       target_date:
@@ -185,7 +185,7 @@ jobs:
                  '0 13 * * *':'2100'}
           if expr and expr not in slots: raise RuntimeError('UNKNOWN_SCHEDULE')
           external=os.environ.get('EXTERNAL_REPORT_SLOT','')
-          if external and external not in ('1200','1400','1500','1800','2100'):
+          if external and external not in ('1200','1400','1500','1640','1800','2100'):
               raise RuntimeError('INVALID_EXTERNAL_REPORT_SLOT')
           if external and expr:raise RuntimeError('MIXED_SCHEDULE_DISPATCH')
           slot=slots.get(expr) or external or datetime.now(ZoneInfo('Asia/Shanghai')).strftime('%H%M')
