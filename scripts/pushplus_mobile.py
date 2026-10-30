@@ -187,6 +187,7 @@ def main():
     a.add_argument("--status",default="pushplus_status.json")
     a.add_argument("--send",action="store_true")
     a.add_argument("--require-token",action="store_true")
+    a.add_argument("--require-delivery",action="store_true",help="Fail unless PushPlus accepted this scheduled report")
     a.add_argument("--self-test",action="store_true")
     args=a.parse_args()
     if args.self_test:return selftest()
@@ -223,7 +224,10 @@ def main():
         window=read(args.window)
         model={str(x.get("game_id")):x for x in read(args.model).get("games",[])}
         ids={str(x.get("game_id")) for x in window.get("nba_cba_games",[])}
-        rows=[g for g in movement.get("games",[]) if g.get("status") in ("LINE_MOVE","WATER_MOVE","LINE_AND_WATER_MOVE") or str(g.get("game_id")) in ids]
+        # Hourly scheduled snapshots must include every verified game, not just movers.
+        # Keep dynamic findings visible for each game; never report success with zero
+        # selections when the full market board actually contains games.
+        rows=list(movement.get("games",[]))
         count=len(rows)
         title="NBA/CBA 盘口动态 V2｜"+str(movement.get("target_date","未知"))
         html=render_v2(rows,model,"NBA/CBA 盘口动态 V2",movement.get("target_date","未知"),"hourly")
@@ -277,6 +281,8 @@ def main():
             raise
     save_status(args.status,state)
     print("PUSHPLUS_DELIVERY_STATE",state["state"],"GAMES",count)
+    if args.require_delivery and state["state"]!="API_ACCEPTED_NOT_DEVICE_CONFIRMED":
+        raise RuntimeError("PUSHPLUS_REQUIRED_DELIVERY_NOT_ACCEPTED_"+state["state"])
 
 def selftest():
     board={"requested_display_date":"2026-10-31","nba_cba_games":[{
