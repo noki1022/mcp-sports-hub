@@ -132,8 +132,8 @@ def hourly_report(movement,model,final_window):
                 parts.append(p("<span style='color:#526479;'>原始水位槽位1 去水概率变化 "+
                                fmt(float(m["delta_devig_raw_slot1"])*100,sign=True)+" 个百分点</span>"))
         parts.append(model_line(pmap.get(gid)))
-        subtitle=txt(g.get("league"))+" · "+txt(g.get("display_clock"))+" · "+
-            txt(g.get("status"))+(" · 临场" if gid in final_ids else "")
+        subtitle=(txt(g.get("league"))+" · "+txt(g.get("display_clock"))+" · "+
+                  txt(g.get("status"))+(" · 临场" if gid in final_ids else ""))
         parts.append(p("<strong>模型与盘口结合判断：方向未核验，NO_BET</strong>"))
         body.append(section(txt(g.get("home_team"))+" vs "+txt(g.get("away_team")),subtitle,"".join(parts)))
     body.append(footer())
