@@ -314,7 +314,34 @@ def lottery_sort(game):
     label=lottery_label(game)
     return (0,int(label[-3:])) if label!="竞彩编号待核" else (1,999)
 
-def render_v2(games,model_map,title,target,mode):
+def priority_focus_panel(document):
+    """Top-of-report relative model attention; never a promised hit rate."""
+    if not document:return ""
+    items=document.get("focus_games") or []
+    lines=[]
+    for item in items:
+        side=text(item.get("model_direction"))
+        p=num(item.get("model_direction_probability"))
+        prob=f(p*100)+"%" if p is not None else "—"
+        name=text(item.get("jingcai_number") or "竞彩编号待核")
+        home=text(item.get("home_team"));away=text(item.get("away_team"))
+        why=text(item.get("explanation"))
+        caution="；".join(text(x) for x in (item.get("cautions") or [])[:2])
+        lines.append("<div style='padding:7px 0;border-bottom:1px solid #d7e2ef;'>"+
+           "<b>"+str(item.get("focus_rank"))+" · "+name+"　"+home+" vs "+away+"</b>"+
+           "<div>模型倾向：<b>"+side+"</b>　模型概率 "+prob+"</div>"+
+           "<div style='font-size:11px;color:#465b73;'>依据："+why+"</div>"+
+           "<div style='font-size:11px;color:#836028;'>风险："+(caution or "请关注临场变化")+"</div></div>")
+    if not items:
+        lines=["<div>本批次没有通过完整数据核验的重点场次，不强行指定。</div>"]
+    return ("<div style='border:1px solid #c8d7eb;background:#f2f6fc;"
+       "padding:10px 11px;border-radius:9px;margin:11px 0;line-height:1.6;'>"+
+       "<div style='font-size:15px;font-weight:750;'>重点关注场次 · 模型相对排序</div>"+
+       "<div style='font-size:11px;color:#5c7088;'>不设固定胜率门槛；动态最多3场。"
+       "模型概率不是经保证的真实胜率；不代表投注价值。</div>"+
+       "".join(lines)+"</div>")
+
+def render_v2(games,model_map,title,target,mode,priority_focus=None):
     g=sorted(games,key=lambda x:(lottery_sort(x),str(x.get("display_clock") or ""),str(x.get("game_id"))))
     css="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:14px;color:#1d3045;max-width:540px;margin:0 auto;line-height:1.52;"
     synthetic="模拟" in str(title)
@@ -325,6 +352,7 @@ def render_v2(games,model_map,title,target,mode):
     out=["<div style='"+css+"'><div style='padding:10px 12px;background:#eef3fa;border-radius:9px;'>"
          "<div style='font-size:17px;font-weight:750;'>"+text(heading)+"</div>"
          "<div style='color:#617389;font-size:12px;margin-top:3px;'>"+text(sub)+"</div></div>"]
+    if priority_focus is not None:out.append(priority_focus_panel(priority_focus))
     out.append("<div style='font-size:14px;font-weight:700;margin:13px 0 5px;'>八场核心数据</div>" if synthetic else "<div style='font-size:14px;font-weight:700;margin:13px 0 5px;'>比赛速览</div>")
     for i,x in enumerate(g,1):
         pred=model_map.get(str(x.get("game_id")),{})
