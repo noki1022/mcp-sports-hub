@@ -127,6 +127,22 @@ jobs:
             done
           fi
       - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.sent != 'true'
+        name: Freeze five independent Jingcai/Crown NBA research directions
+        run: |
+          python3 analysis/nba_five_markets.py \
+            --joined titan007_priority_joined.json \
+            --model nba_priority_model.json \
+            --jingcai nba_jingcai_three_market.json \
+            --top10 nba_top10_comparison.json \
+            --out nba_five_market_forecast.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open("nba_five_market_forecast.json"))
+          assert x["game_count"]>0 and len(x["market_keys"])==5
+          assert all(set(g["markets"])==set(x["market_keys"]) for g in x["games"])
+          print("FIVE_MARKET_SNAPSHOT_FROZEN",x["game_count"],x["ready_counts"])
+          PY
         name: Generate mandatory NBA spread and total research verdicts from ten institutions
         run: |
           python3 analysis/nba_two_market_forecast.py --joined titan007_priority_joined.json --model nba_priority_model.json --top10 nba_top10_comparison.json --out nba_two_market_forecast.json
@@ -173,7 +189,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode three --joined titan007_priority_joined.json --movement titan007_priority_movement.json --dynamic nba_priority_dynamic.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --model nba_priority_model.json --sop nba_analysis_sop.json --preview nba_priority_iphone.html --status nba_priority_pushplus_status.json --send --require-token
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_priority_joined.json --movement titan007_priority_movement.json --dynamic nba_priority_dynamic.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --model nba_priority_model.json --sop nba_analysis_sop.json --five nba_five_market_forecast.json --preview nba_priority_iphone.html --status nba_priority_pushplus_status.json --send --require-token
           python3 - <<'PY'
           import json
           s=json.load(open('nba_priority_pushplus_status.json'))
@@ -184,7 +200,7 @@ jobs:
         name: Archive snapshot, complete analysis and successful PushPlus marker
         run: |
           mkdir -p "reports/daily/$TARGET_DATE/0630" "reports/pushplus-sent/$TARGET_DATE"
-          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_priority_iphone.html "reports/daily/$TARGET_DATE/0630/"
+          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_five_market_forecast.json nba_priority_iphone.html "reports/daily/$TARGET_DATE/0630/"
           python3 - <<'PY'
           import os,json
           from pathlib import Path
