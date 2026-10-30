@@ -19,7 +19,8 @@ from xml.etree import ElementTree as ET
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"analysis"))
 sys.path.insert(0,str(ROOT/"scripts"))
-from nba_official_beijing_schedule import BJ,ET as US_ET,ESPN_SCHEDULE,extract_espn
+from nba_official_beijing_schedule import (BJ, ESPN_SCHEDULE, OFFICIAL_SCHEDULE, extract_espn,
+    fetch as fetch_nba_official, extract as extract_nba_official)
 from titan007_join_daily import identify,public_get,SCORES_URL,join as old_join
 import titan007_bf_snapshot as live
 from titan007_ev_analysis import NAMES
@@ -27,24 +28,38 @@ SOURCE_BASE="https://bf.titan007.com/"
 VALID_BJ_ERROR_MINUTES=120
 
 def fetch_schedule(target):
-    # Fetch two US Eastern calendar dates; UTC timestamps, not headings, determine BJ.
+    """Derive Beijing fixtures from explicit UTC tipoffs, never from US date labels.
+
+    ESPN is queried for the adjacent US calendar dates. When any query fails,
+    the official NBA season schedule is a fallback, not a guessed date shift.
+    """
     import urllib.request
     from datetime import date
     targetdate=date.fromisoformat(target)
-    seen={}
-    sources=[]
+    seen={};sources=[];errors=[]
     for day in (targetdate-timedelta(days=1),targetdate):
         url=ESPN_SCHEDULE+"?"+urllib.parse.urlencode({"dates":day.strftime("%Y%m%d"),"limit":"100"})
-        req=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 (compatible; PublicScheduleAudit/1.0)","Accept":"application/json"})
-        with urllib.request.urlopen(req,timeout=18) as res:
-            if res.status!=200:raise RuntimeError("FIXTURE_SOURCE_HTTP_"+str(res.status))
-            body=res.read(2000001)
-            if len(body)>2000000:raise RuntimeError("FIXTURE_TOO_LARGE")
-        fromjson=json.loads(body)
-        for g in extract_espn(fromjson,target):
-            if g["nba_game_id"] in seen and g!=seen[g["nba_game_id"]]:raise RuntimeError("FIXTURE_DISAGREEMENT")
-            seen[g["nba_game_id"]]=g
-        sources.append(url)
+        try:
+            req=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 (compatible; PublicScheduleAudit/1.0)","Accept":"application/json"})
+            with urllib.request.urlopen(req,timeout=18) as res:
+                if res.status!=200:raise RuntimeError("FIXTURE_SOURCE_HTTP_"+str(res.status))
+                body=res.read(2000001)
+                if len(body)>2000000:raise RuntimeError("FIXTURE_TOO_LARGE")
+            for g in extract_espn(json.loads(body),target):
+                if g["nba_game_id"] in seen and g!=seen[g["nba_game_id"]]:
+                    raise RuntimeError("FIXTURE_DISAGREEMENT")
+                seen[g["nba_game_id"]]=g
+            sources.append(url)
+        except (OSError,ValueError,KeyError,TypeError,RuntimeError) as exc:
+            errors.append(type(exc).__name__)
+    if errors or not seen:
+        try:
+            official=extract_nba_official(fetch_nba_official(),target)
+        except (OSError,ValueError,KeyError,TypeError,RuntimeError) as exc:
+            if errors:raise RuntimeError("ALL_VERIFIED_FIXTURE_SOURCES_FAILED: "+str(errors)) from exc
+        else:
+            if errors or official:
+                return official,[OFFICIAL_SCHEDULE]
     return sorted(seen.values(),key=lambda g:g["utc_tip"]),sources
 
 def num(x,minvalue=-10000,maxvalue=10000):
@@ -90,31 +105,37 @@ def accept_match(g,official,site_date,site_clock):
             and abs((site-tip).total_seconds())<=VALID_BJ_ERROR_MINUTES*60)
 
 def source_for_date(target):
-    """Retrieve site date-target and neighbor feeds; URLs found directly in 007 JS."""
-    dates=[(datetime.fromisoformat(target)+timedelta(days=offset)).date().isoformat()
-           for offset in (-1,0,1)]
-    seen={};ods={};reject=Counter();coverage={}
+    """Query target and adjacent 007 dates; isolate one bad date feed.
+
+    Dates are only source query windows. Actual event dates come from UTC
+    schedule plus verified site clock/team; never shift site dates by one.
+    """
+    base=datetime.fromisoformat(target)
+    dates=[(base+timedelta(days=offset)).date().isoformat() for offset in (0,-1,1)]
+    seen={};ods={};reject=Counter();coverage={};source_errors=[]
     for day in dates:
-        p1={"date":day,"h":"12","m":"00","s":"1"}
-        p2={"date":day,"id":"3","h":"12","m":"00"}
-        score_url=SOURCE_BASE+"nba_date.aspx?"+urllib.parse.urlencode(p1)
-        odds_url=SOURCE_BASE+"nba_Oddsdata.aspx?"+urllib.parse.urlencode(p2)
-        body=public_get(score_url,limit=700000)
-        ids,rej=identify(body)
-        market,rej2=market_entries(public_get(odds_url,limit=250000))
+        score_url=SOURCE_BASE+"nba_date.aspx?"+urllib.parse.urlencode({"date":day,"h":"12","m":"00","s":"1"})
+        odds_url=SOURCE_BASE+"nba_Oddsdata.aspx?"+urllib.parse.urlencode({"date":day,"id":"3","h":"12","m":"00"})
+        try:
+            ids,rej=identify(public_get(score_url,limit=700000))
+            market,rej2=market_entries(public_get(odds_url,limit=250000))
+        except (OSError,ValueError,RuntimeError) as exc:
+            source_errors.append({"site_date":day,"error":type(exc).__name__})
+            continue
         coverage[day]={"source_rows":len(ids),"market_rows":len(market),
                        "nba_rows":sum(g["league"]=="NBA" for g in ids.values())}
         reject["identity_rejected"]+=len(rej)
         reject.update(rej2)
-        for id,g in ids.items():
-            if id in seen and any(seen[id][k]!=g[k] for k in ("home_team","away_team","display_date","display_clock","league")):
+        for gid,g in ids.items():
+            if gid in seen and any(seen[gid][k]!=g[k] for k in
+                                   ("home_team","away_team","display_date","display_clock","league")):
                 raise RuntimeError("CROSS_SOURCE_GAME_ID_COLLISION")
-            seen[id]=g
-        for id,m in market.items():
-            if id in ods and ods[id]!=m:reject["MULTIPLE_DATE_ODDS_VARIANTS"]+=1
-            # Keep first encountered, no phantom quote moves.
-            else:ods[id]=m
-    return seen,ods,coverage,dict(reject)
+            seen[gid]=g
+        for gid,m in market.items():
+            if gid in ods and ods[gid]!=m:reject["MULTIPLE_DATE_ODDS_VARIANTS"]+=1
+            else:ods[gid]=m
+    if not coverage:raise RuntimeError("ALL_THREE_007_DATE_FEEDS_UNAVAILABLE: "+str(source_errors))
+    return seen,ods,coverage,dict(reject),source_errors
 
 def reconcile(fixture,site,odds,target):
     targets={(g["home"],g["away"]):g for g in fixture}
@@ -145,8 +166,22 @@ def reconcile(fixture,site,odds,target):
 
 def run(date,out):
     fixture,sources=fetch_schedule(date)
-    ids,odds,coverage,issues=source_for_date(date)
+    ids,odds,coverage,issues,source_errors=source_for_date(date)
     matched,rej=reconcile(fixture,ids,odds,date)
+    matched_official={g["nba_game_id"] for g in matched}
+    missing=[]
+    for g in fixture:
+        if g["nba_game_id"] in matched_official:continue
+        site_candidates=[(mid,site) for mid,site in ids.items()
+            if site["league"]=="NBA" and matchup_key(site["home_team"],site["away_team"])==(g["home"],g["away"])]
+        valid=[(mid,site) for mid,site in site_candidates
+            if accept_match(site,g,site["display_date"],site["display_clock"])]
+        reason=("007_MATCHUP_NOT_FOUND" if not site_candidates else
+                "007_SITE_CLOCK_OR_DATE_UNVERIFIED" if not valid else
+                "007_MARKET_MISSING" if not any(mid in odds for mid,_ in valid) else
+                "007_IDENTITY_AMBIGUOUS")
+        missing.append({"nba_game_id":g["nba_game_id"],"home":g["home"],
+                        "away":g["away"],"beijing_tip":g["beijing_tip"],"reason":reason})
     output={
       "captured_at_utc":datetime.now(timezone.utc).isoformat(),
       "requested_display_date":date,
@@ -159,10 +194,12 @@ def run(date,out):
       "site_query_dates":coverage,
       "match_rejections":rej,
       "source_rejections":issues,
+      "source_query_errors":source_errors,
+      "unmatched_nba_fixtures":missing,
       "nba_cba_games":matched,
       "markets_joined_for_date":len(matched),
       "nba_cba_joined_for_date":len(matched),
-      "nba_markets_missing":len(fixture)-len(matched),
+      "nba_markets_missing":len(missing),
       "all_scoreboard_matches":len(ids),
       "all_untargeted_market_matches":len(odds),
       "market_opening_not_available":True,
@@ -175,7 +212,10 @@ def run(date,out):
     Path(out).write_text(json.dumps(output,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print("NBA_US_TO_BEIJING_TITAN_RECONCILIATION "+json.dumps({
          "target":date,"fixtures":len(fixture),"verified_market_games":len(matched),
-         "coverage":coverage,"reject":rej,"status":output["report_quality"]},ensure_ascii=False),flush=True)
+         "missing":missing,"coverage":coverage,"query_errors":source_errors,
+         "reject":rej,"status":output["report_quality"]},ensure_ascii=False),flush=True)
+    if fixture and not matched:
+        raise RuntimeError("OFFICIAL_BEIJING_GAMES_EXIST_BUT_007_MARKETS_ZERO")
     return output
 
 def self_test():
