@@ -54,7 +54,7 @@ def test():
     a=convert(row)
     assert a["beijing_date"]=="2026-10-31"
     assert a["us_eastern_date"]=="2026-10-30"
-    assert a["beijing_tip"].endswith("07:00")
+    assert a["beijing_tip"].startswith("2026-10-31T07:00")
     assert extract({"leagueSchedule":{"gameDates":[{"games":[row]}]}},"2026-10-31")==[a]
     try:parse_date("2026-10-31T07:00:00")
     except ValueError:pass
