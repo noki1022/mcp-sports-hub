@@ -1,7 +1,7 @@
 name: Verify hourly NBA market snapshot movement
 on:
   push:
-    branches: [fix/hourly-market-snapshots-and-movement-20261030]
+    branches: [fix/hourly-market-snapshots-and-movement-20261030, fix/hourly-snapshot-stability-full-model-20261030]
   pull_request:
     branches: [main]
 permissions:
@@ -26,5 +26,9 @@ jobs:
           assert 'git add reports/hourly/' in s
           assert 'cancel-in-progress: false' in s
           assert 'titan007_hourly_movement.html' in s
+          assert s.index('git pull --ff-only origin main') < s.index('titan007_hourly_history.py capture')
+          assert 'nba_prediction_adapter.py --joined titan007_joined_today.json' in s
+          assert 'nba_model_report.py --joined titan007_joined_today.json' in s
+          assert 'reports/hourly/**/*.json' in s
           print('HOURLY_PERSISTENCE_WIRING_PASS')
           PY
