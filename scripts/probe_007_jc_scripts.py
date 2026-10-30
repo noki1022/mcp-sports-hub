@@ -83,8 +83,8 @@ def examine_js(raw):
         snippets=[]
         for m in list(re.finditer(re.escape(target),text,re.I))[:4]:
             excerpt=text[max(0,m.start()-120):min(len(text),m.end()+120)]
-            excerpt=re.sub(r"[\\r\\n\\t]+"," ",excerpt)
-            excerpt=re.sub(r"(?i)(token|secret|key|password)\\s*[:=]\\s*['\\\"][^'\\\"]+['\\\"]",r"\\1=[REDACTED]",excerpt)
+            excerpt=re.sub(r"[\r\n\t]+"," ",excerpt)
+            excerpt=re.sub(r"(?i)(token|secret|key|password)\\s*[:=]\\s*['\\\"][^'\\\"]+['\\\"]",r"\1=[REDACTED]",excerpt)
             snippets.append(excerpt[:270])
         if snippets:contexts[target]=snippets
     return {"bytes":len(raw),"sha256_prefix":hashlib.sha256(raw).hexdigest()[:16],
