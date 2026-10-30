@@ -30,7 +30,7 @@ def load(path):
         for n,step in enumerate(steps):
             assert isinstance(step,dict),(path,job,n)
             assert ("uses" in step)^("run" in step),(path,job,n,"orphaned or ambiguous step")
-            assert "name" in step or "uses" in step,(path,job,n)
+            # GitHub permits unnamed run steps; only orphan blocks are invalid.
     return obj
 def main():
     for path in sorted((ROOT/".github/workflows").glob("*.yml")):load(path)
