@@ -114,8 +114,16 @@ def dated_source(target_date):
     from xml.etree import ElementTree as ET
     from urllib.parse import urlencode
     query=urlencode({"date":target_date,"h":0,"m":0,"s":1})
-    scores=public_get(DATE_SCORES_URL+"?"+query,limit=600000)
-    identities,rejected=identify(scores)
+    # Reuse P0 fail-closed XML retries for the actual dated scoreboard feed.
+    for attempt in range(3):
+        try:
+            scores=public_get(DATE_SCORES_URL+"?"+query,limit=600000)
+            identities,rejected=identify(scores)
+            break
+        except ET.ParseError:
+            if attempt==2:
+                raise RuntimeError("Scoreboard XML malformed/truncated in all three downloads")
+            time.sleep(2*(attempt+1))
     odds_query=urlencode({"date":target_date,"id":3,"h":0,"m":0})
     raw=public_get(DATE_ODDS_URL+"?"+odds_query,limit=600000)
     root=from_gb_xml(raw)
