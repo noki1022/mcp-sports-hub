@@ -98,7 +98,7 @@ if __name__=="__main__":
                     previous.get("priced_nba_to_007")!=result["priced_nba_to_007"]):
                     abort("LOCK_IDENTITY_CHANGED")
                 print("OVERNIGHT_2130_LOCK_REUSED",dest)
-                return
+                result=previous
         else:
             if not a.cohort or not Path(a.cohort).is_file():abort("NO_PRIOR_2130_LOCK")
             result=enforce(board,json.loads(Path(a.cohort).read_text()),a.phase)
