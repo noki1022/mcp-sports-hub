@@ -149,9 +149,22 @@ def self_test():
            "win_lose":{"status":"OBSERVED","data":{"current":{"first_side":2.95,"second_side":1.19}}},
            "handicap":{"status":"OBSERVED","data":{"current":{"line":7.5,"first_side":1.75,"second_side":1.65}}},
            "total":{"status":"OBSERVED","data":{"current":{"line":225.5,"first_side":1.70,"second_side":1.70}}}}}]}}
-    top={"captured_at_utc":"2026-10-30T14:00:00Z","games":[{"game_id":"170","markets":{
-      "full_spread":{"companies":[{"company_id":"3","source":"DATED_007_COMPANY_ID","current":{"line":6.5}}]},
-      "full_total":{"companies":[{"company_id":"3","source":"DATED_007_COMPANY_ID","current":{"line":229.5}}]}}]}
+    top = {
+      "captured_at_utc": "2026-10-30T14:00:00Z",
+      "games": [{
+        "game_id": "170",
+        "markets": {
+          "full_spread": {"companies": [{
+            "company_id": "3", "source": "DATED_007_COMPANY_ID",
+            "current": {"line": 6.5}
+          }]},
+          "full_total": {"companies": [{
+            "company_id": "3", "source": "DATED_007_COMPANY_ID",
+            "current": {"line": 229.5}
+          }]}
+        }
+      }]
+    }
     out=make(joined,model,jc,top)
     m=out["games"][0]["markets"]
     assert out["ready_counts"]=={k:1 for k in MARKETS}
