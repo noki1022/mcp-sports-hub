@@ -115,7 +115,12 @@ def analyze(cur,previous):
             for g in s.get("games",[]):
                 if g.get("game_id")==game["game_id"] and all(g.get(k)==game.get(k) for k in ("league","display_date","home_team","away_team")):
                     same.append((t,p,g))
-        same.sort(key=lambda x:x[0])
+        # Daily and hourly archives may contain identical capture timestamps.
+        # Such duplicates are ONE observation, never multiple trend samples.
+        unique_by_time={}
+        for record in same:
+            unique_by_time[record[0]]=record
+        same=[unique_by_time[t] for t in sorted(unique_by_time)]
         prev=same[-1] if same else None
         first=same[0] if same else None
         moves={};flags=[]
