@@ -235,7 +235,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_slot_movement.json --dynamic nba_slot_dynamic_review.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_slot_movement.json --dynamic nba_slot_dynamic_review.json --top10 nba_top10_comparison.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token
       - name: Save confirmed accepted notification slot
         if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
         run: |
