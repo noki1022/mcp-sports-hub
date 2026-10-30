@@ -12,6 +12,7 @@ import json
 import re
 from pathlib import Path
 import sys
+import time
 import urllib.request
 import urllib.robotparser
 from xml.etree import ElementTree as ET
@@ -109,6 +110,11 @@ def self_test():
         '<h><![CDATA[746353^NBA,NBA^4^#fff^10月29日<br>07:00^0^^13^亚特兰大老鹰[东7],Atlanta Hawks^3^迈阿密热火,Miami Heat^0^2026]]></h>'
         '<h><![CDATA[751320^菲州长杯,菲州長盃^4^#fff^10月28日<br>17:15^0^^2875^菲律宾电信TNT,Talk N Text^2866^拉马多斯,Purefoods Star Hotshots^0^2026]]></h>'
         '</m><s>NBA^NBA^1^True</s><t>2026,9,28,17,0,0</t></c>').encode('gb18030')
+    try:
+        identify(b"<c><m><h><![CDATA[truncated</h></m></c>")
+        raise AssertionError("Malformatted XML silently accepted")
+    except ET.ParseError:
+        pass
     m,bad=identify(sample)
     assert not bad,(bad,)
     assert m["746353"]["league"]=="NBA",m["746353"]
@@ -125,7 +131,16 @@ def run(out,date):
     market_source=odds.download_once()
     market=odds.parse(market_source)
     if not market["records"]:raise RuntimeError("Missing market data")
-    matches,rejected=identify(public_get(SCORES_URL))
+    # Treat malformed or truncated XML as source failure, never partial data.
+    # Retry only the scoreboard feed, with bounded attempts and no row salvage.
+    for attempt in range(3):
+        try:
+            matches,rejected=identify(public_get(SCORES_URL))
+            break
+        except ET.ParseError:
+            if attempt==2:
+                raise RuntimeError("Scoreboard XML malformed/truncated in all three downloads")
+            time.sleep(2*(attempt+1))
     if not matches:raise RuntimeError("No identity data")
     linked=join(matches,market["records"],date)
     nba_cba=linked["nba_cba_matches"]

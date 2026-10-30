@@ -7,9 +7,10 @@ on:
         required: false
         type: string
   schedule:
-    - cron: "*/10 * * * *"
+    # Beijing 21:30 through next-day 06:30, hourly (UTC 13:30-22:30).
+    - cron: "30 13-22 * * *"
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: titan007-final-hourly-${{ github.ref }}
   cancel-in-progress: true
@@ -22,15 +23,26 @@ jobs:
       PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install locked NBA numerical dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet "numpy==2.2.6"
       - name: Select current Asia/Shanghai display date
         run: |
           python3 - <<'PY' >> "$GITHUB_ENV"
           import os,re
-          from datetime import datetime
+          from datetime import datetime,timedelta,time,date
           from zoneinfo import ZoneInfo
           x=os.environ.get('REQUESTED_DATE','').strip()
-          if x and not re.fullmatch(r'\d{4}-\d{2}-\d{2}',x): raise ValueError('invalid target date')
-          print('TARGET_DATE='+ (x or datetime.now(ZoneInfo('Asia/Shanghai')).date().isoformat()))
+          if x:
+              if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',x): raise ValueError('invalid target date')
+              date.fromisoformat(x)
+              target=x
+          else:
+              now=datetime.now(ZoneInfo('Asia/Shanghai'))
+              target=(now.date()+timedelta(days=1) if now.time()>=time(21,30) else now.date()).isoformat()
+          print('TARGET_DATE='+target)
           PY
       - name: Join current 007 markets with bounded retries
         run: |
@@ -64,7 +76,7 @@ jobs:
           key: pushplus-state-${{ github.run_id }}
           restore-keys: pushplus-state-
       - name: Push readable final report to WeChat via PushPlus
-        if: env.PUSHPLUS_TOKEN != ''
+        if: ${{ success() && env.PUSHPLUS_TOKEN != '' }}
         run: |
           python3 - <<'PY'
           import json,os,urllib.parse,urllib.request
@@ -128,23 +140,23 @@ jobs:
           state.write_text(json.dumps(sorted(sent|{g.get('game_id') for g in fresh}),ensure_ascii=False))
           print('PUSHPLUS_SENT_GAMES',len(fresh))
           PY
-      - name: Archive final report in repository when games exist
-        if: always()
+      # Final-hour snapshots are short-retention artifacts. No scheduled commits
+      # to main, and never archive incomplete runs.
+      - name: Check final report completeness before publication
+        if: success()
         run: |
-          count=$(python3 -c "import json; print(len(json.load(open('titan007_final_window.json')).get('nba_cba_games',[])))")
-          if [ "$count" -gt 0 ]; then
-            stamp=$(date -u +%Y%m%dT%H%M%SZ)
-            dir="reports/final-window/${TARGET_DATE}/${stamp}"
-            mkdir -p "$dir"
-            cp titan007_final_window.json titan007_final_hour_report.html titan007_final_hour_report.csv titan007_final_hour_market.json titan007_final_decision.json "$dir"/
-            git config user.name github-actions[bot]
-            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-            git add "$dir"
-            git commit -m "Archive Titan007 final window ${TARGET_DATE} ${stamp}"
-            git push
-          else
-            echo "No final-window games; no repository archive commit"
-          fi
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          for name in ("titan007_final_window.json", "titan007_final_hour_market.json",
+                       "titan007_final_decision.json", "nba_independent_predictions_gate.json",
+                       "nba_model_analysis.json", "titan007_final_hour_report.html"):
+              p=Path(name)
+              if not p.is_file() or p.stat().st_size==0:
+                  raise RuntimeError(f"INCOMPLETE_FINAL_WINDOW_REPORT: {name}")
+          games=json.loads(Path("titan007_final_window.json").read_text(encoding="utf-8")).get("nba_cba_games", [])
+          print("FINAL_REPORT_COMPLETE",len(games))
+          PY
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -160,4 +172,4 @@ jobs:
             nba_model_analysis.json
             nba_model_analysis.html
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 7
