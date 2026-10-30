@@ -183,6 +183,7 @@ def main():
     a.add_argument("--jingcai")
     a.add_argument("--sop")
     a.add_argument("--five")
+    a.add_argument("--priority-focus",help="Mandatory separate 21:30/06:30 model focus artifact")
     a.add_argument("--preview",default="pushplus_mobile_preview.html")
     a.add_argument("--status",default="pushplus_status.json")
     a.add_argument("--send",action="store_true")
@@ -259,7 +260,10 @@ def main():
             row["jc_match_label"]=identity.get("label") if identity.get("status")=="VERIFIED_JC_NUMBER" else None
             row["jc_match_no"]=identity.get("match_no") if identity.get("status")=="VERIFIED_JC_NUMBER" else None
             row["jc_match_identity_status"]=identity.get("status","UNVERIFIED")
-        html=render_v2(rows,model,title,joined.get("requested_display_date") if args.mode=="three" else movement.get("target_date"),args.mode)
+        focus=read(args.priority_focus) if args.priority_focus else None
+        if focus is not None and (args.mode!="three" or focus.get("slot") not in ("2130","0630")):
+            raise RuntimeError("INVALID_PRIORITY_FOCUS_REPORT")
+        html=render_v2(rows,model,title,joined.get("requested_display_date") if args.mode=="three" else movement.get("target_date"),args.mode,priority_focus=focus)
     html="<div style='"+style()+"max-width:560px;margin:0 auto;'>"+html+"</div>"
     Path(args.preview).write_text(html,encoding="utf-8")
     state={"mode":args.mode,"games_considered":count,"template":"html","preview":args.preview}
