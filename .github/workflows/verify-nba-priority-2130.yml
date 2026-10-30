@@ -1,0 +1,39 @@
+name: Verify NBA 21:30 priority pre-cutoff delivery
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/nba-priority-2130.yml'
+      - '.github/workflows/titan007-final-hourly.yml'
+      - 'scripts/nba_2130_priority_gate.py'
+      - '.github/workflows/verify-nba-priority-2130.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 scripts/nba_2130_priority_gate.py --self-test
+      - run: python3 -m py_compile scripts/nba_2130_priority_gate.py
+      - name: Ensure fixed push, backup slots and de-dup
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('.github/workflows/nba-priority-2130.yml').read_text()
+          h=Path('.github/workflows/titan007-final-hourly.yml').read_text()
+          for t in ('30 13 * * *','40 13 * * *','50 13 * * *'):
+              assert f'- cron: "{t}"' in s
+          assert '30 13-22 * * *' not in h
+          assert '30 14-22 * * *' in h
+          for cmd in ('titan007_hourly_history.py capture','nba_prediction_adapter.py',
+                      'nba_hourly_dynamic_review.py','pushplus_mobile.py --mode three',
+                      '--phase presend','reports/pushplus-sent/$TARGET_DATE/2130.json'):
+              assert cmd in s,cmd
+          assert s.index('--phase presend')<s.index('pushplus_mobile.py --mode three')
+          assert s.index('pushplus_mobile.py --mode three')<s.index('Archive snapshot, complete analysis')
+          assert '--require-token' in s
+          print('NBA_PRIORITY_PRE_CUTOFF_WIRING_PASS')
+          PY
