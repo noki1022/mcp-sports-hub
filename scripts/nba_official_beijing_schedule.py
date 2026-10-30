@@ -26,7 +26,9 @@ def convert(g):
     et=utc.astimezone(ET)
     home=g["homeTeam"];away=g["awayTeam"]
     hid=str(home.get("teamTricode") or "").upper();aid=str(away.get("teamTricode") or "").upper()
-    if not (len(hid)==3 and len(aid)==3 and hid!=aid):raise ValueError("TEAM_TRICODE_INVALID")
+    aliases={"GS":"GSW","SA":"SAS","NY":"NYK","NO":"NOP","UTAH":"UTA","WSH":"WAS"}
+    hid=aliases.get(hid,hid);aid=aliases.get(aid,aid)
+    if not (2<=len(hid)<=3 and 2<=len(aid)<=3 and hid!=aid):raise ValueError("TEAM_TRICODE_INVALID")
     return {"nba_game_id":str(g["gameId"]),"home":hid,"away":aid,
             "utc_tip":utc.isoformat(),"beijing_tip":bj.isoformat(timespec="minutes"),
             "beijing_date":bj.date().isoformat(),
