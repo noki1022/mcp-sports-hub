@@ -191,7 +191,21 @@ def main():
         count=1
     elif args.mode=="three":
         joined=read(args.joined)
-        rows=from_three(joined,read(args.model),read(args.movement))
+        if args.dynamic:
+            movement=read(args.movement)
+            by_move={str(x.get("game_id")):x for x in movement.get("games",[])}
+            by_review={str(x.get("game_id")):x for x in read(args.dynamic).get("games",[])}
+            rows=[]
+            for g in joined.get("nba_cba_games",[]):
+                gid=str(g.get("game_id"))
+                row=by_move.get(gid)
+                if row is None:
+                    raise RuntimeError("MISSING_DYNAMIC_SNAPSHOT_FOR_GAME_"+gid)
+                rows.append({**row,"dynamic_review":by_review.get(gid)})
+                if not rows[-1]["dynamic_review"]:
+                    raise RuntimeError("MISSING_DYNAMIC_ANALYSIS_FOR_GAME_"+gid)
+        else:
+            rows=from_three(joined,read(args.model),read(args.movement))
         model={str(x.get("game_id")):x for x in read(args.model).get("games",[])}
         count=len(rows)
         title="NBA/CBA 赛前研判 V2｜"+str(joined.get("requested_display_date","未知"))

@@ -17,6 +17,13 @@ on:
     - cron: "0 6 * * *"
     - cron: "15 6 * * *"
     - cron: "30 6 * * *"
+    # Full-board dynamic market and model reviews: 15:00/18:00 Beijing, recover at :15/:30.
+    - cron: "0 7 * * *"
+    - cron: "15 7 * * *"
+    - cron: "30 7 * * *"
+    - cron: "0 10 * * *"
+    - cron: "15 10 * * *"
+    - cron: "30 10 * * *"
     - cron: "0 13 * * *"
 permissions:
   contents: write
@@ -97,9 +104,27 @@ jobs:
           python3 analysis/market_value_policy.py --market-decision titan007_three_decision.json --out market_value_policy.json
           python3 analysis/nba_model_report.py --joined titan007_three_joined.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html --injury-context nba_injury_context.json
           python3 analysis/market_movement_tracker.py --current titan007_three_joined.json --history-root reports/daily/$TARGET_DATE --out titan007_three_movement.json
+      - name: Capture full-board point-in-time snapshot and compare prior slots
+        run: |
+          git pull --ff-only origin main
+          python3 analysis/titan007_hourly_history.py capture --current titan007_three_joined.json --root reports/hourly --daily-root reports/daily --out-movement titan007_slot_movement.json
+          python3 analysis/nba_hourly_dynamic_review.py --movement titan007_slot_movement.json --model nba_model_analysis.json --injury nba_injury_context.json --out nba_slot_dynamic_review.json
+      - name: Publish point-in-time snapshots for next run
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add reports/hourly/
+          if ! git diff --cached --quiet; then
+            git commit -m "Save fixed-slot NBA market snapshots $TARGET_DATE"
+            for n in 1 2 3; do
+              if git push; then exit 0; fi
+              git pull --rebase origin main
+            done
+            exit 1
+          fi
       - name: Audit market B and fusion C without directional assumptions
         run: |
-          python3 analysis/nba_market_bc_diagnostics.py --joined titan007_three_joined.json --movement titan007_three_movement.json --model nba_model_analysis.json --out nba_market_bc_diagnostics.json
+          python3 analysis/nba_market_bc_diagnostics.py --joined titan007_three_joined.json --movement titan007_slot_movement.json --model nba_model_analysis.json --out nba_market_bc_diagnostics.json
       - name: Resolve canonical report slot and check already sent
         id: dedup
         run: |
@@ -111,6 +136,8 @@ jobs:
           slots={'0 22 * * *':'0600','0 4 * * *':'1200',
                  '15 4 * * *':'1200','30 4 * * *':'1200',
                  '0 6 * * *':'1400','15 6 * * *':'1400','30 6 * * *':'1400',
+                 '0 7 * * *':'1500','15 7 * * *':'1500','30 7 * * *':'1500',
+                 '0 10 * * *':'1800','15 10 * * *':'1800','30 10 * * *':'1800',
                  '0 13 * * *':'2100'}
           if expr and expr not in slots: raise RuntimeError('UNKNOWN_SCHEDULE')
           slot=slots.get(expr) or datetime.now(ZoneInfo('Asia/Shanghai')).strftime('%H%M')
@@ -144,7 +171,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_three_movement.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_slot_movement.json --dynamic nba_slot_dynamic_review.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token
       - name: Save confirmed accepted notification slot
         if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
         run: |
@@ -189,6 +216,8 @@ jobs:
             nba_official_injuries.json
             nba_model_analysis.html
             titan007_three_movement.json
+            titan007_slot_movement.json
+            nba_slot_dynamic_review.json
             pushplus_mobile_preview.html
             pushplus_status.json
           if-no-files-found: warn
