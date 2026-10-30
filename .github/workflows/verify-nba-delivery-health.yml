@@ -1,0 +1,44 @@
+name: Verify Beijing NBA delivery watchdog and hourly idempotency
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/nba_delivery_health.py'
+      - '.github/workflows/nba-delivery-health-watchdog.yml'
+      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/verify-nba-delivery-health.yml'
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Test health status, cross-midnight dates and hourly delivery marker
+        run: |
+          python3 -m py_compile scripts/nba_delivery_health.py
+          python3 scripts/nba_delivery_health.py --self-test
+          python3 -m pip install --quiet PyYAML==6.0.2
+          python3 scripts/validate_nba_schedules.py
+          python3 - <<'PY'
+          from pathlib import Path
+          import yaml
+          hourly=Path('.github/workflows/titan007-final-hourly.yml').read_text()
+          health=Path('.github/workflows/nba-delivery-health-watchdog.yml').read_text()
+          assert '--require-delivery' in hourly
+          assert 'HOURLY_REPORT_SLOT' in hourly and 'HOURLY_DELIVERY_MARKED' in hourly
+          assert 'if: steps.hourly_gate.outputs.skip' in hourly
+          assert 'reports/pushplus-sent/' in hourly
+          assert 'GITHUB_TOKEN:' in health and 'PUSHPLUS_TOKEN:' in health
+          assert '--alert-marker-out' in health
+          assert '55 14-21 * * *' in health
+          for path in ('.github/workflows/titan007-final-hourly.yml',
+                       '.github/workflows/nba-delivery-health-watchdog.yml'):
+              obj=yaml.safe_load(Path(path).read_text())
+              assert obj['jobs']
+              for job in obj['jobs'].values():
+                  for step in job['steps']:
+                      assert bool('run' in step) != bool('uses' in step)
+          print('NBA_DELIVERY_HEALTH_CI_PASS')
+          PY

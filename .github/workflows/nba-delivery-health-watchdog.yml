@@ -1,0 +1,88 @@
+name: NBA Beijing scheduled delivery acceptance watchdog
+on:
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: Canonical Beijing slot (e.g. 2130, 0030)
+        required: false
+        type: string
+      target_date:
+        description: Beijing game display date YYYY-MM-DD
+        required: false
+        type: string
+  schedule:
+    - cron: "40 4 * * *"
+    - cron: "40 6 * * *"
+    - cron: "40 7 * * *"
+    - cron: "40 10 * * *"
+    - cron: "20 13 * * *"
+    - cron: "55 13 * * *"
+    - cron: "40 14 * * *"
+    - cron: "55 14-21 * * *"
+    - cron: "55 22 * * *"
+permissions:
+  actions: read
+  contents: write
+concurrency:
+  group: nba-delivery-health-watchdog-main
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      GH_HEALTH_SCHEDULE: ${{ github.event.schedule || '' }}
+      HEALTH_INPUT_SLOT: ${{ inputs.slot || '' }}
+      HEALTH_INPUT_DATE: ${{ inputs.target_date || '' }}
+      GITHUB_TOKEN: ${{ github.token }}
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Unit test and fetch latest acceptance markers
+        run: |
+          python3 scripts/nba_delivery_health.py --self-test
+          git pull --ff-only origin main
+      - name: Check scheduled capture and delivery; alert only on missing marker
+        run: |
+          extra=()
+          if [ -n "$HEALTH_INPUT_SLOT" ]; then
+            test -n "$HEALTH_INPUT_DATE"
+            extra=(--slot "$HEALTH_INPUT_SLOT" --target-date "$HEALTH_INPUT_DATE")
+          else
+            extra=(--schedule "$GH_HEALTH_SCHEDULE")
+          fi
+          python3 scripts/nba_delivery_health.py "${extra[@]}" --send \
+            --out nba_delivery_health.json --alert-marker-out reports/delivery-alert-sent/health-check.json
+      - name: Save unique alert marker when PushPlus accepted
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          p=pathlib.Path('nba_delivery_health.json')
+          r=json.loads(p.read_text())
+          if r.get('alert_api_accepted'):
+              src=pathlib.Path('reports/delivery-alert-sent/health-check.json')
+              dst=pathlib.Path('reports/delivery-alert-sent')/r['target_date_beijing']/(r['slot']+'.json')
+              dst.parent.mkdir(parents=True,exist_ok=True)
+              dst.write_bytes(src.read_bytes())
+              src.unlink()
+          PY
+          git add reports/delivery-alert-sent/
+          if ! git diff --cached --quiet; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git commit -m "Record NBA health alert PushPlus API acceptance"
+            for n in 1 2 3; do
+              if git push origin HEAD:main; then exit 0; fi
+              git pull --rebase origin main
+            done
+            exit 1
+          fi
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-delivery-health-${{ github.run_id }}
+          path: nba_delivery_health.json
+          if-no-files-found: ignore
+          retention-days: 14
