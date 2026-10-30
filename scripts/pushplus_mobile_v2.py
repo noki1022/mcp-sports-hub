@@ -101,16 +101,38 @@ def signal(g):
     return n+(2 if g.get("status") in ("LINE_AND_WATER_MOVE","LINE_MOVE","WATER_MOVE") else 0)
 
 def verdict_summary(v):
-    if not v:return "<div style='font-size:11px;color:#98520b;'>两项研究方向：缺少可核实的预测数据</div>"
-    m=v.get("markets") or {}
-    sp=m.get("SPREAD") or {};tot=m.get("TOTAL") or {}
-    def side(q,kind):
-        d=q.get("direction")
-        return ("主队方向" if d=="HOME" else "客队方向" if d=="AWAY" else "未评估") if kind=="SPREAD" else ("大分" if d=="OVER" else "小分" if d=="UNDER" else "未评估")
-    return ("<div style='font-size:11px;line-height:1.55;color:#264564;'><b>研究倾向</b>　让分 "+
-      text(side(sp,"SPREAD"))+" ("+f(sp.get("line"))+")"+
-      " · 总分 "+text(side(tot,"TOTAL"))+" ("+f(tot.get("line"))+")"+
-      "；信心 "+text(sp.get("strength","—"))+"/"+text(tot.get("strength","—"))+"</div>")
+    """Show 007 institutional research using the *actual* signed home handicap.
+
+    Institutional raw +5.5 means the home team gives 5.5; display home -5.5.
+    Do not present raw 5.5 as an ambiguous or positive home handicap.
+    """
+    if not v:
+        return "<div style='font-size:11px;color:#98520b;'>007机构研判：暂无可靠预测</div>"
+    markets=v.get("markets") or {}
+    sp=markets.get("SPREAD") or {}
+    tot=markets.get("TOTAL") or {}
+    raw=num(sp.get("line"))
+    signed=num(sp.get("signed_home_handicap"))
+    if signed is None and raw is not None:
+        # Legacy snapshots may lack the new field; the source raw line is
+        # institutional + = home gives. Explicitly convert rather than guessing.
+        signed=-raw
+    direction=sp.get("direction")
+    if signed is not None and direction in ("HOME","AWAY"):
+        handicap=("主队让 "+f(-signed)+" 分" if signed<0 else
+                  "主队受让 "+f(signed)+" 分" if signed>0 else "平手")
+        target="主队赢盘" if direction=="HOME" else "客队赢盘"
+        sp_label=handicap+"（主队盘口 "+f(signed,True)+"）→ 倾向"+target
+    else:
+        sp_label="数据不足，暂不判断"
+    total_line=num(tot.get("line"))
+    td=tot.get("direction")
+    tl=("倾向"+("大分" if td=="OVER" else "小分")+"（"+f(total_line)+"）"
+        if total_line is not None and td in ("OVER","UNDER") else "数据不足，暂不判断")
+    return ("<div style='font-size:11px;line-height:1.65;color:#264564;'>"
+        "<b>007机构盘口研究</b><div>让分："+text(sp_label)+
+        "</div><div>总分："+text(tl)+
+        "</div><div style='color:#718297;'>研究倾向，不等于已验证投注优势</div></div>")
 
 def jingcai_status(x, detailed=False):
     """007 lottery sides: left=home and right=away, never anonymous slot labels.
@@ -405,4 +427,13 @@ def self_test():
     assert "需要重点复核" in sop_html and "首次采样，仅有基线" in sop_html
     assert "总分模型-竞彩线：+5.5分" in sop_html
     assert sop_html.count("竞彩赔率（007）")==1
+    # 2026-10-31 real board semantics: Toronto favored at raw +5.5,
+    # therefore home -5.5; Dallas underdog at raw -6.5 => home +6.5.
+    t1=verdict_summary({"markets":{"SPREAD":{"line":5.5,"direction":"HOME","signed_home_handicap":-5.5},
+      "TOTAL":{"line":226.5,"direction":"OVER"}}})
+    assert "主队让 5.5 分" in t1 and "主队盘口 -5.5" in t1 and "倾向主队赢盘" in t1
+    t2=verdict_summary({"markets":{"SPREAD":{"line":-6.5,"direction":"AWAY","signed_home_handicap":6.5},
+      "TOTAL":{"line":224.5,"direction":"OVER"}}})
+    assert "主队受让 6.5 分" in t2 and "主队盘口 +6.5" in t2 and "倾向客队赢盘" in t2
+    assert "主队方向（5.5）" not in t1 and "客队方向（-6.5）" not in t2
     print("PUSHPLUS_V2_COMPACT_SELF_TEST_PASS")
