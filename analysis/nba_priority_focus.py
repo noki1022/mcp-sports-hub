@@ -104,25 +104,34 @@ def choose(joined,model,jingcai,sop,slot):
         })
     candidates.sort(key=lambda x:(-abs(x["model_home_probability"]-.5),
                                   x["jingcai_number"],x["game_id"]))
-    # Show the strongest validated contrarian case even when it falls outside
-    # the ordinary top three; this is attention, not an odds-based model update.
+    # Model focus membership and ordering MUST be entirely odds-blind.
+    # Bookmaker changes cannot promote, demote, remove, or replace a model pick.
     top=candidates[:min(3,len(candidates))]
-    divergence=[x for x in candidates if x["contrarian_market_signal"]]
-    if divergence and not any(x["contrarian_market_signal"] for x in top):
-        strongest=max(divergence,key=lambda x:abs(x["model_minus_market_home_pp"]))
-        if len(top)==3:top[-1]=strongest
-        elif strongest not in top:top.append(strongest)
+    # Divergences are separately displayed as post-model market comparisons.
+    # This list must NEVER feed back into the independent ranking.
+    divergence=sorted((x for x in candidates if x["contrarian_market_signal"]),
+                      key=lambda x:(-abs(x["model_minus_market_home_pp"]),x["game_id"]))
+    market_divergences=[{
+        "game_id":x["game_id"],"jingcai_number":x["jingcai_number"],
+        "home_team":x["home_team"],"away_team":x["away_team"],
+        "model_direction":x["model_direction"],
+        "model_home_probability":x["model_home_probability"],
+        "market_no_vig_home":x["market_no_vig_home"],
+        "model_minus_market_home_pp":x["model_minus_market_home_pp"],
+    } for x in divergence[:3]]
     for index,record in enumerate(top,1):record["focus_rank"]=index
     return {
         "schema_version":VERSION,"slot":slot,
         "target_beijing_date":joined.get("requested_display_date"),
-        "selection_method":"RELATIVE_MODEL_PROBABILITY_RANK_AFTER_DATA_SAFETY_CHECKS",
+        "selection_method":"ODDS_BLIND_RELATIVE_MODEL_PROBABILITY_RANK_AFTER_MODEL_SAFETY_CHECKS",
         "confidence_threshold":None,"max_displayed":3,
         "focus_games":top,"focus_count":len(top),
+        "market_divergences":market_divergences,
+        "odds_independent_focus":True,
         "eligible_count":len(candidates),"total_nba_games":len(source),
         "contrarian_signal_count":len(divergence),
         "excluded_count":len(excluded),"excluded":excluded,
-        "statement":"重点关注是同批模型相对排序，不是绝对高置信度或投注收益预测；完整五玩法仍逐场展示",
+        "statement":"赔率高低不决定模型胜率；重点关注独立排序，逆向分歧单独观察；五玩法仍逐场展示",
         "research_only":True
     }
 
@@ -147,13 +156,31 @@ def self_test():
     assert choose(j,md,jd,sop,"0630")["focus_games"][0]["jingcai_number"]=="周六305"
     md["games"][4]["model_probability_raw"]={"home":.61}
     assert "5" not in [x["game_id"] for x in choose(j,md,jd,sop,"0630")["focus_games"]]
-    # A fresh, correctly identified 007 quote with major divergence blocks focus.
-    jd["jc_007_public_odds_shadow"]["games"]=[{"game_id":"3","markets":{"win_lose":{
-       "status":"OBSERVED","data":{"current":{"first_side":1.95,"second_side":1.95}}}}}]
-    sop["games"][2]["jingcai"]["fresh_for_comparison"]=True
+    # Low odds must NOT overwrite model probabilities or alter model focus.
+    before=choose(j,md,jd,sop,"2130")
+    before_ids=[x["game_id"] for x in before["focus_games"]]
+    before_p=[x["model_home_probability"] for x in before["focus_games"]]
+    jd["jc_007_public_odds_shadow"]["games"]=[{"game_id":"6","markets":{"win_lose":{
+       "status":"OBSERVED","data":{"current":{"first_side":1.11,"second_side":7.5}}}}}]
+    sop["games"][5]["jingcai"]["fresh_for_comparison"]=True
     contrary=choose(j,md,jd,sop,"2130")
-    assert "3" in [x["game_id"] for x in contrary["focus_games"]]
-    assert any(x["contrarian_market_signal"] for x in contrary["focus_games"])
+    assert before_ids==[x["game_id"] for x in contrary["focus_games"]]
+    assert before_p==[x["model_home_probability"] for x in contrary["focus_games"]]
+    assert contrary["market_divergences"][0]["game_id"]=="6"
+    assert contrary["odds_independent_focus"] is True
+    # A 1.44 home price versus independent model home=9.9% is retained, not vetoed.
+    md["games"][5]["model_probability"]["home"]=0.099
+    jd["jc_007_public_odds_shadow"]["games"][0]["markets"]["win_lose"]["data"]["current"]={"first_side":1.44,"second_side":2.80}
+    extreme=choose(j,md,jd,sop,"2130")
+    assert any(x["game_id"]=="6" for x in extreme["focus_games"])
+    needle=next(x for x in extreme["market_divergences"] if x["game_id"]=="6")
+    assert needle["model_home_probability"]==0.099
+    assert needle["model_minus_market_home_pp"] < -50
+    # Flip market quotes; the independent ranked list remains untouched.
+    jd["jc_007_public_odds_shadow"]["games"][0]["markets"]["win_lose"]["data"]["current"]={"first_side":5.0,"second_side":1.10}
+    flip=choose(j,md,jd,sop,"2130")
+    assert [x["game_id"] for x in flip["focus_games"]]==[x["game_id"] for x in extreme["focus_games"]]
+    assert [x["model_home_probability"] for x in flip["focus_games"]]==[x["model_home_probability"] for x in extreme["focus_games"]]
     for row in md["games"]:row["model_status"]="DISABLED"
     empty=choose(j,md,jd,sop,"2130")
     assert empty["focus_count"]==0 and empty["total_nba_games"]==6
