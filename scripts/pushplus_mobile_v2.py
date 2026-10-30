@@ -147,8 +147,12 @@ def render_v2(games,model_map,title,target,mode):
                 q=(cross.get("markets") or {}).get(key) or {}
                 count=int(q.get("company_count") or 0)
                 if count:
+                    changes=q.get("last_capture_company_changes") or []
+                    rising=sum(1 for v in changes if num(v.get("delta_line")) is not None and num(v["delta_line"])>0)
+                    falling=sum(1 for v in changes if num(v.get("delta_line")) is not None and num(v["delta_line"])<0)
                     parts.append(text(label)+" 已识别 "+str(count)+" 家，盘口中位 "+f(q.get("median_line"))+
-                        "，区间 "+f(q.get("line_min"))+"—"+f(q.get("line_max")))
+                        "，区间 "+f(q.get("line_min"))+"—"+f(q.get("line_max"))+
+                        "；同机构跨采样上调 "+str(rising)+" / 下调 "+str(falling))
                 else:
                     parts.append(text(label)+" 前十机构暂无可靠公开数据")
             body+=("<div style='border:1px solid #dae5f1;padding:8px;border-radius:7px;"
