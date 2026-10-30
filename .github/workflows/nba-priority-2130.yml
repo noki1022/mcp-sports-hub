@@ -63,6 +63,10 @@ jobs:
           done
           exit 1
       - if: steps.gate.outputs.sent != 'true'
+        name: Enforce official slate frozen at noon before locking 21:30 prices
+        run: |
+          python3 scripts/nba_noon_slate.py enforce --joined titan007_priority_joined.json --lock "reports/noon-cohorts/$TARGET_DATE/1200.json" --out nba_same_slate.json
+      - if: steps.gate.outputs.sent != 'true'
         name: Verify all official games and Beijing tipoffs
         run: |
           python3 - <<'PY'
