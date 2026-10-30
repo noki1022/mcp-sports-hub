@@ -345,15 +345,15 @@ def self_test():
       "away_team":"休斯顿火箭","jc_match_label":"周五314",
       "jc_match_no":"314","jc_match_identity_status":"VERIFIED_JC_NUMBER",
       "jc_007_price_shadow":{"markets":{
-       "win_lose":{"status":"OBSERVED","data":{"current":{"first_side":1.19,"second_side":2.95}}},
+       "win_lose":{"status":"OBSERVED","data":{"current":{"first_side":2.95,"second_side":1.19}}},
        "handicap":{"status":"OBSERVED","data":{"opening":{"line":5.5,"first_side":1.75,"second_side":1.65},
           "current":{"line":7.5,"first_side":1.75,"second_side":1.65}}},
        "total":{"status":"OBSERVED","data":{"current":{"line":225.5,"first_side":1.70,"second_side":1.70}}}}}}
     html_exact=render_v2([exact],m,"赛前模型","2026-10-31","three")
     assert "周五314" in html_exact
     assert "主队：达拉斯独行侠　｜　客队：休斯顿火箭" in html_exact
-    assert "主胜（达拉斯独行侠）<b>1.19</b>" in html_exact
-    assert "客胜（休斯顿火箭）<b>2.95</b>" in html_exact
+    assert "主胜（达拉斯独行侠）<b>2.95</b>" in html_exact
+    assert "客胜（休斯顿火箭）<b>1.19</b>" in html_exact
     assert "达拉斯独行侠 <b>+7.5</b>（受让）" in html_exact
     assert "休斯顿火箭 <b>-7.5</b>（让分）" in html_exact
     assert "大分 <b>1.70</b>" in html_exact and "小分 <b>1.70</b>" in html_exact
