@@ -21,6 +21,26 @@ jobs:
           python3 scripts/parse_007_jc_three_market.py \
             --board reports/daily/2026-10-31/1800/titan007_three_joined.json \
             --output 007-jc-three-real-prices.json
+      - name: Confirm Celtics is user-confirmed not-on-sale in the win-loss pool
+        run: |
+          python3 - <<'PY'
+          import json,sys
+          sys.path.insert(0,"scripts")
+          from parse_007_jc_three_market import parse
+          from probe_007_jc_scripts import ORIGIN,UA,get_bytes,robots_policy
+          board=json.load(open("reports/daily/2026-10-31/1800/titan007_three_joined.json"))
+          rp,status=robots_policy()
+          assert rp is not False and (rp is None or rp.can_fetch(UA,ORIGIN+"/xml/odds_jc_lq.txt"))
+          d=parse(get_bytes(ORIGIN+"/xml/odds_jc_lq.txt",300000),board)
+          rows=[g for g in d["matches"] if g["game_id"]=="728166"]
+          assert len(rows)==1
+          m=rows[0]["markets"]
+          assert m["win_lose"]["status"]=="NOT_ON_SALE_USER_CONFIRMED",m
+          assert m["handicap"]["status"]=="OBSERVED"
+          assert m["total"]["status"]=="OBSERVED"
+          assert d["007_jingcai_reference_user_confirmed"]
+          print("CELTICS_WIN_LOSE_USER_CONFIRMED_NOT_ON_SALE_PASS")
+          PY
       - name: Check existing source-audit workflow receives independent JC price shadow
         run: |
           python3 scripts/titan007_jingcai_three_market.py \
