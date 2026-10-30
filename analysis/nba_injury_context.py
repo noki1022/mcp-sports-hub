@@ -17,8 +17,10 @@ def attach(joined,official):
         stamp=None
     rows=[]
     for g in joined.get("nba_cba_games",[]):
-        home=NAMES.get(g.get("home_team"),(None,None))[0]
-        away=NAMES.get(g.get("away_team"),(None,None))[0]
+        home_data=NAMES.get(g.get("home_team"),(None,None))
+        home=home_data[0]
+        away_data=NAMES.get(g.get("away_team"),(None,None))
+        away=away_data[0]
         key=f"{away}@{home}" if home and away else None
         teams=matchups.get(key,{})
         def side(code, fallback):
@@ -29,7 +31,7 @@ def attach(joined,official):
             return {"report_state":v.get("report_state","UNKNOWN"),
                     "players":[p for p in v.get("players",[]) if p.get("status") in ("Out","Doubtful","Questionable","Probable","Available")],
                     "status_counts":v.get("status_counts",{})}
-        h=side(home,g.get("home_team"));a=side(away,g.get("away_team"))
+        h=side(home,home_data[1]);a=side(away,away_data[1])
         unresolved=any(x["report_state"]!="PUBLISHED" for x in (h,a))
         affected=any(p["status"] in ("Out","Doubtful","Questionable") for x in (h,a) for p in x["players"])
         rows.append({"game_id":str(g.get("game_id")),"matchup_key":key,
