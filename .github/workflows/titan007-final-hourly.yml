@@ -118,6 +118,9 @@ jobs:
       - name: Assess full-board hourly market dynamics against independent model
         run: |
           python3 analysis/nba_hourly_dynamic_review.py --movement titan007_hourly_movement.json --model nba_model_analysis.json --injury nba_injury_context.json --out nba_hourly_dynamic_review.json
+      - name: Capture 007 visible top-ten companies and compare last stored sample
+        run: |
+          python3 scripts/titan007_top10_companies.py --joined titan007_joined_today.json --out nba_top10_companies.json --analysis nba_top10_comparison.json
       - name: Enforce analyzed same-capture market and independent model
         run: |
           python3 scripts/verify_nba_capture_analysis.py --joined titan007_joined_today.json --movement titan007_hourly_movement.json --model nba_model_analysis.json --dynamic nba_hourly_dynamic_review.json --out nba_capture_audit.json
@@ -175,6 +178,8 @@ jobs:
             titan007_final_decision.json
             nba_independent_predictions_gate.json
             nba_model_analysis.json
+            nba_top10_companies.json
+            nba_top10_comparison.json
             nba_capture_audit.json
             nba_market_bc_diagnostics.json
             nba_hourly_dynamic_review.json
