@@ -269,14 +269,14 @@ def self_test():
           "commence_time_utc":tip.isoformat(),"price_last_update_utc":(tip-timedelta(hours=3)).isoformat(),
           "snapshot_time_utc":(tip-timedelta(hours=2)).isoformat(),
           "snapshot_phase":"PRE_GAME_FIXED","bookmaker":"a","home_points":120,"away_points":100}
-    score={"games":[{"event_id":eid,"completed":True,"home_team":"Indiana Pacers",
+    score_board={"games":[{"event_id":eid,"completed":True,"home_team":"Indiana Pacers",
                      "away_team":"Philadelphia 76ers","home_points":120,"away_points":100,"commence_time":tip.isoformat()}]}
     snap={"snapshot_reports":[{"rows":[{**base,"bookmaker":b} for b in ("a","b","c")]}]}
-    selected,rejects,n=quote_events(snap,score)
+    selected,rejects,n=quote_events(snap,score_board)
     assert n==1 and len(selected)==1 and not rejects
     assert collect(selected,{})["h2h"][0]["label"]==1
     changed={"snapshot_reports":[{"rows":[{**base,"bookmaker":b,"first_side":"away"} for b in ("a","b","c")]}]}
-    assert quote_events(changed,score)[0]=={}
+    assert quote_events(changed,score_board)[0]=={}
     assert chronology([{"date_bj":"2026-10-29","A":.51,"B":.5,"label":1}]*400)[0] is None
     assert score([{"label":1,"B":.5}],"B")["Brier"]==.25
     print("NBA_ABC_ASOF_DIRECTION_AND_NO_DATA_SELF_TEST_PASS")
