@@ -1,0 +1,22 @@
+name: Verify NBA US game day to Beijing tipoff mapping
+on:
+  push:
+    branches: [fix/nba-us-day-beijing-fixture-reconcile-20261030]
+    paths:
+      - scripts/nba_official_beijing_schedule.py
+      - .github/workflows/verify-nba-beijing-tipoff.yml
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  timezone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 scripts/nba_official_beijing_schedule.py --self-test
+      - run: python3 scripts/nba_official_beijing_schedule.py --target 2026-10-31
