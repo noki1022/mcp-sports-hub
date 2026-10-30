@@ -4,6 +4,7 @@ on:
     branches: [diagnostics/titan007-future-date-20261030]
     paths:
       - scripts/titan007_nextday_page_probe.py
+      - scripts/titan007_schedule_endpoint_evidence.py
       - .github/workflows/titan007-nextday-page-probe.yml
 permissions:
   contents: read
@@ -16,4 +17,4 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python3 scripts/titan007_nextday_page_probe.py
+      - run: python3 scripts/titan007_schedule_endpoint_evidence.py
