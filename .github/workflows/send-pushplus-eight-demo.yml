@@ -1,0 +1,31 @@
+name: Send one-time fictional eight-game PushPlus layout preview
+on:
+  push:
+    branches: [demo/pushplus-eight-game-preview-20261030]
+    paths:
+      - scripts/pushplus_eight_game_demo.py
+      - .github/workflows/send-pushplus-eight-demo.yml
+permissions:
+  contents: read
+jobs:
+  send-once:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Send the explicitly authorized one-time fictional layout
+        run: python3 scripts/pushplus_eight_game_demo.py --send
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eight-game-pushplus-fictional-preview
+          path: |
+            /tmp/pushplus-eight-demo.html
+            /tmp/pushplus-eight-demo-status.json
+          retention-days: 3
+          if-no-files-found: warn
