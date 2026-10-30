@@ -10,6 +10,9 @@ on:
     # 06:00, 12:00, 21:00 Asia/Shanghai
     - cron: "0 22 * * *"
     - cron: "0 4 * * *"
+    # Retry opportunities when GitHub drops/delays the 12:00 scheduled event.
+    - cron: "15 4 * * *"
+    - cron: "30 4 * * *"
     - cron: "0 13 * * *"
 permissions:
   contents: write
@@ -22,6 +25,7 @@ jobs:
     timeout-minutes: 12
     env:
       REQUESTED_DATE: ${{ inputs.target_date || '' }}
+      SCHEDULE_EXPR: ${{ github.event.schedule || '' }}
       PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
@@ -64,28 +68,77 @@ jobs:
           python3 analysis/market_value_policy.py --market-decision titan007_three_decision.json --out market_value_policy.json
           python3 analysis/nba_model_report.py --joined titan007_three_joined.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html
           python3 analysis/market_movement_tracker.py --current titan007_three_joined.json --history-root reports/daily/$TARGET_DATE --out titan007_three_movement.json
+      - name: Resolve canonical report slot and check already sent
+        id: dedup
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import os
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          expr=os.environ.get('SCHEDULE_EXPR','')
+          slots={'0 22 * * *':'0600','0 4 * * *':'1200',
+                 '15 4 * * *':'1200','30 4 * * *':'1200',
+                 '0 13 * * *':'2100'}
+          if expr and expr not in slots: raise RuntimeError('UNKNOWN_SCHEDULE')
+          slot=slots.get(expr) or datetime.now(ZoneInfo('Asia/Shanghai')).strftime('%H%M')
+          print('REPORT_SLOT='+slot)
+          PY
+          git pull --ff-only origin main
+          marker="reports/pushplus-sent/${TARGET_DATE}/${REPORT_SLOT}.json"
+          if test -f "$marker"; then
+            echo "ALREADY_SENT_FOR_SLOT $marker"
+            echo "REPORT_ALREADY_SENT=true" >> "$GITHUB_ENV"
+          else
+            echo "REPORT_ALREADY_SENT=false" >> "$GITHUB_ENV"
+          fi
       - name: Archive analysis in repository
-        if: ${{ success() }}
+        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
         run: |
           count=$(python3 -c "import json; print(len(json.load(open('titan007_three_joined.json')).get('nba_cba_games',[])))")
           if [ "$count" -gt 0 ]; then
-            slot=$(TZ=Asia/Shanghai date +%H%M)
-            dir="reports/daily/${TARGET_DATE}/${slot}"
+            dir="reports/daily/${TARGET_DATE}/${REPORT_SLOT}"
             mkdir -p "$dir"
             cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json titan007_three_decision.json titan007_three_movement.json "$dir"/
             git config user.name github-actions[bot]
             git config user.email 41898282+github-actions[bot]@users.noreply.github.com
             git add "$dir"
-            git diff --cached --quiet || { git commit -m "Archive Titan007 analysis ${TARGET_DATE} ${slot}" && git push; }
+            git diff --cached --quiet || { git commit -m "Archive Titan007 analysis ${TARGET_DATE} ${REPORT_SLOT}" && git push; }
           else
-            echo "No NBA/CBA games; no repository archive commit"
+            echo "NO_MATCHED_GAMES_SKIP_ARCHIVE"
           fi
       - name: Send compact iPhone PushPlus three-times-daily model report
-        if: ${{ success() }}
+        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_three_movement.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_three_movement.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token
+      - name: Save confirmed accepted notification slot
+        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
+        run: |
+          python3 - <<'PY'
+          import os,json
+          from pathlib import Path
+          p=Path('pushplus_status.json')
+          if not p.exists():raise RuntimeError('MISSING_DELIVERY_STATUS')
+          status=json.loads(p.read_text())
+          if status.get('state')!='API_ACCEPTED_NOT_DEVICE_CONFIRMED':
+              print('NOT_SENT_NO_DEDUP_MARKER',status.get('state'))
+          else:
+              output=Path('reports/pushplus-sent')/os.environ['TARGET_DATE']/(os.environ['REPORT_SLOT']+'.json')
+              output.parent.mkdir(parents=True,exist_ok=True)
+              output.write_text(json.dumps({'state':status['state'],'target_date':os.environ['TARGET_DATE'],
+                  'slot':os.environ['REPORT_SLOT'],'run_id':os.environ['GITHUB_RUN_ID']})+'\n')
+              print('PUSHPLUS_SLOT_MARKED',output)
+          PY
+          git add reports/pushplus-sent/ 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m "Mark PushPlus accepted ${TARGET_DATE} ${REPORT_SLOT}"
+            for i in 1 2 3; do
+              if git push; then exit 0; fi
+              git pull --rebase origin main
+            done
+            exit 1
+          fi
       - if: always()
         uses: actions/upload-artifact@v4
         with:
