@@ -186,6 +186,26 @@ jobs:
       - name: Generate mandatory NBA spread and total research verdicts from ten institutions
         run: |
           python3 analysis/nba_two_market_forecast.py --joined titan007_three_joined.json --model nba_model_analysis.json --top10 nba_top10_comparison.json --out nba_two_market_forecast.json
+      - name: Enforce seven-stage 007 NBA analysis SOP before PushPlus
+        run: |
+          python3 analysis/nba_analysis_sop.py \
+            --joined titan007_three_joined.json \
+            --model nba_model_analysis.json \
+            --prediction-gate nba_independent_predictions_gate.json \
+            --movement titan007_slot_movement.json \
+            --jingcai nba_jingcai_three_market.json \
+            --top10 nba_top10_comparison.json \
+            --injury nba_injury_context.json \
+            --out nba_analysis_sop.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open('nba_analysis_sop.json'))
+          assert x['game_count']>0
+          assert x['candidate_count']==0 and x['decision']=='NO_BET'
+          assert all(v['recommendation']=='NO_BET' for v in x['games'])
+          assert len(x['stages'])==7
+          print('NBA_SOP_PRESEND_EVIDENCE_GATE_PASS',x['game_count'],x['verified_jingcai_ids'])
+          PY
       - name: Enforce analyzed same-capture market and independent model
         run: |
           python3 scripts/verify_nba_capture_analysis.py --joined titan007_three_joined.json --movement titan007_slot_movement.json --model nba_model_analysis.json --dynamic nba_slot_dynamic_review.json --out nba_capture_audit.json
@@ -255,7 +275,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_slot_movement.json --dynamic nba_slot_dynamic_review.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_slot_movement.json --dynamic nba_slot_dynamic_review.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --sop nba_analysis_sop.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token
       - name: Save confirmed accepted notification slot
         if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
         run: |
