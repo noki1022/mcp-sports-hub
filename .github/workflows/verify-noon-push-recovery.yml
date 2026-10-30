@@ -29,3 +29,20 @@ jobs:
           assert 'python3 scripts/pushplus_mobile.py --mode three' in s
           print('BEIJING_1400_RECOVERY_SLOT_TEST_PASS')
           PY
+      - name: Verify 15 and 18 dynamic delivery and dedup mappings
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path(".github/workflows/titan007-three-analysis.yml").read_text()
+          for hour,slot in (("7","1500"),("10","1800")):
+              for minute in ("0","15","30"):
+                  expr=f"{minute} {hour} * * *"
+                  assert f'- cron: "{expr}"' in s
+                  assert f"'{expr}':'{slot}'" in s
+          assert "nba_hourly_dynamic_review.py" in s
+          assert "--dynamic nba_slot_dynamic_review.json" in s
+          assert s.index("git pull --ff-only origin main")<s.index("titan007_hourly_history.py capture")
+          assert "git add reports/hourly/" in s
+          assert "nba_slot_dynamic_review.json" in s
+          print("BEIJING_1500_1800_DYNAMIC_PUSH_TEST_PASS")
+          PY
