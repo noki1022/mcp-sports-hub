@@ -28,6 +28,14 @@ export function beijingClock(timestamp) {
 
 export function plannedJob(timestamp) {
   const x=beijingClock(timestamp), h=x.hour,m=x.minute;
+  // 2026-10-30 ONLY: recover missed 16:40 one-shot through independent
+  // Cloudflare cron after the native GitHub schedule did not create a run.
+  // Date protection ensures no repeated next-day notification.
+  if(x.day==="2026-10-30" && h===17 && [0,8,18,28].includes(m)){
+    return {workflow:"titan007-three-analysis.yml",slot:"1640",
+      target_date:x.tomorrow,start_hour:16,start_minute:40,
+      date:x.day,kind:"full",attempt:m};
+  }
   for(const f of FIXED){
     if(h===f.hour && f.attempts.includes(m)){
       return {workflow:"titan007-three-analysis.yml",slot:f.slot,
