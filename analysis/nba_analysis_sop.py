@@ -73,7 +73,7 @@ def source_age_minutes(captured,reference):
     if not captured or not reference:return None
     return (reference-captured).total_seconds()/60
 
-def evaluate(joined,model,movement,jingcai,top10=None,injury=None,now_utc=None):
+def evaluate(joined,model,movement,jingcai,top10=None,injury=None,now_utc=None,prediction_gate=None):
     if not isinstance(joined,dict) or not isinstance(jingcai,dict):
         raise ValueError("REQUIRED_SOURCES_INVALID")
     target=joined.get("requested_display_date")
@@ -84,6 +84,7 @@ def evaluate(joined,model,movement,jingcai,top10=None,injury=None,now_utc=None):
         raise ValueError("EMPTY_NBA_BOARD")
     by_id(games)  # detect duplicate IDs before attaching market prices
     model_rows=by_id((model or {}).get("games",[]))
+    gate_preds=by_id((prediction_gate or {}).get("game_predictions",[]))
     move_rows=by_id((movement or {}).get("games",[]))
     company_rows=by_id((top10 or {}).get("games",[]))
     injury_rows=by_id((injury or {}).get("games",[]))
@@ -121,13 +122,23 @@ def evaluate(joined,model,movement,jingcai,top10=None,injury=None,now_utc=None):
         p=model_rows.get(gid) or {}
         quality=(p.get("data_quality") or {}).get("quality")
         model_status=p.get("model_status")
-        cal=p.get("calibration") or {}
-        feature_cutoff=p.get("feature_cutoff_date")
+        provenance=gate_preds.get(gid) or p
+        cal=provenance.get("calibration") or {}
+        feature_cutoff=provenance.get("feature_cutoff_date")
         cal_through=cal.get("calibrated_through")
+        consistent=((numeric(provenance.get("margin_mean_home_minus_away")) is not None and
+                     numeric(provenance.get("total_mean")) is not None and
+                     numeric(p.get("margin_mean_home_minus_away")) is not None and
+                     numeric(p.get("total_mean")) is not None and
+                     abs(numeric(provenance["margin_mean_home_minus_away"])-
+                         numeric(p["margin_mean_home_minus_away"]))<1e-5 and
+                     abs(numeric(provenance["total_mean"])-numeric(p["total_mean"]))<1e-5)
+                    if prediction_gate is not None else True)
         time_ok=feature_cutoff is not None and cal_through is not None and (
             str(feature_cutoff)<target and str(cal_through)<target)
         means_ok=numeric(p.get("margin_mean_home_minus_away")) is not None and numeric(p.get("total_mean")) is not None
-        model_good=bool(model_status=="OK" and quality=="PASS" and means_ok and time_ok)
+        model_good=bool(model_status=="OK" and quality=="PASS" and means_ok and time_ok
+                         and consistent and provenance.get("status","OK")=="OK")
         stage[STAGES[1]]="PASS" if model_good else "BLOCKED"
         if not model_good:reasons.append("INDEPENDENT_MODEL_NOT_FULLY_VERIFIED")
 
@@ -220,7 +231,7 @@ def evaluate(joined,model,movement,jingcai,top10=None,injury=None,now_utc=None):
             "home_team":g["home_team"],"away_team":g["away_team"],
             "tipoff_beijing":g.get("start_time_beijing"),
             "stages":stage,"evidence_reasons":sorted(set(reasons)),
-            "model": {"version":p.get("model_version"),"margin_home_minus_away":margin,
+            "model": {"version":provenance.get("model_version"),"margin_home_minus_away":margin,
                       "total_mean":total,"home_win_probability":model_home_p,
                       "calibration_cutoff":cal_through,"feature_cutoff_date":feature_cutoff},
             "institution":{"spread_company_count":spread_companies,
@@ -299,12 +310,21 @@ def self_test():
     assert e["stages"]["02_INDEPENDENT_MODEL"]=="BLOCKED"
     assert e["research_comparison"]["model_minus_no_vig_market_home_probability"] is None
     assert a["candidate_count"]==0 and a["decision"]=="NO_BET"
+    actual_gate={"game_predictions":[{"game_id":"17","status":"OK",
+      "feature_cutoff_date":"2026-10-25","calibration":{"calibrated_through":"2026-10-20"},
+      "margin_mean_home_minus_away":-6,"total_mean":231,"model_version":"v1"}]}
+    good_with_gate=evaluate(joined,model,movement,jc,now_utc=now,prediction_gate=actual_gate)
+    assert good_with_gate["model_ready"]==1
+    actual_gate["game_predictions"][0]["total_mean"]=225
+    rejected=evaluate(joined,model,movement,jc,now_utc=now,prediction_gate=actual_gate)
+    assert rejected["model_ready"]==0 and rejected["candidate_count"]==0
     print("NBA_STRICT_SEVEN_STAGE_SOP_SELF_TEST_PASS")
 
 if __name__=="__main__":
     p=argparse.ArgumentParser()
     p.add_argument("--joined");p.add_argument("--model")
     p.add_argument("--movement");p.add_argument("--jingcai")
+    p.add_argument("--prediction-gate")
     p.add_argument("--top10");p.add_argument("--injury")
     p.add_argument("--out");p.add_argument("--self-test",action="store_true")
     args=p.parse_args()
@@ -316,7 +336,8 @@ if __name__=="__main__":
             if not path:return {}
             return json.loads(Path(path).read_text(encoding="utf-8"))
         result=evaluate(load(args.joined),load(args.model),load(args.movement),
-                        load(args.jingcai),load(args.top10),load(args.injury))
+                        load(args.jingcai),load(args.top10),load(args.injury),
+                        prediction_gate=load(args.prediction_gate) if args.prediction_gate else None)
         Path(args.out).write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         print("NBA_SOP_STRICT_RESULT",json.dumps({"date":result["target_beijing_date"],
            "games":result["game_count"],"ids":result["verified_jingcai_ids"],
