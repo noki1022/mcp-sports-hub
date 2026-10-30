@@ -24,7 +24,9 @@ jobs:
           python3 scripts/titan007_jingcai_three_market.py \
             --joined reports/daily/2026-10-31/1800/titan007_three_joined.json \
             --out sop-jingcai-source.json
+          printf "{}" > sop-no-model.json
           python3 analysis/nba_analysis_sop.py \
+            --model sop-no-model.json \
             --joined reports/daily/2026-10-31/1800/titan007_three_joined.json \
             --jingcai sop-jingcai-source.json \
             --out sop-ten-game-audit.json
