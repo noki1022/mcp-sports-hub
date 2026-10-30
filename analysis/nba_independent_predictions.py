@@ -23,6 +23,7 @@ from nba_chronological_backtest import (
 )
 import nba_chronological_backtest as B
 from nba_settlement_probabilities import settlement_probs
+from nba_calibration_evidence import evidence as calibration_evidence
 from nba_pregame_context import build as build_pregame_context
 
 MODEL_VERSION = "nba-independent-v3-isotonic-rolling-production"
@@ -293,6 +294,7 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
     total_sigma = float(calibration["total"]["sigma"])
     raw_p_home = p_greater(margin_mu, margin_sigma, 0.0)
     p_home = _isotonic_predict(calibration.get("moneyline_isotonic"), raw_p_home)
+    p_home_evidence = calibration_evidence(calibration.get("moneyline_isotonic"), raw_p_home, p_home)
     raw_p_over_225_5 = p_greater(total_mu, total_sigma, TOTAL_LINE)
     p_over_225_5 = _isotonic_predict(calibration.get("total_over_225_5_isotonic"), raw_p_over_225_5)
     target = target_day.isoformat()
@@ -305,6 +307,7 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
         "total_mean": total_mu, "total_sigma": total_sigma,
         "moneyline_home_probability": p_home,
         "moneyline_home_probability_raw": raw_p_home,
+        "moneyline_calibration_evidence": p_home_evidence,
         "total_over_225_5_probability": p_over_225_5,
         "total_over_225_5_probability_raw": raw_p_over_225_5,
         "moneyline_away_probability": 1.0 - p_home,

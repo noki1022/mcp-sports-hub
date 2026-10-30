@@ -28,6 +28,7 @@ def render(joined, gate, out_json, out_html, injury_context=None):
             "model_status": p.get("status", "DISABLED"),
             "model_probability": {"home": p.get("moneyline_home_probability"), "away": p.get("moneyline_away_probability")},
             "model_probability_raw": {"home": p.get("moneyline_home_probability_raw")},
+            "model_calibration_evidence": p.get("moneyline_calibration_evidence"),
             "margin_sigma": p.get("margin_sigma"),
             "model_version": p.get("model_version"),
             "margin_mean_home_minus_away": p.get("margin_mean_home_minus_away"),
