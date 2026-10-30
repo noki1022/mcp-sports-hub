@@ -177,6 +177,9 @@ def self_test():
     fail=[{"event":"workflow_dispatch","created_at":"2026-10-30T13:25:10Z",
            "status":"completed","conclusion":"failure"}]
     assert run_hint(fail,"2130","2026-10-31")[0]=="WORKFLOW_FAILED"
+    active=[{"event":"workflow_dispatch","created_at":"2026-10-30T13:25:10Z",
+             "status":"in_progress","conclusion":None}]
+    assert run_hint(active,"2130","2026-10-31")[0]=="WORKFLOW_RUNNING_NO_ACCEPTED_MARKER"
     print("NBA_DELIVERY_HEALTH_TEST_PASS")
 
 def main():
@@ -220,7 +223,7 @@ def main():
                 if old.get("state")==ACCEPTED:
                     report["alert_already_sent"]=True
             except (OSError,ValueError):pass
-        if args.send and not report.get("alert_already_sent"):
+        if args.send and not report.get("alert_already_sent") and report["run_hint"]!="WORKFLOW_RUNNING_NO_ACCEPTED_MARKER":
             from pushplus_mobile import send
             token=os.getenv("PUSHPLUS_TOKEN","")
             if not token:raise RuntimeError("PUSHPLUS_TOKEN_MISSING_FOR_DELIVERY_ALERT")
