@@ -10,10 +10,10 @@ on:
     # Beijing 21:30 through next-day 06:30, hourly (UTC 13:30-22:30).
     - cron: "30 13-22 * * *"
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: titan007-final-hourly-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   final-window:
     runs-on: ubuntu-latest
@@ -55,6 +55,26 @@ jobs:
           done
           echo "007 source unavailable after 3 attempts"
           exit 1
+      - name: Preserve full-board snapshot and compare prior market movement
+        run: |
+          python3 analysis/titan007_hourly_history.py capture --current titan007_joined_today.json --root reports/hourly --daily-root reports/daily --out-movement titan007_hourly_movement.json
+      - name: Commit valid compact snapshot for next hour
+        run: |
+          if [ -n "$(find reports/hourly -type f -name '*.json' -print -quit 2>/dev/null)" ]; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add reports/hourly/
+            if ! git diff --cached --quiet; then
+              git commit -m "Store hourly NBA market snapshot for $TARGET_DATE"
+              for n in 1 2 3; do
+                if git push; then exit 0; fi
+                git pull --rebase origin main
+                sleep 3
+              done
+              echo 'Failed to persist required hourly snapshot' >&2
+              exit 1
+            fi
+          fi
       - name: Select 3–30 minute final window
         run: python3 scripts/titan007_final_window.py --infile titan007_joined_today.json --outfile titan007_final_window.json
       - name: Generate odds-blind NBA prediction artifact
@@ -69,6 +89,8 @@ jobs:
           python3 analysis/market_value_policy.py --self-test
           python3 analysis/market_value_policy.py --market-decision titan007_final_decision.json --out market_value_policy.json
           python3 analysis/nba_model_report.py --joined titan007_final_window.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html
+      - name: Render iPhone market movement with independent model
+        run: python3 analysis/titan007_hourly_history.py render --movement titan007_hourly_movement.json --model nba_model_analysis.json --out-html titan007_hourly_movement.html
       - name: Restore PushPlus sent-state cache
         uses: actions/cache@v4
         with:
@@ -171,5 +193,7 @@ jobs:
             nba_independent_predictions_gate.json
             nba_model_analysis.json
             nba_model_analysis.html
+            titan007_hourly_movement.json
+            titan007_hourly_movement.html
           if-no-files-found: warn
           retention-days: 7
