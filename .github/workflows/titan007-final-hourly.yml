@@ -118,6 +118,16 @@ jobs:
       - name: Assess full-board hourly market dynamics against independent model
         run: |
           python3 analysis/nba_hourly_dynamic_review.py --movement titan007_hourly_movement.json --model nba_model_analysis.json --injury nba_injury_context.json --out nba_hourly_dynamic_review.json
+      - name: Audit all three user-supplied Jingcai pricing sources before market fusion
+        run: |
+          python3 scripts/titan007_jingcai_three_market.py --joined titan007_joined_today.json --out nba_jingcai_three_market.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open("nba_jingcai_three_market.json"))
+          assert set(x["source_status"])==set(("WIN_LOSE","HANDICAP_WIN_LOSE","TOTAL"))
+          assert x["game_count"]==len(x["games"])
+          print("JINGCAI_REQUIRED_SOURCE_AUDIT",x["status"],x["verified_games_with_all_three"])
+          PY
       - name: Capture 007 visible top-ten companies and compare last stored sample
         run: |
           python3 scripts/titan007_top10_companies.py --joined titan007_joined_today.json --out nba_top10_companies.json --analysis nba_top10_comparison.json --history-root reports/top10
@@ -165,7 +175,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode hourly --movement titan007_hourly_movement.json --window titan007_final_window.json --model nba_model_analysis.json --dynamic nba_hourly_dynamic_review.json --top10 nba_top10_comparison.json --verdict nba_two_market_forecast.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send
+          python3 scripts/pushplus_mobile.py --mode hourly --movement titan007_hourly_movement.json --window titan007_final_window.json --model nba_model_analysis.json --dynamic nba_hourly_dynamic_review.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send
       # Final-hour snapshots are short-retention artifacts. No scheduled commits
       # to main, and never archive incomplete runs.
       - name: Check final report completeness before publication
@@ -199,6 +209,7 @@ jobs:
             nba_model_analysis.json
             nba_top10_companies.json
             nba_top10_comparison.json
+            nba_jingcai_three_market.json
             nba_two_market_forecast.json
             nba_capture_audit.json
             nba_market_bc_diagnostics.json
