@@ -1,0 +1,51 @@
+name: NBA candidate fatigue and H2H frozen ablation
+on:
+  push:
+    branches: [research/nba-fatigue-h2h-chronological-ablation-20261030]
+  pull_request:
+    branches: [main]
+    paths:
+      - analysis/nba_feature_ablation_backtest.py
+      - .github/workflows/nba-feature-ablation.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned numerical dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet "numpy==2.2.6"
+      - name: Synthetic no-leakage and feature tests
+        run: |
+          python3 analysis/nba_chronological_backtest.py --self-test
+          python3 analysis/nba_pregame_context.py
+          python3 analysis/nba_feature_ablation_backtest.py --self-test
+      - name: Run full historical holdout feature ablation
+        run: python3 analysis/nba_feature_ablation_backtest.py --out nba_feature_ablation_backtest.json --predictions nba_feature_ablation_predictions.csv
+      - name: Enforce nonpromotion and no fabricated injuries
+        run: |
+          python3 - <<'PY'
+          import json
+          d=json.load(open('nba_feature_ablation_backtest.json'))
+          assert d['policy']=='NO_AUTOMATIC_MODEL_PROMOTION; NO_BET'
+          assert d['injury_ablation']['status']=='NOT_TESTABLE'
+          assert all(d['data_leakage_check'].values())
+          assert d['partitions']['test']['n']>900
+          assert d['historical_bookmaker_odds']=='UNAVAILABLE_NO_EV_OR_ROI'
+          print('FROZEN_ABLATION_ACCEPTED_NO_BET',d['partitions']['test']['n'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-fatigue-h2h-ablation-holdout
+          path: |
+            nba_feature_ablation_backtest.json
+            nba_feature_ablation_predictions.csv
+          if-no-files-found: warn
+          retention-days: 30
