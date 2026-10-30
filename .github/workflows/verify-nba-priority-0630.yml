@@ -1,0 +1,48 @@
+name: Verify priority 06:30 Beijing morning NBA full report
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/nba_0630_priority_gate.py'
+      - 'scripts/nba_0630_pretip_filter.py'
+      - '.github/workflows/nba-priority-0630.yml'
+      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/verify-nba-priority-0630.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: |
+          python3 -m py_compile scripts/nba_0630_priority_gate.py scripts/nba_0630_pretip_filter.py
+          python3 scripts/nba_0630_priority_gate.py --self-test
+          python3 scripts/nba_0630_pretip_filter.py --self-test
+      - name: Verify scheduled priority, full-board dynamic review and distinct dedup
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('.github/workflows/nba-priority-0630.yml').read_text()
+          h=Path('.github/workflows/titan007-final-hourly.yml').read_text()
+          for c in ('30 22 * * *','40 22 * * *','50 22 * * *'):
+              assert f'- cron: "{c}"' in s,c
+          assert '30 14-21 * * *' in h
+          assert '30 14-22 * * *' not in h
+          assert "nba_0630_priority_gate.py --phase preflight" in s
+          assert "nba_0630_priority_gate.py --phase presend" in s
+          assert "nba_0630_pretip_filter.py" in s
+          assert "verify_nba_capture_analysis.py" in s
+          assert "nba_hourly_dynamic_review.py" in s
+          assert "titan007_hourly_history.py capture" in s
+          assert '--dynamic nba_priority_dynamic.json' in s
+          assert 'pushplus_mobile.py --mode three' in s
+          assert 'reports/pushplus-sent/$TARGET_DATE/0630.json' in s
+          assert "'slot':'0630'" in s
+          assert s.index('--phase presend')<s.index('pushplus_mobile.py --mode three')
+          assert s.index('nba_hourly_dynamic_review.py')<s.index('pushplus_mobile.py --mode three')
+          print('NBA_0630_PRIORITY_FULL_ANALYSIS_WIRING_PASS')
+          PY
