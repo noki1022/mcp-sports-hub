@@ -233,7 +233,7 @@ def self_test():
     assert d["verified_games_with_all_three"] == 1
     assert d["games"][0]["markets"]["TOTAL"]["under_odds"] == 1.74
     assert select_row({**board["nba_cba_games"][0], "away_team": "波士顿凯尔特人"},
-                      fixture("", {"app_id": "test", "app_secret": "test"})["data"]["list"])[0] is None
+                      fixture("https://test/?sport_id=201", {"app_id": "test", "app_secret": "test"})["data"]["list"])[0] is None
     print("MARZDATA_JINGCAI_SHADOW_FEED_SELF_TEST_PASS")
 
 if __name__ == "__main__":
