@@ -134,6 +134,9 @@ jobs:
               if [ "$n" -eq 3 ]; then exit 1; fi
             done
           fi
+      - name: Generate mandatory NBA spread and total research verdicts from ten institutions
+        run: |
+          python3 analysis/nba_two_market_forecast.py --joined titan007_joined_today.json --model nba_model_analysis.json --top10 nba_top10_comparison.json --out nba_two_market_forecast.json
       - name: Enforce analyzed same-capture market and independent model
         run: |
           python3 scripts/verify_nba_capture_analysis.py --joined titan007_joined_today.json --movement titan007_hourly_movement.json --model nba_model_analysis.json --dynamic nba_hourly_dynamic_review.json --out nba_capture_audit.json
@@ -143,6 +146,9 @@ jobs:
         run: |
           mkdir -p "reports/hourly-reviews/$TARGET_DATE"
           cp nba_hourly_dynamic_review.json "reports/hourly-reviews/$TARGET_DATE/${GITHUB_RUN_ID}.json"
+          mkdir -p "reports/two-market-intraday/$TARGET_DATE"
+          cp nba_two_market_forecast.json "reports/two-market-intraday/$TARGET_DATE/${GITHUB_RUN_ID}.json"
+          git add "reports/two-market-intraday/$TARGET_DATE/"
           git add reports/hourly-reviews/
           if ! git diff --cached --quiet; then
             git config user.name github-actions[bot]
@@ -159,7 +165,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode hourly --movement titan007_hourly_movement.json --window titan007_final_window.json --model nba_model_analysis.json --dynamic nba_hourly_dynamic_review.json --top10 nba_top10_comparison.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send
+          python3 scripts/pushplus_mobile.py --mode hourly --movement titan007_hourly_movement.json --window titan007_final_window.json --model nba_model_analysis.json --dynamic nba_hourly_dynamic_review.json --top10 nba_top10_comparison.json --verdict nba_two_market_forecast.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send
       # Final-hour snapshots are short-retention artifacts. No scheduled commits
       # to main, and never archive incomplete runs.
       - name: Check final report completeness before publication
@@ -193,6 +199,7 @@ jobs:
             nba_model_analysis.json
             nba_top10_companies.json
             nba_top10_comparison.json
+            nba_two_market_forecast.json
             nba_capture_audit.json
             nba_market_bc_diagnostics.json
             nba_hourly_dynamic_review.json
