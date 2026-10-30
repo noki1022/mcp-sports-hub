@@ -33,6 +33,20 @@ jobs:
           python3 analysis/nba_five_market_settlement.py --self-test
           python3 analysis/nba_five_market_settlement.py --forecast "$FROZEN_FORECAST" --day "$REVIEW_DAY" \
             --scores nba_final_review_scores.json --out "reports/five-market-settled/$REVIEW_DAY/settlement.json"
+      - name: Score frozen independent model probabilities against official Final (read-only)
+        if: env.RUN_REPORT == 'true'
+        run: |
+          folder="${FROZEN_FORECAST%/*}"
+          slot="${folder##*/}"
+          model="$folder/nba_priority_model.json"
+          if [ -f "$model" ] && { [ "$slot" = "0630" ] || [ "$slot" = "2130" ]; }; then
+            python3 analysis/nba_frozen_probability_scorecard.py \
+              --frozen "$model" --scores nba_final_review_scores.json \
+              --day "$REVIEW_DAY" --slot "$slot" \
+              --out "reports/five-market-settled/$REVIEW_DAY/independent_model_scorecard.json"
+          else
+            echo "NO_FROZEN_INDEPENDENT_MODEL_TO_SCORE"
+          fi
       - name: Send one iPhone five-market review
         if: env.RUN_REPORT == 'true'
         env:
