@@ -58,6 +58,7 @@ jobs:
           python3 analysis/market_value_policy.py --self-test
           python3 analysis/market_value_policy.py --market-decision titan007_three_decision.json --out market_value_policy.json
           python3 analysis/nba_model_report.py --joined titan007_three_joined.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html
+          python3 analysis/market_movement_tracker.py --current titan007_three_joined.json --history-root reports/daily/$TARGET_DATE --out titan007_three_movement.json
       - name: Archive analysis in repository
         if: ${{ success() }}
         run: |
@@ -66,7 +67,7 @@ jobs:
             slot=$(TZ=Asia/Shanghai date +%H%M)
             dir="reports/daily/${TARGET_DATE}/${slot}"
             mkdir -p "$dir"
-            cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json titan007_three_decision.json "$dir"/
+            cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json titan007_three_decision.json titan007_three_movement.json "$dir"/
             git config user.name github-actions[bot]
             git config user.email 41898282+github-actions[bot]@users.noreply.github.com
             git add "$dir"
@@ -121,5 +122,6 @@ jobs:
             nba_independent_predictions_gate.json
             nba_model_analysis.json
             nba_model_analysis.html
+            titan007_three_movement.json
           if-no-files-found: warn
           retention-days: 14
