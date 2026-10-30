@@ -83,6 +83,23 @@ jobs:
               done
             fi
           else
+            if [ ! -f "reports/noon-cohorts/$TARGET_DATE/1200.json" ]; then
+              archive="reports/daily/$TARGET_DATE/1200/titan007_three_joined.json"
+              if [ ! -f "$archive" ]; then
+                echo "NO_NOON_ARCHIVE_FOR_RECOVERY" >&2
+                exit 1
+              fi
+              python3 scripts/nba_noon_slate.py recover --joined titan007_three_joined.json --archive "$archive" --out "reports/noon-cohorts/$TARGET_DATE/1200.json"
+              git add "reports/noon-cohorts/$TARGET_DATE/1200.json"
+              git config user.name github-actions[bot]
+              git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+              git commit -m "Recover verified archived noon cohort $TARGET_DATE"
+              for i in 1 2 3; do
+                if git push origin HEAD:main; then break; fi
+                git pull --rebase origin main
+                if [ "$i" -eq 3 ]; then exit 1; fi
+              done
+            fi
             python3 scripts/nba_noon_slate.py enforce --joined titan007_three_joined.json --lock "reports/noon-cohorts/$TARGET_DATE/1200.json" --out nba_same_slate.json
           fi
 
