@@ -1,0 +1,27 @@
+name: Verify 007 signed handicap and five NBA markets
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'analysis/nba_two_market_forecast.py'
+      - 'analysis/nba_five_markets.py'
+      - 'analysis/nba_five_market_settlement.py'
+      - 'scripts/pushplus_mobile_v2.py'
+      - 'scripts/pushplus_mobile.py'
+      - '.github/workflows/verify-nba-five-markets.yml'
+permissions: {contents: read}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Test verified institutional sign and five market scoring
+        run: |
+          python3 -m py_compile analysis/nba_two_market_forecast.py analysis/nba_five_markets.py analysis/nba_five_market_settlement.py scripts/pushplus_mobile_v2.py
+          python3 analysis/nba_two_market_forecast.py --self-test
+          python3 analysis/nba_five_markets.py --self-test
+          python3 analysis/nba_five_market_settlement.py --self-test
+          python3 scripts/pushplus_mobile.py --mode three --self-test
