@@ -258,6 +258,8 @@ def five_market_panel(x):
             qualifier=("　主队盘口 "+f(mark,True) if key.endswith("HANDICAP") and mark is not None else
                        "　总分线 "+f(mark) if key.endswith("TOTAL") and mark is not None else "")
             conclusion="<b>"+text(direction)+"</b>"+qualifier
+            if obj.get("quote_freshness")=="ARCHIVED_PRIOR_NOT_LIVE":
+                conclusion+="（007 ID3历史赛前快照，非实时；采集于 "+text(obj.get("captured_at_utc"))+"）"
             if obj.get("strength")=="WEAK":conclusion+="（弱倾向）"
         elif status=="NOT_ON_SALE_USER_CONFIRMED":
             conclusion="未开售，不计入该玩法命中率"
