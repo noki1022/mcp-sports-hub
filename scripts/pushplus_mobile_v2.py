@@ -214,7 +214,7 @@ def render_v2(games,model_map,title,target,mode):
         home=text(x.get("home_team"));away=text(x.get("away_team"))
         out.append("<div style='padding:7px 2px;border-bottom:1px solid #e8edf2;'>"
                    "<div style='font-size:13px;font-weight:650;'>"+text(lottery_label(x))+"　"+
-                   text(x.get("display_clock"))+"　客队："+away+"　｜　主队："+home+"</div>"
+                   text(x.get("display_clock"))+"　主队："+home+"　｜　客队："+away+"</div>"
                    "<div style='font-size:11px;color:#61758a;margin-top:2px;'>"
                    "主胜 "+(f(win*100)+"%" if win is not None and 0<=win<=1 else "—")+
                    "　· 模总 "+f(total)+"　· 现盘 "+f(q)+
@@ -227,7 +227,7 @@ def render_v2(games,model_map,title,target,mode):
         pred=model_map.get(str(x.get("game_id")))
         status=x.get("status","FIRST_SNAPSHOT")
         body="<div style='font-size:11px;color:#68788e;'>#"+text(lottery_label(x))+" · "+text(x.get("display_clock"))+" · "+text(status_label(status))+"</div>"
-        body+="<div style='font-size:15px;font-weight:750;margin:4px 0 7px;'>"+"客队："+text(x.get("away_team"))+"　｜　主队："+text(x.get("home_team"))+"</div>"
+        body+="<div style='font-size:15px;font-weight:750;margin:4px 0 7px;'>"+"主队："+text(x.get("home_team"))+"　｜　客队："+text(x.get("away_team"))+"</div>"
         body+=jingcai_status(x, detailed=True)
         body+=verdict_summary(x.get('two_market_verdict'))
         body+=score_prediction(pred)
@@ -310,7 +310,7 @@ def self_test():
     assert "LINE_MOVE" not in html and "让分或总分变动" in html
     assert "主胜 62.0%" in html and "模总 224.0" in html
     assert "研究倾向" in html
-    assert "客队：乙" in html and "主队：甲" in html
+    assert "主队：甲" in html and "客队：乙" in html
     assert "方向待核" in html and "NO_BET" in html
     assert "<table" not in html
     assert "八场核心数据" in html and "模型 vs 盘口" in html
@@ -321,13 +321,13 @@ def self_test():
         "current":{"line":222.5,"first_side":1.7,"second_side":1.7}}}}}
     jhtml=render_v2([q],m,"赛前模型","2026-10-31","three")
     assert "007竞彩数据快照" in jhtml and "222.5" in jhtml
-    assert "槽1 1.70 / 槽2 1.70" in jhtml
-    assert "用户认可为体彩赔率参考" in jhtml
+    assert "大分 <b>1.70</b>" in jhtml and "小分 <b>1.70</b>" in jhtml
+    assert "竞彩赔率（007）" in jhtml
     assert "NO_BET" in jhtml
     q["jc_007_price_shadow"]={"markets":{"win_lose":{"status":"NOT_ON_SALE_USER_CONFIRMED"},
        "handicap":{"status":"OBSERVED","data":{"opening":{"line":-3.5,"first_side":1.7,"second_side":1.7},"current":{"line":-4.5,"first_side":1.65,"second_side":1.75}}}}}
     ns=render_v2([q],m,"赛前模型","2026-10-31","three")
-    assert "胜负：未开售（用户确认）" in ns
+    assert "未开售（用户确认）" in ns
     assert "赔率未核实" not in ns
     q["jc_match_label"]="周五309"
     q["jc_match_no"]="309"
@@ -340,4 +340,29 @@ def self_test():
     other["jc_match_identity_status"]="UNVERIFIED"
     uncertain=render_v2([other],m,"赛前模型","2026-10-31","three")
     assert "竞彩编号待核" in uncertain and "周五318" not in uncertain
+    # Regression: 007 first-side price is assigned to HOME.
+    exact={**q,"game_id":"728170","home_team":"达拉斯独行侠",
+      "away_team":"休斯顿火箭","jc_match_label":"周五314",
+      "jc_match_no":"314","jc_match_identity_status":"VERIFIED_JC_NUMBER",
+      "jc_007_price_shadow":{"markets":{
+       "win_lose":{"status":"OBSERVED","data":{"current":{"first_side":1.19,"second_side":2.95}}},
+       "handicap":{"status":"OBSERVED","data":{"opening":{"line":5.5,"first_side":1.75,"second_side":1.65},
+          "current":{"line":7.5,"first_side":1.75,"second_side":1.65}}},
+       "total":{"status":"OBSERVED","data":{"current":{"line":225.5,"first_side":1.70,"second_side":1.70}}}}}}
+    html_exact=render_v2([exact],m,"赛前模型","2026-10-31","three")
+    assert "周五314" in html_exact
+    assert "主队：达拉斯独行侠　｜　客队：休斯顿火箭" in html_exact
+    assert "主胜（达拉斯独行侠）<b>1.19</b>" in html_exact
+    assert "客胜（休斯顿火箭）<b>2.95</b>" in html_exact
+    assert "达拉斯独行侠 <b>+7.5</b>（受让）" in html_exact
+    assert "休斯顿火箭 <b>-7.5</b>（让分）" in html_exact
+    assert "大分 <b>1.70</b>" in html_exact and "小分 <b>1.70</b>" in html_exact
+    assert "槽1" not in html_exact and "槽2" not in html_exact
+    assert "两侧方向仍需核验" not in html_exact
+    assert html_exact.count("竞彩赔率（007）")==1
+    negative={**exact,"jc_007_price_shadow":{"markets":{"handicap":{
+      "status":"OBSERVED","data":{"current":{"line":-6.5,"first_side":1.70,"second_side":1.70}}}}}}
+    neg=render_v2([negative],m,"赛前模型","2026-10-31","three")
+    assert "达拉斯独行侠 <b>-6.5</b>（让分）" in neg
+    assert "休斯顿火箭 <b>+6.5</b>（受让）" in neg
     print("PUSHPLUS_V2_COMPACT_SELF_TEST_PASS")
