@@ -315,7 +315,7 @@ def render_v2(games,model_map,title,target,mode):
                    "<div style='font-size:11px;color:#61758a;margin-top:2px;'>"
                    "主胜 "+(f(win*100)+"%" if win is not None and 0<=win<=1 else "—")+
                    "　· 模总 "+f(total)+"　· 现盘 "+f(q)+
-                   "　· 差 "+f(gap,True)+"</div>"+jingcai_status(x)+verdict_summary(x.get("two_market_verdict"))+"<div style='font-size:11px;color:#718297;'>"+text(status)+"</div></div>")
+                   "　· 差 "+f(gap,True)+"</div>"+jingcai_status(x)+(verdict_summary(x.get("two_market_verdict")) if not x.get("five_market_forecast") else "")+"<div style='font-size:11px;color:#718297;'>"+text(status)+"</div></div>")
     out.append("<div style='font-size:14px;font-weight:700;margin:14px 0 7px;'>逐场模型与盘口</div>")
     for i,x in enumerate(g,1):
         markets=x.get("markets") or {}
@@ -326,7 +326,8 @@ def render_v2(games,model_map,title,target,mode):
         body="<div style='font-size:11px;color:#68788e;'>#"+text(lottery_label(x))+" · "+text(x.get("display_clock"))+" · "+text(status_label(status))+"</div>"
         body+="<div style='font-size:15px;font-weight:750;margin:4px 0 7px;'>"+"主队："+text(x.get("home_team"))+"　｜　客队："+text(x.get("away_team"))+"</div>"
         body+=jingcai_status(x, detailed=True)
-        body+=verdict_summary(x.get('two_market_verdict'))
+        if not x.get('five_market_forecast'):
+            body+=verdict_summary(x.get('two_market_verdict'))
         body+=sop_evidence(x)
         body+=five_market_panel(x)
         body+=score_prediction(pred)
@@ -494,6 +495,8 @@ def self_test():
       "CROWN_TOTAL":{"status":"DIRECTION_ISSUED","direction":"UNDER","line":229.5}}}
     five_html=render_v2([exact],m,"赛前模型","2026-10-31","three")
     assert five_html.count("五玩法独立研判")==1
+    assert "#周五314" not in five_html
+    assert "007机构盘口研究" not in five_html
     assert all(i in five_html for i in ("① 竞彩胜负","② 竞彩让分胜负","③ 竞彩大小分","④ 皇冠让分","⑤ 皇冠大小分"))
     assert "主队盘口 +7.5" in five_html and "主队盘口 -6.5" in five_html
     exact["five_market_forecast"]["markets"]["JINGCAI_WIN"]={"status":"NOT_ON_SALE_USER_CONFIRMED"}
