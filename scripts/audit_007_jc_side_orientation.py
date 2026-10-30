@@ -7,7 +7,7 @@ request any discovered endpoints, does not access blocked CP lottery pages.
 import json,re
 from probe_007_jc_scripts import ORIGIN,UA,get_bytes,robots_policy
 
-TARGETS=["_glJC.jcOddsLq = function","getOddsListByType","var homeWin =","var guestWin =","getOddsListByType()","jcCID ="]
+TARGETS=["_glJC.jcOddsLq = function","getOddsListByType","var homeWin =","var guestWin =","getOddsListByType()","jcCID =","function getJCGoalShow(","getJCGoalShow(goal)","getJCGoalShow"]
 MAX_SNIPPETS=4
 
 def inspect(raw):
