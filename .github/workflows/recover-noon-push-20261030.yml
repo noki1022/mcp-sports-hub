@@ -1,0 +1,70 @@
+name: One-time recovery - missed Beijing noon NBA report
+on:
+  push:
+    branches: [recovery/noon-real-push-20261030]
+    paths:
+      - .github/workflows/recover-noon-push-20261030.yml
+permissions:
+  contents: read
+jobs:
+  recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TARGET_DATE: '2026-10-31'
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install model dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet 'numpy==2.2.6'
+      - name: Fetch next-day NBA/CBA markets
+        run: |
+          for i in 1 2 3; do
+            if python3 scripts/titan007_join_daily.py --date "$TARGET_DATE" --out titan007_three_joined.json; then exit 0; fi
+            sleep 8
+          done
+          exit 1
+      - name: Validate nonempty source match list
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("titan007_three_joined.json").read_text())
+          n=len(x.get("nba_cba_games",[]))
+          print("RECOVERY_TARGET",x.get("requested_display_date"),"GAMES",n)
+          if x.get("requested_display_date")!="2026-10-31":raise RuntimeError("WRONG_DATE")
+          if n==0:raise RuntimeError("NO_NEXT_DAY_GAMES_IN_SOURCE_NO_FAKE_PUSH")
+          PY
+      - name: Compute independent model and market comparisons
+        run: |
+          python3 analysis/nba_prediction_adapter.py --joined titan007_three_joined.json --out nba_independent_predictions_gate.json
+          python3 analysis/titan007_daily_market.py --joined titan007_three_joined.json --out titan007_three_market.json
+          python3 analysis/market_decision_gate.py --market titan007_three_market.json --predictions nba_independent_predictions_gate.json --out titan007_three_decision.json
+          python3 analysis/nba_model_report.py --joined titan007_three_joined.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html
+          python3 analysis/market_movement_tracker.py --current titan007_three_joined.json --history-root reports/daily/2026-10-31 --out titan007_three_movement.json
+      - name: Send actual catch-up PushPlus report
+        run: |
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_three_movement.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token
+          python3 - <<'PY'
+          import json
+          v=json.load(open("pushplus_status.json"))
+          assert v.get("state")=="API_ACCEPTED_NOT_DEVICE_CONFIRMED",v.get("state")
+          print("RECOVERY_PUSHPLUS_API_ACCEPTED",v.get("games_considered"))
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: missed-noon-catchup-20261030
+          path: |
+            titan007_three_joined.json
+            nba_independent_predictions_gate.json
+            nba_model_analysis.json
+            titan007_three_movement.json
+            pushplus_mobile_preview.html
+            pushplus_status.json
+          if-no-files-found: warn
+          retention-days: 3
