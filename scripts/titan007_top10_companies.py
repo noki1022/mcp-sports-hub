@@ -111,12 +111,26 @@ def selftest():
     print("TITAN007_TOP10_NO_INVENTED_COMPANY_TEST_PASS")
 if __name__=="__main__":
     p=argparse.ArgumentParser();p.add_argument("--joined");p.add_argument("--out");p.add_argument("--analysis")
-    p.add_argument("--previous");p.add_argument("--self-test",action="store_true");a=p.parse_args()
+    p.add_argument("--previous");p.add_argument("--history-root");p.add_argument("--self-test",action="store_true");a=p.parse_args()
     if a.self_test:selftest()
     else:
         if not a.joined or not a.out or not a.analysis:raise SystemExit("MISSING_REQUIRED_ARGUMENTS")
         board=json.loads(Path(a.joined).read_text());snap=collect(board)
-        prior=json.loads(Path(a.previous).read_text()) if a.previous and Path(a.previous).is_file() else {}
+        older=Path(a.previous) if a.previous else None
+        if a.history_root:
+            root=Path(a.history_root)/snap["target_date"]
+            root.mkdir(parents=True,exist_ok=True)
+            existing=[]
+            for file in root.glob("*.json"):
+                try:
+                    old=json.loads(file.read_text())
+                    if old.get("schema_version")!="nba-007-visible-top10-v1":continue
+                    if old.get("target_date")!=snap["target_date"]:continue
+                    if old.get("captured_at_utc","")>=snap["captured_at_utc"]:continue
+                    existing.append((old["captured_at_utc"],file))
+                except (OSError,ValueError,TypeError,KeyError):continue
+            if existing:older=max(existing)[1]
+        prior=json.loads(older.read_text()) if older and older.is_file() else {}
         Path(a.out).write_text(json.dumps(snap,ensure_ascii=False,indent=2)+"\n")
         Path(a.analysis).write_text(json.dumps(analyze(snap,prior),ensure_ascii=False,indent=2)+"\n")
         print("NBA_TOP10_007",len(snap["games"]))
