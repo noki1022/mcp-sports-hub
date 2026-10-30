@@ -102,7 +102,7 @@ jobs:
             fi
             python3 scripts/nba_noon_slate.py enforce --joined titan007_three_joined.json --lock "reports/noon-cohorts/$TARGET_DATE/1200.json" --out nba_same_slate.json
           fi
-
+      - name: Enforce Beijing date identity and report market coverage
         run: |
           python3 - <<'PY'
           import json,os
