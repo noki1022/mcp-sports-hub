@@ -6,6 +6,8 @@ browser impersonation, credential usage, page payload dumping, or odds claims.
 Results are audit metadata only, not verified lottery price rows.
 """
 import json
+from html.parser import HTMLParser
+from urllib.parse import urljoin, urlsplit
 import urllib.error
 import urllib.request
 import urllib.robotparser
@@ -54,6 +56,34 @@ def inspect(fetch=None):
             report["content_type"]=response.headers.get("Content-Type","")
             report["content_length"]=len(raw)
             report["html_table_tags"]=raw.lower().count(b"<table")
+            class Structure(HTMLParser):
+                def __init__(self):
+                    super().__init__()
+                    self.rows=0;self.cells=0;self.scripts=0;self.links=0
+                    self.same_host_js=set();self.text_flags=set()
+                def handle_starttag(self,tag,attrs):
+                    attrs=dict(attrs)
+                    if tag=="tr":self.rows+=1
+                    if tag in ("td","th"):self.cells+=1
+                    if tag=="script":
+                        self.scripts+=1
+                        src=attrs.get("src")
+                        if src:
+                            u=urlsplit(urljoin(HOST+PATH,src))
+                            if u.netloc=="jc.titan007.com" and u.path.endswith(".js"):
+                                self.same_host_js.add(u.path)
+                    if tag=="a":self.links+=1
+                def handle_data(self,txt):
+                    for marker in ("暂无赛事","暂无数据","无赛事","胜负","让分","大小分","总分"):
+                        if marker in txt:self.text_flags.add(marker)
+            structural=Structure()
+            structural.feed(raw.decode("utf-8","replace"))
+            report["html_structure"]={"table_rows":structural.rows,
+              "table_cells":structural.cells,"scripts":structural.scripts,
+              "links":structural.links,
+              "same_host_script_paths":sorted(structural.same_host_js)[:20],
+              "visible_markers":sorted(structural.text_flags)}
+            report["odds_schema_extracted"]=False
             report["contains_lottery_words"]=any(x in raw for x in
                ("竞彩".encode("utf-8"),"胜负".encode("utf-8"),"竞彩".encode("gb18030")))
     except urllib.error.HTTPError as exc:
