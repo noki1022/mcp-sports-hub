@@ -17,6 +17,7 @@ from pathlib import Path
 import sys
 import urllib.error
 import urllib.request
+from pushplus_mobile_v2 import render_v2,from_three
 
 ENDPOINT="https://www.pushplus.plus/send"
 TEMPLATE="html"
@@ -188,9 +189,21 @@ def main():
         html=header("PushPlus 通知测试","2026-10-30","仅此一次，不是比赛预测")+p("如果你看到这条消息，说明 GitHub 已成功调用 PushPlus API。")+"<p>此消息不代表每场比赛模型已验证。</p>"
         count=1
     elif args.mode=="three":
-        title,html,count=three_report(read(args.joined),read(args.model),read(args.movement))
+        joined=read(args.joined)
+        rows=from_three(joined,read(args.model),read(args.movement))
+        model={str(x.get("game_id")):x for x in read(args.model).get("games",[])}
+        count=len(rows)
+        title="NBA/CBA 赛前研判 V2｜"+str(joined.get("requested_display_date","未知"))
+        html=render_v2(rows,model,"NBA/CBA 赛前研判 V2",joined.get("requested_display_date","未知"),"three")
     else:
-        title,html,count=hourly_report(read(args.movement),read(args.model),read(args.window))
+        movement=read(args.movement)
+        window=read(args.window)
+        model={str(x.get("game_id")):x for x in read(args.model).get("games",[])}
+        ids={str(x.get("game_id")) for x in window.get("nba_cba_games",[])}
+        rows=[g for g in movement.get("games",[]) if g.get("status") in ("LINE_MOVE","WATER_MOVE","LINE_AND_WATER_MOVE") or str(g.get("game_id")) in ids]
+        count=len(rows)
+        title="NBA/CBA 盘口动态 V2｜"+str(movement.get("target_date","未知"))
+        html=render_v2(rows,model,"NBA/CBA 盘口动态 V2",movement.get("target_date","未知"),"hourly")
     html="<div style='"+style()+"max-width:560px;margin:0 auto;'>"+html+"</div>"
     Path(args.preview).write_text(html,encoding="utf-8")
     state={"mode":args.mode,"games_considered":count,"template":"html","preview":args.preview}
@@ -231,6 +244,8 @@ def selftest():
         try:parse_response(status,body);raise AssertionError("WRONG_RESPONSE_ACCEPTED")
         except RuntimeError:pass
     assert not any(w in html.lower() for w in ("token","api_key"))
+    from pushplus_mobile_v2 import self_test as v2_test
+    v2_test()
     print("PUSHPLUS_IPHONE_FORMAT_AND_RESPONSE_SELF_TEST_PASS")
 
 if __name__=="__main__":main()
