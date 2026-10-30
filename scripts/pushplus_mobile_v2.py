@@ -204,6 +204,48 @@ def jingcai_status(x, detailed=False):
             "<div style='font-weight:700;margin-bottom:3px;'>竞彩赔率（007）· 主队在左，客队在右</div>"+
             "".join(lines)+"</div>")
 
+def five_market_panel(x):
+    """Exactly five clearly named research rows, source-specific and independently graded."""
+    all_keys=(
+       ("JINGCAI_WIN","① 竞彩胜负"),
+       ("JINGCAI_HANDICAP","② 竞彩让分胜负"),
+       ("JINGCAI_TOTAL","③ 竞彩大小分"),
+       ("CROWN_HANDICAP","④ 皇冠让分"),
+       ("CROWN_TOTAL","⑤ 皇冠大小分"))
+    doc=x.get("five_market_forecast") or {}
+    rows=doc.get("markets") or {}
+    home=text(x.get("home_team"))
+    away=text(x.get("away_team"))
+    def side(market,val):
+        if market=="JINGCAI_WIN":
+            return "主胜 · "+home if val=="HOME_WIN" else "客胜 · "+away if val=="AWAY_WIN" else None
+        if market.endswith("HANDICAP"):
+            return "主队赢盘 · "+home if val=="HOME_COVER" else "客队赢盘 · "+away if val=="AWAY_COVER" else None
+        return "大分" if val=="OVER" else "小分" if val=="UNDER" else None
+    lines=[]
+    for key,name in all_keys:
+        obj=rows.get(key) or {}
+        status=obj.get("status","MISSING_FIVE_MARKET_ARTIFACT")
+        direction=side(key,obj.get("direction"))
+        if status=="DIRECTION_ISSUED" and direction:
+            mark=num(obj.get("signed_home_handicap")) if key.endswith("HANDICAP") else num(obj.get("line"))
+            qualifier=("　主队盘口 "+f(mark,True) if key.endswith("HANDICAP") and mark is not None else
+                       "　总分线 "+f(mark) if key.endswith("TOTAL") and mark is not None else "")
+            conclusion="<b>"+text(direction)+"</b>"+qualifier
+            if obj.get("strength")=="WEAK":conclusion+="（弱倾向）"
+        elif status=="NOT_ON_SALE_USER_CONFIRMED":
+            conclusion="未开售，不计入该玩法命中率"
+        else:
+            conclusion="数据不足，无法有效判断（"+text(status)+"）"
+        lines.append("<div style='padding:4px 0;border-bottom:1px solid #e1e8f0;'>"+
+                     "<b>"+name+"</b>　"+conclusion+"</div>")
+    return ("<div style='font-size:12px;padding:9px 10px;margin:7px 0;"
+            "background:#eff5fb;border-radius:8px;color:#22384f;line-height:1.65;'>"
+            "<div style='font-size:13px;font-weight:750;'>五玩法独立研判 · 赛前锁定</div>"+
+            "".join(lines)+
+            "<div style='color:#66778a;font-size:11px;margin-top:5px;'>"
+            "竞彩与皇冠分别计算；研究倾向并非已验证投注优势。</div></div>")
+
 def sop_evidence(x):
     """Show short, evidence-derived model assessment, never generic confidence."""
     data=x.get("analysis_sop") or {}
@@ -286,6 +328,7 @@ def render_v2(games,model_map,title,target,mode):
         body+=jingcai_status(x, detailed=True)
         body+=verdict_summary(x.get('two_market_verdict'))
         body+=sop_evidence(x)
+        body+=five_market_panel(x)
         body+=score_prediction(pred)
         body+=market_change(spread,"full_spread")+market_change(total,"full_total")
         body+=compare(pred,spread,total)
@@ -443,4 +486,17 @@ def self_test():
       "rule":"PROVISIONAL_HOME_HANDICAP_ADD_TO_HOME_MINUS_AWAY"},
       "TOTAL":{"line":224.5,"direction":"OVER"}}})
     assert "旧版方向失效" in legacy and "倾向客队赢盘" not in legacy
+    exact["five_market_forecast"]={"markets":{
+      "JINGCAI_WIN":{"status":"DIRECTION_ISSUED","direction":"AWAY_WIN"},
+      "JINGCAI_HANDICAP":{"status":"DIRECTION_ISSUED","direction":"HOME_COVER","signed_home_handicap":7.5},
+      "JINGCAI_TOTAL":{"status":"DIRECTION_ISSUED","direction":"OVER","line":225.5},
+      "CROWN_HANDICAP":{"status":"DIRECTION_ISSUED","direction":"AWAY_COVER","signed_home_handicap":-6.5},
+      "CROWN_TOTAL":{"status":"DIRECTION_ISSUED","direction":"UNDER","line":229.5}}}
+    five_html=render_v2([exact],m,"赛前模型","2026-10-31","three")
+    assert five_html.count("五玩法独立研判")==1
+    assert all(i in five_html for i in ("① 竞彩胜负","② 竞彩让分胜负","③ 竞彩大小分","④ 皇冠让分","⑤ 皇冠大小分"))
+    assert "主队盘口 +7.5" in five_html and "主队盘口 -6.5" in five_html
+    exact["five_market_forecast"]["markets"]["JINGCAI_WIN"]={"status":"NOT_ON_SALE_USER_CONFIRMED"}
+    no_sale=render_v2([exact],m,"赛前模型","2026-10-31","three")
+    assert "未开售，不计入该玩法命中率" in no_sale
     print("PUSHPLUS_V2_COMPACT_SELF_TEST_PASS")
