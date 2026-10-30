@@ -39,6 +39,25 @@ jobs:
           assert all(x['recommendation']=='NO_BET' for x in d['games'])
           print('NBA_SOP_TEN_REAL_JC_ID_FAIL_CLOSED_PASS')
           PY
+      - name: Verify production PushPlus code accepts and renders SOP evidence
+        run: |
+          python3 -m py_compile scripts/pushplus_mobile.py scripts/pushplus_mobile_v2.py
+          python3 scripts/pushplus_mobile.py --mode three --self-test
+          python3 scripts/pushplus_mobile.py --mode three \
+            --joined reports/daily/2026-10-31/1800/titan007_three_joined.json \
+            --jingcai sop-jingcai-source.json \
+            --sop sop-ten-game-audit.json \
+            --preview sop-ten-game-iphone.html \
+            --status sop-ten-game-mobile-status.json
+          python3 - <<'PY'
+          from pathlib import Path
+          html=Path('sop-ten-game-iphone.html').read_text(encoding='utf-8')
+          assert html.count('七步分析研判')==10
+          assert html.count('竞彩赔率（007）')==10
+          assert '周五309' in html and '周五318' in html
+          assert '槽1' not in html and '槽2' not in html
+          print('NBA_SOP_IPHONE_EVIDENCE_TEN_GAMES_PASS')
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -46,5 +65,7 @@ jobs:
           path: |
             sop-jingcai-source.json
             sop-ten-game-audit.json
+            sop-ten-game-iphone.html
+            sop-ten-game-mobile-status.json
           retention-days: 3
           if-no-files-found: ignore
