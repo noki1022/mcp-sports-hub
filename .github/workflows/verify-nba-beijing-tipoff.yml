@@ -4,6 +4,7 @@ on:
     branches: [fix/nba-us-day-beijing-fixture-reconcile-20261030]
     paths:
       - scripts/nba_official_beijing_schedule.py
+      - scripts/titan007_join_beijing_verified.py
       - .github/workflows/verify-nba-beijing-tipoff.yml
   pull_request:
     branches: [main]
@@ -19,4 +20,6 @@ jobs:
         with:
           python-version: '3.12'
       - run: python3 scripts/nba_official_beijing_schedule.py --self-test
+      - run: python3 scripts/titan007_join_beijing_verified.py --self-test
       - run: python3 scripts/nba_official_beijing_schedule.py --target 2026-10-31
+      - run: python3 scripts/titan007_join_beijing_verified.py --date 2026-10-31 --out /tmp/verified-titan-20261031.json
