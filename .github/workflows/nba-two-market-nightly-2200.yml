@@ -1,4 +1,4 @@
-name: NBA 22:00 Beijing settle locked spread and totals research
+name: NBA 22:00 Beijing settle five Jingcai and Crown markets
 on:
   workflow_dispatch:
   schedule:
@@ -8,7 +8,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: nba-two-market-review-2200
+  group: nba-five-market-review-2200
   cancel-in-progress: false
 jobs:
   settle-and-notify:
@@ -18,52 +18,56 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
-      - name: Identify Beijing date and pregame forecast
+      - name: Select Beijing date and actually frozen five-market forecast
         run: |
           git pull --ff-only origin main
           day=$(TZ=Asia/Shanghai date +%F)
           echo "REVIEW_DAY=$day" >> "$GITHUB_ENV"
-          marker="reports/two-market-settled/$day/2200.json"
+          marker="reports/five-market-settled/$day/2200.json"
           if [ -f "$marker" ]; then
             echo "RUN_REPORT=false" >> "$GITHUB_ENV"
             echo "ALREADY_SENT"
             exit 0
           fi
-          source="reports/daily/$day/0630/nba_two_market_forecast.json"
-          if [ ! -f "$source" ]; then source="reports/daily/$day/2130/nba_two_market_forecast.json"; fi
+          source="reports/daily/$day/0630/nba_five_market_forecast.json"
+          if [ ! -f "$source" ]; then source="reports/daily/$day/2130/nba_five_market_forecast.json"; fi
           if [ ! -f "$source" ]; then
             echo "RUN_REPORT=false" >> "$GITHUB_ENV"
-            echo "NO_PREGAME_ARCHIVE_NO_RETRO_FIT"
+            echo "NO_FIVE_MARKET_PREGAME_ARCHIVE_NO_RETROFIT"
             exit 0
           fi
           echo "FROZEN_FORECAST=$source" >> "$GITHUB_ENV"
           echo "RUN_REPORT=true" >> "$GITHUB_ENV"
-      - name: Official score settlement
+      - name: Settle five locked directions against official completed NBA scores
         if: env.RUN_REPORT == 'true'
         run: |
-          mkdir -p "reports/two-market-settled/$REVIEW_DAY"
-          python3 analysis/nba_nightly_two_market_settlement.py --forecast "$FROZEN_FORECAST" --day "$REVIEW_DAY" --out "reports/two-market-settled/$REVIEW_DAY/settlement.json"
-      - name: Push iPhone 22:00 review
+          mkdir -p "reports/five-market-settled/$REVIEW_DAY"
+          python3 analysis/nba_five_market_settlement.py --self-test
+          python3 analysis/nba_five_market_settlement.py --forecast "$FROZEN_FORECAST" --day "$REVIEW_DAY" \
+            --out "reports/five-market-settled/$REVIEW_DAY/settlement.json"
+      - name: Send one iPhone five-market review
         if: env.RUN_REPORT == 'true'
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          dir="reports/two-market-settled/$REVIEW_DAY"
-          python3 analysis/nba_nightly_review_push.py --settlement "$dir/settlement.json" --preview "$dir/report.html" --status "$dir/2200.json" --send
+          dir="reports/five-market-settled/$REVIEW_DAY"
+          python3 analysis/nba_five_market_review_push.py --settlement "$dir/settlement.json" \
+            --preview "$dir/report.html" --status "$dir/2200.json" --send
           python3 - <<'PY'
           import json,os
           from pathlib import Path
           d=os.environ["REVIEW_DAY"]
-          p=Path("reports/two-market-settled")/d/"2200.json"
+          p=Path("reports/five-market-settled")/d/"2200.json"
           assert json.loads(p.read_text())["state"]=="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
           PY
-      - name: Archive actual settlement and accepted-delivery marker
+      - name: Archive frozen five-market settlement and accepted marker
         if: env.RUN_REPORT == 'true'
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add "reports/two-market-settled/$REVIEW_DAY"
-          git commit -m "Archive 22:00 NBA settlement $REVIEW_DAY"
+          git add "reports/five-market-settled/$REVIEW_DAY"
+          git diff --cached --quiet && exit 0
+          git commit -m "Archive 22:00 five-market NBA settlement $REVIEW_DAY"
           for n in 1 2 3; do
             if git push origin HEAD:main; then exit 0; fi
             git pull --rebase origin main
@@ -72,7 +76,7 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nba-two-market-2200
-          path: reports/two-market-settled/
+          name: nba-five-market-2200
+          path: reports/five-market-settled/
           if-no-files-found: ignore
           retention-days: 14

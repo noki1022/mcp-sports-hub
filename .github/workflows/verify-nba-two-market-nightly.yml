@@ -39,8 +39,13 @@ jobs:
               assert '--verdict nba_two_market_forecast.json' in s,x
               assert 'nba_two_market_forecast.json' in s,x
           a=Path('.github/workflows/nba-two-market-nightly-2200.yml').read_text()
-          assert '0 14 * * *' in a and 'nba_nightly_two_market_settlement.py' in a and 'nba_nightly_review_push.py' in a
-          assert 'reports/daily/$day/0630/nba_two_market_forecast.json' in a
+          assert '0 14 * * *' in a
+          if 'nba_five_market_settlement.py' in a:
+              assert 'nba_five_market_review_push.py' in a
+              assert 'reports/daily/$day/0630/nba_five_market_forecast.json' in a
+          else:
+              assert 'nba_nightly_two_market_settlement.py' in a and 'nba_nightly_review_push.py' in a
+              assert 'reports/daily/$day/0630/nba_two_market_forecast.json' in a
           assert 'PUSHPLUS_TOKEN:' in a
           print('NBA_TWO_MARKET_COMPLETE_PRODUCTION_WIRING_PASS')
           PY

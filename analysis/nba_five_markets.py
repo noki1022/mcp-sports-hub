@@ -132,7 +132,7 @@ def make(joined,model,jc,top10):
     return {"schema_version":"nba-five-markets-v1",
       "target_date":date,"board_capture_utc":joined.get("captured_at_utc"),
       "market_settlement_lock":"CAPTURED_PRETIP_ONLY",
-      "crown_company_id":"3","crown_source":"007 Crow* only",
+      "crown_company_id":"3","crown_source":"007 source ID 3 (Crow* label crosscheck required)",
       "games":rows,"game_count":len(rows),"market_keys":list(MARKETS),
       "ready_counts":{k:sum(r["markets"][k]["status"]=="DIRECTION_ISSUED" for r in rows) for k in MARKETS},
       "not_betting_advice":True}
