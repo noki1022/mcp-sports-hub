@@ -108,6 +108,24 @@ def load_json_legacy(path):
         raw=raw[:-2]
     return json.loads(raw)
 
+def latest_saved_snapshot(root,target,current_capture):
+    """Select the newest truly older saved 007 capture, including legacy JSON."""
+    if root is None or not root.is_dir():return None
+    now=datetime.fromisoformat(str(current_capture).replace("Z","+00:00"))
+    if now.tzinfo is None:raise ValueError("CAPTURE_TIMEZONE_REQUIRED")
+    found=[]
+    for file in root.glob("*.json"):
+        try:
+            old=load_json_legacy(file)
+            if old.get("schema_version")!="nba-007-visible-top10-v1" or old.get("target_date")!=target:
+                continue
+            recorded=datetime.fromisoformat(str(old["captured_at_utc"]).replace("Z","+00:00"))
+            if recorded.tzinfo is None or recorded>=now:continue
+            found.append((recorded,str(file),file))
+        except (ValueError,KeyError,TypeError,OSError):
+            continue
+    return max(found)[2] if found else None
+
 def recover_crown_id3(root,target,current_capture,tipoffs):
     """Latest real, pre-tip ID 3 line for each game/market from same-date archives.
 
@@ -170,12 +188,27 @@ def analyze(current,prior,recovery=None):
             # Aggregated range/median must contain only current quotes, not fallback.
             lines=[float(r["current"]["line"]) for r in fresh]
             previous=(past.get(g["game_id"],{}).get("markets") or {}).get(k,{})
-            byname={x["company_display"]:x for x in previous.get("companies",[])}
+            # An archived fallback is NOT a new quote: only actual fresh 007
+            # rows may count as an observed line move. Source IDs are stable
+            # for dated institutional feeds; display labels may be missing.
+            def compare_key(x):
+                cid=str(x.get("company_id") or "")
+                if cid and cid!="UNVERIFIED":return ("007_id",cid)
+                label=x.get("company_display")
+                return ("display",str(label)) if label else None
+            byname={key:c for c in previous.get("companies",[])
+                    if (key:=compare_key(c)) is not None}
             delta=[]
-            for c in companies:
-                old=byname.get(c["company_display"])
-                if old:delta.append({"company":c["company_display"],
-                    "delta_line":round(c["current"]["line"]-old["current"]["line"],3)})
+            for c in fresh:
+                key=compare_key(c)
+                old=byname.get(key) if key is not None else None
+                if old is None:continue
+                new_line=(c.get("current") or {}).get("line")
+                old_line=(old.get("current") or {}).get("line")
+                if not isinstance(new_line,(int,float)) or not isinstance(old_line,(int,float)):
+                    continue
+                delta.append({"company":c.get("company_display") or "007机构ID "+str(c.get("company_id")),
+                    "delta_line":round(float(new_line)-float(old_line),3)})
             markets[k]={"status":("ARCHIVED_PRETIP_CROWN_FALLBACK" if recovered and not has_live_id3 else m["status"]),
                "company_count":len(fresh),"crown_id3_archived":bool(recovered and not has_live_id3),
                "median_line":median(lines) if lines else None,
@@ -221,7 +254,17 @@ def selftest():
           "games":[{"game_id":"728165","markets":{
             "full_spread":{"status":"NO_VERIFIED_QUOTE","companies":[]},
             "full_total":{"status":"NO_VERIFIED_QUOTE","companies":[]}}}]}
+        # The PR #111 synthetic archive has no company_display; do NOT crash.
         rebuilt=analyze(current,{},saved)
+        assert rebuilt["games"][0]["markets"]["full_spread"]["last_capture_company_changes"]==[]
+        # A recovered old quote must NOT masquerade as a new line move.
+        previous={"games":[{"game_id":"728165","markets":{"full_spread":{
+            "companies":[{"company_id":"3","current":{"line":-2.5}}]}}}]}
+        assert analyze(current,previous,saved)["games"][0]["markets"]["full_spread"]["last_capture_company_changes"]==[]
+        # Legacy suffix must not prevent chronological previous-snapshot lookup.
+        assert latest_saved_snapshot(folder,"2026-10-31","2026-10-30T17:30:00Z")==folder/"old.json"
+        assert latest_saved_snapshot(folder,"2026-10-31","2026-10-30T12:00:00Z") is None
+        assert latest_saved_snapshot(folder,"2026-10-30","2026-10-30T17:30:00Z") is None
         assert rebuilt["games"][0]["markets"]["full_spread"]["crown_id3_archived"]
         assert rebuilt["games"][0]["markets"]["full_total"]["companies"][0]["company_id"]=="3"
         assert rebuilt["games"][0]["markets"]["full_total"]["company_count"]==0
@@ -237,16 +280,8 @@ if __name__=="__main__":
         if a.history_root:
             root=Path(a.history_root)/snap["target_date"]
             root.mkdir(parents=True,exist_ok=True)
-            existing=[]
-            for file in root.glob("*.json"):
-                try:
-                    old=json.loads(file.read_text())
-                    if old.get("schema_version")!="nba-007-visible-top10-v1":continue
-                    if old.get("target_date")!=snap["target_date"]:continue
-                    if old.get("captured_at_utc","")>=snap["captured_at_utc"]:continue
-                    existing.append((old["captured_at_utc"],file))
-                except (OSError,ValueError,TypeError,KeyError):continue
-            if existing:older=max(existing)[1]
+            found=latest_saved_snapshot(root,snap["target_date"],snap["captured_at_utc"])
+            if found is not None:older=found
         try:prior=load_json_legacy(older) if older and older.is_file() else {}
         except (ValueError,OSError):prior={}
         tips={}
