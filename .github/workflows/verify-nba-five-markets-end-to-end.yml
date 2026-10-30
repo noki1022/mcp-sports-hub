@@ -1,0 +1,69 @@
+name: Verify five-market scheduled PushPlus and nightly settlement
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'analysis/nba_five_markets.py'
+      - 'analysis/nba_five_market_settlement.py'
+      - 'analysis/nba_five_market_review_push.py'
+      - 'scripts/pushplus_mobile_v2.py'
+      - '.github/workflows/nba-two-market-nightly-2200.yml'
+      - '.github/workflows/nba-priority-2130.yml'
+      - '.github/workflows/nba-priority-0630.yml'
+      - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/verify-nba-five-markets-end-to-end.yml'
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Verify five market signs, outcomes and iPhone format
+        run: |
+          python3 -m py_compile analysis/nba_five_markets.py analysis/nba_five_market_settlement.py analysis/nba_five_market_review_push.py scripts/pushplus_mobile_v2.py
+          python3 analysis/nba_five_markets.py --self-test
+          python3 analysis/nba_five_market_settlement.py --self-test
+          python3 analysis/nba_five_market_review_push.py --self-test
+          python3 scripts/pushplus_mobile.py --mode three --self-test
+      - name: Enforce five market artifact in all four scheduled workflows
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          paths=[
+            '.github/workflows/titan007-three-analysis.yml',
+            '.github/workflows/titan007-final-hourly.yml',
+            '.github/workflows/nba-priority-2130.yml',
+            '.github/workflows/nba-priority-0630.yml']
+          for path in paths:
+              content=Path(path).read_text()
+              assert 'analysis/nba_five_markets.py' in content,path
+              assert '--five nba_five_market_forecast.json' in content,path
+              assert 'nba_five_market_forecast.json' in content,path
+          nightly=Path('.github/workflows/nba-two-market-nightly-2200.yml').read_text()
+          assert 'analysis/nba_five_market_settlement.py' in nightly
+          assert 'analysis/nba_five_market_review_push.py' in nightly
+          assert 'NO_FIVE_MARKET_PREGAME_ARCHIVE_NO_RETROFIT' in nightly
+          print('NBA_FIVE_MARKET_FOUR_SCHEDULED_AND_NIGHTLY_WIRED_PASS')
+          PY
+      - name: Audit 10 pretip real 007 lottery games without posting PushPlus
+        run: |
+          python3 scripts/titan007_jingcai_three_market.py \
+            --joined reports/daily/2026-10-31/1800/titan007_three_joined.json \
+            --out sampled-jingcai.json
+          python3 - <<'PY'
+          import json
+          src=json.load(open('sampled-jingcai.json'))
+          assert src['jc_007_match_numbers']['verified']==10
+          print('JC_FIVE_MARKET_IDENTITY_REAL_10_PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nba-five-market-integration-verify
+          path: sampled-jingcai.json
+          if-no-files-found: ignore
+          retention-days: 2
