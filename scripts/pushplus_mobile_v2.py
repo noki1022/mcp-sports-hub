@@ -323,7 +323,7 @@ def render_v2(games,model_map,title,target,mode):
         total=markets.get("full_total") or {}
         pred=model_map.get(str(x.get("game_id")))
         status=x.get("status","FIRST_SNAPSHOT")
-        body="<div style='font-size:11px;color:#68788e;'>#"+text(lottery_label(x))+" · "+text(x.get("display_clock"))+" · "+text(status_label(status))+"</div>"
+        body="<div style='font-size:11px;color:#68788e;'>"+text(lottery_label(x))+" · "+text(x.get("display_clock"))+" · "+text(status_label(status))+"</div>"
         body+="<div style='font-size:15px;font-weight:750;margin:4px 0 7px;'>"+"主队："+text(x.get("home_team"))+"　｜　客队："+text(x.get("away_team"))+"</div>"
         body+=jingcai_status(x, detailed=True)
         if not x.get('five_market_forecast'):
