@@ -27,6 +27,7 @@ jobs:
           python3 -m py_compile analysis/nba_five_markets.py analysis/nba_five_market_settlement.py analysis/nba_five_market_review_push.py scripts/pushplus_mobile_v2.py
           python3 analysis/nba_five_markets.py --self-test
           python3 analysis/nba_five_market_settlement.py --self-test
+          python3 analysis/nba_final_review_gate.py --self-test
           python3 analysis/nba_five_market_review_push.py --self-test
           python3 scripts/pushplus_mobile.py --mode three --self-test
       - name: Enforce five market artifact in all four scheduled workflows
@@ -45,6 +46,8 @@ jobs:
               assert 'nba_five_market_forecast.json' in content,path
           nightly=Path('.github/workflows/nba-two-market-nightly-2200.yml').read_text()
           assert 'analysis/nba_five_market_settlement.py' in nightly
+          assert 'analysis/nba_final_review_gate.py' in nightly
+          assert '--scores nba_final_review_scores.json' in nightly
           assert 'analysis/nba_five_market_review_push.py' in nightly
           assert 'NO_FIVE_MARKET_PREGAME_ARCHIVE_NO_RETROFIT' in nightly
           print('NBA_FIVE_MARKET_FOUR_SCHEDULED_AND_NIGHTLY_WIRED_PASS')
