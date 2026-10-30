@@ -1,0 +1,29 @@
+name: One-time synthetic V2 eight NBA PushPlus
+on:
+  push:
+    branches: [demo/pushplus-v2-eight-once-20261030]
+    paths:
+      - scripts/send_pushplus_v2_eight_once.py
+      - .github/workflows/pushplus-v2-eight-once.yml
+permissions:
+  contents: read
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 scripts/send_pushplus_v2_eight_once.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pushplus-v2-eight-synthetic-preview
+          path: |
+            /tmp/nba-v2-eight-preview.html
+            /tmp/nba-v2-eight-status.json
+          retention-days: 3
+          if-no-files-found: warn
