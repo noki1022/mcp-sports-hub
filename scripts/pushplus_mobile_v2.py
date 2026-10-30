@@ -118,13 +118,16 @@ def verdict_summary(v):
         # institutional + = home gives. Explicitly convert rather than guessing.
         signed=-raw
     direction=sp.get("direction")
+    legacy_rule=sp.get("rule")=="PROVISIONAL_HOME_HANDICAP_ADD_TO_HOME_MINUS_AWAY"
+    if legacy_rule:
+        direction=None  # Prior snapshots used the inverted formula; do not silently publish.
     if signed is not None and direction in ("HOME","AWAY"):
         handicap=("主队让 "+f(-signed)+" 分" if signed<0 else
                   "主队受让 "+f(signed)+" 分" if signed>0 else "平手")
         target="主队赢盘" if direction=="HOME" else "客队赢盘"
         sp_label=handicap+"（主队盘口 "+f(signed,True)+"）→ 倾向"+target
     else:
-        sp_label="数据不足，暂不判断"
+        sp_label="旧版方向失效，待按正确让分符号重新计算" if legacy_rule else "数据不足，暂不判断"
     total_line=num(tot.get("line"))
     td=tot.get("direction")
     tl=("倾向"+("大分" if td=="OVER" else "小分")+"（"+f(total_line)+"）"
@@ -436,4 +439,8 @@ def self_test():
       "TOTAL":{"line":224.5,"direction":"OVER"}}})
     assert "主队受让 6.5 分" in t2 and "主队盘口 +6.5" in t2 and "倾向客队赢盘" in t2
     assert "主队方向（5.5）" not in t1 and "客队方向（-6.5）" not in t2
+    legacy=verdict_summary({"markets":{"SPREAD":{"line":-6.5,"direction":"AWAY",
+      "rule":"PROVISIONAL_HOME_HANDICAP_ADD_TO_HOME_MINUS_AWAY"},
+      "TOTAL":{"line":224.5,"direction":"OVER"}}})
+    assert "旧版方向失效" in legacy and "倾向客队赢盘" not in legacy
     print("PUSHPLUS_V2_COMPACT_SELF_TEST_PASS")
