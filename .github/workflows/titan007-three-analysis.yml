@@ -106,11 +106,11 @@ jobs:
           python3 analysis/market_movement_tracker.py --current titan007_three_joined.json --history-root reports/daily/$TARGET_DATE --out titan007_three_movement.json
       - name: Capture full-board point-in-time snapshot and compare prior slots
         run: |
+          git pull --ff-only origin main
           python3 analysis/titan007_hourly_history.py capture --current titan007_three_joined.json --root reports/hourly --daily-root reports/daily --out-movement titan007_slot_movement.json
           python3 analysis/nba_hourly_dynamic_review.py --movement titan007_slot_movement.json --model nba_model_analysis.json --injury nba_injury_context.json --out nba_slot_dynamic_review.json
       - name: Publish point-in-time snapshots for next run
         run: |
-          git pull --rebase origin main
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add reports/hourly/
@@ -124,7 +124,7 @@ jobs:
           fi
       - name: Audit market B and fusion C without directional assumptions
         run: |
-          python3 analysis/nba_market_bc_diagnostics.py --joined titan007_three_joined.json --movement titan007_three_movement.json --model nba_model_analysis.json --out nba_market_bc_diagnostics.json
+          python3 analysis/nba_market_bc_diagnostics.py --joined titan007_three_joined.json --movement titan007_slot_movement.json --model nba_model_analysis.json --out nba_market_bc_diagnostics.json
       - name: Resolve canonical report slot and check already sent
         id: dedup
         run: |
