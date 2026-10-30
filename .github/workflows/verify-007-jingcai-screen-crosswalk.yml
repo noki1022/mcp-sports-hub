@@ -1,0 +1,31 @@
+name: Verify screenshot Jingcai vs 007 institution crosswalk
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/verify_007_jingcai_screen_crosswalk.py'
+      - '.github/workflows/verify-007-jingcai-screen-crosswalk.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  crosswalk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 scripts/verify_007_jingcai_screen_crosswalk.py --self-test
+      - name: Compare 10 archived screenshot totals to archived institutional lines
+        run: |
+          python3 scripts/verify_007_jingcai_screen_crosswalk.py \
+            --board reports/daily/2026-10-31/1800/titan007_three_joined.json \
+            --screen analysis/data/007_jingcai_manual_20261030.json \
+            --output screenshot-jc-total-crosswalk.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshot-jc-total-crosswalk
+          path: screenshot-jc-total-crosswalk.json
+          retention-days: 3
+          if-no-files-found: ignore
