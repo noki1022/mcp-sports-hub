@@ -1,0 +1,50 @@
+name: Verify NBA US game day to Beijing tipoff mapping
+on:
+  push:
+    branches: [fix/nba-us-day-beijing-fixture-reconcile-20261030]
+    paths:
+      - scripts/nba_official_beijing_schedule.py
+      - scripts/titan007_join_beijing_verified.py
+      - .github/workflows/verify-nba-beijing-tipoff.yml
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  timezone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 scripts/nba_official_beijing_schedule.py --self-test
+      - run: python3 scripts/titan007_join_beijing_verified.py --self-test
+      - run: python3 scripts/nba_official_beijing_schedule.py --target 2026-10-31
+      - run: python3 scripts/titan007_join_beijing_verified.py --date 2026-10-31 --out /tmp/verified-titan-20261031.json
+      - run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Validate full model and mobile-report chain on verified Beijing games
+        run: |
+          python3 analysis/nba_prediction_adapter.py --joined /tmp/verified-titan-20261031.json --out /tmp/verified-predictions.json
+          python3 analysis/titan007_daily_market.py --joined /tmp/verified-titan-20261031.json --out /tmp/verified-market.json
+          python3 analysis/market_decision_gate.py --market /tmp/verified-market.json --predictions /tmp/verified-predictions.json --out /tmp/verified-decision.json
+          python3 analysis/nba_model_report.py --joined /tmp/verified-titan-20261031.json --predictions /tmp/verified-predictions.json --out-json /tmp/verified-model.json --out-html /tmp/verified-model.html
+          python3 analysis/market_movement_tracker.py --current /tmp/verified-titan-20261031.json --history-root /tmp/unpopulated-007-daily/ --out /tmp/verified-movement.json
+          python3 scripts/pushplus_mobile.py --mode three --joined /tmp/verified-titan-20261031.json --model /tmp/verified-model.json --movement /tmp/verified-movement.json --preview /tmp/verified-pushplus-preview.html --status /tmp/verified-pushplus-status.json
+      - name: Validate next-morning schedule without quote fabrication
+        run: |
+          python3 - <<'PY'
+          import json
+          from datetime import datetime
+          d=json.load(open('/tmp/verified-titan-20261031.json'))
+          assert d['official_schedule_count']>=d['nba_cba_joined_for_date']>0
+          assert d['market_opening_not_available'] is True
+          assert d['recommendations']==[]
+          for row in d['nba_cba_games']:
+            assert datetime.fromisoformat(row['start_time_beijing']).date().isoformat()=='2026-10-31'
+            assert not row['markets']['full_total']['opening']
+          status=json.load(open('/tmp/verified-pushplus-status.json'))
+          assert status['state']=='DRY_RUN_NOT_SENT'
+          print('BEIJING_GAME_DAY_MODEL_REPORT_E2E_PASS',d['nba_cba_joined_for_date'])
+          PY
