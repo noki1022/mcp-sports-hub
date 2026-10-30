@@ -76,10 +76,21 @@ def examine_js(raw):
         else:
             value=parts.path
         candidates.add(value)
+    # Extract bounded redacted context from each occurrence. Does not fetch discovered URLs.
+    targets=("JcResult.aspx","oddsChange.aspx","oddsData.aspx","AsianOdds_n.aspx","OverDown_n.aspx")
+    contexts={}
+    for target in targets:
+        snippets=[]
+        for m in list(re.finditer(re.escape(target),text,re.I))[:4]:
+            excerpt=text[max(0,m.start()-120):min(len(text),m.end()+120)]
+            excerpt=re.sub(r"[\\r\\n\\t]+"," ",excerpt)
+            excerpt=re.sub(r"(?i)(token|secret|key|password)\\s*[:=]\\s*['\\\"][^'\\\"]+['\\\"]",r"\\1=[REDACTED]",excerpt)
+            snippets.append(excerpt[:270])
+        if snippets:contexts[target]=snippets
     return {"bytes":len(raw),"sha256_prefix":hashlib.sha256(raw).hexdigest()[:16],
       "flags":flags,"static_endpoint_path_candidates":sorted(candidates)[:25],
       "candidate_count":len(candidates),
-      "raw_lottery_word_occurrences":sum(text.lower().count(w) for w in ("jingcai","竞彩","lottery","csl"))}
+      "raw_lottery_word_occurrences":sum(text.lower().count(w) for w in ("jingcai","竞彩","lottery","csl")),"target_callsite_context":contexts}
 
 def inspect(fetch=None):
     policy, status=robots_policy(fetch)
