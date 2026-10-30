@@ -101,14 +101,74 @@ def collect(board,limit=10):
         "candidate_ids":list(selected),"source_audit":source_audit,
         "games":list(bygame.values()),"model_probability_adjusted":False,"decision":"NO_BET"}
 
-def analyze(current,prior):
+def load_json_legacy(path):
+    """Read genuine stored 007 snapshots, including legacy literal-backslash-n suffix."""
+    raw=Path(path).read_text(encoding="utf-8").strip()
+    if raw.endswith("\\n"):
+        raw=raw[:-2]
+    return json.loads(raw)
+
+def recover_crown_id3(root,target,current_capture,tipoffs):
+    """Latest real, pre-tip ID 3 line for each game/market from same-date archives.
+
+    Never uses another company or invents current odds. The prior snapshot
+    timestamp is frozen and explicitly displayed as OLD/NOT-LIVE downstream.
+    """
+    result={}
+    if root is None or not root.is_dir():return result
+    current=datetime.fromisoformat(str(current_capture).replace("Z","+00:00"))
+    if current.tzinfo is None:raise ValueError("CAPTURE_TIMEZONE_REQUIRED")
+    for path in root.glob("*.json"):
+        try:
+            snap=load_json_legacy(path)
+            if snap.get("schema_version")!="nba-007-visible-top10-v1" or snap.get("target_date")!=target:
+                continue
+            stamp=datetime.fromisoformat(str(snap["captured_at_utc"]).replace("Z","+00:00"))
+            if stamp.tzinfo is None or stamp>=current:continue
+            for game in snap.get("games",[]):
+                gid=str(game.get("game_id") or "")
+                tip=tipoffs.get(gid)
+                if tip is None or stamp>=tip:continue
+                for kind in ("full_spread","full_total"):
+                    item=(game.get("markets") or {}).get(kind) or {}
+                    for quote in item.get("companies",[]):
+                        if str(quote.get("company_id"))!="3" or quote.get("source")!="DATED_007_COMPANY_ID":
+                            continue
+                        values=quote.get("current") or {}
+                        if any(not isinstance(values.get(key),(float,int)) or
+                               isinstance(values.get(key),bool) or
+                               not (-1000<float(values[key])<1000)
+                               for key in ("line","first_side_water","second_side_water")):
+                            continue
+                        key=(gid,kind)
+                        if key not in result or stamp>result[key][0]:
+                            result[key]=(stamp,quote)
+        except (ValueError,TypeError,KeyError,OSError):
+            continue
+    recovered={}
+    for key,(stamp,quote) in result.items():
+        row=dict(quote)
+        row["source"]="DATED_007_COMPANY_ID_ARCHIVED_PRETIP"
+        row["observed_capture_utc"]=stamp.isoformat()
+        row["quote_freshness"]="ARCHIVED_PRIOR_NOT_LIVE"
+        recovered[key]=row
+    return recovered
+
+def analyze(current,prior,recovery=None):
     past={str(g["game_id"]):g for g in prior.get("games",[])} if prior else {}
     rows=[]
     for g in current.get("games",[]):
         markets={}
         for k,m in g["markets"].items():
-            companies=m.get("companies",[])
-            lines=[float(r["current"]["line"]) for r in companies]
+            fresh=m.get("companies",[])
+            companies=list(fresh)
+            has_live_id3=any(str(c.get("company_id"))=="3" and
+                             c.get("source")=="DATED_007_COMPANY_ID" for c in fresh)
+            recovered=(recovery or {}).get((str(g["game_id"]),k))
+            if not has_live_id3 and recovered:
+                companies.append(recovered)
+            # Aggregated range/median must contain only current quotes, not fallback.
+            lines=[float(r["current"]["line"]) for r in fresh]
             previous=(past.get(g["game_id"],{}).get("markets") or {}).get(k,{})
             byname={x["company_display"]:x for x in previous.get("companies",[])}
             delta=[]
@@ -116,7 +176,8 @@ def analyze(current,prior):
                 old=byname.get(c["company_display"])
                 if old:delta.append({"company":c["company_display"],
                     "delta_line":round(c["current"]["line"]-old["current"]["line"],3)})
-            markets[k]={"status":m["status"],"company_count":len(companies),
+            markets[k]={"status":("ARCHIVED_PRETIP_CROWN_FALLBACK" if recovered and not has_live_id3 else m["status"]),
+               "company_count":len(fresh),"crown_id3_archived":bool(recovered and not has_live_id3),
                "median_line":median(lines) if lines else None,
                "line_min":min(lines) if lines else None,"line_max":max(lines) if lines else None,
                "last_capture_company_changes":delta,
@@ -135,6 +196,35 @@ def selftest():
     assert o["games"][0]["markets"]["full_total"]["company_count"]==10
     assert not o["model_probability_adjusted"]
     assert len(VALIDATED_SOURCE_IDS)==10 and len(set(VALIDATED_SOURCE_IDS))==10
+    import tempfile
+    with tempfile.TemporaryDirectory() as scratch:
+        folder=Path(scratch)
+        archive={"schema_version":"nba-007-visible-top10-v1",
+            "target_date":"2026-10-31","captured_at_utc":"2026-10-30T15:30:00Z",
+            "games":[{"game_id":"728165","markets":{}}]}
+        for market,line in (("full_spread",-1.5),("full_total",219.5)):
+            archive["games"][0]["markets"][market]={"companies":[{
+                "company_id":"3","source":"DATED_007_COMPANY_ID",
+                "current":{"line":line,"first_side_water":0.9,"second_side_water":0.95}}]}
+        (folder/"old.json").write_text(json.dumps(archive)+"\\n")
+        tips={"728165":datetime.fromisoformat("2026-10-31T07:00:00+08:00")}
+        saved=recover_crown_id3(folder,"2026-10-31","2026-10-30T17:30:00Z",tips)
+        assert saved[("728165","full_spread")]["current"]["line"]==-1.5
+        assert saved[("728165","full_total")]["current"]["line"]==219.5
+        assert all(q["company_id"]=="3" for q in saved.values())
+        assert all(q["quote_freshness"]=="ARCHIVED_PRIOR_NOT_LIVE" for q in saved.values())
+        assert not recover_crown_id3(folder,"2026-10-30","2026-10-30T17:30:00Z",tips)
+        assert not recover_crown_id3(folder,"2026-10-31","2026-10-30T15:00:00Z",tips)
+        assert not recover_crown_id3(folder,"2026-10-31","2026-10-30T17:30:00Z",
+            {"728165":datetime.fromisoformat("2026-10-30T14:00:00Z")})
+        current={"target_date":"2026-10-31","captured_at_utc":"2026-10-30T17:30:00Z",
+          "games":[{"game_id":"728165","markets":{
+            "full_spread":{"status":"NO_VERIFIED_QUOTE","companies":[]},
+            "full_total":{"status":"NO_VERIFIED_QUOTE","companies":[]}}}]}
+        rebuilt=analyze(current,{},saved)
+        assert rebuilt["games"][0]["markets"]["full_spread"]["crown_id3_archived"]
+        assert rebuilt["games"][0]["markets"]["full_total"]["companies"][0]["company_id"]=="3"
+        assert rebuilt["games"][0]["markets"]["full_total"]["company_count"]==0
     print("TITAN007_TOP10_NO_INVENTED_COMPANY_TEST_PASS")
 if __name__=="__main__":
     p=argparse.ArgumentParser();p.add_argument("--joined");p.add_argument("--out");p.add_argument("--analysis")
@@ -157,10 +247,20 @@ if __name__=="__main__":
                     existing.append((old["captured_at_utc"],file))
                 except (OSError,ValueError,TypeError,KeyError):continue
             if existing:older=max(existing)[1]
-        prior=json.loads(older.read_text()) if older and older.is_file() else {}
+        try:prior=load_json_legacy(older) if older and older.is_file() else {}
+        except (ValueError,OSError):prior={}
+        tips={}
+        for item in board.get("nba_cba_games",[]):
+            try:
+                tip=datetime.fromisoformat(str(item["start_time_beijing"]).replace("Z","+00:00"))
+                if tip.tzinfo is not None:tips[str(item["game_id"])]=tip
+            except (KeyError,TypeError,ValueError):continue
+        recovery=recover_crown_id3(
+            Path(a.history_root)/snap["target_date"] if a.history_root else None,
+            snap["target_date"],snap["captured_at_utc"],tips)
         Path(a.out).write_text(json.dumps(snap,ensure_ascii=False,indent=2)+"\n")
-        Path(a.analysis).write_text(json.dumps(analyze(snap,prior),ensure_ascii=False,indent=2)+"\n")
+        Path(a.analysis).write_text(json.dumps(analyze(snap,prior,recovery),ensure_ascii=False,indent=2)+"\n")
         if a.history_root:
             filename=snap["captured_at_utc"].replace(":","-").replace("+","_")+".json"
-            (root/filename).write_text(json.dumps(snap,ensure_ascii=False,indent=2)+"\\n")
+            (root/filename).write_text(json.dumps(snap,ensure_ascii=False,indent=2)+"\n")
         print("NBA_TOP10_007",len(snap["games"]))
