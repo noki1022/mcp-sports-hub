@@ -13,6 +13,10 @@ on:
     # Retry opportunities when GitHub drops/delays the 12:00 scheduled event.
     - cron: "15 4 * * *"
     - cron: "30 4 * * *"
+    # Beijing 14:00 full-board report, plus delayed recovery triggers.
+    - cron: "0 6 * * *"
+    - cron: "15 6 * * *"
+    - cron: "30 6 * * *"
     - cron: "0 13 * * *"
 permissions:
   contents: write
@@ -106,6 +110,7 @@ jobs:
           expr=os.environ.get('SCHEDULE_EXPR','')
           slots={'0 22 * * *':'0600','0 4 * * *':'1200',
                  '15 4 * * *':'1200','30 4 * * *':'1200',
+                 '0 6 * * *':'1400','15 6 * * *':'1400','30 6 * * *':'1400',
                  '0 13 * * *':'2100'}
           if expr and expr not in slots: raise RuntimeError('UNKNOWN_SCHEDULE')
           slot=slots.get(expr) or datetime.now(ZoneInfo('Asia/Shanghai')).strftime('%H%M')
