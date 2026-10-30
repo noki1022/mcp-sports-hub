@@ -1,0 +1,148 @@
+name: NBA PRIORITY 06:30 Beijing morning full report
+on:
+  schedule:
+    # Beijing 06:30, recovery at 06:40/06:50; same 0630 marker.
+    - cron: "30 22 * * *"
+    - cron: "40 22 * * *"
+    - cron: "50 22 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: nba-priority-0630-main
+  cancel-in-progress: false
+jobs:
+  priority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 11
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preflight Beijing cutoff; check prior accepted push
+        id: gate
+        run: |
+          python3 scripts/nba_0630_priority_gate.py --phase preflight >> /tmp/priority_gate.txt
+          target=$(sed -n 's/^TARGET_DATE=//p' /tmp/priority_gate.txt)
+          echo "TARGET_DATE=$target" >> "$GITHUB_ENV"
+          git pull --ff-only origin main
+          if test -f "reports/pushplus-sent/$target/0630.json"; then
+            echo "sent=true" >> "$GITHUB_OUTPUT"
+            echo "PRIORITY_0630_ALREADY_ACCEPTED"
+          else
+            echo "sent=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.gate.outputs.sent != 'true'
+        name: Install pinned model dependencies
+        run: python3 -m pip install --quiet --disable-pip-version-check numpy==2.2.6 pdfplumber==0.11.7
+      - if: steps.gate.outputs.sent != 'true'
+        name: Refresh same-morning NBA market odds from 007
+        run: |
+          for n in 1 2; do
+            if python3 scripts/titan007_join_beijing_verified.py --date "$TARGET_DATE" --out titan007_priority_joined.json; then exit 0; fi
+          done
+          exit 1
+      - if: steps.gate.outputs.sent != 'true'
+        name: Exclude started and wrong-day NBA games
+        run: |
+          python3 scripts/nba_0630_pretip_filter.py --joined titan007_priority_joined.json --out nba_priority_pretip.json
+          mv nba_priority_pretip.json titan007_priority_joined.json
+      - if: steps.gate.outputs.sent != 'true'
+        name: Verify all official games and Beijing tipoffs
+        run: |
+          python3 - <<'PY'
+          import json,os
+          from datetime import datetime
+          j=json.load(open('titan007_priority_joined.json'))
+          assert j['requested_display_date']==os.environ['TARGET_DATE']
+          assert j.get('nba_cba_games'), 'NO_VERIFIED_007_MATCHES'
+          for g in j['nba_cba_games']:
+              assert datetime.fromisoformat(g['start_time_beijing']).date().isoformat()==os.environ['TARGET_DATE']
+          print('PRIORITY_VERIFIED_GAMES',len(j['nba_cba_games']),'MISSING',j.get('nba_markets_missing'))
+          PY
+      - if: steps.gate.outputs.sent != 'true'
+        name: Compare preceding hourly and fixed-slot market snapshots
+        run: |
+          python3 analysis/titan007_hourly_history.py capture --current titan007_priority_joined.json --root reports/hourly --daily-root reports/daily --out-movement titan007_priority_movement.json
+      - if: steps.gate.outputs.sent != 'true'
+        name: Independent model, full board
+        run: |
+          python3 analysis/nba_prediction_adapter.py --joined titan007_priority_joined.json --out nba_priority_predictions.json
+      - if: steps.gate.outputs.sent != 'true'
+        name: Collect injury quality, unknown on source failure
+        run: |
+          python3 analysis/nba_official_injury.py --date "$TARGET_DATE" --out nba_priority_injuries.json || echo "OFFICIAL_INJURY_UNAVAILABLE"
+          python3 analysis/nba_injury_context.py --joined titan007_priority_joined.json --injuries nba_priority_injuries.json --out nba_priority_injury_context.json
+      - if: steps.gate.outputs.sent != 'true'
+        name: Complete per-game dynamic model interpretation
+        run: |
+          python3 analysis/nba_model_report.py --joined titan007_priority_joined.json --predictions nba_priority_predictions.json --injury-context nba_priority_injury_context.json --out-json nba_priority_model.json --out-html nba_priority_model.html
+          python3 analysis/nba_hourly_dynamic_review.py --movement titan007_priority_movement.json --model nba_priority_model.json --injury nba_priority_injury_context.json --out nba_priority_dynamic.json
+          python3 analysis/nba_market_bc_diagnostics.py --joined titan007_priority_joined.json --movement titan007_priority_movement.json --model nba_priority_model.json --out nba_priority_bc.json
+      - if: steps.gate.outputs.sent != 'true'
+        name: Enforce same-capture market trend and full-board model review
+        run: |
+          python3 scripts/verify_nba_capture_analysis.py --joined titan007_priority_joined.json --movement titan007_priority_movement.json --model nba_priority_model.json --dynamic nba_priority_dynamic.json --out nba_capture_audit.json
+      - if: steps.gate.outputs.sent != 'true'
+        name: Enforce strict presend 06:58 Beijing deadline and dedup
+        run: |
+          python3 scripts/nba_0630_priority_gate.py --phase presend
+          python3 scripts/nba_0630_pretip_filter.py --joined titan007_priority_joined.json --out nba_priority_presend_verified.json
+          python3 - <<'PY'
+          import json
+          a=json.load(open('titan007_priority_joined.json'))
+          b=json.load(open('nba_priority_presend_verified.json'))
+          assert len(a['nba_cba_games'])==len(b['nba_cba_games']), 'PRETIP_CHANGED_DURING_ANALYSIS_ABORT'
+          PY
+          git fetch origin main
+          if git cat-file -e "origin/main:reports/pushplus-sent/$TARGET_DATE/0630.json" 2>/dev/null; then
+             echo 'PRIORITY_ALREADY_ACCEPTED_IN_REMOTE'; exit 1
+          fi
+      - if: steps.gate.outputs.sent != 'true'
+        name: Push full-board priority analysis to iPhone before morning NBA tipoffs
+        env:
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+        run: |
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_priority_joined.json --movement titan007_priority_movement.json --dynamic nba_priority_dynamic.json --model nba_priority_model.json --preview nba_priority_iphone.html --status nba_priority_pushplus_status.json --send --require-token
+          python3 - <<'PY'
+          import json
+          s=json.load(open('nba_priority_pushplus_status.json'))
+          if s.get('state')!='API_ACCEPTED_NOT_DEVICE_CONFIRMED':raise RuntimeError('PRIORITY_PUSH_NOT_ACCEPTED')
+          print('PRIORITY_PUSHPLUS_API_ACCEPTED',s.get('games_considered'))
+          PY
+      - if: steps.gate.outputs.sent != 'true'
+        name: Archive snapshot, complete analysis and successful PushPlus marker
+        run: |
+          mkdir -p "reports/daily/$TARGET_DATE/0630" "reports/pushplus-sent/$TARGET_DATE"
+          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_priority_iphone.html "reports/daily/$TARGET_DATE/0630/"
+          python3 - <<'PY'
+          import os,json
+          from pathlib import Path
+          Path('reports/pushplus-sent',os.environ['TARGET_DATE'],'0630.json').write_text(json.dumps({'state':'API_ACCEPTED_NOT_DEVICE_CONFIRMED','slot':'2130','run_id':os.environ['GITHUB_RUN_ID']})+'\n')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add reports/hourly/ "reports/daily/$TARGET_DATE/0630" "reports/pushplus-sent/$TARGET_DATE/0630.json"
+          git commit -m "Priority pre-cutoff NBA report $TARGET_DATE"
+          for i in 1 2 3; do
+            if git push origin HEAD:main; then exit 0; fi
+            git pull --rebase origin main
+          done
+          exit 1
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-priority-0630-${{ env.TARGET_DATE }}
+          path: |
+            titan007_priority_joined.json
+            titan007_priority_movement.json
+            nba_priority_model.json
+            nba_capture_audit.json
+            nba_priority_dynamic.json
+            nba_priority_injury_context.json
+            nba_priority_bc.json
+            nba_priority_iphone.html
+            nba_priority_pushplus_status.json
+          if-no-files-found: warn
+          retention-days: 14
