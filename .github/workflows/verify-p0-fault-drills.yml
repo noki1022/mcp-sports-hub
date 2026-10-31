@@ -1,0 +1,26 @@
+name: P0 isolated NBA end-to-end fault drills
+on:
+  pull_request:
+    paths:
+      - scripts/nba_p0_fault_injection.py
+      - scripts/nba_delivery_health.py
+      - .github/workflows/verify-p0-fault-drills.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fault-drills:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Simulate trigger misses, timeouts, duplicates, expired retries without sending
+        run: python3 scripts/nba_p0_fault_injection.py
+      - name: Run existing recovery and official Final readiness unit checks
+        run: |
+          python3 scripts/nba_delivery_health.py --self-test
+          python3 scripts/nba_delivery_recovery.py --self-test
+          python3 analysis/nba_final_review_gate.py --self-test
