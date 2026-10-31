@@ -19,6 +19,19 @@ jobs:
       - name: Verify early fixed-slot gate, remote dedup, and safe retry
         run: python3 scripts/nba_fixed_slot_gate.py --self-test
 
+      - name: Verify priority accepted-marker gating and fixed-slot regression
+        run: |
+          python3 scripts/nba_fixed_slot_gate.py --self-test
+          python3 - <<'PY'
+          from pathlib import Path
+          for slot in ('2130','0630'):
+              s=Path(f'.github/workflows/nba-priority-{slot}.yml').read_text()
+              assert f'--phase preflight --priority-slot {slot}' in s
+              assert s.index(f'--priority-slot {slot}') < s.index('Install pinned model dependencies')
+              assert "if: steps.gate.outputs.sent != 'true'" in s
+          print('PRIORITY_ACCEPTED_MARKER_GATE_PASS')
+          PY
+
       - name: Verify NBA official injury watch pretip safety
         run: python3 analysis/nba_injury_watch.py --mode self-test
 
