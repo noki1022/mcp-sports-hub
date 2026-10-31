@@ -119,7 +119,7 @@ def main(args):
         for d,h,a,margin,total,items in byday[day]:
             if len(team_history[h])<3 or len(team_history[a])<3:
                 excluded["team_history_lt3"]+=1;continue
-            base=[float(np.mean(team_history[h][-7:])),float(np.mean(team_history[a][-7:])),
+            base=[float(np.mean([v[0] for v in team_history[h][-7:]])),float(np.mean([v[0] for v in team_history[a][-7:]])),
                   float(np.mean([v[1] for v in team_history[h][-7:]])),
                   float(np.mean([v[1] for v in team_history[a][-7:]]))]
             # Minutes and past scoring are computed exclusively before target date.
