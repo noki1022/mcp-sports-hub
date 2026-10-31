@@ -1,0 +1,42 @@
+name: One-shot live NBA full-chain dispatch
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/ops/run-live-nba-full-chain-once-20261031.json'
+permissions:
+  actions: write
+  contents: read
+concurrency:
+  group: one-shot-live-nba-full-chain-dispatch
+  cancel-in-progress: false
+jobs:
+  dispatch-full-chain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    if: github.repository == 'noki1022/mcp-sports-hub'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trigger real 007 NBA model and PushPlus report once
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY' > /tmp/target-nba-date.txt
+          import json
+          from datetime import datetime, timedelta
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          marker = Path(".github/ops/run-live-nba-full-chain-once-20261031.json")
+          if not marker.is_file():
+              raise SystemExit("TRIGGER_MARKER_REMOVED_NO_DISPATCH")
+          data = json.loads(marker.read_text())
+          target = data["target_date"]
+          expected = (datetime.now(ZoneInfo("Asia/Shanghai")).date() + timedelta(days=1)).isoformat()
+          if data.get("requested_action") != "REAL_PRODUCTION_ANALYZE_AND_PUSH" or target != expected:
+              raise SystemExit("EXPIRED_OR_INVALID_ONE_SHOT_REQUEST_NO_DISPATCH")
+          print(target)
+          PY
+          target=$(cat /tmp/target-nba-date.txt)
+          echo "DISPATCHING_PRODUCTION_FULL_CHAIN target=$target"
+          gh workflow run titan007-three-analysis.yml --repo "${GITHUB_REPOSITORY}" --ref main -f "target_date=$target"
+          echo "PRODUCTION_FULL_CHAIN_DISPATCH_ACCEPTED"
