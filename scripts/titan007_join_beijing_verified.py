@@ -164,10 +164,27 @@ def reconcile(fixture,site,odds,target):
         raise RuntimeError("MORE_THAN_ONE_007_ID_PER_OFFICIAL_GAME")
     return sorted(matched,key=lambda r:(r["display_clock"],r["game_id"])),dict(reject)
 
+def missing_market_diagnostics(fixture, site, odds):
+    """Evidence by exact 007 ID. No cross-bookmaker substitution or inferred odds."""
+    official={(g["home"],g["away"]):g for g in fixture}
+    rows=[]
+    for gid,g in site.items():
+        if g.get("league")!="NBA":continue
+        key=matchup_key(g["home_team"],g["away_team"])
+        target=official.get(key)
+        if not target or not accept_match(g,target,g["display_date"],g["display_clock"]):continue
+        if gid in odds:continue
+        rows.append({"007_game_id":gid,"nba_game_id":target["nba_game_id"],
+                     "home":target["home"],"away":target["away"],
+                     "site_date":g["display_date"],"site_clock":g["display_clock"],
+                     "id3_dated_market":"MISSING"})
+    return rows
+
 def run(date,out):
     fixture,sources=fetch_schedule(date)
     ids,odds,coverage,issues,source_errors=source_for_date(date)
     matched,rej=reconcile(fixture,ids,odds,date)
+    missing_diagnostics=missing_market_diagnostics(fixture,ids,odds)
     matched_official={g["nba_game_id"] for g in matched}
     missing=[]
     for g in fixture:
@@ -193,6 +210,7 @@ def run(date,out):
       "upcoming_nba_games":fixture,
       "site_query_dates":coverage,
       "match_rejections":rej,
+      "missing_id3_diagnostics":missing_diagnostics,
       "source_rejections":issues,
       "source_query_errors":source_errors,
       "unmatched_nba_fixtures":missing,
@@ -213,7 +231,7 @@ def run(date,out):
     print("NBA_US_TO_BEIJING_TITAN_RECONCILIATION "+json.dumps({
          "target":date,"fixtures":len(fixture),"verified_market_games":len(matched),
          "missing":missing,"coverage":coverage,"query_errors":source_errors,
-         "reject":rej,"status":output["report_quality"]},ensure_ascii=False),flush=True)
+         "reject":rej,"missing_id3_ids":missing_diagnostics,"status":output["report_quality"]},ensure_ascii=False),flush=True)
     if fixture and not matched:
         raise RuntimeError("OFFICIAL_BEIJING_GAMES_EXIST_BUT_007_MARKETS_ZERO")
     return output
