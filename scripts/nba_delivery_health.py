@@ -41,8 +41,11 @@ def hourly_slot(now:datetime, requested:str="")->str:
     if requested:
         if requested not in HOURS:raise ValueError("INVALID_HOURLY_REPORT_SLOT")
         return requested
-    local=now.astimezone(BJ)-timedelta(minutes=30)
-    slot=f"{local.hour:02d}30"
+    local=now.astimezone(BJ)
+    # GitHub :30 cron may launch several minutes late. Between :30 and :59
+    # still belongs to the SAME hour; between :00 and :29 the prior hour.
+    hour=local.hour if local.minute>=30 else (local.hour-1)%24
+    slot=f"{hour:02d}30"
     if slot not in HOURS:raise ValueError("NOT_AN_OVERNIGHT_HOURLY_WINDOW")
     return slot
 
@@ -149,7 +152,15 @@ def alert_html(report:dict)->str:
 
 def self_test():
     from datetime import datetime
-    assert hourly_slot(datetime.fromisoformat("2026-10-30T22:35:00+08:00"))=="2230"
+    for clock,expected in (("2026-10-30T22:30:00+08:00","2230"),
+                           ("2026-10-30T22:35:00+08:00","2230"),
+                           ("2026-10-30T22:59:59+08:00","2230"),
+                           ("2026-10-30T23:00:00+08:00","2230"),
+                           ("2026-10-31T00:01:00+08:00","2330"),
+                           ("2026-10-31T00:30:00+08:00","0030"),
+                           ("2026-10-31T05:30:00+08:00","0530"),
+                           ("2026-10-31T06:00:00+08:00","0530")):
+        assert hourly_slot(datetime.fromisoformat(clock))==expected,clock
     assert hourly_slot(datetime.fromisoformat("2026-10-31T00:10:00+08:00"))=="2330"
     assert hourly_slot(datetime.fromisoformat("2026-10-31T01:12:00+08:00"))=="0030"
     for cron,now,slot,target in (
