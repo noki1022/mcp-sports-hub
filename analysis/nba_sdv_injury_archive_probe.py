@@ -29,6 +29,8 @@ for key,url in URLS.items():
     if "game_date" in data:
         info["first_game"]=str(data["game_date"].min());info["last_game"]=str(data["game_date"].max())
         info["distinct_game_dates"]=int(data["game_date"].nunique())
+    if key.startswith("in"):
+        info["sample_full_rows"]=[{k:str(v) for k,v in r.items()} for r in data.head(2).to_dict(orient="records")]
     res["files"][key]=info
     print("SCHEMA",key,json.dumps(info,ensure_ascii=False))
 Path("nba-real-injury-schema-audit.json").write_text(json.dumps(res,indent=2,ensure_ascii=False))
