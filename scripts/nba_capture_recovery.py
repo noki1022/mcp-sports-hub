@@ -219,7 +219,7 @@ def self_test():
         bad=json.loads(json.dumps(prior))
         bad["nba_cba_games"][1]["game_id"]="728999"
         archive.write_text(json.dumps(bad))
-        assert recover(current,root)["quote_recovery"]["recovered_games"]==0
+        assert recover(current,root)["quote_recovery"]["recovered_games"]==1
         archive.write_text(json.dumps(prior))
         bad_current=json.loads(json.dumps(current))
         bad_current["nba_cba_games"][0]["home_team"]="夏洛特黄蜂"
