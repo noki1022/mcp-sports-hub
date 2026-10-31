@@ -10,7 +10,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -22,6 +22,8 @@ jobs:
       - run: python3 analysis/nba_early_player_minutes_admission.py --self-test
       - name: Validate actual 2022-24 individual player games and transfer-aware past minutes
         run: python3 analysis/nba_early_player_minutes_admission.py --out nba-2022-24-player-minutes-audit.json
+      - name: Train early-season replacement-aware research model and evaluate later season
+        run: python3 analysis/nba_early_injury_replacement_study.py --out nba-early-injury-replacement-study.json
       - name: Reject fabricated per-player replacement weights
         run: |
           python3 - <<'PY'
@@ -39,5 +41,6 @@ jobs:
           path: |
             nba-legacy-archives-admission.json
             nba-2022-24-player-minutes-audit.json
+            nba-early-injury-replacement-study.json
           retention-days: 21
           if-no-files-found: warn
