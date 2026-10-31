@@ -22,7 +22,9 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
       - name: Unit test independent spread and total availability
-        run: python3 scripts/diagnose_007_id3_match.py --self-test
+        run: |
+          python3 scripts/diagnose_007_id3_match.py --self-test
+          python3 scripts/id3_quote_continuity.py --self-test
       - name: Read-only 007 ID3 source forensic capture (PR and explicit dispatch)
         # The six date/hour variants use published, robots-checked endpoints.
         # These are diagnostics only, never promotion into betting predictions.
