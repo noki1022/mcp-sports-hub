@@ -218,7 +218,7 @@ def main():
         model={str(x.get("game_id")):x for x in read(args.model).get("games",[])}
         count=len(rows)
         title="NBA 赛前五玩法｜"+str(joined.get("requested_display_date","未知"))
-        html=render_compact(rows,model,"NBA/CBA 赛前五玩法",joined.get("requested_display_date","未知"),"three")
+        html=render_compact(rows,model,"NBA/CBA 赛前五玩法",joined.get("requested_display_date","未知"),"three",official_fixtures=joined.get("upcoming_nba_games"))
     else:
         movement=read(args.movement)
         dynamic={str(g.get("game_id")):g for g in read(args.dynamic).get("games",[])}
@@ -233,7 +233,7 @@ def main():
         rows=list(movement.get("games",[]))
         count=len(rows)
         title="NBA 赛前五玩法｜"+str(movement.get("target_date","未知"))
-        html=render_compact(rows,model,"NBA/CBA 赛前五玩法",movement.get("target_date","未知"),"hourly")
+        html=render_compact(rows,model,"NBA/CBA 赛前五玩法",movement.get("target_date","未知"),"hourly",official_fixtures=window.get("upcoming_nba_games"))
     if args.mode!="smoke" and args.send and not args.five:
         raise RuntimeError("COMPACT_FIVE_MARKET_SOURCE_REQUIRED_NO_LONG_FALLBACK")
     if (args.top10 or args.verdict or args.jingcai or args.sop or args.five) and args.mode!="smoke":
@@ -267,7 +267,7 @@ def main():
         focus=read(args.priority_focus) if args.priority_focus else None
         if focus is not None and (args.mode!="three" or focus.get("slot") not in ("2130","0630")):
             raise RuntimeError("INVALID_PRIORITY_FOCUS_REPORT")
-        html=render_compact(rows,model,title,joined.get("requested_display_date") if args.mode=="three" else movement.get("target_date"),args.mode)
+        html=render_compact(rows,model,title,joined.get("requested_display_date") if args.mode=="three" else movement.get("target_date"),args.mode,official_fixtures=(joined if args.mode=="three" else window).get("upcoming_nba_games"))
     if args.overnight_audit:
         if args.mode!="three" or not args.priority_focus or focus.get("slot")!="0630":
             raise RuntimeError("OVERNIGHT_AUDIT_ONLY_FOR_0630")
