@@ -233,6 +233,8 @@ def main():
         count=len(rows)
         title="NBA 赛前五玩法｜"+str(movement.get("target_date","未知"))
         html=render_compact(rows,model,"NBA/CBA 赛前五玩法",movement.get("target_date","未知"),"hourly")
+    if args.mode!="smoke" and args.send and not args.five:
+        raise RuntimeError("COMPACT_FIVE_MARKET_SOURCE_REQUIRED_NO_LONG_FALLBACK")
     if (args.top10 or args.verdict or args.jingcai or args.sop or args.five) and args.mode!="smoke":
         multi=read(args.top10)
         top={str(x.get("game_id")):x for x in multi.get("games",[])}
@@ -265,6 +267,8 @@ def main():
         if focus is not None and (args.mode!="three" or focus.get("slot") not in ("2130","0630")):
             raise RuntimeError("INVALID_PRIORITY_FOCUS_REPORT")
         html=render_compact(rows,model,title,joined.get("requested_display_date") if args.mode=="three" else movement.get("target_date"),args.mode)
+    if args.mode!="smoke" and args.send and ("竞彩 · 3玩法" not in html or "皇冠ID3 · 2玩法" not in html):
+        raise RuntimeError("COMPACT_RENDER_INCOMPLETE_NO_LEGACY_FALLBACK")
     html="<div style='"+style()+"max-width:560px;margin:0 auto;'>"+html+"</div>"
     Path(args.preview).write_text(html,encoding="utf-8")
     state={"mode":args.mode,"games_considered":count,"template":"html","preview":args.preview}
