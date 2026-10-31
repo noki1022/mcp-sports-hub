@@ -185,6 +185,7 @@ def main():
     a.add_argument("--sop")
     a.add_argument("--five")
     a.add_argument("--priority-focus",help="Mandatory separate 21:30/06:30 model focus artifact")
+    a.add_argument("--overnight-audit",help="6-slot silent overnight capture/analysis digest; 06:30 only")
     a.add_argument("--preview",default="pushplus_mobile_preview.html")
     a.add_argument("--status",default="pushplus_status.json")
     a.add_argument("--send",action="store_true")
@@ -267,6 +268,25 @@ def main():
         if focus is not None and (args.mode!="three" or focus.get("slot") not in ("2130","0630")):
             raise RuntimeError("INVALID_PRIORITY_FOCUS_REPORT")
         html=render_compact(rows,model,title,joined.get("requested_display_date") if args.mode=="three" else movement.get("target_date"),args.mode)
+    if args.overnight_audit:
+        if args.mode!="three" or not args.priority_focus or focus.get("slot")!="0630":
+            raise RuntimeError("OVERNIGHT_AUDIT_ONLY_FOR_0630")
+        from html import escape as esc
+        audit=read(args.overnight_audit)
+        expected=("0030","0130","0230","0330","0430","0530")
+        if audit.get("expected")!=6 or audit.get("target_date")!=joined.get("requested_display_date"):
+            raise RuntimeError("OVERNIGHT_AUDIT_WRONG_COHORT")
+        complete={x["slot"] for x in audit.get("completed_slots",[])}
+        miss={x["slot"] for x in audit.get("missing",[])}
+        if complete|miss!=set(expected) or complete&miss or audit.get("completed")!=len(complete):
+            raise RuntimeError("OVERNIGHT_SIX_AUDIT_INCOMPLETE_OR_INVALID")
+        labels="　".join(x[:2]+":"+x[2:]+" "+("✓" if x in complete else "缺") for x in expected)
+        misses="；".join(x["slot"][:2]+":"+x["slot"][2:]+" "+x["reason"] for x in audit["missing"])
+        notice=("<div style='font-size:12px;padding:9px 12px;margin:7px 0;border:1px solid #e3e8ee;border-radius:8px;'>"
+            "<b>凌晨六次抓取＋分析："+str(audit["completed"])+"/6</b><div>"+esc(labels)+"</div>"
+            +(("<div style='color:#97531b;'>缺失说明："+esc(misses)+"</div>") if misses else "")
+            +"<div>已开赛比赛不重新生成赛前判断；本报告只给尚未开赛比赛更新方向。</div></div>")
+        html=notice+html
     if args.mode!="smoke" and args.send and ("竞彩 · 3玩法" not in html or "皇冠ID3 · 2玩法" not in html):
         raise RuntimeError("COMPACT_RENDER_INCOMPLETE_NO_LEGACY_FALLBACK")
     html="<div style='"+style()+"max-width:560px;margin:0 auto;'>"+html+"</div>"
