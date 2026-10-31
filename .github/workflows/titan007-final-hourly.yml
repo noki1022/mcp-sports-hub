@@ -64,6 +64,18 @@ jobs:
           if good:Path('/tmp/hourly_already_accepted').touch()
           PY
           fi
+          # Silent slots use a hash-verified capture+analysis marker, NOT PushPlus.
+          if [[ "$slot" =~ ^(0030|0130|0230|0330|0430|0530)$ ]]; then
+            python3 scripts/nba_overnight_six_audit.py digest --day "$TARGET_DATE" --out /tmp/hourly_six_status.json
+            python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          d=json.loads(Path("/tmp/hourly_six_status.json").read_text())
+          if any(x["slot"]==os.environ["HOURLY_REPORT_SLOT"] for x in d["completed_slots"]):
+              Path("/tmp/hourly_already_accepted").touch()
+              print("SILENT_CAPTURE_AND_ANALYSIS_ALREADY_ARCHIVED")
+          PY
+          fi
           if test -f /tmp/hourly_already_accepted; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
