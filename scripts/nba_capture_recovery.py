@@ -13,6 +13,8 @@ import json
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'analysis'))
 
 from nba_noon_slate import official_identity, market_identity, aware
 
@@ -132,7 +134,9 @@ def recover(current, root, *, target=None, now=None):
         # Only an actual verified prior capture can bootstrap a fully failed
         # source fetch. Preserve real historical fixture/quote timestamps.
         source = next((past for cap, _, past in candidates if cap < clock
-                       and (lambda p: p.get("requested_display_date") == day)(past)), None)
+                       and past.get("requested_display_date") == day
+                       and all(fid in seen for fid in
+                               (str(g["nba_game_id"]) for g in past.get("nba_cba_games", [])))), None)
         if source is None:
             raise RuntimeError("RECOVERY_NO_PREVIOUS_VERIFIED_CAPTURE")
         base = deepcopy(source)
