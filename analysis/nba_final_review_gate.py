@@ -19,6 +19,38 @@ ACCEPTED="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
 def read_json(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
+def point_in_time_valid(frozen,games):
+    """Accept only a whole-board forecast whose model and quoted prices predate tip.
+
+    For a 03:00/08:30 slate, the 06:30 run may contain early games that already
+    tipped. It must never displace an earlier genuinely pre-tip full-board file.
+    """
+    def aware(value):
+        try:
+            stamp=datetime.fromisoformat(str(value).replace("Z","+00:00"))
+        except (ValueError,TypeError):
+            return None
+        return stamp if stamp.tzinfo is not None else None
+
+    board_time=aware(frozen.get("board_capture_utc"))
+    if board_time is None:
+        return False
+    for game in games:
+        tip=aware(game.get("tipoff_beijing"))
+        if tip is None or board_time>=tip:
+            return False
+        markets=game.get("markets") or {}
+        if not isinstance(markets,dict):
+            return False
+        for market in markets.values():
+            if not isinstance(market,dict):
+                return False
+            if market.get("status")=="DIRECTION_ISSUED":
+                quote_time=aware(market.get("captured_at_utc"))
+                if quote_time is None or quote_time>=tip:
+                    return False
+    return True
+
 def frozen_source(root,day):
     # Prefer a complete original pretip board, never a 06:30 subset of
     # only games that have not started. Compare against frozen noon official IDs.
@@ -42,7 +74,8 @@ def frozen_source(root,day):
         games=frozen_games(frozen,day)
         ids={str(g["nba_game_id"]) for g in games}
         if official_ids is not None and ids!=official_ids:continue
-        # Every issued market must predate its own match, not merely capture date.
+        # Model-board timestamp and each issued quote must both predate tip.
+        if not point_in_time_valid(frozen,games):continue
         valid.append((slot,path))
     return valid[0][1] if valid else None
 
@@ -155,6 +188,40 @@ def self_test():
         assert decide(root,datetime.fromisoformat("2026-10-31T20:00:00+08:00"),score_fetch=all_final)["state"].startswith("WAITING")
         assert decide(root,datetime.fromisoformat("2026-11-01T00:10:00+08:00"),score_fetch=all_final)["day"]==target
         assert decide(root,datetime.fromisoformat("2026-11-05T00:10:00+08:00"),score_fetch=all_final)["day"]==target
+        # A later 06:30 snapshot for an already-started 03:00 game is not
+        # a valid full-slate research forecast, regardless of complete IDs.
+        with tempfile.TemporaryDirectory() as t:
+            root2=Path(t)
+            day="2026-11-01"
+            noon=root2/"reports"/"noon-cohorts"/day/"1200.json"
+            noon.parent.mkdir(parents=True)
+            noon.write_text(json.dumps({"official_games":{"early":{},"late":{}}}))
+            games=[
+                {"game_id":"001","nba_game_id":"early","tipoff_beijing":"2026-11-01T03:00:00+08:00",
+                 "markets":{"JINGCAI_WIN":{"status":"DIRECTION_ISSUED",
+                     "captured_at_utc":"2026-10-31T18:00:00+08:00"}}},
+                {"game_id":"002","nba_game_id":"late","tipoff_beijing":"2026-11-01T08:30:00+08:00",
+                 "markets":{"CROWN_TOTAL":{"status":"CROWN_QUOTE_NOT_VERIFIED","captured_at_utc":None}}}]
+            before=root2/"reports"/"daily"/day/"1800"/"nba_five_market_forecast.json"
+            after=root2/"reports"/"daily"/day/"0630"/"nba_five_market_forecast.json"
+            before.parent.mkdir(parents=True)
+            after.parent.mkdir(parents=True)
+            safe={"target_date":day,"board_capture_utc":"2026-10-31T18:01:00+08:00","games":games}
+            before.write_text(json.dumps(safe))
+            later={**safe,"board_capture_utc":"2026-11-01T06:31:00+08:00"}
+            after.write_text(json.dumps(later))
+            assert frozen_source(root2,day)==before,"POSTTIP_FULL_BOARD_SELECTED"
+            assert point_in_time_valid(later,games) is False
+            safe["games"][0]["markets"]["JINGCAI_WIN"]["captured_at_utc"]="2026-11-01T03:01:00+08:00"
+            before.write_text(json.dumps(safe))
+            assert frozen_source(root2,day) is None,"POSTTIP_MARKET_QUOTE_SELECTED"
+            safe["games"][0]["markets"]["JINGCAI_WIN"]["captured_at_utc"]="2026-10-31T18:00:00+08:00"
+            safe["board_capture_utc"]="2026-11-01T03:00:00+08:00"
+            before.write_text(json.dumps(safe))
+            assert frozen_source(root2,day) is None,"AT_TIP_MODEL_SELECTED"
+            safe["board_capture_utc"]="2026-10-31T18:01:00+08:00"
+            before.write_text(json.dumps(safe))
+            assert frozen_source(root2,day)==before,"VALID_PRETIP_BOARD_NOT_SELECTED"
         marker=root/"reports"/"five-market-settled"/target/"2200.json"
         marker.parent.mkdir(parents=True)
         marker.write_text(json.dumps({"state":ACCEPTED}))
