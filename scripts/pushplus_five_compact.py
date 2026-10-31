@@ -140,7 +140,7 @@ def small_move(game):
     return "　".join(parts[:2])
 
 
-def render_compact(games, model_map, title, target, mode, snapshot_utc=None):
+def render_compact(games, model_map, title, target, mode, snapshot_utc=None, official_fixtures=None):
     """A single view; one card per game, Jingcai 70% visual priority, Crown 30%.
 
     model_map is preserved for the scheduled runner API; the five-market
@@ -175,8 +175,14 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None):
     # First capture already carries verified official UTC fixture tipoffs.
     # Show earliest tip on every push so users need not spot an early game manually.
     tips=[]
-    for g in rows:
-        raw=(g.get("five_market_forecast") or {}).get("tipoff_beijing") or g.get("start_time_beijing")
+    # Complete official fixture set includes early NBA games without 007 prices.
+    if official_fixtures is not None:
+        if not official_fixtures:raise RuntimeError("EMPTY_OFFICIAL_SCHEDULE_CANNOT_ANNOUNCE")
+        fixture_times=[x.get("utc_tip") for x in official_fixtures]
+    else:
+        fixture_times=[(g.get("five_market_forecast") or {}).get("tipoff_beijing") or
+                       g.get("start_time_beijing") for g in rows]
+    for raw in fixture_times:
         try:
             d=datetime.fromisoformat(str(raw).replace("Z","+00:00"))
             if d.tzinfo is None:raise ValueError("NO_TIMEZONE")
@@ -185,6 +191,7 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None):
             raise RuntimeError("NBA_EARLIEST_TIP_UNVERIFIED")
     from zoneinfo import ZoneInfo
     earliest=min(tips).astimezone(ZoneInfo("Asia/Shanghai"))
+    if earliest.date().isoformat()!=str(target):raise RuntimeError("OFFICIAL_EARLIEST_GAME_WRONG_DAY")
     head+=("<div style='font-size:12px;padding:5px 10px;color:#8a4e16;'>"
            "最早开赛：北京时间 "+earliest.strftime("%H:%M")+
            " · 完整赛前判断必须早于此时冻结</div>")
@@ -311,6 +318,9 @@ def self_test():
     h = render_compact([injected], {}, "赛前", "2026-11-01", "three")
     assert "<script>" not in h and "&lt;script&gt;" in h
     assert match_label(injected, "2026-11-01")[0] == "编号待核"
+    early=[{"utc_tip":"2026-10-31T19:00:00+00:00"}]
+    h=render_compact([game],{},"赛前","2026-11-01","three",official_fixtures=early)
+    assert "最早开赛：北京时间 03:00" in h and "北京时间 08:30 开赛" in h
     sample = mk("AWAY_COVER", signed_home_handicap=6.5, model_direction_probability=.549)
     assert market_row("JINGCAI_HANDICAP", sample).startswith("客-6.5 赢盘")
     assert market_row("CROWN_HANDICAP", {"status": "CROWN_QUOTE_NOT_VERIFIED"}) == "盘口未核实"
