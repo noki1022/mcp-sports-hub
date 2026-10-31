@@ -4,6 +4,17 @@ on:
     branches: [fix/hourly-market-snapshots-and-movement-20261030, fix/hourly-snapshot-stability-full-model-20261030]
   pull_request:
     branches: [main]
+    paths:
+      - 'analysis/titan007_hourly_history.py'
+      - 'analysis/nba_hourly_dynamic_review.py'
+      - 'analysis/nba_prediction_adapter.py'
+      - 'scripts/verify_nba_capture_analysis.py'
+      - 'scripts/pushplus_mobile.py'
+      - 'scripts/pushplus_mobile_v2.py'
+      - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/nba-priority-2130.yml'
+      - '.github/workflows/verify-hourly-market-movement.yml'
 permissions:
   contents: read
 jobs:
