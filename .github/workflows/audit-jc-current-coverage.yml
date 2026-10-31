@@ -1,0 +1,56 @@
+name: Audit 007 JC current NBA odds coverage
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/audit-jc-current-coverage.yml']
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Self-test 007 JC schema and fixture numbering
+        run: |
+          python3 scripts/parse_007_jc_three_market.py --self-test
+          python3 scripts/verify_007_jc_push_numbering.py
+      - name: Inspect genuine historical saved November 1 NBA board and JC feed
+        run: |
+          python3 - <<'PY'
+          import json,sys
+          from pathlib import Path
+          sys.path.insert(0,'scripts')
+          from parse_007_jc_three_market import parse,PATH
+          from probe_007_jc_scripts import ORIGIN,UA,get_bytes,robots_policy
+          from titan007_join_beijing_verified import fetch_schedule
+          official,_=fetch_schedule('2026-11-01')
+          board={'requested_display_date':'2026-11-01','nba_cba_games':[]}
+          import urllib.parse
+          from titan007_join_daily import public_get,identify
+          for day in ('2026-10-31','2026-11-01','2026-11-02'):
+              u='https://bf.titan007.com/nba_date.aspx?'+urllib.parse.urlencode({'date':day,'h':'12','m':'00','s':'1'})
+              for mid,g in identify(public_get(u,700000))[0].items():
+                  from titan007_join_beijing_verified import matchup_key,accept_match
+                  for f in official:
+                      if g['league']=='NBA' and matchup_key(g['home_team'],g['away_team'])==(f['home'],f['away']) and accept_match(g,f,g['display_date'],g['display_clock']):
+                          if not any(x['game_id']==mid for x in board['nba_cba_games']):
+                              board['nba_cba_games'].append({**g,'nba_game_id':f['nba_game_id'],'start_time_beijing':f['beijing_tip']})
+          rp,status=robots_policy()
+          summary={'date':'2026-11-01','official_games':len(official),'matched_007_games':len(board['nba_cba_games']),'source_policy':status}
+          if rp is False or (rp is not None and not rp.can_fetch(UA,ORIGIN+PATH)):
+              summary['state']='ACCESS_NOT_PERMITTED'
+          else:
+              x=parse(get_bytes(ORIGIN+PATH,300000),board)
+              summary.update(state='OK',coverage=x['nba_coverage'],all_three=x['all_three_market_games'],source_counts=x['source_record_counts'],rows=[{'game_id':g['game_id'],'home':g['home_team'],'away':g['away_team'],'markets':{k:v['status'] for k,v in g['markets'].items()}} for g in x['matches']])
+          Path('jc-2026-11-01-audit.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\\n')
+          print('JC_NOV1_READ_ONLY_AUDIT',json.dumps(summary,ensure_ascii=False),flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jc-nov1-real-coverage
+          path: jc-2026-11-01-audit.json
+          retention-days: 7
+          if-no-files-found: ignore
