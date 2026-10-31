@@ -83,6 +83,8 @@ def self_test() -> None:
     for slot in FIXED_SLOTS:
         assert resolve_slot("", slot, now) == slot
     assert resolve_slot("", "", now) == "1240"
+    for priority in ("2130", "0630"):
+        assert priority not in FIXED_SLOTS
     for invalid in ("1640", "2199", "foobar"):
         try:
             resolve_slot("", invalid, now)
@@ -115,6 +117,8 @@ def self_test() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--phase", choices=("preflight", "recheck"))
+    parser.add_argument("--priority-slot", choices=("2130", "0630"),
+                        help="Explicit priority preflight, bypass fixed cron mapping")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:
@@ -123,9 +127,12 @@ def main() -> None:
         parser.error("--phase required")
     target = os.environ["TARGET_DATE"]
     date.fromisoformat(target)
+    if args.priority_slot and args.phase != "preflight":
+        parser.error("--priority-slot is preflight-only")
     if args.phase == "preflight":
-        slot = resolve_slot(os.environ.get("SCHEDULE_EXPR", ""),
-                            os.environ.get("EXTERNAL_REPORT_SLOT", ""), datetime.now(BEIJING))
+        slot = args.priority_slot or resolve_slot(
+            os.environ.get("SCHEDULE_EXPR", ""),
+            os.environ.get("EXTERNAL_REPORT_SLOT", ""), datetime.now(BEIJING))
         append_env("REPORT_SLOT", slot)
     else:
         slot = os.environ["REPORT_SLOT"]
@@ -133,7 +140,9 @@ def main() -> None:
     append_env("REPORT_ALREADY_SENT", "true" if accepted else "false")
     if args.phase == "preflight":
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as file:
-            file.write("skip=" + ("true" if accepted else "false") + "\n")
+            verdict = "true" if accepted else "false"
+            file.write("skip=" + verdict + "\n")
+            file.write("sent=" + verdict + "\n")
     print("FIXED_SLOT_" + args.phase.upper(), target, slot,
           "API_ALREADY_ACCEPTED" if accepted else "READY_FOR_ANALYSIS")
 
