@@ -1,5 +1,5 @@
 {
-  "captured_at_utc": "2026-10-31T13:07:48.424210+00:00",
+  "captured_at_utc": "2026-10-31T13:41:02.051571+00:00",
   "requested_display_date": "2026-11-01",
   "date_standard": "Asia/Shanghai derived from UTC start",
   "score_source": "https://bf.titan007.com/nba_date.aspx?date=...",
@@ -83,33 +83,139 @@
   ],
   "site_query_dates": {
     "2026-11-01": {
-      "source_rows": 541,
-      "market_rows": 51,
-      "id3_state": "AVAILABLE",
+      "source_rows": 557,
+      "market_rows": 0,
+      "id3_state": "UNAVAILABLE",
       "nba_rows": 7
     },
     "2026-10-31": {
-      "source_rows": 531,
+      "source_rows": 535,
       "market_rows": 122,
       "id3_state": "AVAILABLE",
       "nba_rows": 11
     },
     "2026-11-02": {
-      "source_rows": 218,
+      "source_rows": 225,
       "market_rows": 0,
       "id3_state": "AVAILABLE",
       "nba_rows": 4
     }
   },
   "match_rejections": {
+    "NO_DATE_MARKET_FOR_GAME_ID": 6,
     "NOT_OFFICIAL_BEIJING_MATCHUP": 14
   },
-  "missing_id3_diagnostics": [],
+  "missing_id3_diagnostics": [
+    {
+      "007_game_id": "728294",
+      "nba_game_id": "401909897",
+      "home": "CHA",
+      "away": "PHI",
+      "site_date": "2026-11-01",
+      "site_clock": "06:00",
+      "id3_dated_market": "MISSING"
+    },
+    {
+      "007_game_id": "728881",
+      "nba_game_id": "401909898",
+      "home": "NOP",
+      "away": "ATL",
+      "site_date": "2026-11-01",
+      "site_clock": "07:00",
+      "id3_dated_market": "MISSING"
+    },
+    {
+      "007_game_id": "728295",
+      "nba_game_id": "401909900",
+      "home": "MIL",
+      "away": "CLE",
+      "site_date": "2026-11-01",
+      "site_clock": "08:00",
+      "id3_dated_market": "MISSING"
+    },
+    {
+      "007_game_id": "728882",
+      "nba_game_id": "401909901",
+      "home": "SAS",
+      "away": "MIN",
+      "site_date": "2026-11-01",
+      "site_clock": "08:00",
+      "id3_dated_market": "MISSING"
+    },
+    {
+      "007_game_id": "728883",
+      "nba_game_id": "401909899",
+      "home": "MEM",
+      "away": "SAC",
+      "site_date": "2026-11-01",
+      "site_clock": "08:00",
+      "id3_dated_market": "MISSING"
+    },
+    {
+      "007_game_id": "728884",
+      "nba_game_id": "401909902",
+      "home": "HOU",
+      "away": "OKC",
+      "site_date": "2026-11-01",
+      "site_clock": "08:30",
+      "id3_dated_market": "MISSING"
+    }
+  ],
   "source_rejections": {
-    "identity_rejected": 0
+    "identity_rejected": 0,
+    "ID3_SOURCE_UNAVAILABLE": 1
   },
-  "source_query_errors": [],
-  "unmatched_nba_fixtures": [],
+  "source_query_errors": [
+    {
+      "site_date": "2026-11-01",
+      "source": "CROWN_ID3",
+      "error": "URLError"
+    }
+  ],
+  "unmatched_nba_fixtures": [
+    {
+      "nba_game_id": "401909897",
+      "home": "CHA",
+      "away": "PHI",
+      "beijing_tip": "2026-11-01T06:00+08:00",
+      "reason": "007_MARKET_MISSING"
+    },
+    {
+      "nba_game_id": "401909898",
+      "home": "NOP",
+      "away": "ATL",
+      "beijing_tip": "2026-11-01T07:00+08:00",
+      "reason": "007_MARKET_MISSING"
+    },
+    {
+      "nba_game_id": "401909899",
+      "home": "MEM",
+      "away": "SAC",
+      "beijing_tip": "2026-11-01T08:00+08:00",
+      "reason": "007_MARKET_MISSING"
+    },
+    {
+      "nba_game_id": "401909900",
+      "home": "MIL",
+      "away": "CLE",
+      "beijing_tip": "2026-11-01T08:00+08:00",
+      "reason": "007_MARKET_MISSING"
+    },
+    {
+      "nba_game_id": "401909901",
+      "home": "SAS",
+      "away": "MIN",
+      "beijing_tip": "2026-11-01T08:00+08:00",
+      "reason": "007_MARKET_MISSING"
+    },
+    {
+      "nba_game_id": "401909902",
+      "home": "HOU",
+      "away": "OKC",
+      "beijing_tip": "2026-11-01T08:30+08:00",
+      "reason": "007_MARKET_MISSING"
+    }
+  ],
   "nba_cba_games": [
     {
       "game_id": "728880",
@@ -129,17 +235,17 @@
         "full_spread": {
           "opening": {},
           "current": {
-            "line": -7.5,
-            "first_side_water": 0.99,
-            "second_side_water": 0.87
+            "line": -8.5,
+            "first_side_water": 0.9,
+            "second_side_water": 0.96
           }
         },
         "full_total": {
           "opening": {},
           "current": {
             "line": 232.5,
-            "first_side_water": 0.96,
-            "second_side_water": 0.88
+            "first_side_water": 0.98,
+            "second_side_water": 0.86
           }
         }
       }
@@ -161,19 +267,13 @@
       "markets": {
         "full_spread": {
           "opening": {},
-          "current": {
-            "line": -1.5,
-            "first_side_water": 0.91,
-            "second_side_water": 0.95
-          }
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
         },
         "full_total": {
           "opening": {},
-          "current": {
-            "line": 215.5,
-            "first_side_water": 0.92,
-            "second_side_water": 0.92
-          }
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
         }
       }
     },
@@ -194,19 +294,13 @@
       "markets": {
         "full_spread": {
           "opening": {},
-          "current": {
-            "line": -4.5,
-            "first_side_water": 0.88,
-            "second_side_water": 0.98
-          }
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
         },
         "full_total": {
           "opening": {},
-          "current": {
-            "line": 240.5,
-            "first_side_water": 0.92,
-            "second_side_water": 0.92
-          }
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
         }
       }
     },
@@ -227,19 +321,13 @@
       "markets": {
         "full_spread": {
           "opening": {},
-          "current": {
-            "line": -8.5,
-            "first_side_water": 0.96,
-            "second_side_water": 0.9
-          }
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
         },
         "full_total": {
           "opening": {},
-          "current": {
-            "line": 237.5,
-            "first_side_water": 0.94,
-            "second_side_water": 0.9
-          }
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
         }
       }
     },
@@ -260,19 +348,13 @@
       "markets": {
         "full_spread": {
           "opening": {},
-          "current": {
-            "line": 12.5,
-            "first_side_water": 1.0,
-            "second_side_water": 0.86
-          }
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
         },
         "full_total": {
           "opening": {},
-          "current": {
-            "line": 226.5,
-            "first_side_water": 0.92,
-            "second_side_water": 0.92
-          }
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
         }
       }
     },
@@ -293,19 +375,13 @@
       "markets": {
         "full_spread": {
           "opening": {},
-          "current": {
-            "line": 9.5,
-            "first_side_water": 1.0,
-            "second_side_water": 0.86
-          }
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
         },
         "full_total": {
           "opening": {},
-          "current": {
-            "line": 231.5,
-            "first_side_water": 0.94,
-            "second_side_water": 0.9
-          }
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
         }
       }
     },
@@ -326,29 +402,23 @@
       "markets": {
         "full_spread": {
           "opening": {},
-          "current": {
-            "line": 2.5,
-            "first_side_water": 0.94,
-            "second_side_water": 0.92
-          }
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
         },
         "full_total": {
           "opening": {},
-          "current": {
-            "line": 218.5,
-            "first_side_water": 0.92,
-            "second_side_water": 0.92
-          }
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
         }
       }
     }
   ],
-  "markets_joined_for_date": 7,
+  "markets_joined_for_date": 1,
   "verified_fixture_ids_for_date": 7,
   "nba_cba_joined_for_date": 7,
-  "nba_markets_missing": 0,
-  "all_scoreboard_matches": 865,
-  "all_untargeted_market_matches": 137,
+  "nba_markets_missing": 6,
+  "all_scoreboard_matches": 883,
+  "all_untargeted_market_matches": 122,
   "market_opening_not_available": true,
   "time_zone": "Asia/Shanghai (verified UTC fixture)",
   "water_orientation": "UNVERIFIED; original market slots",
