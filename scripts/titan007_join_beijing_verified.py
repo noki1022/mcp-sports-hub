@@ -303,10 +303,10 @@ def self_test():
     from unittest.mock import patch
     def simulated_get(url,limit=0):
         if "nba_Oddsdata.aspx" in url:raise OSError("simulated Crown ID3 closure")
-        return ('<c><m><h><![CDATA[5^NBA,NBA^4^#fff^10月31日<br>08:00^0^^13^华盛顿奇才,Washington Wizards^3^夏洛特黄蜂,Charlotte Hornets^0^2026]]></h></m></c>').encode("gb18030")
+        return ('<c><m><h><![CDATA[12345^NBA,NBA^4^#fff^10月31日<br>08:00^0^^13^华盛顿奇才,Washington Wizards^3^夏洛特黄蜂,Charlotte Hornets^0^2026]]></h></m></c>').encode("gb18030")
     with patch(__name__+".public_get",side_effect=simulated_get):
         site,none_odds,source_coverage,rejections,errors=source_for_date("2026-10-31")
-    assert "5" in site and not none_odds
+    assert "12345" in site and not none_odds
     assert len(source_coverage)==3 and all(x["id3_state"]=="UNAVAILABLE" for x in source_coverage.values())
     assert len([e for e in errors if e["source"]=="CROWN_ID3"])==3
     board,counts=reconcile(fixture,site,none_odds,"2026-10-31")
