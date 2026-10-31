@@ -1,0 +1,31 @@
+name: P0 validate 2024-2026 season archived injury snapshots
+on:
+  pull_request:
+    paths:
+      - analysis/nba_sdv_injury_archive_probe.py
+      - .github/workflows/nba-sdv-injury-timestamps.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet pandas==2.3.3 pyarrow==21.0.0 numpy==2.2.6
+      - run: python3 analysis/nba_sdv_injury_archive_probe.py
+      - name: Train on 2024-25 and evaluate paired 2025-26 injury features
+        run: python3 analysis/nba_injury_cross_season_research.py --injury-2025 /tmp/nba-real-injury/in2025.parquet --injury-2026 /tmp/nba-real-injury/in2026.parquet --players-2025 /tmp/nba-real-injury/pl2025.csv --players-2026 /tmp/nba-real-injury/pl2026.csv --out nba-injury-cross-season-study.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-real-injury-schema-audit
+          path: |
+            nba-real-injury-schema-audit.json
+            nba-injury-cross-season-study.json
+          retention-days: 14
+          if-no-files-found: warn

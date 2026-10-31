@@ -1,0 +1,53 @@
+name: P0 research - matched NBA injury and player minutes chronology
+on:
+  pull_request:
+    paths:
+      - analysis/nba_player_injury_pair_research.py
+      - .github/workflows/nba-player-injury-paired-study.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy==2.2.6
+      - name: Download source-pinned study datasets to temporary space
+        run: |
+          python3 - <<'PY'
+          import urllib.request,pathlib,hashlib
+          root=pathlib.Path('/tmp/injury-study');root.mkdir(exist_ok=True)
+          sources={
+           'players.csv':'https://raw.githubusercontent.com/xtheredshirtx/fanduel-player-data/main/NBA/csv/NBA_players_game_log_2024-25_as_of_2026-10-31.csv',
+           'injuries.csv':'https://raw.githubusercontent.com/Professor-Pete/2024-2025-injury_analysis/6fcf87e34c6c0bd791a1f4c0f100c0a6500ac949/data/season_rows.csv',
+          }
+          for name,url in sources.items():
+              with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'NBA-chronological-injury-research/1.0'}),timeout=40) as resp:
+                  data=resp.read(16000001)
+              assert 2000<len(data)<16000000
+              (root/name).write_bytes(data)
+              print(name,len(data),hashlib.sha256(data).hexdigest())
+          PY
+      - name: Train paired baseline and injury proxy on past-only features
+        run: |
+          python3 analysis/nba_player_injury_pair_research.py --players /tmp/injury-study/players.csv --injuries /tmp/injury-study/injuries.csv --out nba-player-injury-chronological-study.json
+      - name: Never promote study automatically
+        run: |
+          python3 - <<'PY'
+          import json
+          r=json.load(open('nba-player-injury-chronological-study.json'))
+          assert not r['promotion_allowed']
+          print('INJURY_RESEARCH_HOLDOUT_STATUS',r['status'],r['counts'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-player-injury-chronological-study
+          path: nba-player-injury-chronological-study.json
+          retention-days: 14
+          if-no-files-found: warn

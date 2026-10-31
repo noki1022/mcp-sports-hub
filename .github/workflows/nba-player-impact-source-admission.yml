@@ -1,0 +1,40 @@
+name: P0 player impact source admission - real datasets
+on:
+  pull_request:
+    paths:
+      - analysis/nba_player_impact_source_admission.py
+      - .github/workflows/nba-player-impact-source-admission.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Source admission self-test
+        run: python3 analysis/nba_player_impact_source_admission.py --self-test
+      - name: Fetch actual player minutes and historical official injury-derived rows
+        run: python3 analysis/nba_player_impact_source_admission.py --out player-impact-admission.json
+      - name: Require honest production block until real matched holdout is completed
+        run: |
+          python3 - <<'PY'
+          import json
+          o=json.load(open("player-impact-admission.json"))
+          assert o["sources"]["players"]["rows"]>20000
+          assert o["sources"]["injury"]["rows"]>50000
+          assert o["promotion"]=="BLOCKED_REQUIRE_CHRONOLOGICAL_PAIRED_HOLDOUT"
+          assert not o["independent_market_holdout_complete"]
+          print("REAL_SOURCE_AUDIT_PASS_BUT_PLAYER_IMPACT_MODEL_NOT_VALIDATED")
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-player-impact-source-admission
+          path: player-impact-admission.json
+          if-no-files-found: warn
+          retention-days: 14
