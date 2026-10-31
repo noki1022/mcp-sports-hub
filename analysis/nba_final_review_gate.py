@@ -173,9 +173,9 @@ def self_test():
         target="2026-10-31"
         src=root/"reports"/"daily"/target/"0630"/"nba_five_market_forecast.json"
         src.parent.mkdir(parents=True)
-        f={"target_date":target,"games":[
-            {"game_id":"a","nba_game_id":"event1","tipoff_beijing":"2026-10-31T09:00:00+08:00"},
-            {"game_id":"b","nba_game_id":"event2","tipoff_beijing":"2026-10-31T21:00:00+08:00"}]}
+        f={"target_date":target,"board_capture_utc":"2026-10-31T06:30:00+08:00","games":[
+            {"game_id":"a","nba_game_id":"event1","tipoff_beijing":"2026-10-31T09:00:00+08:00","markets":{}},
+            {"game_id":"b","nba_game_id":"event2","tipoff_beijing":"2026-10-31T21:00:00+08:00","markets":{}}]}
         src.write_text(json.dumps(f))
         def partial(day):return {"event1":{"completed":True,"home_points":110,"away_points":105},
                                   "event2":{"completed":False,"home_points":None,"away_points":None}}
