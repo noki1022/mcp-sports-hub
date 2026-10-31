@@ -115,8 +115,10 @@ def market_row(key, obj):
         label += " · " + percent(obj.get("model_direction_probability"))
         if obj.get("strength") == "WEAK":
             label += " · 弱"
-    elif obj.get("strength") == "WEAK":
-        label += " · 弱"
+    else:
+        label += " · " + percent(obj.get("model_direction_probability")) + "（未校准）"
+        if obj.get("strength") == "WEAK":
+            label += " · 弱"
     if obj.get("quote_freshness") == "ARCHIVED_PRIOR_NOT_LIVE":
         label += " · 历史盘"
     return label
@@ -324,6 +326,7 @@ def self_test():
     sample = mk("AWAY_COVER", signed_home_handicap=6.5, model_direction_probability=.549)
     assert market_row("JINGCAI_HANDICAP", sample).startswith("客-6.5 赢盘")
     assert market_row("CROWN_HANDICAP", {"status": "CROWN_QUOTE_NOT_VERIFIED"}) == "盘口未核实"
+    assert "61.0%（未校准）" in market_row("CROWN_TOTAL",mk("OVER",line=230.5,model_direction_probability=.61))
     print("COMPACT_FIVE_MARKET_IPHONE_SELF_TEST_PASS")
 
 
