@@ -4,6 +4,16 @@ on:
     branches: [fix/noon-pushplus-reliability-20261030]
   pull_request:
     branches: [main]
+    paths:
+      - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/verify-noon-push-recovery.yml'
+      - 'scripts/check_noon_push_recovery.py'
+      - 'scripts/nba_fixed_slot_gate.py'
+      - 'scripts/nba_noon_slate.py'
+      - 'scripts/nba_schedule_fallback_push.py'
+      - 'scripts/titan007_join_beijing_verified.py'
+      - 'scripts/pushplus_mobile.py'
+      - 'scripts/pushplus_mobile_v2.py'
 permissions:
   contents: read
 jobs:
