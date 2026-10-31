@@ -1,7 +1,7 @@
 # NBA player injury probability P0 — actual chronological paired research (2026-10-31)
 
 ## Verified execution
-- GitHub Actions: https://github.com/noki1022/mcp-sports-hub/actions/runs/41182177978
+- GitHub Actions: https://github.com/noki1022/mcp-sports-hub/actions/runs/41182263492
 - Source records: **27,999** actual player-game rows, **107,337** official-injury-report-derived designation rows, **3,011** attendance labels (separate preliminary study).
 - Unique scored, matched fixtures: **775**; feature-eligible fixed study: train **205**, embargo **57**, out-of-time research test **110**.
 - Exclusions: **353** games missing the selected both-team published snapshot; **28** without three prior completed team games; **1,083** injury name occurrences lacked 3 prior matching player appearances. Counts are not additive games.
@@ -10,8 +10,17 @@
 
 | Target | Baseline MAE | With status×prior player minutes MAE | Δ (enhanced minus baseline) |
 |---|---:|---:|---:|
-| Final margin | 11.613 | 10.662 | -0.951 |
-| Total points | 13.203 | 14.964 | **+1.761 (worse)** |
+| Final margin | 11.617 | 10.692 | -0.925 |
+| Total points | 13.528 | 13.877 | **+0.349 (worse)** |
+
+Calibration uses a **separate 57-game embargo-era calibration set**, not the 110-game test. The additional fixed-threshold probability scores are:
+
+| Research target | Baseline Brier | Injury-proxy Brier | Change |
+|---|---:|---:|---:|
+| Home win | 0.227349 | 0.199892 | -0.027457 |
+| Total >225.5 (not bookmaker line) | 0.258011 | 0.262397 | +0.004386 (worse) |
+
+Home-win LogLoss improved from 0.645690 to 0.581156; fixed-total LogLoss worsened from 0.709431 to 0.719324.
 
 This is a **research-only within-2024-25 chronological comparison**, *not* an untouched independent production-certified test. No test-season roster-availability impact estimates, five-market betting odds, moneyline recalibration, confidence intervals or calibrated player effects were proven. Proxy: prior minutes times a frozen status availability weight. NOT a causal player value measure.
 
