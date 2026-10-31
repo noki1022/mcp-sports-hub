@@ -20,7 +20,7 @@ on:
     - cron: "55 14-21 * * *"
     - cron: "55 22 * * *"
 permissions:
-  actions: read
+  actions: write
   contents: write
 concurrency:
   group: nba-delivery-health-watchdog-main
@@ -54,6 +54,14 @@ jobs:
           fi
           python3 scripts/nba_delivery_health.py "${extra[@]}" --send \
             --out nba_delivery_health.json --alert-marker-out reports/delivery-alert-sent/health-check.json
+      - name: Auto-recover a missed fixed-slot trigger when safe
+        run: |
+          python3 scripts/nba_delivery_recovery.py --self-test
+          RECOVERY_SLOT=$(python3 -c 'import json; print(json.load(open("nba_delivery_health.json"))["slot"])')
+          RECOVERY_TARGET=$(python3 -c 'import json; print(json.load(open("nba_delivery_health.json"))["target_date_beijing"])')
+          python3 scripts/nba_delivery_recovery.py \
+            --slot "$RECOVERY_SLOT" --target-date "$RECOVERY_TARGET" \
+            --out nba_recovery_result.json
       - name: Save unique alert marker when PushPlus accepted
         run: |
           python3 - <<'PY'
@@ -82,6 +90,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nba-delivery-health-${{ github.run_id }}
-          path: nba_delivery_health.json
+          path: |
+            nba_delivery_health.json
+            nba_recovery_result.json
           if-no-files-found: ignore
           retention-days: 14
