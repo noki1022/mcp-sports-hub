@@ -2,6 +2,9 @@ name: CI
 
 on:
   push:
+    paths-ignore:
+      - 'reports/**'
+      - 'data/snapshots/**'
     branches: [main]
   pull_request:
     branches: [main]
@@ -46,6 +49,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Verify external scheduler expiry and dispatch safety
+        run: node scheduler/test-scheduler.mjs
 
       - name: Run smoke tests
         run: npm test
