@@ -1,0 +1,223 @@
+{
+  "schema_version": "nba-five-markets-v1",
+  "target_date": "2026-11-01",
+  "board_capture_utc": "2026-10-31T15:03:24.411571+00:00",
+  "market_settlement_lock": "CAPTURED_PRETIP_ONLY",
+  "crown_company_id": "3",
+  "crown_source": "007 source ID 3 (Crow* label crosscheck required)",
+  "games": [
+    {
+      "game_id": "728880",
+      "nba_game_id": "401909896",
+      "jingcai_number": "周六308",
+      "jingcai_number_status": "VERIFIED",
+      "home_team": "犹他爵士",
+      "away_team": "波特兰开拓者",
+      "tipoff_beijing": "2026-11-01T03:00+08:00",
+      "model_margin_home_minus_away": -8.415896080282108,
+      "model_total": 240.48964560576667,
+      "markets": {
+        "JINGCAI_WIN": {
+          "market": "JINGCAI_WIN",
+          "status": "DIRECTION_ISSUED",
+          "direction": "AWAY_WIN",
+          "line": null,
+          "signed_home_handicap": null,
+          "model_minus_market": -8.4159,
+          "strength": "RESEARCH",
+          "source": "007_JINGCAI",
+          "source_id": null,
+          "captured_at_utc": "2026-10-31T15:03:35.700872+00:00",
+          "note": "冻结研究方向；不等于经历史验证的投注优势",
+          "model_direction_probability": 0.8974269649455733,
+          "injury_gate": "PROVISIONAL_INJURY_UNADJUSTED",
+          "is_final_recommendation": false
+        },
+        "JINGCAI_HANDICAP": {
+          "market": "JINGCAI_HANDICAP",
+          "status": "DIRECTION_ISSUED",
+          "direction": "HOME_COVER",
+          "line": 8.5,
+          "signed_home_handicap": 8.5,
+          "model_minus_market": 0.0841,
+          "strength": "WEAK",
+          "source": "007_JINGCAI",
+          "source_id": null,
+          "captured_at_utc": "2026-10-31T15:03:35.700872+00:00",
+          "note": "冻结研究方向；不等于经历史验证的投注优势",
+          "model_direction_probability": 0.5021604269204049,
+          "injury_gate": "PROVISIONAL_INJURY_UNADJUSTED",
+          "is_final_recommendation": false
+        },
+        "JINGCAI_TOTAL": {
+          "market": "JINGCAI_TOTAL",
+          "status": "DIRECTION_ISSUED",
+          "direction": "OVER",
+          "line": 234.5,
+          "signed_home_handicap": null,
+          "model_minus_market": 5.9896,
+          "strength": "RESEARCH",
+          "source": "007_JINGCAI",
+          "source_id": null,
+          "captured_at_utc": "2026-10-31T15:03:35.700872+00:00",
+          "note": "冻结研究方向；不等于经历史验证的投注优势",
+          "model_direction_probability": 0.6201687225754113,
+          "injury_gate": "PROVISIONAL_INJURY_UNADJUSTED",
+          "is_final_recommendation": false
+        },
+        "CROWN_HANDICAP": {
+          "market": "CROWN_HANDICAP",
+          "status": "DIRECTION_ISSUED",
+          "direction": "HOME_COVER",
+          "line": -8.5,
+          "signed_home_handicap": 8.5,
+          "model_minus_market": 0.0841,
+          "strength": "WEAK",
+          "source": "007_CROWN_ID3_ARCHIVED_PRETIP",
+          "source_id": "3",
+          "captured_at_utc": "2026-10-31T15:00:11.393447+00:00",
+          "note": "冻结研究方向；不等于经历史验证的投注优势",
+          "quote_freshness": "ARCHIVED_PRIOR_NOT_LIVE",
+          "model_direction_probability": 0.5021604269204049,
+          "probability_status": "MODEL_NORMAL_UNCALIBRATED_CROWN_ID3",
+          "injury_gate": "PROVISIONAL_INJURY_UNADJUSTED",
+          "is_final_recommendation": false
+        },
+        "CROWN_TOTAL": {
+          "market": "CROWN_TOTAL",
+          "status": "DIRECTION_ISSUED",
+          "direction": "OVER",
+          "line": 232.5,
+          "signed_home_handicap": null,
+          "model_minus_market": 7.9896,
+          "strength": "RESEARCH",
+          "source": "007_CROWN_ID3_ARCHIVED_PRETIP",
+          "source_id": "3",
+          "captured_at_utc": "2026-10-31T15:00:11.393447+00:00",
+          "note": "冻结研究方向；不等于经历史验证的投注优势",
+          "quote_freshness": "ARCHIVED_PRIOR_NOT_LIVE",
+          "model_direction_probability": 0.658390648108002,
+          "probability_status": "MODEL_NORMAL_UNCALIBRATED_CROWN_ID3",
+          "injury_gate": "PROVISIONAL_INJURY_UNADJUSTED",
+          "is_final_recommendation": false
+        }
+      },
+      "injury_review": {
+        "quality": "PUBLISHED_AFFECTED",
+        "home": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Alexander, Trey",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Bufkin, Kobe",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Ingram, Harrison",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Jackson Jr., Jaren",
+              "status": "Out",
+              "reason": "Injury/Illness - Right Knee MCL Tear"
+            },
+            {
+              "name": "Markkanen, Lauri",
+              "status": "Questionable",
+              "reason": "Injury/Illness - Right Wrist Sprain"
+            },
+            {
+              "name": "Nurkic, Jusuf",
+              "status": "Out",
+              "reason": ""
+            }
+          ],
+          "status_counts": {
+            "Out": 5,
+            "Questionable": 1
+          }
+        },
+        "away": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Kent, Jayson",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Morant, Ja",
+              "status": "Out",
+              "reason": "Injury/Illness - Left Hamstring Strain"
+            },
+            {
+              "name": "Sharpe, Shaedon",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Tonje, John",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Williams III, Robert",
+              "status": "Questionable",
+              "reason": ""
+            },
+            {
+              "name": "Youngblood, Chris",
+              "status": "Questionable",
+              "reason": "Injury/Illness - Left Ankle Soreness"
+            }
+          ],
+          "status_counts": {
+            "Out": 4,
+            "Questionable": 2
+          }
+        },
+        "official_source_verified": true,
+        "source_captured_at_utc": "2026-10-31T15:03:28.667012+00:00",
+        "model_probability_adjusted": false,
+        "probability_adjustment_status": "PLAYER_IMPACT_BACKTEST_MISSING_OR_STALE",
+        "status": "REVIEWED_UNADJUSTED"
+      },
+      "final_signal_status": "PROVISIONAL_INJURY_UNADJUSTED"
+    }
+  ],
+  "game_count": 1,
+  "market_keys": [
+    "JINGCAI_WIN",
+    "JINGCAI_HANDICAP",
+    "JINGCAI_TOTAL",
+    "CROWN_HANDICAP",
+    "CROWN_TOTAL"
+  ],
+  "ready_counts": {
+    "JINGCAI_WIN": 1,
+    "JINGCAI_HANDICAP": 1,
+    "JINGCAI_TOTAL": 1,
+    "CROWN_HANDICAP": 1,
+    "CROWN_TOTAL": 1
+  },
+  "priority_weights": {
+    "jingcai": 0.7,
+    "crown": 0.3
+  },
+  "priority_note": "Workflow and display attention only; never blend market probabilities",
+  "primary_market_keys": [
+    "JINGCAI_WIN",
+    "JINGCAI_HANDICAP",
+    "JINGCAI_TOTAL"
+  ],
+  "jingcai_three_ready_games": 1,
+  "not_betting_advice": true,
+  "injury_gate_version": "official-injury-precondition-v1",
+  "final_signal_games": 0
+}
