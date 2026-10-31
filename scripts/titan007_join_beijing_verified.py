@@ -269,6 +269,11 @@ def self_test():
     assert got[0]["site_display_clock"]=="08:00"
     assert got[0]["us_eastern_date"]=="2026-10-30"
     assert got[0]["markets"]["full_spread"]["opening"]=={}
+    no_crown,reasons=reconcile(fixture,{"5":row},{},"2026-10-31")
+    assert len(no_crown)==1 and reasons["NO_DATE_MARKET_FOR_GAME_ID"]==1
+    assert no_crown[0]["markets"]["full_spread"]["current"]=={}
+    assert no_crown[0]["markets"]["full_total"]["status"]=="NO_VERIFIED_ID3_TOTAL"
+
     none,_=reconcile(fixture,{"5":dict(row,display_date="2026-10-30")},{"5":mock},"2026-10-31")
     assert not none
     test=b"<c><match><m>12345,1.5,0.88,0.88,238.5,0.88,0.78,1</m></match></c>"
