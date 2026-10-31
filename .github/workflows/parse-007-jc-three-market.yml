@@ -38,8 +38,10 @@ jobs:
           # A user-confirmed historical non-sale note is not immutable
           # current availability; live 007 quote takes precedence.
           assert m["win_lose"]["status"] in ("NOT_ON_SALE_USER_CONFIRMED","OBSERVED"),m
-          assert m["handicap"]["status"]=="OBSERVED"
-          assert m["total"]["status"]=="OBSERVED"
+          assert m["handicap"]["status"] in ("OBSERVED","NO_QUOTE_IN_007_FEED")
+          assert m["total"]["status"] in ("OBSERVED","NO_QUOTE_IN_007_FEED")
+          # An old board tested against today's feed can legitimately have
+          # zero matching rows. Never demand stale odds as a green test.
           assert d["007_jingcai_reference_user_confirmed"]
           print("CELTICS_WIN_LOSE_USER_CONFIRMED_NOT_ON_SALE_PASS")
           PY
