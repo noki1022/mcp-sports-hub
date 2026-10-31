@@ -156,6 +156,8 @@ def main(player_path,injury_path,out):
             "promotion_allowed":False}
     if len(train)>=120 and len(test)>=80:
         result["models"]={}
+        prob_forecasts={}
+        calibrations={}
         for target in ("margin","total"):
             ycol=5 if target=="margin" else 6
             y=np.asarray([r[ycol] for r in train]);yt=np.asarray([r[ycol] for r in test])
@@ -165,9 +167,38 @@ def main(player_path,injury_path,out):
                 Xt=np.asarray([r[col] for r in test],float)
                 fitted=fit_ridge(X,y)
                 pred=predict(Xt,fitted)
+                # Calibrate residual spread only on the embargo-era set (never on test).
+                # This split was held aside from fitting; it is calibration for this
+                # exploratory study, not a pristine independent production holdout.
+                Xe=np.asarray([r[col] for r in embargo],float)
+                ye=np.asarray([r[ycol] for r in embargo],float)
+                resid=ye-predict(Xe,fitted)
+                bias=float(np.mean(resid))
+                sigma=float(max(np.std(resid,ddof=1),1.0))
+                pred=pred+bias
+                prob_forecasts[(target,label)]={"means":pred,"sigma":sigma}
+                calibrations[(target,label)]={"bias":bias,"sigma":sigma}
                 result["models"][target][label]={"MAE":float(np.mean(abs(yt-pred))),
                     "RMSE":float(np.sqrt(np.mean((yt-pred)**2)))}
             result["models"][target]["MAE_delta_injury_minus_baseline"]=result["models"][target]["injury_proxy"]["MAE"]-result["models"][target]["baseline"]["MAE"]
+        def prob_score(target,threshold):
+            key="margin" if target=="margin" else "total"
+            yy=np.asarray([r[5 if key=="margin" else 6] for r in test],float)
+            actual=(yy>threshold).astype(float)
+            output={}
+            for label in ("baseline","injury_proxy"):
+                fv=prob_forecasts[(key,label)]
+                p=np.array([.5*(1+math.erf((v-threshold)/(fv["sigma"]*math.sqrt(2))))
+                            for v in fv["means"]],float)
+                p=np.clip(p,1e-8,1-1e-8)
+                output[label]={"Brier":float(np.mean((p-actual)**2)),
+                               "LogLoss":float(np.mean(-(actual*np.log(p)+(1-actual)*np.log(1-p))))}
+            output["Brier_delta_injury_minus_baseline"]=output["injury_proxy"]["Brier"]-output["baseline"]["Brier"]
+            return output
+        result["fixed_threshold_probability_research"]={
+            "home_win_margin_gt_0":prob_score("margin",0.0),
+            "total_over_225_5_NOT_BOOKMAKER":prob_score("total",225.5)}
+        result["calibration"]="residual mean and sigma from 57 embargo-era games, never test"
         result["status"]="RESEARCH_HOLDOUT_COMPUTED_NO_PRODUCTION_PROMOTION"
     else:
         result["status"]="BLOCKED_INSUFFICIENT_MATCHED_CHRONOLOGICAL_GAMES"
