@@ -318,6 +318,44 @@ jobs:
             done
             exit 1
           fi
+      - name: Failsafe verified NBA schedule PushPlus when full report fails
+        if: ${{ failure() }}
+        env:
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import os
+          from datetime import datetime,timedelta
+          from zoneinfo import ZoneInfo
+          expr=os.environ.get('SCHEDULE_EXPR','')
+          slots={'0 4 * * *':'1200','15 4 * * *':'1200','30 4 * * *':'1200',
+                 '0 6 * * *':'1400','15 6 * * *':'1400','30 6 * * *':'1400',
+                 '0 7 * * *':'1500','15 7 * * *':'1500','30 7 * * *':'1500',
+                 '0 10 * * *':'1800','15 10 * * *':'1800','30 10 * * *':'1800',
+                 '0 13 * * *':'2100'}
+          slot=slots.get(expr) or os.environ.get('EXTERNAL_REPORT_SLOT','')
+          if slot not in ('1200','1400','1500','1800','2100'):
+              raise RuntimeError('FALLBACK_UNKNOWN_SLOT')
+          print('FALLBACK_SLOT='+slot)
+          PY
+          python3 scripts/nba_schedule_fallback_push.py --self-test --target "$TARGET_DATE" --slot "$FALLBACK_SLOT"
+          git pull --ff-only origin main
+          if test -f "reports/pushplus-sent/$TARGET_DATE/$FALLBACK_SLOT.json"; then
+            echo "Full report already accepted; suppress fallback"
+            exit 0
+          fi
+          python3 scripts/nba_schedule_fallback_push.py --target "$TARGET_DATE" --slot "$FALLBACK_SLOT"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add reports/schedule-fallback-sent/
+          if ! git diff --cached --quiet; then
+            git commit -m "Record verified NBA schedule fallback PushPlus acceptance"
+            for n in 1 2 3; do
+              if git push origin HEAD:main; then exit 0; fi
+              git pull --rebase origin main
+            done
+            exit 1
+          fi
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -344,5 +382,6 @@ jobs:
             nba_slot_dynamic_review.json
             pushplus_mobile_preview.html
             pushplus_status.json
+            schedule_fallback_status.json
           if-no-files-found: warn
           retention-days: 14
