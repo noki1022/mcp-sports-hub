@@ -84,15 +84,23 @@ jobs:
       - name: Join Beijing NBA fixtures to dated 007 markets with bounded retries
         if: steps.hourly_gate.outputs.skip != 'true'
         run: |
+          fetched=false
           for attempt in 1 2 3; do
-            if python3 scripts/titan007_join_beijing_verified.py --date "$TARGET_DATE" --out titan007_joined_today.json; then
-              exit 0
+            if python3 scripts/titan007_join_beijing_verified.py --date "$TARGET_DATE" --out titan007_joined_today.json --allow-schedule-only; then
+              fetched=true
+              break
             fi
             echo "007 fetch attempt $attempt failed; retrying"
             sleep 8
           done
-          echo "007 source unavailable after 3 attempts"
-          exit 1
+          if [ "$fetched" = true ] && [ ! -f "reports/noon-cohorts/$TARGET_DATE/1200.json" ]; then
+            echo "NO_OFFICIAL_NOON_COHORT_KEEP_VERIFIED_LIVE_CAPTURE"
+          elif [ "$fetched" = true ]; then
+            python3 scripts/nba_capture_recovery.py --joined titan007_joined_today.json --out titan007_hourly_recovered.json
+            mv titan007_hourly_recovered.json titan007_joined_today.json
+          else
+            python3 scripts/nba_capture_recovery.py --target "$TARGET_DATE" --out titan007_joined_today.json
+          fi
       - name: Verify all included NBA tipoffs are on requested Beijing day
         if: steps.hourly_gate.outputs.skip != 'true'
         run: |

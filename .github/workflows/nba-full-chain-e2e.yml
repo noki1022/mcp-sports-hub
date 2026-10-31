@@ -1,0 +1,59 @@
+name: NBA full-chain automated offline regression
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/nba_capture_recovery.py'
+      - 'scripts/test_nba_full_chain_replay.py'
+      - 'scripts/pushplus_mobile.py'
+      - 'scripts/pushplus_five_compact.py'
+      - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/nba-priority-2130.yml'
+      - '.github/workflows/nba-priority-0630.yml'
+      - 'analysis/nba_five_markets.py'
+      - 'analysis/nba_five_market_integrity_gate.py'
+      - 'analysis/nba_five_market_settlement.py'
+      - 'analysis/nba_final_review_gate.py'
+      - 'analysis/nba_hourly_dynamic_review.py'
+      - 'analysis/titan007_hourly_history.py'
+      - 'scripts/verify_nba_capture_analysis.py'
+      - '.github/workflows/nba-full-chain-e2e.yml'
+  schedule:
+    # Daily independent regression of the entire safe replay; NO live sends.
+    - cron: "0 20 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nba-full-chain-offline-regression-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  full-chain-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate Python source
+        run: python3 -m py_compile scripts/nba_capture_recovery.py scripts/test_nba_full_chain_replay.py scripts/pushplus_mobile.py
+      - name: Replay verified actual 007 source interruption to full-chain result
+        run: python3 scripts/test_nba_full_chain_replay.py
+      - name: Confirm push is always offline
+        run: |
+          python3 scripts/pushplus_mobile.py --mode smoke --self-test
+          python3 scripts/pushplus_five_compact.py --self-test
+      - name: Check capture slot and full market source wiring
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('.github/workflows/titan007-three-analysis.yml').read_text()
+          assert 'nba_capture_recovery.py' in p
+          assert p.index('nba_capture_recovery.py') < p.index('Generate odds-blind NBA prediction artifact')
+          assert 'nba_five_market_integrity_gate.py' in p
+          assert '--require-token --require-delivery' in p
+          assert 'nba_delivery_contract.py' in p
+          print('NBA_FULL_CHAIN_CI_PRODUCTION_WIRING_PASS')
+          PY

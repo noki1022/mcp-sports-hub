@@ -73,11 +73,29 @@ jobs:
       - name: Join independent UTC fixture to 007 dated NBA markets
         if: steps.preflight.outputs.skip != 'true'
         run: |
+          git fetch --quiet origin main
+          git pull --ff-only origin main
+          fetched=false
           for attempt in 1 2 3; do
-            if python3 scripts/titan007_join_beijing_verified.py --date "$TARGET_DATE" --out titan007_three_joined.json --allow-schedule-only; then exit 0; fi
+            if python3 scripts/titan007_join_beijing_verified.py --date "$TARGET_DATE" --out titan007_three_joined.json --allow-schedule-only; then
+              fetched=true
+              break
+            fi
             sleep 8
           done
-          exit 1
+          if [ "$fetched" = true ] && [ ! -f "reports/noon-cohorts/$TARGET_DATE/1200.json" ]; then
+            cp titan007_three_joined.json titan007_three_recovered.json
+          elif [ "$fetched" = true ]; then
+            python3 scripts/nba_capture_recovery.py --joined titan007_three_joined.json --out titan007_three_recovered.json
+          else
+            python3 scripts/nba_capture_recovery.py --target "$TARGET_DATE" --out titan007_three_recovered.json
+          fi
+          mv titan007_three_recovered.json titan007_three_joined.json
+          python3 - <<'PY'
+          import json
+          b=json.load(open('titan007_three_joined.json'))
+          print('OFFICIAL_FIXTURE_RECOVERY',b.get('quote_recovery', {'state':'FIRST_VERIFIED_CAPTURE'}))
+          PY
       - name: Lock the noon official NBA slate or enforce the locked cohort
         if: steps.preflight.outputs.skip != 'true'
         run: |

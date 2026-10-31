@@ -225,6 +225,18 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None, off
         for key, name in MARKETS[3:]:
             body += ("<div style='padding:2px 0;font-size:12px;'><span style='color:#68788b;'>"
                      + esc(name) + "　</span>" + esc(market_row(key, mk.get(key))) + "</div>")
+        if game.get("quote_freshness") == "ARCHIVED_PRIOR_NOT_LIVE":
+            snapshot = game.get("quote_captured_at_utc")
+            try:
+                from zoneinfo import ZoneInfo
+                checked = datetime.fromisoformat(str(snapshot).replace("Z", "+00:00"))
+                if checked.tzinfo is None:raise ValueError("NO_TIMESTAMP_ZONE")
+                stamp = checked.astimezone(ZoneInfo("Asia/Shanghai")).strftime("%m-%d %H:%M")
+            except (TypeError, ValueError):
+                raise RuntimeError("ARCHIVED_QUOTE_TIMESTAMP_NOT_VERIFIED")
+            body += ("<div style='color:#a36516;font-size:11px;margin-top:4px;'>"
+                     "007盘口含历史快照（" + esc(stamp) +
+                     "），非即时盘；不得当成最新赔率</div>")
         injury = game.get("injury_review") or {}
         gate = game.get("final_signal_status", "PROVISIONAL_INJURY_UNVERIFIED")
         if gate == "FINAL_INJURY_VERIFIED":
@@ -315,6 +327,10 @@ def self_test():
         assert v in h, v
     for bad in ("七步分析", "007多机构横向比较", "本小时动态研判", "模型 vs 盘口"):
         assert bad not in h, bad
+    past={**game, "quote_freshness":"ARCHIVED_PRIOR_NOT_LIVE",
+          "quote_captured_at_utc":"2026-10-31T13:30:00Z"}
+    ph=render_compact([past], {}, "赛前", "2026-11-01", "three")
+    assert "历史快照" in ph and "非即时盘" in ph and "10-31 21:30" in ph
     assert "皇冠ID3" in h and "竞彩 · 3玩法" in h
     injected = {**game, "home_team": "<script>alert(1)</script>"}
     h = render_compact([injected], {}, "赛前", "2026-11-01", "three")
