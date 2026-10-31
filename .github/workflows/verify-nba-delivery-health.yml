@@ -37,6 +37,10 @@ jobs:
           assert 'GITHUB_TOKEN:' in health and 'PUSHPLUS_TOKEN:' in health
           assert 'actions: write' in health
           assert 'nba_delivery_recovery.py' in health
+          assert "if: ${{ !cancelled() }}" in health
+          assert 'if not slot or not target:' in health
+          assert 'infer_slot(os.environ.get("GH_HEALTH_SCHEDULE",""),datetime.now(BJ))' in health
+          assert 'except (OSError,ValueError)' in health
           assert '--alert-marker-out' in health
           assert '55 14-21 * * *' in health
           for path in ('.github/workflows/titan007-final-hourly.yml',
