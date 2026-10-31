@@ -1,0 +1,28 @@
+name: Verify official Beijing kickoff times in compact NBA reports
+on:
+  pull_request:
+    paths:
+      - scripts/nba_tipoff_plan.py
+      - scripts/pushplus_five_compact.py
+      - .github/workflows/verify-beijing-tipoff-notice.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 scripts/nba_tipoff_plan.py --self-test
+      - run: python3 scripts/pushplus_five_compact.py --self-test
+      - name: Read a genuine Nov 1 board and verify 03:00 kickoff plan
+        run: |
+          python3 scripts/nba_tipoff_plan.py --joined reports/daily/2026-11-01/1400/titan007_three_joined.json --out /tmp/tip.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/tip.json'))
+          assert d['earliest_tip_beijing'].startswith('2026-11-01T03:00')
+          assert d['last_safe_analysis_slot']=='02:30'
+          print('FIRST_TIP_FROM_ACTUAL_ARCHIVED_BOARD_OK')
+          PY
