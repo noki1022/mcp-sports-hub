@@ -14,8 +14,10 @@ from nba_delivery_health import accepted_marker,inspect,run_hint,scheduled_start
 BJ=ZoneInfo("Asia/Shanghai")
 # Only slots whose receiver accepts report_slot and target_date and does not
 # have a strict cutoff earlier than this watchdog's first normal check.
-RECOVERABLE={"1200","1400","1500","1800"}
+RECOVERABLE={"1200","1400","1500","1800","2130","0630"}
 WINDOW_MINUTES=65
+# Run at 21:45/06:45 only. No rescue after the presend cutoff.
+PRIORITY_RECOVERY_WINDOWS={"2130":(12,22),"0630":(12,22)}
 
 def decision(root,slot,target,now,runs,run_error=None):
     info={"slot":slot,"target_date":target,"action":"NO_DISPATCH","reason":None}
@@ -32,7 +34,8 @@ def decision(root,slot,target,now,runs,run_error=None):
         except (ValueError,OSError):pass
     start=scheduled_start(slot,target)
     elapsed=(now.astimezone(BJ)-start).total_seconds()/60
-    if not (35<=elapsed<=WINDOW_MINUTES):
+    lower,upper=PRIORITY_RECOVERY_WINDOWS.get(slot,(35,WINDOW_MINUTES))
+    if not (lower<=elapsed<=upper):
         info["reason"]="OUTSIDE_RECOVERY_WINDOW";return info
     if runs is None:
         info["reason"]="CANNOT_CONFIRM_RUNNING_JOBS_"+str(run_error);return info
@@ -49,9 +52,20 @@ def decision(root,slot,target,now,runs,run_error=None):
 def dispatch(repo,token,slot,target):
     if not token:raise RuntimeError("GITHUB_TOKEN_MISSING")
     workflow=expected_workflow(slot)
-    if workflow!="titan007-three-analysis.yml":raise RuntimeError("RECOVERY_WORKFLOW_NOT_ALLOWED")
+    if workflow not in ("titan007-three-analysis.yml",
+                        "nba-priority-2130.yml","nba-priority-0630.yml"):
+        raise RuntimeError("RECOVERY_WORKFLOW_NOT_ALLOWED")
     uri="https://api.github.com/repos/"+repo+"/actions/workflows/"+workflow+"/dispatches"
-    body=json.dumps({"ref":"main","inputs":{"report_slot":slot,"target_date":target}}).encode()
+    # Priority workflows do not declare inputs: they infer the correct Beijing
+    # date at runtime and enforce 21:58 / 06:58 hard delivery cutoffs.
+    if workflow=="titan007-three-analysis.yml":
+        data={"ref":"main","inputs":{"report_slot":slot,"target_date":target}}
+    else:
+        now=datetime.now(BJ)
+        expected=(now.date()+timedelta(days=1)).isoformat() if slot=="2130" else now.date().isoformat()
+        if target!=expected:raise ValueError("PRIORITY_RECOVERY_TARGET_DAY_MISMATCH")
+        data={"ref":"main"}
+    body=json.dumps(data).encode()
     req=urllib.request.Request(uri,data=body,method="POST",headers={
         "Authorization":"Bearer "+token,"Accept":"application/vnd.github+json",
         "Content-Type":"application/json","X-GitHub-Api-Version":"2022-11-28",
@@ -84,7 +98,20 @@ def self_test():
         assert decision(root,slot,target,at,[])["reason"]=="RECOVERY_DISPATCH_ALREADY_ACCEPTED"
         dedup.unlink()
         assert decision(root,slot,target,datetime.fromisoformat("2026-10-31T14:00:00+08:00"),[])["action"]=="NO_DISPATCH"
-        assert decision(root,"2130",target,at,[])["action"]=="NO_DISPATCH"
+        t=datetime.fromisoformat("2026-10-31T21:45:00+08:00")
+        assert decision(root,"2130","2026-11-01",t,[])["action"]=="DISPATCH"
+        assert decision(root,"2130","2026-11-01",datetime.fromisoformat("2026-10-31T21:57:00+08:00"),[])["action"]=="NO_DISPATCH"
+        morn=datetime.fromisoformat("2026-11-01T06:45:00+08:00")
+        assert decision(root,"0630","2026-11-01",morn,[])["action"]=="DISPATCH"
+        assert decision(root,"0630","2026-11-01",datetime.fromisoformat("2026-11-01T07:00:00+08:00"),[])["action"]=="NO_DISPATCH"
+        assert decision(root,"2130","2026-11-01",t,None,"NETWORK")["action"]=="NO_DISPATCH"
+        active_priority=[{"event":"schedule","created_at":"2026-10-31T13:30:00Z",
+                          "status":"in_progress","conclusion":None}]
+        assert decision(root,"2130","2026-11-01",t,active_priority)["action"]=="NO_DISPATCH"
+        marker_priority=root/"reports/pushplus-sent/2026-11-01/2130.json"
+        marker_priority.parent.mkdir(parents=True,exist_ok=True)
+        marker_priority.write_text(json.dumps({"state":ACCEPTED,"slot":"2130"}))
+        assert decision(root,"2130","2026-11-01",t,[])["action"]=="NO_DISPATCH"
         p=root/"reports/pushplus-sent"/target/"1200.json"
         p.parent.mkdir(parents=True);p.write_text(json.dumps({"state":ACCEPTED,"slot":"1200"}))
         assert decision(root,slot,target,at,[])["reason"]=="ALREADY_API_ACCEPTED"
