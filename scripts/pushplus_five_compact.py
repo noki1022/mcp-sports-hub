@@ -199,6 +199,15 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None):
         for key, name in MARKETS[3:]:
             body += ("<div style='padding:2px 0;font-size:12px;'><span style='color:#68788b;'>"
                      + esc(name) + "　</span>" + esc(market_row(key, mk.get(key))) + "</div>")
+        injury = game.get("injury_review") or {}
+        gate = game.get("final_signal_status", "PROVISIONAL_INJURY_UNVERIFIED")
+        if gate == "FINAL_INJURY_VERIFIED":
+            injury_label = "官方伤停已核 · 模型已调整"
+        elif gate == "PROVISIONAL_INJURY_UNADJUSTED":
+            injury_label = "官方伤停已核 · 模型尚未调整 · 临时判断"
+        else:
+            injury_label = "官方伤停待核 · 临时判断，非最终信号"
+        body += "<div style='font-size:11px;color:#945b23;margin-top:5px;'>伤停：" + esc(injury_label) + "</div>"
         body += "</div>"
         movement = small_move(game)
         if movement:
