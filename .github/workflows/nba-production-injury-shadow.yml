@@ -42,7 +42,7 @@ jobs:
           PY
       - name: Reproduce actual production rolling model with injury shadow
         run: |
-          python3 analysis/nba_production_injury_shadow_replay.py --injury-2025 /tmp/nba-p0/in2025.parquet --injury-2026 /tmp/nba-p0/in2026.parquet --players-2025 /tmp/nba-p0/pl2025.csv --players-2026 /tmp/nba-p0/pl2026.csv --out nba-production-injury-shadow-evidence.json
+          python3 analysis/nba_production_injury_shadow_replay.py --injury-2025 /tmp/nba-p0/in2025.parquet --injury-2026 /tmp/nba-p0/in2026.parquet --players-2025 /tmp/nba-p0/pl2025.csv --players-2026 /tmp/nba-p0/pl2026.csv --out nba-production-injury-shadow-evidence.json --export-candidate nba-injury-frozen-research-candidate.json
       - name: Refuse to label research artifact as production-qualified
         run: |
           python3 - <<'PY'
@@ -58,6 +58,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nba-production-injury-shadow
-          path: nba-production-injury-shadow-evidence.json
+          path: |
+            nba-production-injury-shadow-evidence.json
+            nba-injury-frozen-research-candidate.json
           retention-days: 21
           if-no-files-found: warn
