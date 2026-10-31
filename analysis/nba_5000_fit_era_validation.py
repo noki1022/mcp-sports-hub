@@ -42,6 +42,8 @@ def evaluate(rows):
             predicted, actual, sigma = predictions[target]
             probs = np.asarray([p_greater(float(v), sigma, threshold) for v in predicted])
             truth = (actual > threshold).astype(float)
+            if not np.isfinite(probs).all() or np.any((probs <= 0) | (probs >= 1)):
+                raise AssertionError('Invalid forecast probabilities')
             scores[label] = {'Brier': brier(probs, truth), 'log_loss': logloss(probs, truth),
                              'ECE_10_bins': ece(probs, truth),
                              'accuracy_at_0_5': float(np.mean((probs >= 0.5) == truth)),
@@ -58,7 +60,14 @@ def self_test():
         {'season': '2022-23', 'date': '2022-10-20', 'game_id': 'b',
          'max_feature_date': '2022-10-19', 'form': [1.0]*7,
          'h2h': [0.0]*4, 'margin': 3.0, 'total': 220.0}]
-    assert evaluate(rows)['untouched_test_accessed'] is False
+    result = evaluate(rows)
+    assert result['untouched_test_accessed'] is False
+    for variant in VARIANTS:
+        for label in ('home_win', 'over_225_5_FIXED_NOT_BOOKMAKER'):
+            score = result['scores'][variant][label]
+            assert 0 <= score['Brier'] <= 1
+            assert 0 <= score['accuracy_at_0_5'] <= 1
+            assert np.isfinite(score['log_loss'])
     try:
         evaluate(rows + [dict(rows[1], game_id='a')])
     except AssertionError:
