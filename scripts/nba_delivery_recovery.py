@@ -14,7 +14,7 @@ from nba_delivery_health import accepted_marker,inspect,run_hint,scheduled_start
 BJ=ZoneInfo("Asia/Shanghai")
 # Only slots whose receiver accepts report_slot and target_date and does not
 # have a strict cutoff earlier than this watchdog's first normal check.
-RECOVERABLE={"1200","1400","1500","1800","2130","0630"}
+RECOVERABLE={"1200","1400","1500","1800","2100","2130","0630"}
 WINDOW_MINUTES=65
 # Run at 21:45/06:45 only. No rescue after the presend cutoff.
 PRIORITY_RECOVERY_WINDOWS={"2130":(12,22),"0630":(12,22)}
@@ -98,6 +98,9 @@ def self_test():
         assert decision(root,slot,target,at,[])["reason"]=="RECOVERY_DISPATCH_ALREADY_ACCEPTED"
         dedup.unlink()
         assert decision(root,slot,target,datetime.fromisoformat("2026-10-31T14:00:00+08:00"),[])["action"]=="NO_DISPATCH"
+        at21=datetime.fromisoformat("2026-10-31T21:40:00+08:00")
+        assert decision(root,"2100","2026-11-01",at21,[])["action"]=="DISPATCH"
+        assert decision(root,"2100","2026-11-01",datetime.fromisoformat("2026-10-31T21:20:00+08:00"),[])["action"]=="NO_DISPATCH"
         t=datetime.fromisoformat("2026-10-31T21:45:00+08:00")
         assert decision(root,"2130","2026-11-01",t,[])["action"]=="DISPATCH"
         assert decision(root,"2130","2026-11-01",datetime.fromisoformat("2026-10-31T21:57:00+08:00"),[])["action"]=="NO_DISPATCH"

@@ -16,6 +16,8 @@ on:
     - cron: "40 7 * * *"
     - cron: "40 10 * * *"
     - cron: "20 13 * * *"
+    # Late bounded 21:00 retry: 21:20 is deliberately too early to dispatch.
+    - cron: "40 13 * * *"
     - cron: "55 13 * * *"
     - cron: "45 13 * * *"
     - cron: "55 14-21 * * *"
