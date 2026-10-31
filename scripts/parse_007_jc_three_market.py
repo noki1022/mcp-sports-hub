@@ -156,7 +156,8 @@ def self_test():
     assert all(item["status"]=="OBSERVED" for item in tagged["matches"][0]["markets"].values() if item.get("data"))
     # Fault injection: one corrupted game never destroys other valid rows.
     second=b"728166^1.7^1.8^0^1.72^1.77^0"
-    two=raw.replace(b"$",b"!"+second+b"$",1).replace(b"$",b"!728166^1.7^1.7^-2.5^1.75^1.65^-3.5$",1)
+    sections=raw.split(b"$")
+    two=sections[0]+b"!"+second+b"$"+sections[1]+b"!728166^1.7^1.7^-2.5^1.75^1.65^-3.5$"+sections[2]
     corrupt=two.replace(b"728165^1.7^1.7^-1.5",b"728165^1.7^1.7^")
     results=parse(corrupt,board)
     assert results["matches"][0]["markets"]["win_lose"]["status"]=="OBSERVED"
