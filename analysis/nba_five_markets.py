@@ -161,6 +161,12 @@ def make(joined,model,jc,top10):
                 source="007_CROWN_ID3_ARCHIVED_PRETIP" if archived_fallback else "007_CROWN_ID3",
                 source_id="3",observed_at=quote_time)
             selected[market]["quote_freshness"]=("ARCHIVED_PRIOR_NOT_LIVE" if archived_fallback else "CURRENT_CAPTURE")
+            if selected[market]["status"]=="DIRECTION_ISSUED":
+                prob_market="JINGCAI_HANDICAP" if market=="CROWN_HANDICAP" else "JINGCAI_TOTAL"
+                prob_line=-line if market=="CROWN_HANDICAP" else line
+                selected[market]["model_direction_probability"]=jc_probability(
+                    prob_market,selected[market]["direction"],p,prob_line)
+                selected[market]["probability_status"]="MODEL_NORMAL_UNCALIBRATED_CROWN_ID3"
         assert set(selected)==set(MARKETS)
         rows.append({"game_id":gid,"nba_game_id":g.get("nba_game_id"),
           "jingcai_number":label if verified else None,
@@ -219,6 +225,8 @@ def self_test():
     assert m["CROWN_HANDICAP"]["signed_home_handicap"]==-6.5
     assert m["JINGCAI_TOTAL"]["direction"]=="OVER"
     assert m["CROWN_TOTAL"]["direction"]=="OVER"
+    assert m["CROWN_HANDICAP"]["probability_status"]=="MODEL_NORMAL_UNCALIBRATED_CROWN_ID3"
+    assert m["CROWN_TOTAL"]["probability_status"]=="MODEL_NORMAL_UNCALIBRATED_CROWN_ID3"
     jc["jc_007_public_odds_shadow"]["games"][0]["markets"]["win_lose"]={"status":"NOT_ON_SALE_USER_CONFIRMED"}
     missing=make(joined,model,jc,top)
     assert missing["games"][0]["markets"]["JINGCAI_WIN"]["status"]=="NOT_ON_SALE_USER_CONFIRMED"
