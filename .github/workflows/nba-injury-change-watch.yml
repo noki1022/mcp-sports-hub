@@ -17,13 +17,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || 'main' }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Validate watcher safety behavior
         run: python3 analysis/nba_injury_watch.py --mode self-test
       - name: Identify official games starting in next 70 minutes
+        if: github.event_name != 'pull_request'
         id: select
         run: |
           git pull --ff-only origin main
@@ -72,7 +73,9 @@ jobs:
           python3 - <<'PY'
           import json,os
           from pathlib import Path
-          from scripts.pushplus_mobile import send
+          import sys
+          sys.path.insert(0,'scripts')
+          from pushplus_mobile import send
           body=Path('injury_watch_alert.html').read_text(encoding='utf-8')
           result=send({'title':'NBA 赛前伤停变化 · 五玩法复核','html':body},os.environ['PUSHPLUS_TOKEN'])
           assert result['state']=='API_ACCEPTED_NOT_DEVICE_CONFIRMED'
