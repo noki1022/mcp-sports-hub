@@ -53,8 +53,11 @@ def hourly_slot(now:datetime, requested:str="")->str:
 def infer_slot(schedule:str,now:datetime)->tuple[str,str]:
     local=now.astimezone(BJ)
     if schedule=="55 14-21 * * *":
-        if local.hour not in (22,23,0,1,2,3,4,5):raise ValueError("HOURLY_HEALTH_OUTSIDE_WINDOW")
-        slot=f"{local.hour:02d}30"
+        # GitHub may start a :55 watchdog late (even after the next hour).
+        # Before :30 we still audit the previous completed hourly slot,
+        # never the future :30 slot (e.g. 23:18 must NOT audit 23:30).
+        slot=hourly_slot(now)
+        if slot not in HOURS:raise ValueError("HOURLY_HEALTH_OUTSIDE_WINDOW")
     elif schedule.startswith("55 ") and schedule.split()[1].isdigit() and 14<=int(schedule.split()[1])<=21:
         h=(int(schedule.split()[1])+8)%24
         slot=f"{h:02d}30"
@@ -174,6 +177,11 @@ def self_test():
         assert hourly_slot(datetime.fromisoformat(clock))==expected,clock
     assert hourly_slot(datetime.fromisoformat("2026-10-31T00:10:00+08:00"))=="2330"
     assert hourly_slot(datetime.fromisoformat("2026-10-31T01:12:00+08:00"))=="0030"
+    # A delayed :55 watchdog at 23:18 is still checking 22:30.
+    assert infer_slot("55 14-21 * * *",datetime.fromisoformat("2026-10-31T23:18:22+08:00"))==("2230","2026-11-01")
+    assert infer_slot("55 14-21 * * *",datetime.fromisoformat("2026-10-31T23:55:00+08:00"))==("2330","2026-11-01")
+    assert infer_slot("55 14-21 * * *",datetime.fromisoformat("2026-11-01T00:18:22+08:00"))==("2330","2026-11-01")
+
     for cron,now,slot,target in (
         ("40 4 * * *","2026-10-30T12:40:00+08:00","1200","2026-10-31"),
         ("40 13 * * *","2026-10-30T21:40:00+08:00","2100","2026-10-31"),
@@ -233,6 +241,18 @@ def main():
     else:
         slot,target=infer_slot(args.schedule,datetime.now(BJ))
     root=Path(".")
+    # A manual/early/late watchdog run may request a future slot.
+    # An unstarted workflow is not missing, so never alert for it.
+    check_now=datetime.now(BJ)
+    if check_now < scheduled_start(slot,target):
+        result={"slot":slot,"target_date_beijing":target,
+                "workflow":expected_workflow(slot),"status":"NOT_YET_DUE",
+                "run_hint":"FUTURE_SLOT_NOT_MISSING","matching_run_count":0,
+                "checked_at_beijing":check_now.isoformat(),
+                "alert_api_accepted":False,"proof":"future slot not checked"}
+        Path(args.out).write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+        print("NBA_DELIVERY_HEALTH_NOT_YET_DUE",slot,target)
+        return
     accepted=accepted_marker(root,slot,target)
     if accepted:
         report=inspect(root,slot,target)
