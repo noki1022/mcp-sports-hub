@@ -17,7 +17,8 @@ from pathlib import Path
 import sys
 import urllib.error
 import urllib.request
-from pushplus_mobile_v2 import render_v2,from_three
+from pushplus_mobile_v2 import from_three
+from pushplus_five_compact import render_compact
 
 ENDPOINT="https://www.pushplus.plus/send"
 TEMPLATE="html"
@@ -215,8 +216,8 @@ def main():
             rows=from_three(joined,read(args.model),read(args.movement))
         model={str(x.get("game_id")):x for x in read(args.model).get("games",[])}
         count=len(rows)
-        title="NBA/CBA 赛前研判 V2｜"+str(joined.get("requested_display_date","未知"))
-        html=render_v2(rows,model,"NBA/CBA 赛前研判 V2",joined.get("requested_display_date","未知"),"three")
+        title="NBA 赛前五玩法｜"+str(joined.get("requested_display_date","未知"))
+        html=render_compact(rows,model,"NBA/CBA 赛前五玩法",joined.get("requested_display_date","未知"),"three")
     else:
         movement=read(args.movement)
         dynamic={str(g.get("game_id")):g for g in read(args.dynamic).get("games",[])}
@@ -230,8 +231,10 @@ def main():
         # selections when the full market board actually contains games.
         rows=list(movement.get("games",[]))
         count=len(rows)
-        title="NBA/CBA 盘口动态 V2｜"+str(movement.get("target_date","未知"))
-        html=render_v2(rows,model,"NBA/CBA 盘口动态 V2",movement.get("target_date","未知"),"hourly")
+        title="NBA 赛前五玩法｜"+str(movement.get("target_date","未知"))
+        html=render_compact(rows,model,"NBA/CBA 赛前五玩法",movement.get("target_date","未知"),"hourly")
+    if args.mode!="smoke" and args.send and not args.five:
+        raise RuntimeError("COMPACT_FIVE_MARKET_SOURCE_REQUIRED_NO_LONG_FALLBACK")
     if (args.top10 or args.verdict or args.jingcai or args.sop or args.five) and args.mode!="smoke":
         multi=read(args.top10)
         top={str(x.get("game_id")):x for x in multi.get("games",[])}
@@ -263,7 +266,9 @@ def main():
         focus=read(args.priority_focus) if args.priority_focus else None
         if focus is not None and (args.mode!="three" or focus.get("slot") not in ("2130","0630")):
             raise RuntimeError("INVALID_PRIORITY_FOCUS_REPORT")
-        html=render_v2(rows,model,title,joined.get("requested_display_date") if args.mode=="three" else movement.get("target_date"),args.mode,priority_focus=focus)
+        html=render_compact(rows,model,title,joined.get("requested_display_date") if args.mode=="three" else movement.get("target_date"),args.mode)
+    if args.mode!="smoke" and args.send and ("竞彩 · 3玩法" not in html or "皇冠ID3 · 2玩法" not in html):
+        raise RuntimeError("COMPACT_RENDER_INCOMPLETE_NO_LEGACY_FALLBACK")
     html="<div style='"+style()+"max-width:560px;margin:0 auto;'>"+html+"</div>"
     Path(args.preview).write_text(html,encoding="utf-8")
     state={"mode":args.mode,"games_considered":count,"template":"html","preview":args.preview}
