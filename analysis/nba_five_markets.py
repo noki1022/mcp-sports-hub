@@ -48,11 +48,13 @@ def jc_probability(market,direction,pred,line):
         home=n((pred.get("model_probability") or {}).get("home"))
         if home is None or not 0<=home<=1:return None
         return home if direction=="HOME_WIN" else 1-home
-    kind="handicap" if market=="JINGCAI_HANDICAP" else "total"
+    kind="handicap" if market in ("JINGCAI_HANDICAP","CROWN_HANDICAP") else "total"
     mu=n(pred.get("margin_mean_home_minus_away" if kind=="handicap" else "total_mean"))
     sigma=n(pred.get("margin_sigma" if kind=="handicap" else "total_sigma"))
     if None in (mu,sigma,line) or sigma<=0:return None
-    threshold=-line if kind=="handicap" else line
+    # Crown ID3 raw positive spread denotes HOME GIVES; JC positive denotes
+    # HOME RECEIVES. Both must map into distinct model thresholds.
+    threshold=(line if market=="CROWN_HANDICAP" else -line) if kind=="handicap" else line
     greater=.5*math.erfc((threshold-mu)/(math.sqrt(2)*sigma))
     return greater if direction in ("HOME_COVER","OVER") else 1-greater
 
@@ -160,6 +162,12 @@ def make(joined,model,jc,top10):
             selected[market]=selection(market,gap,line,
                 source="007_CROWN_ID3_ARCHIVED_PRETIP" if archived_fallback else "007_CROWN_ID3",
                 source_id="3",observed_at=quote_time)
+            if selected[market]["status"]=="DIRECTION_ISSUED":
+                probability=jc_probability(market,selected[market]["direction"],p,line)
+                selected[market]["model_direction_probability"]=probability
+                selected[market]["model_probability_status"]=(
+                    "GAUSSIAN_APPROXIMATION_UNCALIBRATED_AT_THIS_LINE" if probability is not None
+                    else "NO_VALID_MODEL_SIGMA_FOR_MARKET")
             selected[market]["quote_freshness"]=("ARCHIVED_PRIOR_NOT_LIVE" if archived_fallback else "CURRENT_CAPTURE")
         assert set(selected)==set(MARKETS)
         rows.append({"game_id":gid,"nba_game_id":g.get("nba_game_id"),
@@ -186,7 +194,8 @@ def self_test():
       "nba_cba_games":[{"game_id":"170","nba_game_id":"nba170","league":"NBA",
         "home_team":"独行侠","away_team":"火箭","start_time_beijing":"2026-10-31T08:00:00+08:00"}]}
     model={"games":[{"game_id":"170","model_status":"OK","margin_mean_home_minus_away":-6,
-                     "total_mean":230}]}
+                     "margin_sigma":12.0,"total_mean":230,"total_sigma":14.0,
+                     "model_probability":{"home":0.28,"away":0.72}}]}
     jc={"jc_007_match_numbers":{"games":{"170":{"status":"VERIFIED_JC_NUMBER","label":"周五314"}}},
        "jc_007_public_odds_shadow":{"captured_at_utc":"2026-10-30T14:00:00Z",
          "games":[{"game_id":"170","markets":{
@@ -219,6 +228,14 @@ def self_test():
     assert m["CROWN_HANDICAP"]["signed_home_handicap"]==-6.5
     assert m["JINGCAI_TOTAL"]["direction"]=="OVER"
     assert m["CROWN_TOTAL"]["direction"]=="OVER"
+    # Probability threshold must preserve opposite Crown/JC spread signs.
+    assert m["CROWN_HANDICAP"]["model_direction_probability"]>0.8
+    assert 0.5<m["CROWN_TOTAL"]["model_direction_probability"]<0.6
+    assert m["CROWN_HANDICAP"]["model_probability_status"]=="GAUSSIAN_APPROXIMATION_UNCALIBRATED_AT_THIS_LINE"
+    assert m["CROWN_HANDICAP"]["model_direction_probability"] == jc_probability(
+        "CROWN_HANDICAP","AWAY_COVER",model["games"][0],6.5)
+    assert m["CROWN_HANDICAP"]["model_direction_probability"] != jc_probability(
+        "JINGCAI_HANDICAP","AWAY_COVER",model["games"][0],6.5)
     jc["jc_007_public_odds_shadow"]["games"][0]["markets"]["win_lose"]={"status":"NOT_ON_SALE_USER_CONFIRMED"}
     missing=make(joined,model,jc,top)
     assert missing["games"][0]["markets"]["JINGCAI_WIN"]["status"]=="NOT_ON_SALE_USER_CONFIRMED"
@@ -236,6 +253,17 @@ def self_test():
     assert recovered["CROWN_TOTAL"]["direction"]=="OVER"
     assert recovered["CROWN_TOTAL"]["quote_freshness"]=="ARCHIVED_PRIOR_NOT_LIVE"
     assert recovered["CROWN_TOTAL"]["source_id"]=="3"
+    assert recovered["CROWN_HANDICAP"]["model_direction_probability"]==m["CROWN_HANDICAP"]["model_direction_probability"]
+    assert recovered["CROWN_TOTAL"]["model_direction_probability"]==m["CROWN_TOTAL"]["model_direction_probability"]
+    # Missing sigma never creates made-up probability even with real ID3 quote.
+    no_sigma=json.loads(json.dumps(model))
+    no_sigma["games"][0]["margin_sigma"]=None
+    no_sigma["games"][0]["total_sigma"]=None
+    missing_sigma=make(joined,no_sigma,jc,top)["games"][0]["markets"]
+    for market in ("CROWN_HANDICAP","CROWN_TOTAL"):
+        assert missing_sigma[market]["direction"] is not None
+        assert missing_sigma[market]["model_direction_probability"] is None
+        assert missing_sigma[market]["model_probability_status"]=="NO_VALID_MODEL_SIGMA_FOR_MARKET"
     # A missing JC number must not invalidate a correctly timestamped ID3 quote.
     jc["jc_007_match_numbers"]["games"]["170"]={"status":"UNVERIFIED","label":None}
     independent=make(joined,model,jc,top)["games"][0]["markets"]
