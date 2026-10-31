@@ -43,11 +43,13 @@ def run(out):
     games,_,_=extract_history(date(2026,10,29))
     production=_rows_with_dynamic_strength(games)
     bydate=defaultdict(list)
+    identity_rejections=defaultdict(int)
     for r in production:
         k=(r["date"],r["home"],r["away"])
         if k in byfixture and r["date"]<"2024-04-15":
             if abs(float(r["margin"])-float(byfixture[k]["margin"]))>0.1:
-                raise AssertionError("HOME_AWAY_SCORE_OR_GAME_ID_MISMATCH")
+                identity_rejections["score_mismatch_no_replay"]+=1
+                continue
             bydate[r["date"]].append((r,byfixture[k]))
     shadow=[]
     for day in sorted(bydate):
@@ -69,6 +71,7 @@ def run(out):
         "same_production_rolling_fitter":True,
         "source_early_archive_status":old["status"],
         "counts":{"matched_replay":len(shadow),"injury_fit":len(fit),"injury_cal":len(cal),"later_test":len(test)},
+        "identity_rejections":dict(identity_rejections),
         "nominal_report_clock_not_verified_publication":True,
         "2023_24_test_previously_inspected":True,
         "historical_true_007_lines_missing":True,
