@@ -35,5 +35,8 @@ jobs:
           assert s.index('--phase presend')<s.index('pushplus_mobile.py --mode three')
           assert s.index('pushplus_mobile.py --mode three')<s.index('Archive snapshot, complete analysis')
           assert '--require-token' in s
+          preflight=s.split('      - name: Preflight Beijing cutoff; check prior accepted push',1)[1].split('      - if:',1)[0]
+          assert 'export TARGET_DATE="$target"' in preflight
+          assert preflight.index('export TARGET_DATE="$target"')<preflight.index('nba_fixed_slot_gate.py')
           print('NBA_PRIORITY_PRE_CUTOFF_WIRING_PASS')
           PY
