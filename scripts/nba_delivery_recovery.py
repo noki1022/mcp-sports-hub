@@ -113,7 +113,7 @@ def self_test():
         marker_priority.write_text(json.dumps({"state":ACCEPTED,"slot":"2130"}))
         assert decision(root,"2130","2026-11-01",t,[])["action"]=="NO_DISPATCH"
         p=root/"reports/pushplus-sent"/target/"1200.json"
-        p.parent.mkdir(parents=True);p.write_text(json.dumps({"state":ACCEPTED,"slot":"1200"}))
+        p.parent.mkdir(parents=True,exist_ok=True);p.write_text(json.dumps({"state":ACCEPTED,"slot":"1200"}))
         assert decision(root,slot,target,at,[])["reason"]=="ALREADY_API_ACCEPTED"
         from unittest.mock import patch
         class Reply:
