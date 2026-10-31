@@ -83,7 +83,9 @@ jobs:
             fi
             sleep 8
           done
-          if [ "$fetched" = true ]; then
+          if [ "$fetched" = true ] && [ ! -f "reports/noon-cohorts/$TARGET_DATE/1200.json" ]; then
+            cp titan007_three_joined.json titan007_three_recovered.json
+          elif [ "$fetched" = true ]; then
             python3 scripts/nba_capture_recovery.py --joined titan007_three_joined.json --out titan007_three_recovered.json
           else
             python3 scripts/nba_capture_recovery.py --target "$TARGET_DATE" --out titan007_three_recovered.json
@@ -92,7 +94,7 @@ jobs:
           python3 - <<'PY'
           import json
           b=json.load(open('titan007_three_joined.json'))
-          print('OFFICIAL_FIXTURE_RECOVERY',b['quote_recovery'])
+          print('OFFICIAL_FIXTURE_RECOVERY',b.get('quote_recovery', {'state':'FIRST_VERIFIED_CAPTURE'}))
           PY
       - name: Lock the noon official NBA slate or enforce the locked cohort
         if: steps.preflight.outputs.skip != 'true'
