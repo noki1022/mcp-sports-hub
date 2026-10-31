@@ -75,7 +75,15 @@ jobs:
           git pull --ff-only origin main
           mkdir -p "reports/noon-cohorts/$TARGET_DATE"
           if [ "$EXTERNAL_REPORT_SLOT" = "1200" ] || [ "$SCHEDULE_EXPR" = "0 4 * * *" ] || [ "$SCHEDULE_EXPR" = "15 4 * * *" ] || [ "$SCHEDULE_EXPR" = "30 4 * * *" ]; then
-            python3 scripts/nba_noon_slate.py freeze --joined titan007_three_joined.json --out "reports/noon-cohorts/$TARGET_DATE/1200.json"
+            if [ -f "reports/noon-cohorts/$TARGET_DATE/1200.json" ]; then
+              echo "EXISTING_NOON_COHORT_RETAINED"
+              python3 scripts/nba_noon_slate.py enforce --joined titan007_three_joined.json --lock "reports/noon-cohorts/$TARGET_DATE/1200.json" --out nba_same_slate.json
+            elif python3 scripts/nba_noon_slate.py freeze --joined titan007_three_joined.json --out "reports/noon-cohorts/$TARGET_DATE/1200.json"; then
+              echo "ON_TIME_NOON_COHORT"
+            else
+              echo "LATE_NOON_CAPTURE_RECORDED_AT_ACTUAL_TIME"
+              python3 scripts/nba_noon_slate.py late-freeze --joined titan007_three_joined.json --out "reports/noon-cohorts/$TARGET_DATE/1200.json"
+            fi
             git add "reports/noon-cohorts/$TARGET_DATE/1200.json"
             if ! git diff --cached --quiet; then
               git config user.name github-actions[bot]
