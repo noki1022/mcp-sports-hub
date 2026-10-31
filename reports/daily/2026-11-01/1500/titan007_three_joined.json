@@ -1,0 +1,381 @@
+{
+  "captured_at_utc": "2026-10-31T07:08:42.403824+00:00",
+  "requested_display_date": "2026-11-01",
+  "date_standard": "Asia/Shanghai derived from UTC start",
+  "score_source": "https://bf.titan007.com/nba_date.aspx?date=...",
+  "odds_source": "https://bf.titan007.com/nba_Oddsdata.aspx?date=...",
+  "official_schedule_source": [
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261031&limit=100",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261101&limit=100"
+  ],
+  "official_schedule_count": 7,
+  "upcoming_nba_games": [
+    {
+      "nba_game_id": "401909896",
+      "home": "UTA",
+      "away": "POR",
+      "utc_tip": "2026-10-31T19:00:00+00:00",
+      "beijing_tip": "2026-11-01T03:00+08:00",
+      "beijing_date": "2026-11-01",
+      "us_eastern_date": "2026-10-31",
+      "us_eastern_tip": "2026-10-31T15:00-04:00"
+    },
+    {
+      "nba_game_id": "401909897",
+      "home": "CHA",
+      "away": "PHI",
+      "utc_tip": "2026-10-31T22:00:00+00:00",
+      "beijing_tip": "2026-11-01T06:00+08:00",
+      "beijing_date": "2026-11-01",
+      "us_eastern_date": "2026-10-31",
+      "us_eastern_tip": "2026-10-31T18:00-04:00"
+    },
+    {
+      "nba_game_id": "401909898",
+      "home": "NOP",
+      "away": "ATL",
+      "utc_tip": "2026-10-31T23:00:00+00:00",
+      "beijing_tip": "2026-11-01T07:00+08:00",
+      "beijing_date": "2026-11-01",
+      "us_eastern_date": "2026-10-31",
+      "us_eastern_tip": "2026-10-31T19:00-04:00"
+    },
+    {
+      "nba_game_id": "401909899",
+      "home": "MEM",
+      "away": "SAC",
+      "utc_tip": "2026-11-01T00:00:00+00:00",
+      "beijing_tip": "2026-11-01T08:00+08:00",
+      "beijing_date": "2026-11-01",
+      "us_eastern_date": "2026-10-31",
+      "us_eastern_tip": "2026-10-31T20:00-04:00"
+    },
+    {
+      "nba_game_id": "401909900",
+      "home": "MIL",
+      "away": "CLE",
+      "utc_tip": "2026-11-01T00:00:00+00:00",
+      "beijing_tip": "2026-11-01T08:00+08:00",
+      "beijing_date": "2026-11-01",
+      "us_eastern_date": "2026-10-31",
+      "us_eastern_tip": "2026-10-31T20:00-04:00"
+    },
+    {
+      "nba_game_id": "401909901",
+      "home": "SAS",
+      "away": "MIN",
+      "utc_tip": "2026-11-01T00:00:00+00:00",
+      "beijing_tip": "2026-11-01T08:00+08:00",
+      "beijing_date": "2026-11-01",
+      "us_eastern_date": "2026-10-31",
+      "us_eastern_tip": "2026-10-31T20:00-04:00"
+    },
+    {
+      "nba_game_id": "401909902",
+      "home": "HOU",
+      "away": "OKC",
+      "utc_tip": "2026-11-01T00:30:00+00:00",
+      "beijing_tip": "2026-11-01T08:30+08:00",
+      "beijing_date": "2026-11-01",
+      "us_eastern_date": "2026-10-31",
+      "us_eastern_tip": "2026-10-31T20:30-04:00"
+    }
+  ],
+  "site_query_dates": {
+    "2026-11-01": {
+      "source_rows": 495,
+      "market_rows": 37,
+      "id3_state": "AVAILABLE",
+      "nba_rows": 7
+    },
+    "2026-10-31": {
+      "source_rows": 517,
+      "market_rows": 106,
+      "id3_state": "AVAILABLE",
+      "nba_rows": 11
+    },
+    "2026-11-02": {
+      "source_rows": 196,
+      "market_rows": 0,
+      "id3_state": "AVAILABLE",
+      "nba_rows": 4
+    }
+  },
+  "match_rejections": {
+    "NO_DATE_MARKET_FOR_GAME_ID": 2,
+    "NOT_OFFICIAL_BEIJING_MATCHUP": 14
+  },
+  "missing_id3_diagnostics": [
+    {
+      "007_game_id": "728294",
+      "nba_game_id": "401909897",
+      "home": "CHA",
+      "away": "PHI",
+      "site_date": "2026-11-01",
+      "site_clock": "06:00",
+      "id3_dated_market": "MISSING"
+    },
+    {
+      "007_game_id": "728884",
+      "nba_game_id": "401909902",
+      "home": "HOU",
+      "away": "OKC",
+      "site_date": "2026-11-01",
+      "site_clock": "08:30",
+      "id3_dated_market": "MISSING"
+    }
+  ],
+  "source_rejections": {
+    "identity_rejected": 0
+  },
+  "source_query_errors": [],
+  "unmatched_nba_fixtures": [
+    {
+      "nba_game_id": "401909897",
+      "home": "CHA",
+      "away": "PHI",
+      "beijing_tip": "2026-11-01T06:00+08:00",
+      "reason": "007_MARKET_MISSING"
+    },
+    {
+      "nba_game_id": "401909902",
+      "home": "HOU",
+      "away": "OKC",
+      "beijing_tip": "2026-11-01T08:30+08:00",
+      "reason": "007_MARKET_MISSING"
+    }
+  ],
+  "nba_cba_games": [
+    {
+      "game_id": "728880",
+      "nba_game_id": "401909896",
+      "league": "NBA",
+      "home_team": "犹他爵士",
+      "away_team": "波特兰开拓者",
+      "display_date": "2026-11-01",
+      "display_clock": "03:00",
+      "tipoff_utc": "2026-10-31T19:00:00+00:00",
+      "start_time_beijing": "2026-11-01T03:00+08:00",
+      "us_eastern_date": "2026-10-31",
+      "site_display_date": "2026-11-01",
+      "site_display_clock": "03:00",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {
+            "line": -6.5,
+            "first_side_water": 0.88,
+            "second_side_water": 0.98
+          }
+        },
+        "full_total": {
+          "opening": {},
+          "current": {
+            "line": 231.5,
+            "first_side_water": 0.9,
+            "second_side_water": 0.94
+          }
+        }
+      }
+    },
+    {
+      "game_id": "728294",
+      "nba_game_id": "401909897",
+      "league": "NBA",
+      "home_team": "夏洛特黄蜂",
+      "away_team": "费城76人",
+      "display_date": "2026-11-01",
+      "display_clock": "06:00",
+      "tipoff_utc": "2026-10-31T22:00:00+00:00",
+      "start_time_beijing": "2026-11-01T06:00+08:00",
+      "us_eastern_date": "2026-10-31",
+      "site_display_date": "2026-11-01",
+      "site_display_clock": "06:00",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
+        },
+        "full_total": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
+        }
+      }
+    },
+    {
+      "game_id": "728881",
+      "nba_game_id": "401909898",
+      "league": "NBA",
+      "home_team": "新奥尔良鹈鹕",
+      "away_team": "亚特兰大老鹰",
+      "display_date": "2026-11-01",
+      "display_clock": "07:00",
+      "tipoff_utc": "2026-10-31T23:00:00+00:00",
+      "start_time_beijing": "2026-11-01T07:00+08:00",
+      "us_eastern_date": "2026-10-31",
+      "site_display_date": "2026-11-01",
+      "site_display_clock": "07:00",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {
+            "line": -4.5,
+            "first_side_water": 0.89,
+            "second_side_water": 0.97
+          }
+        },
+        "full_total": {
+          "opening": {},
+          "current": {
+            "line": 240.5,
+            "first_side_water": 0.86,
+            "second_side_water": 0.98
+          }
+        }
+      }
+    },
+    {
+      "game_id": "728295",
+      "nba_game_id": "401909900",
+      "league": "NBA",
+      "home_team": "密尔沃基雄鹿",
+      "away_team": "克里夫兰骑士",
+      "display_date": "2026-11-01",
+      "display_clock": "08:00",
+      "tipoff_utc": "2026-11-01T00:00:00+00:00",
+      "start_time_beijing": "2026-11-01T08:00+08:00",
+      "us_eastern_date": "2026-10-31",
+      "site_display_date": "2026-11-01",
+      "site_display_clock": "08:00",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {
+            "line": -9.5,
+            "first_side_water": 0.82,
+            "second_side_water": 1.04
+          }
+        },
+        "full_total": {
+          "opening": {},
+          "current": {
+            "line": 237.5,
+            "first_side_water": 0.92,
+            "second_side_water": 0.92
+          }
+        }
+      }
+    },
+    {
+      "game_id": "728882",
+      "nba_game_id": "401909901",
+      "league": "NBA",
+      "home_team": "圣安东尼奥马刺",
+      "away_team": "明尼苏达森林狼",
+      "display_date": "2026-11-01",
+      "display_clock": "08:00",
+      "tipoff_utc": "2026-11-01T00:00:00+00:00",
+      "start_time_beijing": "2026-11-01T08:00+08:00",
+      "us_eastern_date": "2026-10-31",
+      "site_display_date": "2026-11-01",
+      "site_display_clock": "08:00",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {
+            "line": 12.5,
+            "first_side_water": 0.98,
+            "second_side_water": 0.88
+          }
+        },
+        "full_total": {
+          "opening": {},
+          "current": {
+            "line": 226.5,
+            "first_side_water": 0.91,
+            "second_side_water": 0.93
+          }
+        }
+      }
+    },
+    {
+      "game_id": "728883",
+      "nba_game_id": "401909899",
+      "league": "NBA",
+      "home_team": "孟菲斯灰熊",
+      "away_team": "萨克拉门托国王",
+      "display_date": "2026-11-01",
+      "display_clock": "08:00",
+      "tipoff_utc": "2026-11-01T00:00:00+00:00",
+      "start_time_beijing": "2026-11-01T08:00+08:00",
+      "us_eastern_date": "2026-10-31",
+      "site_display_date": "2026-11-01",
+      "site_display_clock": "08:00",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {
+            "line": 10.5,
+            "first_side_water": 0.85,
+            "second_side_water": 1.01
+          }
+        },
+        "full_total": {
+          "opening": {},
+          "current": {
+            "line": 232.5,
+            "first_side_water": 0.88,
+            "second_side_water": 0.96
+          }
+        }
+      }
+    },
+    {
+      "game_id": "728884",
+      "nba_game_id": "401909902",
+      "league": "NBA",
+      "home_team": "休斯顿火箭",
+      "away_team": "俄克拉荷马城雷霆",
+      "display_date": "2026-11-01",
+      "display_clock": "08:30",
+      "tipoff_utc": "2026-11-01T00:30:00+00:00",
+      "start_time_beijing": "2026-11-01T08:30+08:00",
+      "us_eastern_date": "2026-10-31",
+      "site_display_date": "2026-11-01",
+      "site_display_clock": "08:30",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
+        },
+        "full_total": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
+        }
+      }
+    }
+  ],
+  "markets_joined_for_date": 5,
+  "verified_fixture_ids_for_date": 7,
+  "nba_cba_joined_for_date": 7,
+  "nba_markets_missing": 2,
+  "all_scoreboard_matches": 814,
+  "all_untargeted_market_matches": 116,
+  "market_opening_not_available": true,
+  "time_zone": "Asia/Shanghai (verified UTC fixture)",
+  "water_orientation": "UNVERIFIED; original market slots",
+  "company_identity": "UNVERIFIED",
+  "report_quality": "MARKETS_AVAILABLE",
+  "recommendations": []
+}
