@@ -3,8 +3,9 @@
 from __future__ import annotations
 import argparse, html, json
 from pathlib import Path
+from nba_injury_probability import adjust as adjust_injury_probability
 
-def render(joined, gate, out_json, out_html, injury_context=None):
+def render(joined, gate, out_json, out_html, injury_context=None, impact_catalog=None):
     injuries={str(x.get("game_id")):x for x in (injury_context or {}).get("games",[])}
     games = {str(g.get("game_id")): g for g in joined.get("nba_cba_games", [])}
     preds = {str(g.get("game_id")): g for g in gate.get("game_predictions", [])}
@@ -15,6 +16,11 @@ def render(joined, gate, out_json, out_html, injury_context=None):
     sections = []
     for gid, game in games.items():
         p = preds.get(gid, {})
+        injury_row = injuries.get(gid)
+        p = adjust_injury_probability(p, injury_row, (injury_context or {}).get("source"),
+                                      game.get("start_time_beijing"), impact_catalog)
+        # The original independent model remains the baseline; all five markets
+        # downstream consume these adjusted central estimates, not stale ones.
         quality = p.get("data_quality", {})
         intervals = p.get("prediction_intervals", {})
         empirical = p.get("empirical_prediction_intervals", {})
@@ -40,6 +46,7 @@ def render(joined, gate, out_json, out_html, injury_context=None):
             "gate_reasons": reasons or ["INDEPENDENT_MODEL_MISSING"],
             "pregame_context": p.get("pregame_context"),
             "injury_context": injuries.get(gid,{"quality":"NOT_PROVIDED","player_adjustment":"DISABLED_NOT_BACKTESTED"}),
+            "injury_adjustment": p.get("injury_adjustment"),
             "recommendation": "NO_BET",
         }
         rows.append(record)
@@ -106,7 +113,7 @@ def self_test():
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--joined"); ap.add_argument("--predictions"); ap.add_argument("--injury-context")
+    ap.add_argument("--joined"); ap.add_argument("--predictions"); ap.add_argument("--injury-context"); ap.add_argument("--impact-catalog")
     ap.add_argument("--out-json", default="nba_model_analysis.json")
     ap.add_argument("--out-html", default="nba_model_analysis.html")
     ap.add_argument("--self-test", action="store_true")
@@ -117,4 +124,5 @@ if __name__ == "__main__":
         if not a.joined or not a.predictions: raise SystemExit("--joined and --predictions are required")
         render(json.loads(Path(a.joined).read_text(encoding="utf-8")),
                json.loads(Path(a.predictions).read_text(encoding="utf-8")),
-               a.out_json, a.out_html, json.loads(Path(a.injury_context).read_text(encoding="utf-8")) if a.injury_context and Path(a.injury_context).exists() else None)
+               a.out_json, a.out_html, json.loads(Path(a.injury_context).read_text(encoding="utf-8")) if a.injury_context and Path(a.injury_context).exists() else None,
+               json.loads(Path(a.impact_catalog).read_text(encoding="utf-8")) if a.impact_catalog and Path(a.impact_catalog).exists() else None)
