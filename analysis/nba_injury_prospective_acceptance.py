@@ -92,11 +92,38 @@ def verify(predictions,results,candidate_hash):
     report["moneyline_accuracy_gate_pass"]=bool(hi<0 and report["injury_LogLoss"]<report["base_LogLoss"])
     report["production_approved"]=False  # publication / player impact / other gating separately required
     return report
+def selftest():
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        path=Path(d)/"pred.csv"
+        with path.open("w",newline="") as o:
+            writer=csv.DictWriter(o,fieldnames=["game_id","tipoff_utc","predicted_at_utc",
+                 "base_home_prob","injury_home_prob","candidate_sha256","research_only"])
+            writer.writeheader()
+            writer.writerow({"game_id":"test1","tipoff_utc":"2026-11-01T01:00:00Z",
+                "predicted_at_utc":"2026-11-01T00:30:00Z","base_home_prob":0.5,
+                "injury_home_prob":0.6,"candidate_sha256":"frozen_hash","research_only":"True"})
+        result=Path(d)/"result.json"
+        result.write_text(json.dumps({"games":[{"game_id":"test1",
+            "home_points":100,"away_points":99,"official_result_status":"FINAL",
+            "tipoff_utc":"2026-11-01T01:00:00Z"}]}))
+        t=verify(path,result,"frozen_hash")
+        assert t["scored_games"]==1 and t["production_approved"] is False
+        bad=path.read_text().replace("00:30:00Z","01:30:00Z")
+        path.write_text(bad)
+        try:verify(path,result,"frozen_hash")
+        except ValueError as e:assert str(e)=="POST_TIP_PREDICTION"
+        else:raise AssertionError("POSTTIP_SHOULD_FAIL")
+        print("PROSPECTIVE_INJURY_ACCEPTANCE_FAIL_CLOSED_TEST_PASS")
+
 def main():
     p=argparse.ArgumentParser()
+    p.add_argument("--self-test",action="store_true")
     for a in ("predictions","results","candidate_sha256","out"):
-        p.add_argument("--"+a.replace("_","-"),required=True)
+        p.add_argument("--"+a.replace("_","-"))
     x=p.parse_args()
+    if x.self_test:return selftest()
+    if not all((x.predictions,x.results,x.candidate_sha256,x.out)):p.error("all input args required")
     out=verify(x.predictions,x.results,x.candidate_sha256)
     Path(x.out).write_text(json.dumps(out,indent=2)+"\n")
     print(json.dumps(out,indent=2))
