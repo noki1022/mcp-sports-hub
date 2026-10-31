@@ -39,6 +39,8 @@ def audit():
              "url":(PLAYER if name=="players" else INJURY if name=="injury" else OUTCOME),
              "rows":len(rows),"columns":columns,"first":rows[0] if name=="players" else None}
         result["sources"][name]["first"]=None
+        if name in ("players","injury"):
+            result["sources"][name]["sample_rows"]=rows[:2]
         raw[name]=rows
     player_cols=set(result["sources"]["players"]["columns"])
     injury_cols=set(result["sources"]["injury"]["columns"])
