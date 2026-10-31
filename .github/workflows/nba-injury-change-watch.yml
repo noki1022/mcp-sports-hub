@@ -77,6 +77,12 @@ jobs:
           import sys
           sys.path.insert(0,'scripts')
           from pushplus_mobile import send
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          beijing=datetime.now(ZoneInfo("Asia/Shanghai"))
+          if 0<=beijing.hour<6:
+              print('SILENT_MIDNIGHT_INJURY_CHANGE_RECORDED_NOT_PUSHED',beijing.isoformat())
+              raise SystemExit(0)
           body=Path('injury_watch_alert.html').read_text(encoding='utf-8')
           result=send({'title':'NBA 赛前伤停变化 · 五玩法复核','html':body},os.environ['PUSHPLUS_TOKEN'])
           assert result['state']=='API_ACCEPTED_NOT_DEVICE_CONFIRMED'

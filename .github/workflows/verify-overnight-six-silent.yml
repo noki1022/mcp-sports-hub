@@ -1,0 +1,39 @@
+name: Verify 6 silent midnight analyses and dynamic earliest tip notification
+on:
+  pull_request:
+    paths:
+      - scripts/nba_overnight_six_audit.py
+      - scripts/nba_delivery_health.py
+      - scripts/pushplus_mobile.py
+      - .github/workflows/titan007-final-hourly.yml
+      - .github/workflows/nba-priority-0630.yml
+      - .github/workflows/nba-injury-change-watch.yml
+      - .github/workflows/verify-overnight-six-silent.yml
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 scripts/nba_overnight_six_audit.py self-test
+      - run: python3 scripts/nba_delivery_health.py --self-test
+      - run: python3 scripts/nba_tipoff_plan.py --self-test
+      - name: Verify all six hourly captures occur before conditional notification
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('.github/workflows/titan007-final-hourly.yml').read_text()
+          assert 'nba_overnight_six_audit.py capture' in h
+          assert h.index('nba_overnight_six_audit.py capture')<h.index('name: Choose alert based on earliest')
+          assert "steps.silent.outputs.send == 'true'" in h
+          assert 'last_safe_analysis_slot' in h
+          m=Path('.github/workflows/nba-priority-0630.yml').read_text()
+          assert 'nba_overnight_six_audit.py digest' in m
+          assert '--overnight-audit nba_overnight_six_audit.json' in m
+          w=Path('.github/workflows/nba-injury-change-watch.yml').read_text()
+          assert 'SILENT_MIDNIGHT_INJURY_CHANGE_RECORDED_NOT_PUSHED' in w
+          print("SIX_OVERNIGHT_SILENT_WITH_PRETIP_EXCEPTION_AND_0630_DIGEST_PASS")
+          PY

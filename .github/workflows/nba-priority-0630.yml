@@ -206,11 +206,20 @@ jobs:
              echo 'PRIORITY_ALREADY_ACCEPTED_IN_REMOTE'; exit 1
           fi
       - if: steps.gate.outputs.sent != 'true'
+        name: Verify immutable midnight six-slot capture and analysis ledger
+        run: |
+          # The 05:30 job may have committed after this 06:30 run checked out main.
+          git fetch origin main
+          if git cat-file -e "origin/main:reports/overnight-six/$TARGET_DATE/0030/evidence.json" 2>/dev/null; then
+            git checkout origin/main -- "reports/overnight-six/$TARGET_DATE"
+          fi
+          python3 scripts/nba_overnight_six_audit.py digest --day "$TARGET_DATE" --out nba_overnight_six_audit.json
+      - if: steps.gate.outputs.sent != 'true'
         name: Push full-board priority analysis to iPhone before morning NBA tipoffs
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode three --joined titan007_priority_joined.json --movement titan007_priority_movement.json --dynamic nba_priority_dynamic.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --model nba_priority_model.json --sop nba_analysis_sop.json --five nba_five_market_forecast.json --priority-focus nba_priority_focus.json --preview nba_priority_iphone.html --status nba_priority_pushplus_status.json --send --require-token
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_priority_joined.json --movement titan007_priority_movement.json --dynamic nba_priority_dynamic.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --model nba_priority_model.json --sop nba_analysis_sop.json --five nba_five_market_forecast.json --priority-focus nba_priority_focus.json --overnight-audit nba_overnight_six_audit.json --preview nba_priority_iphone.html --status nba_priority_pushplus_status.json --send --require-token
           python3 - <<'PY'
           import json
           s=json.load(open('nba_priority_pushplus_status.json'))
@@ -254,6 +263,7 @@ jobs:
             reports/overnight-cohorts/**/*.json
             nba_priority_dynamic.json
             nba_priority_injury_context.json
+            nba_overnight_six_audit.json
             nba_injury_prospective_0630.json
             nba_priority_bc.json
             nba_priority_iphone.html
