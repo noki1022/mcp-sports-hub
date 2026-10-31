@@ -157,6 +157,10 @@ jobs:
           print("FIVE_MARKET_SNAPSHOT_FROZEN",x["game_count"],x["ready_counts"])
           PY
       - if: steps.gate.outputs.sent != 'true'
+        name: P0 fail-closed five-market source and team identity integrity
+        run: |
+          python3 analysis/nba_five_market_integrity_gate.py --joined titan007_priority_joined.json --five nba_five_market_forecast.json --jingcai nba_jingcai_three_market.json --out nba_five_market_integrity.json
+      - if: steps.gate.outputs.sent != 'true'
         name: Generate mandatory NBA spread and total research verdicts from ten institutions
         run: |
           python3 analysis/nba_two_market_forecast.py --joined titan007_priority_joined.json --model nba_priority_model.json --top10 nba_top10_comparison.json --out nba_two_market_forecast.json
