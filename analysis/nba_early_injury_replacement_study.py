@@ -44,7 +44,7 @@ def score(y,mu,sig):
     return {"MAE":round(float(np.mean(abs(y-mu))),5),
             "Brier":round(float(np.mean((p-actual)**2)),6),
             "LogLoss":round(float(np.mean(-(actual*np.log(p)+(1-actual)*np.log(1-p)))),6)}
-def main(out):
+def main(out, return_paired=False):
     sources={}
     frames=[];reports=[]
     for s,year in (("2022-23",2023),("2023-24",2024)):
@@ -111,7 +111,7 @@ def main(out):
                 audit["incomplete_report"]+=1;continue
             if key in report:raise ValueError("DUPLICATE_GAME_REPORT")
             report[key]=teams
-    team_history=defaultdict(list);samples=[];no_report=0
+    team_history=defaultdict(list);samples=[];paired_meta=[];no_report=0
     days=defaultdict(list)
     for (day,g),(h,a,m) in fixtures.items():days[day].append((g,h,a,m))
     for day in sorted(days):
@@ -147,6 +147,7 @@ def main(out):
                     injury[0][1]-injury[1][1],
                     injury[0][3]-injury[1][3]]
             samples.append((day,margin,base,x))
+            paired_meta.append((day,g,h,a))
         for g,h,a,margin in days[day]:
             team_history[h].append(margin)
             team_history[a].append(-margin)
@@ -202,5 +203,8 @@ def main(out):
     from pathlib import Path
     Path(out).write_text(json.dumps(report_obj,indent=2,ensure_ascii=False)+"\n")
     print("P0_EARLY_REPLACEMENT_STUDY",json.dumps({k:v for k,v in report_obj.items() if k not in ("source_hashes","rejected")}))
+    if return_paired:
+        assert len(samples)==len(paired_meta)
+        return samples,paired_meta,report_obj
 if __name__=="__main__":
     p=argparse.ArgumentParser();p.add_argument("--out",required=True);a=p.parse_args();main(a.out)
