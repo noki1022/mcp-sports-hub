@@ -27,12 +27,7 @@ jobs:
           target=$(sed -n 's/^TARGET_DATE=//p' /tmp/priority_gate.txt)
           echo "TARGET_DATE=$target" >> "$GITHUB_ENV"
           git pull --ff-only origin main
-          if test -f "reports/pushplus-sent/$target/0630.json"; then
-            echo "sent=true" >> "$GITHUB_OUTPUT"
-            echo "PRIORITY_0630_ALREADY_ACCEPTED"
-          else
-            echo "sent=false" >> "$GITHUB_OUTPUT"
-          fi
+          python3 scripts/nba_fixed_slot_gate.py --phase preflight --priority-slot 0630
       - if: steps.gate.outputs.sent != 'true'
         name: Install pinned model dependencies
         run: python3 -m pip install --quiet --disable-pip-version-check numpy==2.2.6 pdfplumber==0.11.7
