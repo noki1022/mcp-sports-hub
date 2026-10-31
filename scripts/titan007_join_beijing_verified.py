@@ -199,7 +199,9 @@ def run(date,out,*,allow_schedule_only=False):
     ids,odds,coverage,issues,source_errors=source_for_date(date)
     matched,rej=reconcile(fixture,ids,odds,date)
     missing_diagnostics=missing_market_diagnostics(fixture,ids,odds)
-    matched_official={g["nba_game_id"] for g in matched}
+    matched_official={g["nba_game_id"] for g in matched
+        if any((g.get("markets",{}).get(k,{}).get("current") or {}).get("line") is not None
+               for k in ("full_spread","full_total"))}
     missing=[]
     for g in fixture:
         if g["nba_game_id"] in matched_official:continue
@@ -229,7 +231,8 @@ def run(date,out,*,allow_schedule_only=False):
       "source_query_errors":source_errors,
       "unmatched_nba_fixtures":missing,
       "nba_cba_games":matched,
-      "markets_joined_for_date":len(matched),
+      "markets_joined_for_date":len(fixture)-len(missing),
+      "verified_fixture_ids_for_date":len(matched),
       "nba_cba_joined_for_date":len(matched),
       "nba_markets_missing":len(missing),
       "all_scoreboard_matches":len(ids),
