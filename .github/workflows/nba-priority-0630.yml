@@ -25,7 +25,10 @@ jobs:
         run: |
           python3 scripts/nba_0630_priority_gate.py --phase preflight >> /tmp/priority_gate.txt
           target=$(sed -n 's/^TARGET_DATE=//p' /tmp/priority_gate.txt)
+          test -n "$target"
           echo "TARGET_DATE=$target" >> "$GITHUB_ENV"
+          # GITHUB_ENV only reaches later steps; export for this step's gate too.
+          export TARGET_DATE="$target"
           git pull --ff-only origin main
           python3 scripts/nba_fixed_slot_gate.py --phase preflight --priority-slot 0630
       - if: steps.gate.outputs.sent != 'true'
