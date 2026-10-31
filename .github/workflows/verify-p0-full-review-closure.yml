@@ -15,7 +15,7 @@ jobs:
       - run: python3 analysis/nba_final_review_gate.py --self-test
       - name: Verify all 7 games are eligible from real frozen archive
         run: |
-          python3 - <<'PY'
+          PYTHONPATH=analysis python3 - <<'PY'
           from pathlib import Path
           from analysis.nba_final_review_gate import frozen_source,frozen_games,read_json
           day="2026-11-01"
