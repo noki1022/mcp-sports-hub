@@ -50,8 +50,27 @@ jobs:
             assert len(matches)==1 and reasons.get("SITE_CLOCK_OR_DATE_UNVERIFIED")==1, (matches,reasons)
           print("PERMANENT_BEIJING_DATE_AND_PARTIAL_007_OUTAGE_PASS")
           PY
-      - run: python3 scripts/nba_official_beijing_schedule.py --target 2026-10-31
-      - run: python3 scripts/titan007_join_beijing_verified.py --date 2026-10-31 --out /tmp/verified-titan-20261031.json
+      # Historical CI must not depend on a live 007 website remaining available
+      # after the match date. The mocked source-window regression above tests
+      # the outage behavior; this fixture tests the archived full-chain path.
+      - name: Use immutable archived verified 007 snapshot for historical E2E
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          date='2026-10-31'
+          candidates=sorted(Path('reports/daily').glob(date+'/*/titan007_three_joined.json'))
+          valid=[]
+          for p in candidates:
+              x=json.loads(p.read_text())
+              if x.get('requested_display_date')==date and x.get('nba_cba_games'):
+                  valid.append(p)
+          if not valid:
+              raise RuntimeError('HISTORICAL_VERIFIED_007_FIXTURE_MISSING')
+          source=valid[0]
+          Path('/tmp/verified-titan-20261031.json').write_bytes(source.read_bytes())
+          print('HISTORICAL_007_ARCHIVE',source)
+          PY
       - run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
       - name: Validate full model and mobile-report chain on verified Beijing games
         run: |
