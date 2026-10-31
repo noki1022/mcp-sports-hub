@@ -302,7 +302,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_slot_movement.json --dynamic nba_slot_dynamic_review.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --sop nba_analysis_sop.json --five nba_five_market_forecast.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token
+          python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_slot_movement.json --dynamic nba_slot_dynamic_review.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --sop nba_analysis_sop.json --five nba_five_market_forecast.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token --require-delivery
       - name: Save confirmed accepted notification slot
         if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
         run: |
@@ -317,8 +317,13 @@ jobs:
           else:
               output=Path('reports/pushplus-sent')/os.environ['TARGET_DATE']/(os.environ['REPORT_SLOT']+'.json')
               output.parent.mkdir(parents=True,exist_ok=True)
+              from hashlib import sha256
+              preview=Path('pushplus_mobile_preview.html')
+              if not preview.is_file():raise RuntimeError('PUSHPLUS_SENT_BUT_NO_ARCHIVED_PREVIEW')
               output.write_text(json.dumps({'state':status['state'],'target_date':os.environ['TARGET_DATE'],
-                  'slot':os.environ['REPORT_SLOT'],'run_id':os.environ['GITHUB_RUN_ID']})+'\n')
+                  'slot':os.environ['REPORT_SLOT'],'run_id':os.environ['GITHUB_RUN_ID'],
+                  'message_id':status.get('message_id'),'games_considered':status.get('games_considered'),
+                  'preview_sha256':sha256(preview.read_bytes()).hexdigest()})+'\n')
               print('PUSHPLUS_SLOT_MARKED',output)
           PY
           git add reports/pushplus-sent/ 2>/dev/null || true
