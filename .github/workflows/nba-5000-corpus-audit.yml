@@ -28,11 +28,15 @@ jobs:
         run: python analysis/nba_5000_game_corpus_audit.py --self-test
       - name: Strict fit-only audit (fails unless >=5000 and integrity clean)
         run: python analysis/nba_5000_game_corpus_audit.py --minimum 5000 --output /tmp/nba_5000_fit_audit.json
+      - name: Shadow FIT-only ridge diagnostics (no holdout access)
+        run: python analysis/nba_5000_game_corpus_audit.py --minimum 5000 --shadow-fit --output /tmp/nba_5000_shadow_fit.json
       - name: Preserve compact evidence, not source datasets
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: nba-5000-fit-audit
-          path: /tmp/nba_5000_fit_audit.json
+          path: |
+            /tmp/nba_5000_fit_audit.json
+            /tmp/nba_5000_shadow_fit.json
           if-no-files-found: warn
           retention-days: 14
