@@ -166,7 +166,7 @@ def labels_audit(path,out):
 def paired_market_eval(base_path,injury_path,manifest_path,out):
     if not all(Path(p).is_file() for p in (base_path,injury_path,manifest_path)):
         return write(out,{"stage":"3b","status":"BLOCKED_MISSING_REAL_PAIRED_PRETIP_ARTIFACTS",
-          "missing":[p for p in (base_path,injury_path,manifest_path) if not Path(p).is_file()],
+          "missing":[str(p) for p in (base_path,injury_path,manifest_path) if not Path(p).is_file()],
           "no_synthetic_holdout":True})
     manifest=json.loads(Path(manifest_path).read_text())
     b=list(csvrows(base_path));a=list(csvrows(injury_path))
