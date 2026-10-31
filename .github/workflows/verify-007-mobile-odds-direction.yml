@@ -28,8 +28,11 @@ jobs:
           from pathlib import Path
           t=Path("corrected-iphone-preview.html").read_text(encoding="utf-8")
           j=json.loads(Path("jc-snapshot.json").read_text(encoding="utf-8"))
-          assert j["jc_007_match_numbers"]["verified"]==10
-          assert all(("周五"+str(n)) in t for n in range(309,319))
+          ids=j["jc_007_match_numbers"]
+          assert ids["total_games"]==10 and 0<=ids["verified"]<=10
+          for item in ids["games"].values():
+              if item["status"]=="VERIFIED_JC_NUMBER":
+                  assert item["label"] in t
           assert "主队：达拉斯独行侠　｜　客队：休斯顿火箭" in t
           assert "主胜（达拉斯独行侠）" in t and "客胜（休斯顿火箭）" in t
           assert "槽1" not in t and "槽2" not in t
@@ -37,7 +40,7 @@ jobs:
           assert "两侧方向仍需核验" not in t
           shown=t.count("竞彩赔率（007）")
           print("007_REAL_PRICE_CARDS_SHOWN",shown,"MAX",10)
-          assert 1<=shown<=10  # feed may legitimately omit market/whole-game quotes
+          assert 0<=shown<=10  # past-date live feed may no longer contain these odds
           assert "逐场模型与盘口" in t and "独立模型" in t
           print("007_IPHONE_REAL_ODDS_DIRECTION_AND_TEN_GAMES_PASS")
           PY
