@@ -81,9 +81,14 @@ def late_freeze(board):
     """Actual late first capture: preserve timestamp; never impersonate 12:00."""
     cap=aware(board["captured_at_utc"])
     game_date=date.fromisoformat(board["requested_display_date"])
-    if cap.date()!=game_date-timedelta(days=1) or not time(13,0)<=cap.time().replace(tzinfo=None)<time(22,0):
-        abort("LATE_FIRST_CAPTURE_OUTSIDE_ALLOWED_WINDOW")
+    # A missed noon observation must not poison all subsequent pre-game captures.
+    # The replacement anchor is an actual observation with its real timestamp.
+    earliest=datetime.combine(game_date-timedelta(days=1),time(13,0),BJ)
+    latest=datetime.combine(game_date,time(6,30),BJ)
     fixture=official_identity(board)
+    first_tip=min(aware(item["utc_tip"]) for item in fixture.values())
+    if not (earliest<=cap<=latest and cap<first_tip):
+        abort("LATE_FIRST_CAPTURE_OUTSIDE_PRETIP_WINDOW")
     prices=market_identity(board,fixture)
     return {"schema_version":VERSION,"target_beijing_date":str(game_date),
             "baseline_slot":"1200","captured_at_utc":board["captured_at_utc"],
@@ -112,14 +117,17 @@ def recover(archive,target):
         "noon_on_time":False}
     return result
 
-def enforce(board,locked):
+def enforce(board,locked,allow_anchor=False):
     if locked.get("schema_version")!=VERSION or locked.get("baseline_slot")!="1200":
         abort("MISSING_VALID_NOON_LOCK")
     target=str(board.get("requested_display_date") or "")
     if locked.get("target_beijing_date")!=target:abort("TARGET_DAY_CHANGED")
     first=aware(locked["captured_at_utc"])
     now=aware(board["captured_at_utc"])
-    if not first<now:abort("NOT_AFTER_NOON_BASELINE")
+    if first>now or (first==now and not allow_anchor):
+        abort("NOT_AFTER_NOON_BASELINE")
+    if first==now and locked.get("recovery_source")!="ACTUAL_LATE_FIRST_CAPTURE":
+        abort("SAME_CAPTURE_ONLY_ALLOWED_FOR_TRUE_LATE_BASELINE")
     if now.date() not in (first.date(),first.date()+timedelta(days=1)):
         abort("OUTSIDE_ONE_OVERNIGHT_PERIOD")
     frozen=locked.get("official_games")
@@ -131,9 +139,17 @@ def enforce(board,locked):
     if changed:abort("PRIOR_007_ID_CHANGED_"+",".join(sorted(changed)))
     official_ids=set(frozen)
     observed=set(fresh)
+    is_initial_late_capture=first==now
+    late_anchor=locked.get("recovery_source")=="ACTUAL_LATE_FIRST_CAPTURE"
+    state=("LATE_BASELINE_CAPTURE_VERIFIED_NO_NOON_HISTORY" if is_initial_late_capture
+           else "SAME_LATE_BASELINE_OFFICIAL_SLATE_VERIFIED" if late_anchor
+           else "SAME_NOON_OFFICIAL_SLATE_VERIFIED")
     result={**board,"nba_noon_cohort":{
-        "schema_version":VERSION,"state":"SAME_NOON_OFFICIAL_SLATE_VERIFIED",
-        "anchor_slot":"1200","anchor_timestamp_utc":locked["captured_at_utc"],
+        "schema_version":VERSION,"state":state,
+        "anchor_slot":"LATE_CAPTURE" if late_anchor else "1200",
+        "noon_on_time":locked.get("noon_on_time",not late_anchor),
+        "recovery_source":locked.get("recovery_source"),
+        "anchor_timestamp_utc":locked["captured_at_utc"],
         "target_beijing_date":target,"official_count":len(official_ids),
         "priced_games":len(observed),"missing_price_game_ids":sorted(official_ids-observed),
         "newly_priced_since_noon":sorted(observed-set(prior)),
@@ -184,12 +200,32 @@ def self_test():
         try:enforce(x,lock)
         except ValueError:pass
         else:raise AssertionError("UNLOCKED_SLATE_ACCEPTED_"+label)
+    # Delayed first pre-game capture is real, explicitly marked, and does not
+    # silently manufacture a noon price or timestamp.
+    late_board={**base,"captured_at_utc":"2026-10-30T06:18:00Z"}
+    late_lock=late_freeze(late_board)
+    assert late_lock["noon_on_time"] is False
+    assert late_lock["recovery_source"]=="ACTUAL_LATE_FIRST_CAPTURE"
+    try:enforce(late_board,late_lock)
+    except ValueError:pass
+    else:raise AssertionError("SAME_CAPTURE_UNSAFE_DEFAULT_ACCEPTED")
+    initial=enforce(late_board,late_lock,allow_anchor=True)
+    assert initial["nba_noon_cohort"]["state"]=="LATE_BASELINE_CAPTURE_VERIFIED_NO_NOON_HISTORY"
+    assert initial["nba_noon_cohort"]["anchor_slot"]=="LATE_CAPTURE"
+    later={**late_board,"captured_at_utc":"2026-10-30T07:30:00Z"}
+    assert enforce(later,late_lock)["nba_noon_cohort"]["state"]=="SAME_LATE_BASELINE_OFFICIAL_SLATE_VERIFIED"
+    for bad_stamp in ("2026-10-31T00:00:00Z","2026-10-31T00:01:00Z",
+                      "2026-10-30T03:59:00Z"):
+        try:late_freeze({**base,"captured_at_utc":bad_stamp})
+        except ValueError:pass
+        else:raise AssertionError("UNSAFE_LATE_CAPTURE_ACCEPTED_"+bad_stamp)
     print("NBA_NOON_TO_0630_IMMUTABLE_OFFICIAL_SLATE_SELF_TEST_PASS")
 
 def cli():
     p=argparse.ArgumentParser()
     p.add_argument("mode",choices=("freeze","late-freeze","enforce","recover","self-test"))
     p.add_argument("--joined");p.add_argument("--lock");p.add_argument("--out");p.add_argument("--archive")
+    p.add_argument("--allow-anchor",action="store_true")
     a=p.parse_args()
     if a.mode=="self-test":return self_test()
     if not a.out:raise SystemExit("OUT_REQUIRED")
@@ -225,7 +261,7 @@ def cli():
             result=old
     else:
         if not a.lock or not Path(a.lock).is_file():abort("NO_PRIOR_NOON_LOCK_AVAILABLE")
-        result=enforce(board,json.loads(Path(a.lock).read_text(encoding="utf-8")))
+        result=enforce(board,json.loads(Path(a.lock).read_text(encoding="utf-8")),allow_anchor=a.allow_anchor)
     dest.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print("NBA_NOON_SLATE_"+a.mode.upper(),"target",board["requested_display_date"],
           "official",len(result.get("official_games",result.get("nba_noon_cohort",{}).get("games",[]))))
