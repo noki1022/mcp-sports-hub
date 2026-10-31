@@ -41,7 +41,7 @@ jobs:
         if: steps.select.outputs.watch == 'true'
         run: |
           python3 -m pip install --quiet --disable-pip-version-check "pdfplumber==0.11.7" "numpy==2.2.6"
-          python3 analysis/nba_official_injury.py --date "${{ steps.select.outputs.target }}" --out injury_watch_official.json
+          python3 analysis/nba_official_injury.py --date "${{ steps.select.outputs.target }}" --min-matchups 1 --out injury_watch_official.json
       - name: Compare original official player statuses with previous verified snapshot
         if: steps.select.outputs.watch == 'true'
         id: detect
