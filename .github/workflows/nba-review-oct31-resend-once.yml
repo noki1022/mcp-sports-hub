@@ -1,0 +1,65 @@
+name: One-time 2026-10-31 five-market review resend
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/nba-review-oct31-resend-once.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: nba-review-2026-10-31-resend
+  cancel-in-progress: false
+jobs:
+  resend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify original settlement and prevent duplicate resend
+        id: gate
+        run: |
+          git pull --ff-only origin main
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          from pathlib import Path
+          import json
+          d=Path("reports/five-market-settled/2026-10-31")
+          original=json.loads((d/"2200.json").read_text())
+          settled=json.loads((d/"settlement.json").read_text())
+          assert original["state"]=="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
+          assert original["games"]==len(settled["games"])==10
+          assert settled["beijing_date"]=="2026-10-31"
+          marker=d/"resend-once.json"
+          print("skip="+("true" if marker.exists() else "false"))
+          PY
+      - name: Send archived frozen October 31 five-market review once
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          d=reports/five-market-settled/2026-10-31
+          python3 analysis/nba_five_market_review_push.py --settlement "$d/settlement.json" --preview /tmp/oct31-resend.html --status /tmp/oct31-resend.json --send
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          s=json.loads(Path("/tmp/oct31-resend.json").read_text())
+          assert s["state"]=="API_ACCEPTED_NOT_DEVICE_CONFIRMED",s
+          d=Path("reports/five-market-settled/2026-10-31")
+          (d/"resend-once.json").write_text(json.dumps({"state":s["state"],"date":"2026-10-31","message_id":s.get("message_id"),"cause":"USER_NOT_RECEIVED_ORIGINAL"})+"\n")
+          print("REVIEW_RESEND_ACCEPTED_NOT_DEVICE_CONFIRMED",s.get("message_id"))
+          PY
+      - name: Save unique resend acceptance marker
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add reports/five-market-settled/2026-10-31/resend-once.json
+          git commit -m "Record one-time 2026-10-31 NBA five-market review resend"
+          for n in 1 2 3; do
+            if git push origin HEAD:main; then exit 0; fi
+            git pull --rebase origin main
+          done
+          exit 1
