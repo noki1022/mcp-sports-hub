@@ -46,7 +46,7 @@ def run(out):
     identity_rejections=defaultdict(int)
     for r in production:
         k=(r["date"],r["home"],r["away"])
-        if k in byfixture and r["date"]<"2024-04-15":
+        if k in byfixture and r["date"]<"2026-04-13":
             if abs(float(r["margin"])-float(byfixture[k]["margin"]))>0.1:
                 identity_rejections["score_mismatch_no_replay"]+=1
                 continue
@@ -63,21 +63,22 @@ def run(out):
             baseline=float(_isotonic_predict(cal["moneyline_isotonic"],raw))
             shadow.append({**inp,"production_mu":mu,"production_p":baseline,"sigma":sig,
                            "production_model_calibration_end":meta["calibration_through"]})
-    fit=[r for r in shadow if r["date"]<"2023-02-01"]
-    cal=[r for r in shadow if "2023-02-08"<=r["date"]<="2023-04-09"]
-    test=[r for r in shadow if "2023-10-24"<=r["date"]<="2024-04-15"]
+    fit=[r for r in shadow if "2023-10-24"<=r["date"]<="2024-04-14"]
+    cal=[r for r in shadow if "2024-10-22"<=r["date"]<="2025-04-14"]
+    test=[r for r in shadow if "2025-10-21"<=r["date"]<="2026-04-13"]
     report={"status":"BLOCKED_INSUFFICIENT_PRODUCTION_MATCHED_GAMES",
         "production_algorithm":MODEL_VERSION,
         "same_production_rolling_fitter":True,
         "source_early_archive_status":old["status"],
+        "source_seasons_used":"2023-24 injury residual fit, 2024-25 candidate calibration, 2025-26 tested",
         "counts":{"matched_replay":len(shadow),"injury_fit":len(fit),"injury_cal":len(cal),"later_test":len(test)},
         "identity_rejections":dict(identity_rejections),
         "nominal_report_clock_not_verified_publication":True,
-        "2023_24_test_previously_inspected":True,
+        "2025_26_test_previously_inspected":True,
         "historical_true_007_lines_missing":True,
         "validated_individual_player_values":False,
         "production_approval":False}
-    if len(fit)>=150 and len(cal)>=80 and len(test)>=400:
+    if len(fit)>=250 and len(cal)>=200 and len(test)>=400:
         x=np.asarray([r["injury_x"] for r in fit])
         y=np.asarray([r["margin"]-r["production_mu"] for r in fit])
         correction=ridge(x,y,150)
