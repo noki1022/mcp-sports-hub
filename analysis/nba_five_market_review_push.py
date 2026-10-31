@@ -20,6 +20,28 @@ def format_line(q,k):
     v=q.get("line")
     return "总分"+str(v) if k.endswith("TOTAL") and isinstance(v,(int,float)) else ""
 
+def missed_actual(g, market):
+    """Append factual results only to missed markets, without invented scores."""
+    if market.get("outcome") != "MISS":
+        return ""
+    hp, ap = g.get("home_points"), g.get("away_points")
+    if not isinstance(hp,int) or isinstance(hp,bool) or not isinstance(ap,int) or isinstance(ap,bool):
+        return " · 实际赛果待核"
+    direction=market.get("direction")
+    if direction in ("OVER","UNDER"):
+        return " · 实际总分"+str(hp+ap)
+    if direction in ("HOME_WIN","AWAY_WIN"):
+        winner="主胜" if hp>ap else "客胜" if ap>hp else "平"
+        return " · 实际"+winner+f" {hp}:{ap}"
+    if direction in ("HOME_COVER","AWAY_COVER"):
+        signed=market.get("signed_home_handicap")
+        if not isinstance(signed,(int,float)) or isinstance(signed,bool):
+            return f" · 实际净胜{hp-ap:+d}分 · 盘口待核"
+        cover=hp-ap+signed
+        winner="主队赢盘" if cover>0 else "客队赢盘" if cover<0 else "走盘"
+        return f" · 实际净胜{hp-ap:+d}分 · {winner}"
+    return f" · 实际比分{hp}:{ap}"
+
 def html_report(d):
     out=["<div style='max-width:540px;margin:auto;font-family:-apple-system,Arial,sans-serif;"
          "font-size:13px;line-height:1.55;color:#1f344b'><h2>NBA 五玩法赛后复盘 · "+
@@ -46,7 +68,7 @@ def html_report(d):
         for k in MARKETS:
             m=(g.get("markets") or {}).get(k) or {}
             out.append("<div>"+e(LABELS[k])+"　"+e(SIDE.get(m.get("direction"),"无有效方向"))+
-                       "　"+e(format_line(m,k))+"　<b>"+e(OUTCOME.get(m.get("outcome"),"待核"))+"</b></div>")
+                       "　"+e(format_line(m,k))+"　<b>"+e(OUTCOME.get(m.get("outcome"),"待核"))+"</b>"+e(missed_actual(g,m))+"</div>")
         out.append("</div>")
     out.append("<p style='font-size:11px;color:#63758b'>"
        "命中率=命中÷(命中+未中)，走盘另记。研究表现不代表真实投注ROI。</p></div>")
@@ -63,6 +85,11 @@ def self_test():
     assert output.count("命中率")==2 and "周五314" in output
     assert "主队：主" in output and "客队：客" in output
     assert all(LABELS[k] in output for k in MARKETS)
+    assert missed_actual({"home_points":115,"away_points":115},{"outcome":"MISS","direction":"OVER","line":232})==" · 实际总分230"
+    assert missed_actual({"home_points":115,"away_points":115},{"outcome":"HIT","direction":"UNDER"})==""
+    assert "实际主胜 108:100" in missed_actual({"home_points":108,"away_points":100},{"outcome":"MISS","direction":"AWAY_WIN"})
+    assert "实际净胜+3分 · 客队赢盘" in missed_actual({"home_points":103,"away_points":100},{"outcome":"MISS","direction":"HOME_COVER","signed_home_handicap":-5.5})
+    assert missed_actual({"home_points":None,"away_points":100},{"outcome":"MISS","direction":"OVER"})==" · 实际赛果待核"
     print("NBA_FIVE_MARKET_IPHONE_REVIEW_TEST_PASS")
 
 if __name__=="__main__":
