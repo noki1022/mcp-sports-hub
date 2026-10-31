@@ -83,7 +83,8 @@ def make(joined,model,jc,top10):
         margin=n(p.get("margin_mean_home_minus_away")) if p.get("model_status") in ("OK","PARTIAL") else None
         total=n(p.get("total_mean")) if p.get("model_status") in ("OK","PARTIAL") else None
         jc_valid=bool(verified and capture and tip and capture<tip)
-        crow_valid=bool(verified and institutional_capture and tip and institutional_capture<tip)
+        # Crown source is independent of Jingcai sales-number verification.
+        crow_valid=bool(institutional_capture and tip and institutional_capture<tip)
         pools=(prices.get(gid) or {}).get("markets") or {}
         def jc_market(key,market):
             item=pools.get(key) or {}
@@ -205,6 +206,12 @@ def self_test():
     assert recovered["CROWN_TOTAL"]["direction"]=="OVER"
     assert recovered["CROWN_TOTAL"]["quote_freshness"]=="ARCHIVED_PRIOR_NOT_LIVE"
     assert recovered["CROWN_TOTAL"]["source_id"]=="3"
+    # A missing JC number must not invalidate a correctly timestamped ID3 quote.
+    jc["jc_007_match_numbers"]["games"]["170"]={"status":"UNVERIFIED","label":None}
+    independent=make(joined,model,jc,top)["games"][0]["markets"]
+    assert independent["JINGCAI_HANDICAP"]["direction"] is None
+    assert independent["CROWN_HANDICAP"]["direction"]=="AWAY_COVER"
+    assert independent["CROWN_TOTAL"]["direction"]=="OVER"
     print("NBA_FIVE_MARKETS_DIRECTION_AND_SOURCE_SELFTEST_PASS")
 
 if __name__=="__main__":
