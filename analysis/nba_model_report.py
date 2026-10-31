@@ -30,6 +30,7 @@ def render(joined, gate, out_json, out_html, injury_context=None):
             "model_probability_raw": {"home": p.get("moneyline_home_probability_raw")},
             "model_calibration_evidence": p.get("moneyline_calibration_evidence"),
             "margin_sigma": p.get("margin_sigma"),
+            "total_sigma": p.get("total_sigma"),
             "model_version": p.get("model_version"),
             "margin_mean_home_minus_away": p.get("margin_mean_home_minus_away"),
             "total_mean": p.get("total_mean"),

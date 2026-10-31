@@ -258,6 +258,12 @@ def five_market_panel(x):
             qualifier=("　主队盘口 "+f(mark,True) if key.endswith("HANDICAP") and mark is not None else
                        "　总分线 "+f(mark) if key.endswith("TOTAL") and mark is not None else "")
             conclusion="<b>"+text(direction)+"</b>"+qualifier
+            if key.startswith("JINGCAI_"):
+                probability=num(obj.get("model_direction_probability"))
+                if probability is not None and 0<=probability<=1:
+                    conclusion+="　模型方向概率 "+f(probability*100)+"%"
+                else:
+                    conclusion+="　模型方向概率未校准"
             if obj.get("quote_freshness")=="ARCHIVED_PRIOR_NOT_LIVE":
                 conclusion+="（007 ID3历史赛前快照，非实时；采集于 "+text(obj.get("captured_at_utc"))+"）"
             if obj.get("strength")=="WEAK":conclusion+="（弱倾向）"
