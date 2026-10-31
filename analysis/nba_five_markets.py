@@ -245,6 +245,7 @@ def self_test():
     assert independent["CROWN_TOTAL"]["direction"]=="OVER"
     assert out["priority_weights"]=={"jingcai":0.7,"crown":0.3}
     assert out["jingcai_three_ready_games"]==1
+    jc["jc_007_public_odds_shadow"]["games"][0]["markets"]["win_lose"]={"status":"OBSERVED","data":{"current":{"first_side":2.95,"second_side":1.19}}}
     no_crown=make(joined,model,jc,{"captured_at_utc":top["captured_at_utc"],"games":[]})
     assert all(no_crown["games"][0]["markets"][k]["status"]=="DIRECTION_ISSUED" for k in MARKETS[:3])
     assert all(no_crown["games"][0]["markets"][k]["direction"] is None for k in MARKETS[3:])
