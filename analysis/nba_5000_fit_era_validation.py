@@ -6,7 +6,7 @@ import json
 from datetime import date
 import numpy as np
 from nba_5000_game_corpus_audit import audit
-from nba_chronological_backtest import train_ridge, predict
+from nba_chronological_backtest import train_ridge, predict, p_greater, brier, logloss, ece
 
 EARLY = ('2018-19', '2019-20', '2020-21', '2021-22')
 LATER = ('2022-23', '2023-24')
@@ -27,15 +27,25 @@ def evaluate(rows):
               'model_promoted': False, 'scores': {}}
     for variant in VARIANTS:
         scores = {}
+        predictions = {}
         for target in ('margin', 'total'):
             model = train_ridge(early, target, variant, ALPHA)
             pred = predict(later, variant, model)
             actual = np.asarray([r[target] for r in later], dtype=float)
             if not np.isfinite(pred).all():
                 raise AssertionError('Nonfinite prediction')
+            predictions[target] = (pred, actual, max(1.0, float(np.std(np.asarray([r[target] for r in early]) - predict(early, variant, model)))))
             scores[target] = {
                 'MAE': float(np.mean(np.abs(pred - actual))),
                 'RMSE': float(np.sqrt(np.mean((pred - actual)**2)))}
+        for target, threshold, label in (('margin', 0.5, 'home_win'), ('total', 225.5, 'over_225_5_FIXED_NOT_BOOKMAKER')):
+            predicted, actual, sigma = predictions[target]
+            probs = np.asarray([p_greater(float(v), sigma, threshold) for v in predicted])
+            truth = (actual > threshold).astype(float)
+            scores[label] = {'Brier': brier(probs, truth), 'log_loss': logloss(probs, truth),
+                             'ECE_10_bins': ece(probs, truth),
+                             'accuracy_at_0_5': float(np.mean((probs >= 0.5) == truth)),
+                             'sigma_estimated_on_early_fit_ONLY_in_sample': sigma}
         result['scores'][variant] = scores
     return result
 
