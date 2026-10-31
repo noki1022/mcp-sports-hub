@@ -1,0 +1,46 @@
+name: P0 early-season historical injury and replacement admission
+on:
+  pull_request:
+    paths:
+      - analysis/nba_legacy_full_season_admission.py
+      - .github/workflows/nba-legacy-full-season-admission.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet pandas==2.3.3 pyarrow==21.0.0
+      - run: python3 analysis/nba_legacy_full_season_admission.py --self-test
+      - run: python3 analysis/nba_legacy_full_season_admission.py --out nba-legacy-archives-admission.json
+      - run: python3 analysis/nba_early_player_minutes_admission.py --self-test
+      - name: Validate actual 2022-24 individual player games and transfer-aware past minutes
+        run: python3 analysis/nba_early_player_minutes_admission.py --out nba-2022-24-player-minutes-audit.json
+      - name: Train early-season replacement-aware research model and evaluate later season
+        run: python3 analysis/nba_early_injury_replacement_study.py --out nba-early-injury-replacement-study.json
+      - name: Reject fabricated per-player replacement weights
+        run: |
+          python3 - <<'PY'
+          import json
+          obj=json.load(open('nba-legacy-archives-admission.json'))
+          assert obj["production_impact_enabled"] is False
+          assert not obj["pre_game_available_for_production"]
+          assert obj["replacement_player_model_training_status"].startswith("NOT_TRAINED")
+          assert obj["status"]=="LEGACY_2023_2024_ARCHIVES_ACTUALLY_VERIFIED",obj
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-legacy-full-season-admission
+          path: |
+            nba-legacy-archives-admission.json
+            nba-2022-24-player-minutes-audit.json
+            nba-early-injury-replacement-study.json
+          retention-days: 21
+          if-no-files-found: warn
