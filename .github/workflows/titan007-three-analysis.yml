@@ -152,7 +152,6 @@ jobs:
       - name: Generate odds-blind NBA prediction artifact
         if: steps.preflight.outputs.skip != 'true'
         run: |
-          python3 analysis/nba_prediction_adapter.py --self-test
           python3 analysis/nba_prediction_adapter.py --joined titan007_three_joined.json --out nba_independent_predictions_gate.json
       - name: Collect official injury status, fail closed if unavailable
         if: steps.preflight.outputs.skip != 'true'
@@ -357,7 +356,6 @@ jobs:
             1200|1400|1500|1800|2100) ;;
             *) echo "FALLBACK_UNKNOWN_SLOT" >&2; exit 1 ;;
           esac
-          python3 scripts/nba_schedule_fallback_push.py --self-test --target "$TARGET_DATE" --slot "$FALLBACK_SLOT"
           git fetch --quiet origin main
           python3 scripts/nba_fixed_slot_gate.py --phase recheck >> /tmp/fallback_gate_status
           if grep -q 'API_ALREADY_ACCEPTED' /tmp/fallback_gate_status; then
