@@ -2,8 +2,6 @@ name: Verify Beijing NBA delivery watchdog and hourly idempotency
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
     paths:
       - 'scripts/nba_delivery_health.py'
       - 'scripts/nba_delivery_recovery.py'
@@ -23,14 +21,13 @@ jobs:
           python3 -m py_compile scripts/nba_delivery_health.py
           python3 scripts/nba_delivery_health.py --self-test
           python3 scripts/nba_delivery_recovery.py --self-test
-          python3 scripts/nba_delivery_recovery.py --self-test
           python3 -m pip install --quiet PyYAML==6.0.2
           python3 scripts/validate_nba_schedules.py
           # Catch invalid Actions expression usage that ordinary YAML parsing misses.
           python3 - <<'PY'
           from pathlib import Path
           w=Path('.github/workflows/nba-delivery-health-watchdog.yml').read_text()
-          assert "if: ${{ !cancelled() }}" in w
+          assert "if: " + "$" + "{{ !cancelled() }}" in w
           assert "RECOVERY_PARAMETERS=" in w
           assert "GH_HEALTH_SCHEDULE" in w
           print("WATCHDOG_WORKFLOW_STRUCTURE_PASS")
@@ -47,7 +44,7 @@ jobs:
           assert 'GITHUB_TOKEN:' in health and 'PUSHPLUS_TOKEN:' in health
           assert 'actions: write' in health
           assert 'nba_delivery_recovery.py' in health
-          assert "if: ${{ !cancelled() }}" in health
+          assert "if: " + "$" + "{{ !cancelled() }}" in health
           assert 'if not slot or not target:' in health
           assert 'infer_slot(os.environ.get("GH_HEALTH_SCHEDULE",""),datetime.now(BJ))' in health
           assert 'except (OSError,ValueError)' in health
