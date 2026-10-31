@@ -4,6 +4,8 @@ on:
     paths:
       - scripts/nba_tipoff_plan.py
       - scripts/pushplus_five_compact.py
+      - scripts/pushplus_mobile.py
+      - scripts/nba_schedule_fallback_push.py
       - .github/workflows/verify-beijing-tipoff-notice.yml
 permissions:
   contents: read
@@ -16,6 +18,8 @@ jobs:
         with: {python-version: '3.12'}
       - run: python3 scripts/nba_tipoff_plan.py --self-test
       - run: python3 scripts/pushplus_five_compact.py --self-test
+      - run: python3 scripts/pushplus_mobile.py --mode three --self-test
+      - run: python3 scripts/nba_schedule_fallback_push.py --self-test
       - name: Read a genuine Nov 1 board and verify 03:00 kickoff plan
         run: |
           python3 scripts/nba_tipoff_plan.py --joined reports/daily/2026-11-01/1400/titan007_three_joined.json --out /tmp/tip.json
@@ -24,5 +28,7 @@ jobs:
           d=json.load(open('/tmp/tip.json'))
           assert d['earliest_tip_beijing'].startswith('2026-11-01T03:00')
           assert d['last_safe_analysis_slot']=='02:30'
+          compact=__import__('pathlib').Path('scripts/pushplus_mobile.py').read_text()
+          assert 'official_fixtures=(joined if args.mode' in compact
           print('FIRST_TIP_FROM_ACTUAL_ARCHIVED_BOARD_OK')
           PY
