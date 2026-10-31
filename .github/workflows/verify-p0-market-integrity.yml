@@ -1,0 +1,33 @@
+name: P0 reject crossed 007 markets before any PushPlus
+on:
+  pull_request:
+    paths:
+      - analysis/nba_five_market_integrity_gate.py
+      - .github/workflows/titan007-three-analysis.yml
+      - .github/workflows/titan007-final-hourly.yml
+      - .github/workflows/nba-priority-2130.yml
+      - .github/workflows/nba-priority-0630.yml
+      - .github/workflows/verify-p0-market-integrity.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 analysis/nba_five_market_integrity_gate.py --self-test
+      - name: Replay archived real NBA board without any notification
+        run: |
+          python3 analysis/nba_five_market_integrity_gate.py --joined reports/daily/2026-11-01/1400/titan007_three_joined.json --five reports/daily/2026-11-01/1400/nba_five_market_forecast.json --out /tmp/p0-real.json
+      - name: Verify gate is present for all four automated full-board workflows
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for path in ('titan007-three-analysis.yml','titan007-final-hourly.yml','nba-priority-2130.yml','nba-priority-0630.yml'):
+              text=Path('.github/workflows',path).read_text()
+              assert 'analysis/nba_five_market_integrity_gate.py --joined' in text
+              assert text.index('name: P0 fail-closed five-market source and team identity integrity')<text.index('name: Send compact iPhone PushPlus') if path=='titan007-three-analysis.yml' else True
+          print('P0_ALL_FOUR_AUTOMATED_MARKET_GATES_PRESENT')
+          PY
