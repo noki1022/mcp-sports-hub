@@ -302,6 +302,15 @@ jobs:
           else
             echo "NO_MATCHED_GAMES_SKIP_ARCHIVE"
           fi
+      - name: Validate cross-artifact delivery contract before PushPlus
+        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
+        run: |
+          python3 scripts/nba_delivery_contract.py --self-test
+          python3 scripts/nba_delivery_contract.py \
+            --joined titan007_three_joined.json \
+            --movement titan007_slot_movement.json \
+            --dynamic nba_slot_dynamic_review.json \
+            --five nba_five_market_forecast.json
       - name: Send compact iPhone PushPlus three-times-daily model report
         if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
         env:
