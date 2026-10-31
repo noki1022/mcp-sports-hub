@@ -1,0 +1,63 @@
+name: P0 same-production injury shadow replay
+on:
+  pull_request:
+    paths:
+      - analysis/nba_production_injury_shadow_replay.py
+      - .github/workflows/nba-production-injury-shadow.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy==2.2.6 pandas==2.3.3 pyarrow==21.0.0
+      - run: python3 analysis/nba_production_injury_shadow_replay.py --self-test
+      - name: Download checksum-pinned historical research sources
+        run: |
+          python3 - <<'PY'
+          import urllib.request,pathlib,hashlib
+          from pathlib import Path
+          from sys import path
+          path.insert(0,"analysis")
+          from nba_production_injury_shadow_replay import HASH_EXPECTED
+          sources={
+           "in2025.parquet":"https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nba_stats_injury_report/injury_report_2025.parquet",
+           "in2026.parquet":"https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nba_stats_injury_report/injury_report_2026.parquet",
+           "pl2025.csv":"https://raw.githubusercontent.com/xtheredshirtx/fanduel-player-data/main/NBA/csv/NBA_players_game_log_2024-25_as_of_2026-10-31.csv",
+           "pl2026.csv":"https://raw.githubusercontent.com/xtheredshirtx/fanduel-player-data/main/NBA/csv/NBA_players_game_log_2025-26_as_of_2026-10-31.csv"}
+          root=Path("/tmp/nba-p0");root.mkdir(exist_ok=True)
+          for name,url in sources.items():
+              req=urllib.request.Request(url,headers={"User-Agent":"P0-NBA-Injury-Production-Replay/1.0"})
+              with urllib.request.urlopen(req,timeout=55) as response: data=response.read(5000001)
+              assert 1000<len(data)<5000000
+              assert hashlib.sha256(data).hexdigest()==HASH_EXPECTED[name]
+              (root/name).write_bytes(data)
+          print("PINNED_RESEARCH_SOURCES_VERIFIED")
+          PY
+      - name: Reproduce actual production rolling model with injury shadow
+        run: |
+          python3 analysis/nba_production_injury_shadow_replay.py --injury-2025 /tmp/nba-p0/in2025.parquet --injury-2026 /tmp/nba-p0/in2026.parquet --players-2025 /tmp/nba-p0/pl2025.csv --players-2026 /tmp/nba-p0/pl2026.csv --out nba-production-injury-shadow-evidence.json
+      - name: Refuse to label research artifact as production-qualified
+        run: |
+          python3 - <<'PY'
+          import json
+          result=json.load(open("nba-production-injury-shadow-evidence.json"))
+          assert result["production_activation"]=="REJECT_UNTIL_VALIDATED"
+          assert result["production_injury_catalog_qualified"] is False
+          assert result["individual_player_coefficients_trained"] is False
+          assert result.get("production_promotion_gate",{}).get("approved",False) is False
+          print("PRODUCTION_ADMISSION_FAIL_CLOSED",result["status"])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-production-injury-shadow
+          path: nba-production-injury-shadow-evidence.json
+          retention-days: 21
+          if-no-files-found: warn
