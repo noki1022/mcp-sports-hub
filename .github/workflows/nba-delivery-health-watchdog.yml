@@ -55,14 +55,41 @@ jobs:
           python3 scripts/nba_delivery_health.py "${extra[@]}" --send \
             --out nba_delivery_health.json --alert-marker-out reports/delivery-alert-sent/health-check.json
       - name: Auto-recover a missed fixed-slot trigger when safe
+        # Alert transport failures must not block independently authorized rescue.
+        if: ${{ !cancelled() }}
         run: |
           python3 scripts/nba_delivery_recovery.py --self-test
-          RECOVERY_SLOT=$(python3 -c 'import json; print(json.load(open("nba_delivery_health.json"))["slot"])')
-          RECOVERY_TARGET=$(python3 -c 'import json; print(json.load(open("nba_delivery_health.json"))["target_date_beijing"])')
+          RECOVERY_PARAMETERS=$(python3 - <<'PY'
+          import json,os,sys
+          from datetime import datetime
+          from pathlib import Path
+          sys.path.insert(0,"scripts")
+          from nba_delivery_health import infer_slot,expected_workflow,BJ
+          report=Path("nba_delivery_health.json")
+          slot=target=None
+          if report.is_file():
+              try:
+                  record=json.loads(report.read_text(encoding="utf-8"))
+                  slot,target=record["slot"],record["target_date_beijing"]
+              except (OSError,ValueError,KeyError,TypeError):
+                  pass
+          if not slot or not target:
+              slot=os.environ.get("HEALTH_INPUT_SLOT","")
+              target=os.environ.get("HEALTH_INPUT_DATE","")
+              if not slot:
+                  slot,target=infer_slot(os.environ.get("GH_HEALTH_SCHEDULE",""),datetime.now(BJ))
+          expected_workflow(slot)
+          datetime.fromisoformat(target).date()
+          print(slot,target)
+          PY
+          )
+          read -r RECOVERY_SLOT RECOVERY_TARGET <<< "$RECOVERY_PARAMETERS"
+          test -n "$RECOVERY_SLOT" && test -n "$RECOVERY_TARGET"
           python3 scripts/nba_delivery_recovery.py \
             --slot "$RECOVERY_SLOT" --target-date "$RECOVERY_TARGET" \
             --out nba_recovery_result.json
       - name: Persist a successful recovery dispatch marker
+        if: ${{ !cancelled() }}
         run: |
           git add reports/delivery-recovery-dispatched/ 2>/dev/null || true
           if ! git diff --cached --quiet; then
@@ -76,11 +103,15 @@ jobs:
             exit 1
           fi
       - name: Save unique alert marker when PushPlus accepted
+        if: ${{ !cancelled() }}
         run: |
           python3 - <<'PY'
           import json, pathlib
           p=pathlib.Path('nba_delivery_health.json')
-          r=json.loads(p.read_text())
+          try:
+              r=json.loads(p.read_text())
+          except (OSError,ValueError):
+              r={}
           if r.get('alert_api_accepted'):
               src=pathlib.Path('reports/delivery-alert-sent/health-check.json')
               dst=pathlib.Path('reports/delivery-alert-sent')/r['target_date_beijing']/(r['slot']+'.json')
