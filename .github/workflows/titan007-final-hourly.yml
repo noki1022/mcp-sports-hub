@@ -293,13 +293,15 @@ jobs:
           sys.path.insert(0,"scripts")
           from nba_tipoff_plan import plan
           slot=os.environ["HOURLY_REPORT_SLOT"]
-          if slot in ("2230","2330"):
-              send=True
-          else:
-              p=plan(json.load(open("titan007_joined_today.json")))
-              tip=datetime.fromisoformat(p["earliest_tip_beijing"])
-              send=(slot==p["last_safe_analysis_slot"].replace(":","") and
-                    datetime.now(ZoneInfo("Asia/Shanghai")) < tip-timedelta(minutes=5))
+          p=plan(json.load(open("titan007_joined_today.json")))
+          tip=datetime.fromisoformat(p["earliest_tip_beijing"])
+          now=datetime.now(ZoneInfo("Asia/Shanghai"))
+          # Exact last-safe slot is recomputed from EVERY capture, not from a
+          # historical example. Earlier 22:30/23:30 notices remain ordinary.
+          send=(slot in ("2230","2330") or
+                slot==p["last_safe_analysis_slot"].replace(":",""))
+          send=send and now<tip-timedelta(minutes=5)
+          print("ADAPTIVE_FIRST_TIP",tip.isoformat(),"LAST_SAFE",p["last_safe_analysis_beijing"],file=sys.stderr)
           print("send="+("true" if send else "false"))
           print("NIGHT_REPORT_DECISION",slot,"SEND" if send else "SILENT_CAPTURE_ONLY",file=sys.stderr)
           PY
