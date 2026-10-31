@@ -132,12 +132,12 @@ def source_for_date(target):
         # Never erase verified 007 fixture identity because one company is closed.
         try:
             ids,rej=identify(public_get(score_url,limit=700000))
-        except (OSError,ValueError,RuntimeError) as exc:
+        except (OSError,ValueError,RuntimeError,ET.ParseError) as exc:
             source_errors.append({"site_date":day,"source":"SCOREBOARD","error":type(exc).__name__})
             continue
         try:
             market,rej2=market_entries(public_get(odds_url,limit=250000))
-        except (OSError,ValueError,RuntimeError) as exc:
+        except (OSError,ValueError,RuntimeError,ET.ParseError) as exc:
             source_errors.append({"site_date":day,"source":"CROWN_ID3","error":type(exc).__name__})
             market,rej2={},{"ID3_SOURCE_UNAVAILABLE":1}
         coverage[day]={"source_rows":len(ids),"market_rows":len(market),
@@ -311,6 +311,9 @@ def self_test():
     assert len([e for e in errors if e["source"]=="CROWN_ID3"])==3
     board,counts=reconcile(fixture,site,none_odds,"2026-10-31")
     assert len(board)==1 and counts["NO_DATE_MARKET_FOR_GAME_ID"]==1
+    try: market_entries(b"<c><match><m>bad")
+    except ET.ParseError: pass
+    else: raise AssertionError("CORRUPT_ID3_XML_NOT_REJECTED")
     print("NBA_US_DAY_BEIJING_007_STRICT_RECONCILIATION_SELFTEST_PASS")
 
 if __name__=="__main__":

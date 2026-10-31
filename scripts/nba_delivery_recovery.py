@@ -23,6 +23,13 @@ def decision(root,slot,target,now,runs,run_error=None):
         info["reason"]="NOT_A_SAFE_FIXED_RECOVERY_SLOT";return info
     if accepted_marker(root,slot,target):
         info["reason"]="ALREADY_API_ACCEPTED";return info
+    marker=root/"reports"/"delivery-recovery-dispatched"/target/(slot+".json")
+    if marker.is_file():
+        try:
+            previous=json.loads(marker.read_text(encoding="utf-8"))
+            if previous.get("state")=="DISPATCH_HTTP_204_ACCEPTED_NOT_REPORT_DELIVERED":
+                info["reason"]="RECOVERY_DISPATCH_ALREADY_ACCEPTED";return info
+        except (ValueError,OSError):pass
     start=scheduled_start(slot,target)
     elapsed=(now.astimezone(BJ)-start).total_seconds()/60
     if not (35<=elapsed<=WINDOW_MINUTES):
@@ -63,6 +70,11 @@ def self_test():
         assert decision(root,slot,target,at,active)["action"]=="NO_DISPATCH"
         completed=[{**active[0],"status":"completed","conclusion":"failure"}]
         assert decision(root,slot,target,at,completed)["action"]=="NO_DISPATCH"
+        dedup=root/"reports/delivery-recovery-dispatched"/target/(slot+".json")
+        dedup.parent.mkdir(parents=True,exist_ok=True)
+        dedup.write_text(json.dumps({"state":"DISPATCH_HTTP_204_ACCEPTED_NOT_REPORT_DELIVERED"}))
+        assert decision(root,slot,target,at,[])["reason"]=="RECOVERY_DISPATCH_ALREADY_ACCEPTED"
+        dedup.unlink()
         assert decision(root,slot,target,datetime.fromisoformat("2026-10-31T14:00:00+08:00"),[])["action"]=="NO_DISPATCH"
         assert decision(root,"2130",target,at,[])["action"]=="NO_DISPATCH"
         p=root/"reports/pushplus-sent"/target/"1200.json"
@@ -95,6 +107,11 @@ def main():
         try:
             report["workflow_dispatched"]=dispatch(repo,token,args.slot,args.target_date)
             report["status"]="DISPATCH_HTTP_204_ACCEPTED_NOT_REPORT_DELIVERED"
+            marker=Path("reports/delivery-recovery-dispatched")/args.target_date/(args.slot+".json")
+            marker.parent.mkdir(parents=True,exist_ok=True)
+            marker.write_text(json.dumps({"state":report["status"],"slot":args.slot,
+                "target_date":args.target_date,"at_beijing":datetime.now(BJ).isoformat()})+"\\n",
+                encoding="utf-8")
         except (OSError,ValueError,RuntimeError,urllib.error.HTTPError) as exc:
             report["status"]="DISPATCH_FAILED"
             report["error"]=type(exc).__name__

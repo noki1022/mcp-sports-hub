@@ -62,6 +62,19 @@ jobs:
           python3 scripts/nba_delivery_recovery.py \
             --slot "$RECOVERY_SLOT" --target-date "$RECOVERY_TARGET" \
             --out nba_recovery_result.json
+      - name: Persist a successful recovery dispatch marker
+        run: |
+          git add reports/delivery-recovery-dispatched/ 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git commit -m "Record bounded NBA recovery dispatch request"
+            for n in 1 2 3; do
+              if git push origin HEAD:main; then exit 0; fi
+              git pull --rebase origin main
+            done
+            exit 1
+          fi
       - name: Save unique alert marker when PushPlus accepted
         run: |
           python3 - <<'PY'

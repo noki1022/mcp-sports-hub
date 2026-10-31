@@ -5,6 +5,7 @@ on:
     paths:
       - 'scripts/nba_delivery_health.py'
       - 'scripts/nba_delivery_recovery.py'
+      - 'scripts/nba_delivery_recovery.py'
       - '.github/workflows/nba-delivery-health-watchdog.yml'
       - '.github/workflows/titan007-final-hourly.yml'
       - '.github/workflows/verify-nba-delivery-health.yml'
@@ -20,6 +21,7 @@ jobs:
         run: |
           python3 -m py_compile scripts/nba_delivery_health.py
           python3 scripts/nba_delivery_health.py --self-test
+          python3 scripts/nba_delivery_recovery.py --self-test
           python3 scripts/nba_delivery_recovery.py --self-test
           python3 -m pip install --quiet PyYAML==6.0.2
           python3 scripts/validate_nba_schedules.py
