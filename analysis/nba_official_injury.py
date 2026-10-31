@@ -129,12 +129,12 @@ def self_test():
     assert not errors,errors
     print('OFFICIAL_INJURY_PDF_COORD_TEST_PASS')
 
-def run(target_date,out):
+def run(target_date,out,min_matchups=10):
     # NBA morning games shown in China on target_date were previous US ET day.
     et=(date.fromisoformat(target_date)-timedelta(days=1)).isoformat()
     url=latest_pdf(et)
     games,errors=parse_pdf(checked(url,1500000))
-    if len(games)<10:raise RuntimeError(f'Official PDF parse incomplete: {len(games)} matchups')
+    if len(games)<min_matchups:raise RuntimeError(f'Official PDF parse incomplete: {len(games)} matchups (required {min_matchups})')
     report={
         'captured_at_utc':datetime.now(timezone.utc).isoformat(),
         'report_et_date':et,
@@ -154,6 +154,9 @@ if __name__=='__main__':
     p.add_argument('--self-test',action='store_true')
     p.add_argument('--date',default='2026-10-29')
     p.add_argument('--out',default='nba_official_injuries.json')
+    p.add_argument('--min-matchups',type=int,default=10)
     a=p.parse_args()
     if a.self_test:self_test()
-    else:run(a.date,a.out)
+    else:
+        if not 1 <= a.min_matchups <= 30:raise SystemExit('INVALID_MIN_MATCHUPS')
+        run(a.date,a.out,a.min_matchups)
