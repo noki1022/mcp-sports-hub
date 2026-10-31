@@ -323,7 +323,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
-          python3 - <<'PY' >> "$GITHUB_ENV"
+          python3 - <<'PY' > /tmp/nba_fallback_slot
           import os
           from datetime import datetime,timedelta
           from zoneinfo import ZoneInfo
@@ -338,6 +338,8 @@ jobs:
               raise RuntimeError('FALLBACK_UNKNOWN_SLOT')
           print('FALLBACK_SLOT='+slot)
           PY
+          FALLBACK_SLOT=$(sed -n 's/^FALLBACK_SLOT=//p' /tmp/nba_fallback_slot)
+          test -n "$FALLBACK_SLOT"
           python3 scripts/nba_schedule_fallback_push.py --self-test --target "$TARGET_DATE" --slot "$FALLBACK_SLOT"
           git pull --ff-only origin main
           if test -f "reports/pushplus-sent/$TARGET_DATE/$FALLBACK_SLOT.json"; then
