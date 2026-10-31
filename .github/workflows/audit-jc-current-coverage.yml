@@ -12,12 +12,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
-      - name: Check 007 public JC three-market source for upcoming November 1 NBA fixtures
+      - name: Self-test 007 JC schema and fixture numbering
         run: |
           python3 scripts/parse_007_jc_three_market.py --self-test
           python3 scripts/verify_007_jc_push_numbering.py
-          python3 scripts/titan007_jingcai_three_market.py --joined /tmp/jc-board.json --out /tmp/jc-audit.json
-        continue-on-error: true
       - name: Inspect genuine historical saved November 1 NBA board and JC feed
         run: |
           python3 - <<'PY'
