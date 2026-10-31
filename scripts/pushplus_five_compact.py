@@ -76,14 +76,14 @@ def match_label(game, target):
 
 
 def report_time(game):
-    clock = game.get("display_clock")
-    if clock:
-        return str(clock)[:5]
-    t = (game.get("five_market_forecast") or {}).get("tipoff_beijing")
+    t = (game.get("five_market_forecast") or {}).get("tipoff_beijing") or game.get("start_time_beijing")
     try:
-        return datetime.fromisoformat(t).strftime("%H:%M")
+        from zoneinfo import ZoneInfo
+        d=datetime.fromisoformat(str(t).replace("Z","+00:00"))
+        if d.tzinfo is None:return "时间待核"
+        return d.astimezone(ZoneInfo("Asia/Shanghai")).strftime("%H:%M")
     except (TypeError, ValueError):
-        return "—"
+        return "时间待核"
 
 
 def market_row(key, obj):
@@ -175,6 +175,7 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None):
     output = ["<div style='" + css + "'>" + head]
     for game in rows:
         fcast = game.get("five_market_forecast") or {}
+        if report_time(game)=="时间待核":raise RuntimeError("NBA_BEIJING_TIPOFF_NOT_VERIFIED")
         mk = fcast.get("markets") or {}
         label, provenance = match_label(game, target)
         home = esc(game.get("home_team"))
@@ -184,7 +185,7 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None):
             "<div style='margin:10px 0;border:1px solid #e2e9f1;border-radius:10px;"
             "padding:10px 11px;background:white;'>"
             "<div style='font-size:12px;color:#687b92;font-weight:650;'>" + esc(label) + info
-            + "　" + esc(report_time(game)) + "</div>"
+            + "　北京时间 " + esc(report_time(game)) + " 开赛</div>"
             "<div style='font-size:15px;line-height:1.4;font-weight:750;margin:3px 0 7px;'>"
             + home + " <span style='font-size:11px;color:#7b8998;font-weight:400;'>主</span>　"
             + away + " <span style='font-size:11px;color:#7b8998;font-weight:400;'>客</span></div>"
@@ -283,8 +284,9 @@ def self_test():
             "five_market_forecast": fcast}
     assert match_label(game, "2026-11-01") == ("周六316", "用户确认")
     assert match_label(game, "2026-11-02")[0] == "编号待核"
+    game["five_market_forecast"]["tipoff_beijing"]="2026-11-01T08:30:00+08:00"
     h = render_compact([game], {}, "赛前", "2026-11-01", "three")
-    for v in ("周六316", "用户确认", "客+4.5 赢盘", "大221.5", "55.5%", "盘口未核实"):
+    for v in ("北京时间 08:30 开赛", "周六316", "用户确认", "客+4.5 赢盘", "大221.5", "55.5%", "盘口未核实"):
         assert v in h, v
     for bad in ("七步分析", "007多机构横向比较", "本小时动态研判", "模型 vs 盘口"):
         assert bad not in h, bad
