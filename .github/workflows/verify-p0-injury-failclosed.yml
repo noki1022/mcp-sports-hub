@@ -1,0 +1,30 @@
+name: P0 official injury prerequisite failure drills
+on:
+  pull_request:
+    paths:
+      - analysis/nba_injury_context.py
+      - analysis/nba_injury_prerequisite.py
+      - .github/workflows/titan007-three-analysis.yml
+      - .github/workflows/nba-injury-change-watch.yml
+      - .github/workflows/verify-p0-injury-failclosed.yml
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 analysis/nba_injury_context.py --self-test
+      - run: python3 analysis/nba_injury_prerequisite.py --self-test
+      - name: Confirm fixed and watcher send paths have injury gates
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          fixed=Path('.github/workflows/titan007-three-analysis.yml').read_text()
+          watcher=Path('.github/workflows/nba-injury-change-watch.yml').read_text()
+          assert '--five nba_five_market_forecast.json --injury nba_injury_context.json' in fixed
+          assert 'nba_five_market_integrity_gate.py --joined injury_watch_joined.json' in watcher
+          print('P0_INJURY_ALL_PATHS_FAIL_CLOSED_PASS')
+          PY
