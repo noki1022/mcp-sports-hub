@@ -1,0 +1,112 @@
+name: NBA official injury change watch (pre-tip)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+permissions:
+  contents: write
+concurrency:
+  group: nba-official-injury-change-watch
+  cancel-in-progress: false
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate watcher safety behavior
+        run: python3 analysis/nba_injury_watch.py --mode self-test
+      - name: Identify official games starting in next 70 minutes
+        id: select
+        run: |
+          git pull --ff-only origin main
+          python3 analysis/nba_injury_watch.py --mode select --out injury_watch_selection.json
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          x=json.load(open('injury_watch_selection.json'))
+          print('watch='+('true' if x['state']=='WATCH' else 'false'))
+          if x['state']=='WATCH':
+              print('target='+x['date'])
+              print('cohort='+x['cohort_path'])
+          PY
+      - name: Download official injury snapshot (no guessing on source failure)
+        if: steps.select.outputs.watch == 'true'
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check "pdfplumber==0.11.7" "numpy==2.2.6"
+          python3 analysis/nba_official_injury.py --date "${{ steps.select.outputs.target }}" --out injury_watch_official.json
+      - name: Compare original official player statuses with previous verified snapshot
+        if: steps.select.outputs.watch == 'true'
+        id: detect
+        run: |
+          mkdir -p reports/injury-watch/"${{ steps.select.outputs.target }}"
+          python3 analysis/nba_injury_watch.py --mode scan --cohort "${{ steps.select.outputs.cohort }}" --official injury_watch_official.json --selection injury_watch_selection.json --previous "reports/injury-watch/${{ steps.select.outputs.target }}/latest.json" --snapshot injury_watch_latest.json --out injury_watch_diff.json
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          s=json.load(open('injury_watch_diff.json'))
+          print('changed='+('true' if s['state']=='CHANGED' else 'false'))
+          print('usable='+('true' if 'snapshot' in s else 'false'))
+          PY
+      - name: Re-fetch 007 and recalculate full independent model only on verified change
+        if: steps.detect.outputs.changed == 'true'
+        run: |
+          python3 scripts/titan007_join_beijing_verified.py --date "${{ steps.select.outputs.target }}" --out injury_watch_joined.json
+          python3 analysis/nba_prediction_adapter.py --joined injury_watch_joined.json --out injury_watch_predictions.json
+          python3 analysis/nba_injury_context.py --joined injury_watch_joined.json --injuries injury_watch_official.json --out injury_watch_context.json
+          python3 analysis/nba_model_report.py --joined injury_watch_joined.json --predictions injury_watch_predictions.json --injury-context injury_watch_context.json --impact-catalog config/nba_player_impact_validated.json --out-json injury_watch_model.json --out-html injury_watch_model.html
+          python3 scripts/titan007_jingcai_three_market.py --joined injury_watch_joined.json --out injury_watch_jc.json
+          python3 scripts/titan007_top10_companies.py --joined injury_watch_joined.json --out injury_watch_top10.json --analysis injury_watch_crown.json --history-root reports/top10
+          python3 analysis/nba_five_markets.py --joined injury_watch_joined.json --model injury_watch_model.json --jingcai injury_watch_jc.json --top10 injury_watch_crown.json --out injury_watch_five.json
+          python3 analysis/nba_injury_prerequisite.py --five injury_watch_five.json --injury injury_watch_context.json --model injury_watch_model.json --out injury_watch_five_gated.json
+          mv injury_watch_five_gated.json injury_watch_five.json
+          python3 analysis/nba_injury_watch.py --mode render --scan injury_watch_diff.json --model injury_watch_model.json --five injury_watch_five.json --out injury_watch_alert.html
+      - name: Push only after entire five-market analysis is verified
+        if: steps.detect.outputs.changed == 'true'
+        run: |
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          from scripts.pushplus_mobile import send
+          body=Path('injury_watch_alert.html').read_text(encoding='utf-8')
+          result=send({'title':'NBA 赛前伤停变化 · 五玩法复核','html':body},os.environ['PUSHPLUS_TOKEN'])
+          assert result['state']=='API_ACCEPTED_NOT_DEVICE_CONFIRMED'
+          Path('injury_watch_push_status.json').write_text(json.dumps(result))
+          print('INJURY_CHANGE_PUSHPLUS_API_ACCEPTED')
+          PY
+      - name: Commit latest verified snapshot only after successful handling
+        if: steps.detect.outputs.usable == 'true'
+        run: |
+          cp injury_watch_latest.json "reports/injury-watch/${{ steps.select.outputs.target }}/latest.json"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "reports/injury-watch/${{ steps.select.outputs.target }}/latest.json"
+          if ! git diff --cached --quiet; then
+            git commit -m "Store verified pretip official injury watch baseline"
+            for attempt in 1 2 3; do
+              if git push origin HEAD:main; then exit 0; fi
+              git pull --rebase origin main
+              sleep 2
+            done
+            exit 1
+          fi
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-injury-watch-${{ github.run_id }}
+          path: |
+            injury_watch_selection.json
+            injury_watch_official.json
+            injury_watch_diff.json
+            injury_watch_context.json
+            injury_watch_model.json
+            injury_watch_five.json
+            injury_watch_alert.html
+            injury_watch_push_status.json
+          retention-days: 7
+          if-no-files-found: warn
