@@ -115,6 +115,20 @@ jobs:
             fi
             python3 scripts/nba_noon_slate.py enforce --joined titan007_three_joined.json --lock "reports/noon-cohorts/$TARGET_DATE/1200.json" --out nba_same_slate.json
           fi
+      - name: Classify ID3 quote interruptions against actual earlier captures
+        run: |
+          shopt -s nullglob
+          previous=(reports/daily/"$TARGET_DATE"/*/titan007_three_joined.json)
+          python3 scripts/id3_quote_continuity.py --board titan007_three_joined.json \
+            --history "${previous[@]}" --out id3_quote_continuity.json
+          python3 - <<'PY'
+          import json
+          rows=json.load(open("id3_quote_continuity.json"))["games"]
+          for market in ("full_spread","full_total"):
+              from collections import Counter
+              print("ID3_QUOTE_STATUS",market,dict(Counter(
+                  row["markets"][market]["status"] for row in rows)))
+          PY
       - name: Enforce Beijing date identity and report market coverage
         run: |
           python3 - <<'PY'
@@ -372,6 +386,7 @@ jobs:
           name: titan007-three-analysis-${{ env.TARGET_DATE }}
           path: |
             titan007_three_joined.json
+            id3_quote_continuity.json
             titan007_three_report.html
             titan007_three_report.csv
             titan007_three_market.json
