@@ -23,9 +23,10 @@ jobs:
         with: {python-version: '3.12'}
       - name: Unit test independent spread and total availability
         run: python3 scripts/diagnose_007_id3_match.py --self-test
-      - name: Real read-only 007 ID3 query on explicit dispatch only
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        run: python3 scripts/diagnose_007_id3_match.py --target "${{ inputs.target }}" --out 007-id3-forensics.json
+      - name: Read-only 007 ID3 source forensic capture (PR and explicit dispatch)
+        # The six date/hour variants use published, robots-checked endpoints.
+        # These are diagnostics only, never promotion into betting predictions.
+        run: python3 scripts/diagnose_007_id3_match.py --target "${{ inputs.target || '2026-11-01' }}" --out 007-id3-forensics.json
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
