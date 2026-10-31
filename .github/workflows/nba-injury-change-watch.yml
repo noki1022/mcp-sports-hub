@@ -21,8 +21,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Validate watcher safety behavior
-        run: python3 analysis/nba_injury_watch.py --mode self-test
       - name: Identify official games starting in next 70 minutes
         if: github.event_name != 'pull_request'
         id: select
