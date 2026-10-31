@@ -1,0 +1,28 @@
+name: P0 full-board NBA postgame closure
+on:
+  pull_request:
+    paths:
+      - analysis/nba_final_review_gate.py
+      - .github/workflows/verify-p0-full-review-closure.yml
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 analysis/nba_final_review_gate.py --self-test
+      - name: Verify all 7 games are eligible from real frozen archive
+        run: |
+          PYTHONPATH=analysis python3 - <<'PY'
+          from pathlib import Path
+          from analysis.nba_final_review_gate import frozen_source,frozen_games,read_json
+          day="2026-11-01"
+          path=frozen_source(Path("."),day)
+          assert path is not None,"MISSING_PRETIP_FULL_COHORT"
+          games=frozen_games(read_json(path),day)
+          assert len(games)==7, (str(path),len(games))
+          assert {str(x["nba_game_id"]) for x in games}==set(read_json(Path("reports/noon-cohorts")/day/"1200.json")["official_games"])
+          print("POSTGAME_ALL_SEVEN_REAL_FROZEN_MATCHES_PASS",path)
+          PY
