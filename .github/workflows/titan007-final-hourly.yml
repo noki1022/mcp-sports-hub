@@ -255,6 +255,11 @@ jobs:
           git add "reports/two-market-intraday/$TARGET_DATE/"
           git add "reports/five-market-intraday/$TARGET_DATE/"
           git add reports/hourly-reviews/
+          # Six silent Beijing midnight slots: immutable joined + model + five + movement.
+          if [[ "$HOURLY_REPORT_SLOT" =~ ^(0030|0130|0230|0330|0430|0530)$ ]]; then
+            python3 scripts/nba_overnight_six_audit.py capture --day "$TARGET_DATE" --slot "$HOURLY_REPORT_SLOT" --run "$GITHUB_RUN_ID" --joined titan007_joined_today.json --model nba_model_analysis.json --five nba_five_market_forecast.json --movement titan007_hourly_movement.json
+            git add "reports/overnight-six/$TARGET_DATE/$HOURLY_REPORT_SLOT"
+          fi
           if ! git diff --cached --quiet; then
             git config user.name github-actions[bot]
             git config user.email 41898282+github-actions[bot]@users.noreply.github.com
@@ -265,8 +270,29 @@ jobs:
             done
             exit 1
           fi
+      - name: Choose alert based on earliest official Beijing NBA tipoff
+        id: silent
+        if: steps.hourly_gate.outputs.skip != 'true'
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          from datetime import datetime,timedelta
+          from zoneinfo import ZoneInfo
+          import json,os,sys
+          sys.path.insert(0,"scripts")
+          from nba_tipoff_plan import plan
+          slot=os.environ["HOURLY_REPORT_SLOT"]
+          if slot in ("2230","2330"):
+              send=True
+          else:
+              p=plan(json.load(open("titan007_joined_today.json")))
+              tip=datetime.fromisoformat(p["earliest_tip_beijing"])
+              send=(slot==p["last_safe_analysis_slot"].replace(":","") and
+                    datetime.now(ZoneInfo("Asia/Shanghai")) < tip-timedelta(minutes=5))
+          print("send="+("true" if send else "false"))
+          print("NIGHT_REPORT_DECISION",slot,"SEND" if send else "SILENT_CAPTURE_ONLY",file=sys.stderr)
+          PY
       - name: Send concise iPhone PushPlus alert on significant changes or final window
-        if: ${{ success() }}
+        if: ${{ success() && steps.silent.outputs.send == 'true' }}
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
@@ -274,7 +300,7 @@ jobs:
       # Final-hour snapshots are short-retention artifacts. No scheduled commits
       # to main, and never archive incomplete runs.
       - name: Persist actual hourly PushPlus API acceptance for dedup and monitoring
-        if: ${{ success() && steps.hourly_gate.outputs.skip != 'true' }}
+        if: ${{ success() && steps.hourly_gate.outputs.skip != 'true' && steps.silent.outputs.send == 'true' }}
         run: |
           python3 - <<'PY'
           import json,os
