@@ -1,0 +1,31 @@
+name: NBA 5000 isolated fit audit
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'analysis/nba_5000_game_corpus_audit.py'
+      - '.github/workflows/nba-5000-corpus-audit.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install numpy
+      - name: Offline integrity checks
+        run: python analysis/nba_5000_game_corpus_audit.py --self-test
+      - name: Strict fit-only audit (fails unless >=5000 and integrity clean)
+        run: python analysis/nba_5000_game_corpus_audit.py --minimum 5000 --output /tmp/nba_5000_fit_audit.json
+      - name: Preserve compact evidence, not source datasets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-5000-fit-audit
+          path: /tmp/nba_5000_fit_audit.json
+          if-no-files-found: warn
+          retention-days: 14
