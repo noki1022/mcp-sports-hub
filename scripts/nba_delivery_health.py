@@ -133,6 +133,35 @@ def inspect(root:Path,slot:str,target:str,runs:list|None=None,run_error:str|None
            else "no valid frozen PushPlus acceptance marker",
        "marker_path":str(marker_path(root,slot,target).relative_to(root))}
 
+def recovery_plan(report, now):
+    """No repeat dispatch for running jobs, stale slots, or unverifiable API."""
+    if report["status"]!="MISSING_API_ACCEPTANCE" or report.get("run_query_error"):
+        return {"action":"SKIP","reason":"ACCEPTED_OR_UNVERIFIED"}
+    if report["run_hint"] not in ("NO_RECORDED_WORKFLOW_TRIGGER","WORKFLOW_FAILED",
+                                  "WORKFLOW_SUCCESS_WITHOUT_DELIVERY_MARKER"):
+        return {"action":"SKIP","reason":report["run_hint"]}
+    slot,target=report["slot"],report["target_date_beijing"]
+    windows={"1200":(12,48),"1400":(12,48),"1500":(12,48),
+             "1800":(12,48),"2100":(10,25),"2130":(10,17),"0630":(10,16)}
+    minutes=(now.astimezone(BJ)-scheduled_start(slot,target)).total_seconds()/60
+    if slot not in windows or not windows[slot][0]<=minutes<=windows[slot][1]:
+        return {"action":"SKIP","reason":"OUTSIDE_SAFE_RECOVERY_WINDOW"}
+    workflow=expected_workflow(slot)
+    inputs={"report_slot":slot,"target_date":target} if workflow=="titan007-three-analysis.yml" else {}
+    return {"action":"DISPATCH","workflow":workflow,"inputs":inputs}
+
+def dispatch_recovery(repo, plan, token):
+    if not token:raise RuntimeError("RECOVERY_GITHUB_TOKEN_MISSING")
+    workflow=urllib.parse.quote(plan["workflow"],safe="")
+    url=f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches"
+    req=urllib.request.Request(url,data=json.dumps({"ref":"main","inputs":plan["inputs"]}).encode(),
+        method="POST",headers={"Accept":"application/vnd.github+json",
+        "Content-Type":"application/json","Authorization":"Bearer "+token,
+        "User-Agent":"nba-delivery-recovery","X-GitHub-Api-Version":"2022-11-28"})
+    with urllib.request.urlopen(req,timeout=12) as res:
+        if res.status!=204:raise RuntimeError("RECOVERY_DISPATCH_NOT_ACCEPTED")
+    return True
+
 def alert_html(report:dict)->str:
     slot,day,reason=report["slot"],report["target_date_beijing"],report["run_hint"]
     workflow=report["workflow"]
@@ -180,6 +209,12 @@ def self_test():
     active=[{"event":"workflow_dispatch","created_at":"2026-10-30T13:25:10Z",
              "status":"in_progress","conclusion":None}]
     assert run_hint(active,"2130","2026-10-31")[0]=="WORKFLOW_RUNNING_NO_ACCEPTED_MARKER"
+    test_report=inspect(Path("/tmp"),"1200","2026-10-31",runs=[])
+    at=datetime.fromisoformat("2026-10-30T12:20:00+08:00")
+    assert recovery_plan(test_report,at)["action"]=="DISPATCH"
+    assert recovery_plan(test_report,datetime.fromisoformat("2026-10-30T13:05:00+08:00"))["action"]=="SKIP"
+    assert recovery_plan(dict(test_report,run_hint="WORKFLOW_RUNNING_NO_ACCEPTED_MARKER"),at)["action"]=="SKIP"
+    assert recovery_plan(dict(test_report,run_query_error="API_DOWN"),at)["action"]=="SKIP"
     print("NBA_DELIVERY_HEALTH_TEST_PASS")
 
 def main():
@@ -193,6 +228,7 @@ def main():
     parser.add_argument("--out",default="nba_delivery_health.json")
     parser.add_argument("--alert-marker-out",default="")
     parser.add_argument("--send",action="store_true")
+    parser.add_argument("--recover",action="store_true")
     args=parser.parse_args()
     if args.self_test:return self_test()
     if args.print_hourly_slot:
@@ -214,6 +250,22 @@ def main():
         report=inspect(root,slot,target,runs,error)
     report["checked_at_beijing"]=datetime.now(BJ).isoformat()
     report["alert_api_accepted"]=False
+    plan=recovery_plan(report,datetime.now(BJ))
+    report["recovery_plan"]=plan
+    report["recovery_dispatched"]=False
+    if args.recover and plan["action"]=="DISPATCH":
+        marker=root/"reports"/"delivery-recovery-dispatched"/target/(slot+".json")
+        if marker.is_file():
+            report["recovery_plan"]={"action":"SKIP","reason":"DISPATCH_ALREADY_MARKED"}
+        else:
+            report["recovery_dispatched"]=dispatch_recovery(
+                os.getenv("GITHUB_REPOSITORY","noki1022/mcp-sports-hub"),plan,
+                os.getenv("GITHUB_TOKEN",""))
+            marker.parent.mkdir(parents=True,exist_ok=True)
+            marker.write_text(json.dumps({"slot":slot,"target":target,
+                "state":"GITHUB_DISPATCH_API_ACCEPTED_NOT_RUN_COMPLETED",
+                "at_beijing":datetime.now(BJ).isoformat()})+"\\n")
+
     status=report["status"]
     if status=="MISSING_API_ACCEPTANCE":
         alarm=root/"reports"/"delivery-alert-sent"/target/(slot+".json")
