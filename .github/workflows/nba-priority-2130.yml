@@ -99,6 +99,10 @@ jobs:
           python3 analysis/nba_hourly_dynamic_review.py --movement titan007_priority_movement.json --model nba_priority_model.json --injury nba_priority_injury_context.json --out nba_priority_dynamic.json
           python3 analysis/nba_market_bc_diagnostics.py --joined titan007_priority_joined.json --movement titan007_priority_movement.json --model nba_priority_model.json --out nba_priority_bc.json
       - if: steps.gate.outputs.sent != 'true'
+        name: Seal prospective original versus injury research shadow before kickoff
+        run: |
+          python3 analysis/nba_injury_prospective_capture.py --joined titan007_priority_joined.json --model nba_priority_model.json --injuries nba_priority_injury_context.json --out nba_injury_prospective_2130.json
+      - if: steps.gate.outputs.sent != 'true'
         name: Audit all three user-supplied Jingcai pricing sources before market fusion
         env:
           MARZDATA_APP_ID: ${{ secrets.MARZDATA_APP_ID }}
@@ -214,7 +218,7 @@ jobs:
         name: Archive snapshot, complete analysis and successful PushPlus marker
         run: |
           mkdir -p "reports/daily/$TARGET_DATE/2130" "reports/pushplus-sent/$TARGET_DATE"
-          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_five_market_forecast.json nba_priority_focus.json nba_priority_iphone.html "reports/daily/$TARGET_DATE/2130/"
+          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_five_market_forecast.json nba_priority_focus.json nba_priority_iphone.html nba_injury_prospective_2130.json "reports/daily/$TARGET_DATE/2130/"
           python3 - <<'PY'
           import os,json
           from pathlib import Path
@@ -247,6 +251,7 @@ jobs:
             reports/overnight-cohorts/**/*.json
             nba_priority_dynamic.json
             nba_priority_injury_context.json
+            nba_injury_prospective_2130.json
             nba_priority_bc.json
             nba_priority_iphone.html
             nba_priority_pushplus_status.json
