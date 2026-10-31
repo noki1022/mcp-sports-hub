@@ -1,0 +1,21 @@
+name: Verify compact five-market iPhone report
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/pushplus_five_compact.py
+      - .github/workflows/verify-pushplus-compact.yml
+      - .github/workflows/pushplus-compact-resend.yml
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 scripts/pushplus_five_compact.py --self-test
+      - run: python3 scripts/pushplus_five_compact.py --five reports/daily/2026-11-01/1400/nba_five_market_forecast.json --preview /tmp/compact.html
+      - run: python3 -c "from pathlib import Path; s=Path('/tmp/compact.html').read_text(); assert s.count('竞彩 · 3玩法')==7; assert '周六316' in s"
