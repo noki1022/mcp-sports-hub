@@ -172,6 +172,22 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None):
         "<div style='font-size:12px;color:#5f7085;'>北京时间 · " + str(len(rows)) +
         "场 · 竞彩优先" + esc(stamp) + (" · 模拟" if synthetic else "") + "</div></div>"
     )
+    # First capture already carries verified official UTC fixture tipoffs.
+    # Show earliest tip on every push so users need not spot an early game manually.
+    tips=[]
+    for g in rows:
+        raw=(g.get("five_market_forecast") or {}).get("tipoff_beijing") or g.get("start_time_beijing")
+        try:
+            d=datetime.fromisoformat(str(raw).replace("Z","+00:00"))
+            if d.tzinfo is None:raise ValueError("NO_TIMEZONE")
+            tips.append(d)
+        except (ValueError,TypeError):
+            raise RuntimeError("NBA_EARLIEST_TIP_UNVERIFIED")
+    from zoneinfo import ZoneInfo
+    earliest=min(tips).astimezone(ZoneInfo("Asia/Shanghai"))
+    head+=("<div style='font-size:12px;padding:5px 10px;color:#8a4e16;'>"
+           "最早开赛：北京时间 "+earliest.strftime("%H:%M")+
+           " · 完整赛前判断必须早于此时冻结</div>")
     output = ["<div style='" + css + "'>" + head]
     for game in rows:
         fcast = game.get("five_market_forecast") or {}
