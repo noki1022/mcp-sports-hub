@@ -140,7 +140,6 @@ jobs:
       - name: Generate independent model for entire hourly board
         if: steps.hourly_gate.outputs.skip != 'true'
         run: |
-          python3 analysis/nba_prediction_adapter.py --self-test
           python3 analysis/nba_prediction_adapter.py --joined titan007_joined_today.json --out nba_independent_predictions_gate.json
       - name: Collect official injury status, fail closed if unavailable
         if: steps.hourly_gate.outputs.skip != 'true'

@@ -65,7 +65,6 @@ jobs:
           exit 1
       - name: Generate odds-blind NBA prediction artifact
         run: |
-          python3 analysis/nba_prediction_adapter.py --self-test
           python3 analysis/nba_prediction_adapter.py --joined titan007_joined_nba_cba.json --out nba_independent_predictions_gate.json
       - name: Refresh NBA recent five games, possession efficiency, and five historical H2H
         shell: bash
