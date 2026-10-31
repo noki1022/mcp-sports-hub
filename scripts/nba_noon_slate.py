@@ -199,7 +199,7 @@ def cli():
         result=late_freeze(board)
         dest=Path(a.out);dest.parent.mkdir(parents=True,exist_ok=True)
         if dest.exists():abort("ALREADY_LOCKED_NO_OVERWRITE")
-        dest.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\\n")
+        dest.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         print("NBA_LATE_FIRST_CAPTURE_LOCKED",result["official_count"])
         return
     if a.mode=="recover":
