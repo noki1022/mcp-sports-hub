@@ -5,6 +5,7 @@ on:
       - research/nba-5000-game-history-20261031
     paths:
       - 'analysis/nba_5000_game_corpus_audit.py'
+      - 'analysis/nba_5000_fit_era_validation.py'
       - 'analysis/NBA_5000_DATA_ISOLATION_POLICY.md'
       - '.github/workflows/nba-5000-corpus-audit.yml'
   workflow_dispatch:
@@ -30,6 +31,10 @@ jobs:
         run: python analysis/nba_5000_game_corpus_audit.py --minimum 5000 --output /tmp/nba_5000_fit_audit.json
       - name: Shadow FIT-only ridge diagnostics (no holdout access)
         run: python analysis/nba_5000_game_corpus_audit.py --minimum 5000 --shadow-fit --output /tmp/nba_5000_shadow_fit.json
+      - name: Offline validation guard tests
+        run: python analysis/nba_5000_fit_era_validation.py --self-test
+      - name: Chronological FIT-era validation (not independent holdout)
+        run: python analysis/nba_5000_fit_era_validation.py --output /tmp/nba_5000_fit_era_validation.json
       - name: Preserve compact evidence, not source datasets
         if: always()
         uses: actions/upload-artifact@v4
@@ -38,5 +43,6 @@ jobs:
           path: |
             /tmp/nba_5000_fit_audit.json
             /tmp/nba_5000_shadow_fit.json
+            /tmp/nba_5000_fit_era_validation.json
           if-no-files-found: warn
           retention-days: 14
