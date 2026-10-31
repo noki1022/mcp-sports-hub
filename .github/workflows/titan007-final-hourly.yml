@@ -144,7 +144,7 @@ jobs:
           python3 analysis/market_decision_gate.py --market titan007_final_hour_market.json --predictions nba_independent_predictions_gate.json --out titan007_final_decision.json
           python3 analysis/market_value_policy.py --self-test
           python3 analysis/market_value_policy.py --market-decision titan007_final_decision.json --out market_value_policy.json
-          python3 analysis/nba_model_report.py --joined titan007_joined_today.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html --injury-context nba_injury_context.json
+          python3 analysis/nba_model_report.py --joined titan007_joined_today.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html --injury-context nba_injury_context.json --impact-catalog config/nba_player_impact_validated.json
       - name: Audit market B and fusion C without directional assumptions
         if: steps.hourly_gate.outputs.skip != 'true'
         run: |
@@ -198,7 +198,7 @@ jobs:
             --jingcai nba_jingcai_three_market.json \
             --top10 nba_top10_comparison.json \
             --out nba_five_market_forecast.json
-          python3 analysis/nba_injury_prerequisite.py --five nba_five_market_forecast.json --injury nba_injury_context.json --out nba_five_market_forecast_gated.json
+          python3 analysis/nba_injury_prerequisite.py --five nba_five_market_forecast.json --injury --injury nba_injury_context.json --model nba_model_analysis.json --out nba_five_market_forecast_gated.json
           mv nba_five_market_forecast_gated.json nba_five_market_forecast.json
           python3 - <<'PY'
           import json
