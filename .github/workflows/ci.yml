@@ -2,6 +2,9 @@ name: CI
 
 on:
   push:
+    paths-ignore:
+      - 'reports/**'
+      - 'data/snapshots/**'
     branches: [main]
   pull_request:
     branches: [main]
