@@ -192,6 +192,43 @@ def main(args):
                 y,pred,sigma=resultmeans[key,version]
                 report["result"][name][version]=probscore(y,pred,sigma,threshold)
             report["result"][name]["Brier_delta"]=round(report["result"][name]["injury_proxy"]["Brier"]-report["result"][name]["baseline"]["Brier"],6)
+        # Paired, date-cluster bootstrap; the same games are compared in both
+        # conditions. This quantifies uncertainty, NOT a pristine new holdout.
+        from math import erf,sqrt
+        grouped=defaultdict(list)
+        for i,row in enumerate(test):grouped[row[0]].append(i)
+        groups=list(grouped.values())
+        rng=np.random.default_rng(20261031)
+        interval={}
+        for target,metric in (("margin","MAE"),("total","MAE"),
+                              ("home_win","Brier"),("total_over_225_5_FIXED_NOT_BOOKMAKER","Brier")):
+            base_key="margin" if target in ("margin","home_win") else "total"
+            y,p0,sd0=resultmeans[base_key,"baseline"]
+            y,p1,sd1=resultmeans[base_key,"injury_proxy"]
+            if metric=="MAE":
+                errors0=abs(y-p0);errors1=abs(y-p1)
+            else:
+                threshold=0. if target=="home_win" else 225.5
+                target_outcome=(y>threshold).astype(float)
+                q0=np.asarray([(1+erf((x-threshold)/(sd0*sqrt(2))))/2 for x in p0])
+                q1=np.asarray([(1+erf((x-threshold)/(sd1*sqrt(2))))/2 for x in p1])
+                errors0=(q0-target_outcome)**2
+                errors1=(q1-target_outcome)**2
+            diffs=errors1-errors0
+            sampled=np.empty(500)
+            for j in range(500):
+                keys=rng.integers(0,len(groups),size=len(groups))
+                ids=np.concatenate([groups[k] for k in keys])
+                sampled[j]=float(np.mean(diffs[ids]))
+            interval[target]={"enhanced_minus_baseline":float(np.mean(diffs)),
+                              "paired_date_bootstrap_95_CI":[float(np.quantile(sampled,.025)),float(np.quantile(sampled,.975))],
+                              "n_test_games":len(test),"n_test_dates":len(groups)}
+        report["paired_date_cluster_bootstrap"]=interval
+        report["production_promotion_decision"]={
+            "moneyline":"BLOCKED_FULL_INJURY_RECALIBRATION_AND_PUBLICATION_AUDIT_REQUIRED",
+            "spread":"BLOCKED_ACTUAL_JC_CROWN_HISTORICAL_LINES_NOT_AVAILABLE",
+            "total":"REJECTED_NO_OUT_OF_SAMPLE_UPLIFT",
+            "any_validated_player_catalog":False}
         report["status"]="CROSS_SEASON_RESEARCH_HOLDOUT_COMPUTED_NOT_PRODUCTION_CERTIFIED"
     else:
         report["status"]="BLOCKED_INSUFFICIENT_CROSS_SEASON_MATCHED_GAMES"
