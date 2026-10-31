@@ -1,0 +1,44 @@
+name: P0 official NBA historical 2022-24 injury archive real probe
+on:
+  pull_request:
+    paths:
+      - analysis/nba_legacy_injury_archive_probe.py
+      - .github/workflows/nba-legacy-injury-real-probe.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install MIT-licensed nbainjuries historical parser
+        run: python3 -m pip install --quiet 'nbainjuries==1.1.1'
+      - run: python3 analysis/nba_legacy_injury_archive_probe.py --self-test
+      - name: Test actual official NBA reports (research-only, 8 samples max)
+        run: python3 analysis/nba_legacy_injury_archive_probe.py --out nba-legacy-injury-archive-audit.json
+      - name: Reject assumption that PDF availability proves pretip publication
+        run: |
+          python3 - <<'PY'
+          import json
+          r=json.load(open('nba-legacy-injury-archive-audit.json'))
+          assert r['production_admission'] is False
+          assert r['verified_pretip_training_records']==0
+          assert not r['official_game_tipoff_compared']
+          print('P0_HISTORY_AUDIT_STATUS',r['status'],r.get('real_pdf_parsed_samples',0))
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-legacy-injury-real-audit
+          path: nba-legacy-injury-archive-audit.json
+          retention-days: 21
+          if-no-files-found: warn
