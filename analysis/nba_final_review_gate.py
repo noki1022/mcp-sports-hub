@@ -20,17 +20,47 @@ def read_json(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 def frozen_source(root,day):
-    # 06:30 takes priority: closer to tip, and was already locked pre-tip.
-    for slot in ("0630","2130"):
+    # Prefer a complete original pretip board, never a 06:30 subset of
+    # only games that have not started. Compare against frozen noon official IDs.
+    cohort=root/"reports"/"noon-cohorts"/day/"1200.json"
+    official_ids=None
+    if cohort.is_file():
+        official_ids=set((read_json(cohort).get("official_games") or {}).keys())
+        if not official_ids:raise ValueError("NOON_OFFICIAL_COHORT_EMPTY")
+    slots=("0630","0530","0430","0330","0230","0130","0030",
+           "2330","2230","2130","2100","1800","1500","1400","1200")
+    candidates=[]
+    for slot in slots:
         p=root/"reports"/"daily"/day/slot/"nba_five_market_forecast.json"
-        if p.is_file():return p
-    return None
+        if p.is_file():candidates.append((slot,p))
+        if slot in ("0030","0130","0230","0330","0430","0530"):
+            p=root/"reports"/"overnight-six"/day/slot/"five.json"
+            if p.is_file():candidates.append((slot,p))
+    valid=[]
+    for slot,path in candidates:
+        frozen=read_json(path)
+        games=frozen_games(frozen,day)
+        ids={str(g["nba_game_id"]) for g in games}
+        if official_ids is not None and ids!=official_ids:continue
+        # Every issued market must predate its own match, not merely capture date.
+        valid.append((slot,path))
+    return valid[0][1] if valid else None
 
 def reviewed(root,day):
     p=root/"reports"/"five-market-settled"/day/"2200.json"
     if not p.is_file():return False
-    try:return read_json(p).get("state")==ACCEPTED
-    except (ValueError,OSError):return False
+    try:
+        marker=read_json(p)
+        folder=p.parent
+        settlement=read_json(folder/"settlement.json")
+        html=(folder/"report.html").read_text(encoding="utf-8")
+        return (marker.get("state")==ACCEPTED and
+                settlement.get("beijing_date")==day and
+                bool(settlement.get("games")) and
+                all(m.get("unsettled")==0 for m in settlement.get("summary",{}).values()) and
+                len(settlement.get("summary",{}))==5 and
+                "五玩法" in html)
+    except (ValueError,OSError,KeyError,TypeError):return False
 
 def frozen_games(frozen,day):
     if frozen.get("target_date")!=day:raise ValueError("FORECAST_DATE_MISMATCH")
@@ -128,6 +158,11 @@ def self_test():
         marker=root/"reports"/"five-market-settled"/target/"2200.json"
         marker.parent.mkdir(parents=True)
         marker.write_text(json.dumps({"state":ACCEPTED}))
+        assert reviewed(root,target) is False
+        done=root/"reports"/"five-market-settled"/target
+        (done/"settlement.json").write_text(json.dumps({"beijing_date":target,"games":[{"game_id":"a"}],
+            "summary":{x:{"unsettled":0} for x in ("JINGCAI_WIN","JINGCAI_HANDICAP","JINGCAI_TOTAL","CROWN_HANDICAP","CROWN_TOTAL")}}))
+        (done/"report.html").write_text("<b>五玩法复盘</b>")
         assert decide(root,now,score_fetch=all_final)["state"].startswith("WAITING")
         marker.write_text(json.dumps({"state":"DRY_RUN_NOT_SENT"}))
         assert decide(root,now,score_fetch=all_final)["state"]=="READY_ALL_FINAL"
