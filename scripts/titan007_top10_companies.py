@@ -170,12 +170,25 @@ def analyze(current,prior,recovery=None):
             # Aggregated range/median must contain only current quotes, not fallback.
             lines=[float(r["current"]["line"]) for r in fresh]
             previous=(past.get(g["game_id"],{}).get("markets") or {}).get(k,{})
-            byname={x["company_display"]:x for x in previous.get("companies",[])}
+            # The archived Crown ID3 quote can be a valid pre-tip observation
+            # without legacy display metadata; never let a label break delivery.
+            # Prefer a known institution ID, else a nonempty display name.
+            def company_key(row):
+                company_id=str(row.get("company_id") or "")
+                if company_id.isdigit():
+                    return ("007_ID",company_id)
+                label=row.get("company_display")
+                return ("DISPLAY",label) if isinstance(label,str) and label.strip() else None
+            byname={key:x for x in previous.get("companies",[])
+                    if (key:=company_key(x)) is not None}
             delta=[]
             for c in companies:
-                old=byname.get(c["company_display"])
-                if old:delta.append({"company":c["company_display"],
-                    "delta_line":round(c["current"]["line"]-old["current"]["line"],3)})
+                key=company_key(c)
+                old=byname.get(key) if key is not None else None
+                if old is not None:
+                    delta.append({"company":c.get("company_display") or
+                                 "007机构ID "+str(c.get("company_id","未核")),
+                                  "delta_line":round(c["current"]["line"]-old["current"]["line"],3)})
             markets[k]={"status":("ARCHIVED_PRETIP_CROWN_FALLBACK" if recovered and not has_live_id3 else m["status"]),
                "company_count":len(fresh),"crown_id3_archived":bool(recovered and not has_live_id3),
                "median_line":median(lines) if lines else None,
