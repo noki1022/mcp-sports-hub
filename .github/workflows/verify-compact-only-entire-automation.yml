@@ -1,0 +1,50 @@
+name: Enforce one compact five-market PushPlus across automatic flows
+on:
+  pull_request:
+    paths:
+      - scripts/pushplus_mobile.py
+      - scripts/pushplus_five_compact.py
+      - .github/workflows/verify-compact-only-entire-automation.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Canonical approved compact renderer tests
+        run: python3 scripts/pushplus_five_compact.py --self-test
+      - name: Render actual frozen seven-game board via normal shared PushPlus sender (no sending)
+        run: |
+          python3 scripts/pushplus_mobile.py --mode three --joined reports/daily/2026-11-01/1400/titan007_three_joined.json --five reports/daily/2026-11-01/1400/nba_five_market_forecast.json --preview /tmp/compact-all.html --status /tmp/compact-all.json
+          python3 - <<'PY'
+          import pathlib,json
+          s=pathlib.Path('/tmp/compact-all.html').read_text()
+          status=json.loads(pathlib.Path('/tmp/compact-all.json').read_text())
+          assert status['games_considered']==7, status
+          assert s.count('竞彩 · 3玩法')==7
+          assert s.count('皇冠ID3 · 2玩法')==7
+          assert '周六316' in s and '主' in s and '客' in s
+          for bad in ('七步分析研判','八场核心数据','模型 vs 盘口','本小时动态研判'):
+              assert bad not in s,bad
+          print('ALL_SCHEDULED_PUSHPLUS_COMPACT_ONLY_ACCEPTANCE_PASS')
+          PY
+      - name: Block accidental reintroduction of long-format in shared send paths
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          runner=Path('scripts/pushplus_mobile.py').read_text()
+          assert 'render_v2(' not in runner
+          assert runner.count('render_compact(')>=3
+          assert 'COMPACT_FIVE_MARKET_SOURCE_REQUIRED_NO_LONG_FALLBACK' in runner
+          for workflow in ['titan007-three-analysis.yml','titan007-final-hourly.yml','nba-priority-2130.yml','nba-priority-0630.yml']:
+              s=Path('.github/workflows',workflow).read_text()
+              assert 'scripts/pushplus_mobile.py --mode' in s
+              assert '--five nba_five_market_forecast.json' in s
+          print('SCHEDULED_PUSHPLUS_UNIFIED_COMPACT_RENDERER_PASS')
+          PY
