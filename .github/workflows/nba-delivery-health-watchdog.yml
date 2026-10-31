@@ -57,12 +57,8 @@ jobs:
       - name: Auto-recover a missed fixed-slot trigger when safe
         run: |
           python3 scripts/nba_delivery_recovery.py --self-test
-          python3 - <<'PY' >> "$GITHUB_ENV"
-          import json
-          report=json.load(open("nba_delivery_health.json"))
-          print("RECOVERY_SLOT="+report["slot"])
-          print("RECOVERY_TARGET="+report["target_date_beijing"])
-          PY
+          RECOVERY_SLOT=$(python3 -c 'import json; print(json.load(open("nba_delivery_health.json"))["slot"])')
+          RECOVERY_TARGET=$(python3 -c 'import json; print(json.load(open("nba_delivery_health.json"))["target_date_beijing"])')
           python3 scripts/nba_delivery_recovery.py \
             --slot "$RECOVERY_SLOT" --target-date "$RECOVERY_TARGET" \
             --out nba_recovery_result.json
