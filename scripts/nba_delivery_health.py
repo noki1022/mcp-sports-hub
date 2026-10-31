@@ -25,6 +25,7 @@ BJ=ZoneInfo("Asia/Shanghai")
 ACCEPTED="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
 FIXED={"1200":4,"1400":6,"1500":7,"1800":10,"2100":13}
 HOURS={f"{h:02d}30" for h in [22,23,0,1,2,3,4,5]}
+SILENT_SIX={f"{h:02d}30" for h in range(6)}
 # UTC cron -> (Beijing report slot, display date offset relative to cron date).
 SCHEDULES={
     "40 4 * * *":("1200",1), "40 6 * * *":("1400",1),
@@ -126,6 +127,16 @@ def run_hint(runs:list|None,slot:str,target:str)->tuple[str,int]:
 
 def inspect(root:Path,slot:str,target:str,runs:list|None=None,run_error:str|None=None)->dict:
     datetime.fromisoformat(target)
+    if slot in SILENT_SIX:
+        from nba_overnight_six_audit import digest
+        d=digest(root,target)
+        done={x["slot"] for x in d["completed_slots"]}
+        return {"slot":slot,"target_date_beijing":target,"workflow":expected_workflow(slot),
+           "status":"CAPTURE_ANALYSIS_ARCHIVED_NO_PUSH" if slot in done else "SILENT_ANALYSIS_MISSING",
+           "run_hint":"SILENT_NO_PUSH_REQUIRED", "matching_run_count":0,
+           "proof":"hash-verified per-hour source+model+five analysis" if slot in done else "06:30 report must disclose missing record",
+           "marker_path":str(Path("reports/overnight-six")/target/slot/"evidence.json")}
+
     workflow=expected_workflow(slot)
     accepted=accepted_marker(root,slot,target)
     hint,n=run_hint(runs,slot,target) if not accepted else ("API_ACCEPTED_MARKER_FOUND",0)
@@ -187,6 +198,9 @@ def self_test():
         path.write_text(json.dumps({"slot":"2130","state":ACCEPTED}),encoding="utf-8")
         assert inspect(root,"2130","2026-10-31",runs=[])["status"]==ACCEPTED
         assert "未见推送成功标记" in alert_html(x)
+        silent=inspect(root,"0030","2026-10-31",runs=[])
+        assert silent["status"]=="SILENT_ANALYSIS_MISSING"
+        assert silent["run_hint"]=="SILENT_NO_PUSH_REQUIRED"
     fail=[{"event":"workflow_dispatch","created_at":"2026-10-30T13:25:10Z",
            "status":"completed","conclusion":"failure"}]
     assert run_hint(fail,"2130","2026-10-31")[0]=="WORKFLOW_FAILED"
@@ -228,7 +242,7 @@ def main():
     report["checked_at_beijing"]=datetime.now(BJ).isoformat()
     report["alert_api_accepted"]=False
     status=report["status"]
-    if status=="MISSING_API_ACCEPTANCE":
+    if status=="MISSING_API_ACCEPTANCE" and slot not in SILENT_SIX:
         alarm=root/"reports"/"delivery-alert-sent"/target/(slot+".json")
         if alarm.is_file():
             try:
