@@ -74,7 +74,7 @@ def decide(root,now,day_override=None,score_fetch=scores_for):
     else:
         # Review yesterday's long/late slate even after local midnight; then
         # consider today's games. Never replace one day's roster with another.
-        days=[(now.date()-timedelta(days=1)).isoformat(),now.date().isoformat()]
+        days=[(now.date()-timedelta(days=n)).isoformat() for n in range(7, -1, -1)]
     pending_days=[]
     for day in days:
         path=frozen_source(root,day)
@@ -124,6 +124,7 @@ def self_test():
         assert q["state"]=="READY_ALL_FINAL" and q["proof"]=={"complete":True,"total":2,"final":2,"pending":[]}
         assert decide(root,datetime.fromisoformat("2026-10-31T20:00:00+08:00"),score_fetch=all_final)["state"].startswith("WAITING")
         assert decide(root,datetime.fromisoformat("2026-11-01T00:10:00+08:00"),score_fetch=all_final)["day"]==target
+        assert decide(root,datetime.fromisoformat("2026-11-05T00:10:00+08:00"),score_fetch=all_final)["day"]==target
         marker=root/"reports"/"five-market-settled"/target/"2200.json"
         marker.parent.mkdir(parents=True)
         marker.write_text(json.dumps({"state":ACCEPTED}))

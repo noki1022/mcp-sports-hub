@@ -1,0 +1,34 @@
+name: P0 autonomous delivery and final-review recovery checks
+on:
+  pull_request:
+    paths:
+      - scripts/nba_delivery_recovery.py
+      - scripts/nba_delivery_health.py
+      - analysis/nba_final_review_gate.py
+      - .github/workflows/nba-delivery-health-watchdog.yml
+      - .github/workflows/verify-autonomous-recovery.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 scripts/nba_delivery_health.py --self-test
+      - run: python3 scripts/nba_delivery_recovery.py --self-test
+      - run: python3 analysis/nba_final_review_gate.py --self-test
+      - name: Assert both priority recovery triggers exist and no stale pretip replay
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          w=Path('.github/workflows/nba-delivery-health-watchdog.yml').read_text()
+          assert '45 13 * * *' in w and '45 22 * * *' in w
+          recovery=Path('scripts/nba_delivery_recovery.py').read_text()
+          assert 'PRIORITY_RECOVERY_TARGET_DAY_MISMATCH' in recovery
+          assert '"2130","0630"' in recovery
+          print('P0_RECOVERY_AUTONOMOUS_SAFETY_PASS')
+          PY
