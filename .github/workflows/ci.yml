@@ -50,6 +50,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify external scheduler expiry and dispatch safety
+        run: node scheduler/test-scheduler.mjs
+
       - name: Run smoke tests
         run: npm test
 
