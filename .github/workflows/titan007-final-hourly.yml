@@ -49,10 +49,12 @@ jobs:
       - name: Resolve canonical hourly slot; skip if API already accepted
         id: hourly_gate
         run: |
-          python3 scripts/nba_delivery_health.py --print-hourly-slot >> "$GITHUB_ENV"
-          git pull --ff-only origin main
-          slot=$(sed -n 's/^HOURLY_REPORT_SLOT=//p' "$GITHUB_ENV" | tail -1)
+          slot=$(python3 scripts/nba_delivery_health.py --print-hourly-slot | sed -n 's/^HOURLY_REPORT_SLOT=//p')
+          test -n "$slot"
           echo "HOURLY_REPORT_SLOT=$slot" >> "$GITHUB_ENV"
+          # GITHUB_ENV only reaches later steps; export for same-step Python checks.
+          export HOURLY_REPORT_SLOT="$slot"
+          git pull --ff-only origin main
           if test -f "reports/pushplus-sent/$TARGET_DATE/$slot.json"; then
             python3 - <<'PY'
           import os,json
