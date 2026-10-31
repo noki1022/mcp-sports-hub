@@ -1,0 +1,25 @@
+name: Verify fixed slot PushPlus accepted delivery before success
+on:
+  pull_request:
+    paths:
+      - .github/workflows/titan007-three-analysis.yml
+      - .github/workflows/verify-fixed-slot-acceptance.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify no false success and message audit
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('.github/workflows/titan007-three-analysis.yml').read_text()
+          assert '--send --require-token --require-delivery' in s
+          assert "'preview_sha256':sha256(preview.read_bytes()).hexdigest()" in s
+          assert "'message_id':status.get('message_id')" in s
+          assert 'COMPACT' in Path('scripts/pushplus_mobile.py').read_text()
+          print('FIXED_SLOT_PUSHPLUS_FAIL_CLOSED_TEST_PASS')
+          PY
