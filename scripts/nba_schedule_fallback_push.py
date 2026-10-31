@@ -20,6 +20,16 @@ def build(fixtures, target, slot):
            f"<p>北京时间 {escape(slot[:2]+':'+slot[2:])}，比赛日期 {escape(target)}。</p>",
            "<p><b>007 盘口匹配或后续模型流水线未通过校验。</b>以下仅为官方赛程，"
            "没有真实盘口、模型概率或投注判断。五玩法均标记数据未就绪，不应据此下注。</p>"]
+    if not fixtures:raise RuntimeError("NO_OFFICIAL_FIXTURES")
+    verified_times=[]
+    for g in fixtures:
+        ts=datetime.fromisoformat(g["beijing_tip"])
+        if ts.tzinfo is None or ts.astimezone(ZoneInfo("Asia/Shanghai")).date().isoformat()!=target:
+            raise RuntimeError("FALLBACK_INVALID_OFFICIAL_TIP")
+        verified_times.append(ts.astimezone(ZoneInfo("Asia/Shanghai")))
+    earliest=min(verified_times)
+    lines.append("<p><b>最早 NBA 开赛：北京时间 "+earliest.strftime("%H:%M")+
+                 "。</b>完整赛前分析必须早于最早开赛；06:30 不保证仍是全场赛前。</p>")
     for g in fixtures:
         tip=datetime.fromisoformat(g["beijing_tip"])
         if tip.date().isoformat()!=target:
@@ -42,6 +52,7 @@ def main():
     if args.self_test:
         sample=[{"beijing_tip":"2026-11-01T08:00:00+08:00","home":"HOU","away":"OKC"}]
         assert "五玩法" in build(sample,"2026-11-01","1200")
+        assert "最早 NBA 开赛：北京时间 08:00" in build(sample,"2026-11-01","1200")
         print("SCHEDULE_FALLBACK_SELF_TEST_PASS")
         return
     if args.slot not in ("1200","1400","1500","1800","2100"):
