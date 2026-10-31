@@ -1,0 +1,46 @@
+name: Compact five-market PushPlus resend
+on:
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: Beijing fixture date (YYYY-MM-DD)
+        required: true
+        default: "2026-11-01"
+        type: string
+permissions:
+  contents: read
+jobs:
+  resend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+      TARGET_DATE: ${{ inputs.target_date }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate compact report and exact archived snapshot
+        run: |
+          python3 scripts/pushplus_five_compact.py --self-test
+          test "$TARGET_DATE" = "2026-11-01"
+          test -s "reports/daily/$TARGET_DATE/1400/nba_five_market_forecast.json"
+      - name: Send once from frozen 14:45 board
+        run: |
+          python3 scripts/pushplus_five_compact.py --five "reports/daily/$TARGET_DATE/1400/nba_five_market_forecast.json" --preview compact_preview.html --status compact_status.json --send
+          python3 - <<'PY'
+          import json
+          x=json.load(open('compact_status.json'))
+          assert x['state']=='API_ACCEPTED_NOT_DEVICE_CONFIRMED'
+          assert x['games_considered']==7
+          print('COMPACT_RESEND_API_ACCEPTED',x['games_considered'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compact-five-market-preview
+          path: |
+            compact_preview.html
+            compact_status.json
+          if-no-files-found: warn
