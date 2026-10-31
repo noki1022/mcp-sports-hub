@@ -74,3 +74,5 @@ if __name__=="__main__":
         Path(x.out).write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n")
         print(json.dumps({k:v for k,v in result.items() if k!="sources"},ensure_ascii=False))
         print("SOURCE_ROWS",[(k,v["rows"],v["columns"]) for k,v in result["sources"].items()])
+        print("SAMPLE_PLAYER",json.dumps(result["sources"]["players"].get("sample_rows"),ensure_ascii=False))
+        print("SAMPLE_INJURY",json.dumps(result["sources"]["injury"].get("sample_rows"),ensure_ascii=False))
