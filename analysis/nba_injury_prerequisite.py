@@ -5,6 +5,7 @@ Unknown injury data never silently becomes healthy; model probabilities remain
 unadjusted until a separately validated player-impact model exists.
 """
 import argparse,json
+from datetime import datetime
 from pathlib import Path
 
 def gate(forecast,context,model=None):
@@ -18,13 +19,17 @@ def gate(forecast,context,model=None):
         away=injury.get("away") or {}
         published=all(x.get("report_state")=="PUBLISHED" for x in (home,away))
         quality=injury.get("quality")
-        verified=(published and quality in ("PUBLISHED_AFFECTED","PUBLISHED_LISTED")
+        verified=(published and injury.get("source_date_matches_tip") is True
+                  and injury.get("capture_before_tip_verified") is True
+                  and injury.get("parsed_player_ambiguity") is False
+                  and quality in ("PUBLISHED_AFFECTED","PUBLISHED_LISTED")
                   and bool(injury.get("source_captured_at_utc"))
                   and (context or {}).get("source")=="official NBA injury PDF")
         # Never trust a source-context flag as evidence of an actual adjustment.
         adjustment=(model_rows.get(str(game.get("game_id"))) or {}).get("injury_adjustment") or {}
         adjusted=(adjustment.get("adjusted") is True and
-                  adjustment.get("status")=="PLAYER_IMPACT_APPLIED_EXPERIMENTAL")
+                  adjustment.get("status")=="PLAYER_IMPACT_APPLIED_EXPERIMENTAL"
+                  and adjustment.get("validation")=="PRODUCTION_RECALIBRATED_AND_APPROVED")
         game["injury_review"]={
             "quality":quality or "NOT_PROVIDED",
             "home":home,"away":away,
@@ -54,6 +59,7 @@ def self_test():
     assert a["games"][0]["final_signal_status"]=="PROVISIONAL_INJURY_UNVERIFIED"
     ctx={"source":"official NBA injury PDF","games":[{"game_id":"1","quality":"PUBLISHED_AFFECTED",
          "source_captured_at_utc":"2026-10-31T07:00:00+00:00",
+         "source_date_matches_tip":True,"capture_before_tip_verified":True,"parsed_player_ambiguity":False,
          "home":{"report_state":"PUBLISHED","players":[{"name":"A","status":"Out"}]},
          "away":{"report_state":"PUBLISHED","players":[]},
          "independent_model_probability_adjusted":False}]}
@@ -64,7 +70,9 @@ def self_test():
     assert gate(deepcopy(base),ctx)["games"][0]["final_signal_status"]!="FINAL_INJURY_VERIFIED"
     computed={"games":[{"game_id":"1","injury_adjustment":{"adjusted":True,"status":"PLAYER_IMPACT_APPLIED_EXPERIMENTAL"}}]}
     c=gate(deepcopy(base),ctx,computed)
-    assert c["games"][0]["final_signal_status"]=="FINAL_INJURY_VERIFIED"
+    assert c["games"][0]["final_signal_status"]=="PROVISIONAL_INJURY_UNADJUSTED"
+    ctx["games"][0]["capture_before_tip_verified"]=False
+    assert gate(deepcopy(base),ctx,computed)["games"][0]["final_signal_status"]=="PROVISIONAL_INJURY_UNVERIFIED"
     print("INJURY_PREREQUISITE_GATE_PASS")
 
 if __name__=="__main__":
