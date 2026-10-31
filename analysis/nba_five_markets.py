@@ -42,6 +42,20 @@ def idx(rows):
         result[k]=row
     return result
 
+def jc_probability(market,direction,pred,line):
+    """Model-derived directional probability; uncalibrated at an arbitrary line."""
+    if market=="JINGCAI_WIN":
+        home=n((pred.get("model_probability") or {}).get("home"))
+        if home is None or not 0<=home<=1:return None
+        return home if direction=="HOME_WIN" else 1-home
+    kind="handicap" if market=="JINGCAI_HANDICAP" else "total"
+    mu=n(pred.get("margin_mean_home_minus_away" if kind=="handicap" else "total_mean"))
+    sigma=n(pred.get("margin_sigma" if kind=="handicap" else "total_sigma"))
+    if None in (mu,sigma,line) or sigma<=0:return None
+    threshold=-line if kind=="handicap" else line
+    greater=.5*math.erfc((threshold-mu)/(math.sqrt(2)*sigma))
+    return greater if direction in ("HOME_COVER","OVER") else 1-greater
+
 def selection(market,diff,line,price=None,observed_at=None,source=None,status="OK",source_id=None):
     if status!="OK" or diff is None or (market!="JINGCAI_WIN" and line is None):
         return {"market":market,"status":status if status!="OK" else "MISSING_MODEL_OR_LINE",
@@ -82,7 +96,9 @@ def make(joined,model,jc,top10):
         p=preds.get(gid,{})
         margin=n(p.get("margin_mean_home_minus_away")) if p.get("model_status") in ("OK","PARTIAL") else None
         total=n(p.get("total_mean")) if p.get("model_status") in ("OK","PARTIAL") else None
-        jc_valid=bool(verified and capture and tip and capture<tip)
+        # JC sale-number verification governs only the displayed number.
+        # Market eligibility is anchored to exact 007 match ID on verified board.
+        jc_valid=bool(capture and tip and capture<tip and gid in prices)
         # Crown source is independent of Jingcai sales-number verification.
         crow_valid=bool(institutional_capture and tip and institutional_capture<tip)
         pools=(prices.get(gid) or {}).get("markets") or {}
@@ -93,13 +109,22 @@ def make(joined,model,jc,top10):
                 return selection(market,None,None,status=state,source="007_JINGCAI")
             cur=(item.get("data") or {}).get("current") or {}
             line=n(cur.get("line"))
-            if not jc_valid:return selection(market,None,line,status="JC_PRICE_OR_ID_UNVERIFIED",source="007_JINGCAI")
+            if not jc_valid:return selection(market,None,line,status="JC_PRICE_TIME_OR_GAME_ID_UNVERIFIED",source="007_JINGCAI")
+            a,b=n(cur.get("first_side")),n(cur.get("second_side"))
+            if a is None or b is None or not (1<a<30 and 1<b<30):
+                return selection(market,None,line,status="JC_INVALID_PRICE_PAIR",source="007_JINGCAI")
             if key=="win_lose":
-                return selection(market,margin,None,observed_at=feed.get("captured_at_utc"),source="007_JINGCAI")
+                ans=selection(market,margin,None,observed_at=feed.get("captured_at_utc"),source="007_JINGCAI")
+                if ans["status"]=="DIRECTION_ISSUED":
+                    ans["model_direction_probability"]=jc_probability(market,ans["direction"],p,None)
+                return ans
             if line is None:return selection(market,None,None,status="INVALID_JC_LINE",source="007_JINGCAI")
             gap=(margin+line) if key=="handicap" and margin is not None else (
                  total-line if key=="total" and total is not None else None)
-            return selection(market,gap,line,observed_at=feed.get("captured_at_utc"),source="007_JINGCAI")
+            ans=selection(market,gap,line,observed_at=feed.get("captured_at_utc"),source="007_JINGCAI")
+            if ans["status"]=="DIRECTION_ISSUED":
+                ans["model_direction_probability"]=jc_probability(market,ans["direction"],p,line)
+            return ans
         selected={"JINGCAI_WIN":jc_market("win_lose","JINGCAI_WIN"),
                   "JINGCAI_HANDICAP":jc_market("handicap","JINGCAI_HANDICAP"),
                   "JINGCAI_TOTAL":jc_market("total","JINGCAI_TOTAL")}
@@ -139,6 +164,7 @@ def make(joined,model,jc,top10):
         assert set(selected)==set(MARKETS)
         rows.append({"game_id":gid,"nba_game_id":g.get("nba_game_id"),
           "jingcai_number":label if verified else None,
+          "jingcai_number_status":"VERIFIED" if verified else "UNVERIFIED_JC_LABEL",
           "home_team":g.get("home_team"),"away_team":g.get("away_team"),
           "tipoff_beijing":g.get("start_time_beijing"),
           "model_margin_home_minus_away":margin,"model_total":total,
@@ -149,6 +175,10 @@ def make(joined,model,jc,top10):
       "crown_company_id":"3","crown_source":"007 source ID 3 (Crow* label crosscheck required)",
       "games":rows,"game_count":len(rows),"market_keys":list(MARKETS),
       "ready_counts":{k:sum(r["markets"][k]["status"]=="DIRECTION_ISSUED" for r in rows) for k in MARKETS},
+      "priority_weights":{"jingcai":0.7,"crown":0.3},
+      "priority_note":"Workflow and display attention only; never blend market probabilities",
+      "primary_market_keys":list(MARKETS[:3]),
+      "jingcai_three_ready_games":sum(all(row["markets"][k]["status"]=="DIRECTION_ISSUED" for k in MARKETS[:3]) for row in rows),
       "not_betting_advice":True}
 
 def self_test():
@@ -209,9 +239,18 @@ def self_test():
     # A missing JC number must not invalidate a correctly timestamped ID3 quote.
     jc["jc_007_match_numbers"]["games"]["170"]={"status":"UNVERIFIED","label":None}
     independent=make(joined,model,jc,top)["games"][0]["markets"]
-    assert independent["JINGCAI_HANDICAP"]["direction"] is None
+    assert independent["JINGCAI_HANDICAP"]["direction"]=="HOME_COVER"
+    assert make(joined,model,jc,top)["games"][0]["jingcai_number"] is None
     assert independent["CROWN_HANDICAP"]["direction"]=="AWAY_COVER"
     assert independent["CROWN_TOTAL"]["direction"]=="OVER"
+    assert out["priority_weights"]=={"jingcai":0.7,"crown":0.3}
+    assert out["jingcai_three_ready_games"]==1
+    no_crown=make(joined,model,jc,{"captured_at_utc":top["captured_at_utc"],"games":[]})
+    assert all(no_crown["games"][0]["markets"][k]["status"]=="DIRECTION_ISSUED" for k in MARKETS[:3])
+    assert all(no_crown["games"][0]["markets"][k]["direction"] is None for k in MARKETS[3:])
+    jc["jc_007_public_odds_shadow"]["captured_at_utc"]="2026-10-31T02:00:00Z"
+    late=make(joined,model,jc,top)["games"][0]["markets"]
+    assert all(late[k]["direction"] is None for k in MARKETS[:3])
     print("NBA_FIVE_MARKETS_DIRECTION_AND_SOURCE_SELFTEST_PASS")
 
 if __name__=="__main__":
