@@ -128,13 +128,20 @@ def source_for_date(target):
     for day in dates:
         score_url=SOURCE_BASE+"nba_date.aspx?"+urllib.parse.urlencode({"date":day,"h":"12","m":"00","s":"1"})
         odds_url=SOURCE_BASE+"nba_Oddsdata.aspx?"+urllib.parse.urlencode({"date":day,"id":"3","h":"12","m":"00"})
+        # Scoreboard and bookmaker ID3 are independent dependencies.
+        # Never erase verified 007 fixture identity because one company is closed.
         try:
             ids,rej=identify(public_get(score_url,limit=700000))
+        except (OSError,ValueError,RuntimeError) as exc:
+            source_errors.append({"site_date":day,"source":"SCOREBOARD","error":type(exc).__name__})
+            continue
+        try:
             market,rej2=market_entries(public_get(odds_url,limit=250000))
         except (OSError,ValueError,RuntimeError) as exc:
-            source_errors.append({"site_date":day,"error":type(exc).__name__})
-            continue
+            source_errors.append({"site_date":day,"source":"CROWN_ID3","error":type(exc).__name__})
+            market,rej2={},{"ID3_SOURCE_UNAVAILABLE":1}
         coverage[day]={"source_rows":len(ids),"market_rows":len(market),
+                       "id3_state":"AVAILABLE" if "ID3_SOURCE_UNAVAILABLE" not in rej2 else "UNAVAILABLE",
                        "nba_rows":sum(g["league"]=="NBA" for g in ids.values())}
         reject["identity_rejected"]+=len(rej)
         reject.update(rej2)
@@ -291,6 +298,19 @@ def self_test():
     assert separate["22222"]["full_spread"]["status"]=="NO_VERIFIED_ID3_SPREAD"
     assert separate["22222"]["full_total"]["current"]["line"]==228.5
     assert bad["SPREAD_MISSING_OR_INVALID"]==1 and bad["TOTAL_MISSING_OR_INVALID"]==1
+    # Fault injection: scoreboard is reachable; Crown ID3 fails for every day.
+    # The verified fixture identity must survive; no quote may be invented.
+    from unittest.mock import patch
+    def simulated_get(url,limit=0):
+        if "nba_Oddsdata.aspx" in url:raise OSError("simulated Crown ID3 closure")
+        return ('<c><m><h><![CDATA[12345^NBA,NBA^4^#fff^10月31日<br>08:00^0^^13^华盛顿奇才,Washington Wizards^3^夏洛特黄蜂,Charlotte Hornets^0^2026]]></h></m></c>').encode("gb18030")
+    with patch(__name__+".public_get",side_effect=simulated_get):
+        site,none_odds,source_coverage,rejections,errors=source_for_date("2026-10-31")
+    assert "12345" in site and not none_odds
+    assert len(source_coverage)==3 and all(x["id3_state"]=="UNAVAILABLE" for x in source_coverage.values())
+    assert len([e for e in errors if e["source"]=="CROWN_ID3"])==3
+    board,counts=reconcile(fixture,site,none_odds,"2026-10-31")
+    assert len(board)==1 and counts["NO_DATE_MARKET_FOR_GAME_ID"]==1
     print("NBA_US_DAY_BEIJING_007_STRICT_RECONCILIATION_SELFTEST_PASS")
 
 if __name__=="__main__":
