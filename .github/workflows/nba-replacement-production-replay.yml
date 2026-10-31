@@ -1,0 +1,41 @@
+name: P0 early replacement shadow into actual rolling production model
+on:
+  pull_request:
+    paths:
+      - analysis/nba_replacement_production_replay.py
+      - analysis/nba_early_injury_replacement_study.py
+      - .github/workflows/nba-replacement-production-replay.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 32
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy==2.2.6 pandas==2.3.3 pyarrow==21.0.0
+      - name: Replay same production model and corrected injury/replacement shadow
+        run: python3 analysis/nba_replacement_production_replay.py --out nba-early-replacement-production-paired.json
+      - name: Enforce nonproduction source release and sample checks
+        run: |
+          python3 - <<'PY'
+          import json
+          r=json.load(open("nba-early-replacement-production-paired.json"))
+          assert r['same_production_rolling_fitter'] and not r['production_approval']
+          assert r['nominal_report_clock_not_verified_publication']
+          assert not r['validated_individual_player_values']
+          print('REPLACEMENT_SHADOW_ACTUAL_PRODUCTION_MODEL',r['status'],r['counts'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-early-replacement-production-paired
+          path: |
+            nba-early-replacement-production-paired.json
+            /tmp/p0-early-replacement-source-evidence.json
+          if-no-files-found: warn
+          retention-days: 21
