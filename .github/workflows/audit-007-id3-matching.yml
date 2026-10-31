@@ -1,0 +1,36 @@
+name: Audit 007 scoreboard vs ID3 market matching
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/diagnose_007_id3_match.py'
+      - '.github/workflows/audit-007-id3-matching.yml'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Beijing game date YYYY-MM-DD
+        required: true
+        default: '2026-11-01'
+permissions:
+  contents: read
+jobs:
+  forensic-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Unit test independent spread and total availability
+        run: python3 scripts/diagnose_007_id3_match.py --self-test
+      - name: Real read-only 007 ID3 query on explicit dispatch only
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: python3 scripts/diagnose_007_id3_match.py --target "${{ inputs.target }}" --out 007-id3-forensics.json
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 007-id3-forensic-evidence
+          path: 007-id3-forensics.json
+          if-no-files-found: ignore
+          retention-days: 14
