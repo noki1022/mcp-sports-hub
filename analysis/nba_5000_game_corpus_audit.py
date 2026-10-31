@@ -151,7 +151,9 @@ def feature_eligible(games):
                 raise AssertionError('Nonfinite historical feature')
             eligible.append({'game_id': game['game_id'], 'date': day,
                              'season': game['season'], 'home': game['home'],
-                             'away': game['away'], 'max_feature_date': proof['max_input_game_date']})
+                             'away': game['away'], 'max_feature_date': proof['max_input_game_date'],
+                             'form': val['form'], 'h2h': val['h2h'],
+                             'margin': float(game['margin_home']), 'total': float(game['total'])})
         # Do not use same-day scores, even when games have different tipoff times.
         for game in by_day[day]:
             team_hist[game['home']].append(team_entry(game, game['home']))
@@ -160,7 +162,7 @@ def feature_eligible(games):
     return eligible, excluded
 
 
-def audit(cutoff: date, minimum: int = MIN_FIT_GAMES):
+def audit(cutoff: date, minimum: int = MIN_FIT_GAMES, include_fit_rows: bool = False):
     rows, source_manifest, rejected = [], [], []
     for year in FIT_YEARS:
         root = f'{SOURCE_ROOT}/{year}'
@@ -193,7 +195,7 @@ def audit(cutoff: date, minimum: int = MIN_FIT_GAMES):
               'excluded_insufficient_history': len(feature_rejections),
               'tune_games': 0, 'calibration_games': 0, 'test_games': 0}
     passed = (len(eligible) >= minimum and not rejected and not pair_rejections)
-    return {'status': 'PASS' if passed else 'FAIL',
+    report = {'status': 'PASS' if passed else 'FAIL',
             'training_count_gate_passed': len(eligible) >= minimum,
             'full_integrity_gate_passed': passed,
             'source_commit': SOURCE_COMMIT,
@@ -212,6 +214,11 @@ def audit(cutoff: date, minimum: int = MIN_FIT_GAMES):
             'source_manifest': source_manifest,
             'model_promoted': False, 'odds_as_features': False,
             'independent_backtest_run': False}
+    # Shadow training may request in-memory point-in-time feature rows.
+    # The default audit JSON remains compact: no per-game labels or features.
+    if include_fit_rows:
+        report['fit_rows'] = eligible
+    return report
 
 
 def self_test():
