@@ -210,7 +210,15 @@ def main():
                 row=by_move.get(gid)
                 if row is None:
                     raise RuntimeError("MISSING_DYNAMIC_SNAPSHOT_FOR_GAME_"+gid)
-                rows.append({**row,"dynamic_review":by_review.get(gid)})
+                # Movement snapshots may omit the verified fixture timestamp.
+                # Preserve the current 007/official joined fixture identity and
+                # time instead of treating an already verified tip as unknown.
+                rows.append({**row,
+                             "game_id":gid,
+                             "home_team":g.get("home_team"),
+                             "away_team":g.get("away_team"),
+                             "start_time_beijing":g.get("start_time_beijing"),
+                             "dynamic_review":by_review.get(gid)})
                 if not rows[-1]["dynamic_review"]:
                     raise RuntimeError("MISSING_DYNAMIC_ANALYSIS_FOR_GAME_"+gid)
         else:
