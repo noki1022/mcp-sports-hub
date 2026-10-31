@@ -17,6 +17,8 @@ jobs:
           python-version: '3.12'
       - run: python3 scripts/check_noon_push_recovery.py
       - run: python3 scripts/pushplus_mobile.py --mode smoke --self-test
+      - name: Validate fixture-only fallback without sending
+        run: python3 scripts/nba_schedule_fallback_push.py --self-test --target 2026-11-01 --slot 1200
       - name: Verify Beijing 14:00 fixed report and recovery slot mapping
         run: |
           python3 - <<'PY'
