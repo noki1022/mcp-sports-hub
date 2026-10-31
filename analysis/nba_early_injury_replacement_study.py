@@ -174,10 +174,30 @@ def main(out):
             ty=np.array([r[1] for r in test])
             prediction=pred(np.array([r[idx] for r in test]),m)+bias
             metrics[label]=score(ty,prediction,sigma)
-            array[label]=prediction
+            array[label]=(prediction,sigma)
         report_obj["test_metrics"]=metrics
         report_obj["injury_minus_baseline_mae"]=round(metrics["plus_injury_replacement"]["MAE"]-metrics["team_form_only"]["MAE"],5)
         report_obj["injury_minus_baseline_brier"]=round(metrics["plus_injury_replacement"]["Brier"]-metrics["team_form_only"]["Brier"],6)
+        t=np.array([r[1] for r in test],float); yy=np.array(t>0,float)
+        base,s0=array["team_form_only"]
+        enhanced,s1=array["plus_injury_replacement"]
+        p0=np.array([.5*(1+math.erf(float(x)/(s0*math.sqrt(2)))) for x in base])
+        p1=np.array([.5*(1+math.erf(float(x)/(s1*math.sqrt(2)))) for x in enhanced])
+        metrics_delta={"Brier":(p1-yy)**2-(p0-yy)**2,
+                       "margin_MAE":abs(enhanced-t)-abs(base-t)}
+        dates=defaultdict(list)
+        for idx,row in enumerate(test):dates[row[0]].append(idx)
+        clusters=list(dates.values());rng=np.random.default_rng(20261031)
+        report_obj["paired_date_cluster_confidence_intervals"]={}
+        for name,delta in metrics_delta.items():
+            boot=[]
+            for _ in range(500):
+                ids=np.concatenate([clusters[z] for z in rng.integers(0,len(clusters),size=len(clusters))])
+                boot.append(float(np.mean(delta[ids])))
+            report_obj["paired_date_cluster_confidence_intervals"][name]={
+                "enhanced_minus_base":float(np.mean(delta)),
+                "95CI":[float(np.quantile(boot,.025)),float(np.quantile(boot,.975))],
+                "test_dates":len(clusters),"resamples":500}
         report_obj["status"]="EARLY_CROSS_SEASON_RESEARCH_COMPLETED_NOT_PRODUCTION_CERTIFIED"
     from pathlib import Path
     Path(out).write_text(json.dumps(report_obj,indent=2,ensure_ascii=False)+"\n")
