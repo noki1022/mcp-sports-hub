@@ -5,7 +5,7 @@ from datetime import datetime,timedelta,time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 BJ=ZoneInfo("Asia/Shanghai")
-def plan(board):
+def plan(board, now=None):
     day=board["requested_display_date"]
     games=board.get("upcoming_nba_games") or []
     if not games:raise ValueError("NO_OFFICIAL_NBA_SCHEDULE")
@@ -20,11 +20,19 @@ def plan(board):
     eligible=[x for x in slots if x<=first-timedelta(minutes=20)]
     if not eligible:raise ValueError("NO_PRETIP_SLOT")
     last=max(eligible)
+    current=(now or datetime.now(BJ)).astimezone(BJ)
+    # Fixed scheduled slots can be delayed: never advertise a slot already past.
+    remaining=[x for x in eligible if x>=current]
+    upcoming=max(remaining) if remaining else None
     return {"target_date":day,"official_games":len(games),"earliest_tip_beijing":first.isoformat(),
-       "last_safe_analysis_slot":last.strftime("%H:%M"),"last_safe_analysis_beijing":last.isoformat()}
+       "last_safe_analysis_slot":last.strftime("%H:%M"),"last_safe_analysis_beijing":last.isoformat(),
+       "next_safe_scheduled_slot":upcoming.isoformat() if upcoming else None,
+       "plan_generated_at_beijing":current.isoformat(),
+       "can_still_send_full_board":current<first-timedelta(minutes=5)}
 def selftest():
     data={"requested_display_date":"2026-11-01","upcoming_nba_games":[{"utc_tip":"2026-10-31T19:00:00Z"},{"utc_tip":"2026-11-01T00:00:00Z"}]}
-    assert plan(data)["last_safe_analysis_slot"]=="02:30"
+    assert plan(data,datetime.fromisoformat("2026-10-31T12:00:00+08:00"))["last_safe_analysis_slot"]=="02:30"
+    assert plan(data,datetime.fromisoformat("2026-11-01T02:40:00+08:00"))["next_safe_scheduled_slot"] is None
     assert plan(data)["earliest_tip_beijing"].endswith("03:00:00+08:00")
     print("OFFICIAL_FIRST_TIP_PLANNING_PASS")
 if __name__=="__main__":
