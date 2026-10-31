@@ -59,7 +59,7 @@ def parse(raw, board, source_notes=None):
             if not entry.strip():continue
             raw_records+=1
             a=entry.split("^")
-            gid=a[0] if a and re.fullmatch(r"\\d{4,12}",a[0]) else None
+            gid=a[0] if a and re.fullmatch(r"\d{4,12}",a[0]) else None
             if gid is not None and gid in seen_ids:
                 # Never accept an arbitrary first or last quote for a duplicate ID.
                 rows.pop(gid,None)
