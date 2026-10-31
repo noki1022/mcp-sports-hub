@@ -87,7 +87,7 @@ jobs:
       - if: steps.gate.outputs.sent != 'true'
         name: Complete per-game dynamic model interpretation
         run: |
-          python3 analysis/nba_model_report.py --joined titan007_priority_joined.json --predictions nba_priority_predictions.json --injury-context nba_priority_injury_context.json --out-json nba_priority_model.json --out-html nba_priority_model.html
+          python3 analysis/nba_model_report.py --joined titan007_priority_joined.json --predictions nba_priority_predictions.json --injury-context nba_priority_injury_context.json --out-json nba_priority_model.json --impact-catalog config/nba_player_impact_validated.json --out-html nba_priority_model.html
           python3 analysis/nba_hourly_dynamic_review.py --movement titan007_priority_movement.json --model nba_priority_model.json --injury nba_priority_injury_context.json --out nba_priority_dynamic.json
           python3 analysis/nba_market_bc_diagnostics.py --joined titan007_priority_joined.json --movement titan007_priority_movement.json --model nba_priority_model.json --out nba_priority_bc.json
       - if: steps.gate.outputs.sent != 'true'
@@ -135,7 +135,7 @@ jobs:
             --jingcai nba_jingcai_three_market.json \
             --top10 nba_top10_comparison.json \
             --out nba_five_market_forecast.json
-          python3 analysis/nba_injury_prerequisite.py --five nba_five_market_forecast.json --injury nba_priority_injury_context.json --out nba_five_market_forecast_gated.json
+          python3 analysis/nba_injury_prerequisite.py --five nba_five_market_forecast.json --injury --injury nba_priority_injury_context.json --model nba_priority_model.json --out nba_five_market_forecast_gated.json
           mv nba_five_market_forecast_gated.json nba_five_market_forecast.json
           python3 - <<'PY'
           import json
