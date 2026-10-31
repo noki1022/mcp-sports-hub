@@ -237,8 +237,8 @@ def replay(args):
             raw=p_greater(m,sigma,0)
             pm=float(_isotonic_predict(cal.get("moneyline_isotonic"),raw))
             if not (0<=pm<=1):raise AssertionError("INVALID_PRODUCTION_PROBABILITY")
-            if any(x["date"]>=day for x in ()):
-                raise AssertionError("TARGET_LEAK")
+            if (metadata["calibration_through"]>=day or metadata["embargo_end"]>=day):
+                raise AssertionError("PRODUCTION_CALIBRATION_OR_TRAINING_NOT_PAST_TARGET")
             forecast_rows.append({"date":day,"game_id":row["game_id"],"margin":row["margin"],
                                   "production_margin_mu":m,"production_margin_sigma":sigma,
                                   "production_mu":m,"production_p":pm,
@@ -286,23 +286,56 @@ def replay(args):
             calraw.append(p)
             outcomes.append(float(r["margin"]>0))
         iso=_isotonic_fit(calraw,outcomes)
+        # Mandatory calibration-only placebo: use the SAME historical sample
+        # and same isotonic procedure, but never include the injury feature.
+        # Otherwise the candidate's apparent Brier gain may be recalibration,
+        # not injury information.
+        control_raw=[p_greater(r["production_margin_mu"],r["production_margin_sigma"],0) for r in cal]
+        control_iso=_isotonic_fit(control_raw,outcomes)
         for row in holdout:
             mu,pr=predict_candidate(row,beta)
             row["candidate_mu"]=mu
             row["candidate_p"]=float(_isotonic_predict(iso,pr))
+            row["calibration_control_mu"]=row["production_mu"]
+            control_raw_p=p_greater(row["production_mu"],row["production_margin_sigma"],0)
+            row["calibration_control_p"]=float(_isotonic_predict(control_iso,control_raw_p))
             yy=float(row["margin"]>0)
             row["paired_brier_delta"]=(row["candidate_p"]-yy)**2-(row["production_p"]-yy)**2
+            row["paired_brier_injury_only"]=(row["candidate_p"]-yy)**2-(row["calibration_control_p"]-yy)**2
             row["paired_margin_mae_delta"]=abs(row["candidate_mu"]-row["margin"])-abs(row["production_mu"]-row["margin"])
+            # Same-date, same-game fixed handicap thresholds: these are NOT 007
+            # Jingcai/Crown historical lines, and cannot imply betting EV.
+            for line in (-5.5,-0.5,5.5):
+                key=str(line)
+                truth=float(row["margin"]>line)
+                p0=p_greater(row["production_margin_mu"],row["production_margin_sigma"],line)
+                p1=p_greater(row["candidate_mu"],row["production_margin_sigma"],line)
+                row["spread_"+key+"_delta"]=(p1-truth)**2-(p0-truth)**2
         base=results_metrics(holdout,"production")
+        control=results_metrics(holdout,"calibration_control")
         cand=results_metrics(holdout,"candidate")
         report["research_coefficients_not_player_effect"]={
             "features":["away_minus_home_prior_unavailable_minutes_over40",
                         "away_minus_home_prior_unavailable_points_over15"],
             "beta":[float(x) for x in beta],"alpha_frozen":ALPHA,
             "max_abs_margin_shift":MAX_DELTA}
-        report["paired_production_metrics"]={"baseline":base,"injury_shadow":cand,
+        report["paired_production_metrics"]={"baseline":base,"recalibration_only_control":control,
+            "injury_shadow":cand,
             "paired_home_brier":bootstrap(holdout,"paired_brier_delta"),
-            "paired_margin_MAE":bootstrap(holdout,"paired_margin_mae_delta")}
+            "paired_injury_specific_brier":bootstrap(holdout,"paired_brier_injury_only"),
+            "paired_margin_MAE":bootstrap(holdout,"paired_margin_mae_delta"),
+            "fixed_spread_thresholds_not_bookmaker": {
+                str(line):bootstrap(holdout,"spread_"+str(line)+"_delta")
+                for line in (-5.5,-0.5,5.5)}}
+        injury_specific=report["paired_production_metrics"]["paired_injury_specific_brier"]
+        report["injury_information_uplift_demonstrated"] = (
+            injury_specific["CI95"][1]<0)
+        report["evaluation_notes"]=[
+            "Recalibration-only control uses identical 2024-25 calibration sample as injury candidate",
+            "Injury-specific paired Brier is candidate minus recalibration-only control, not baseline",
+            "Fixed spread lines -5.5/-0.5/+5.5 are NOT time-stamped 007 prices",
+            "No promotion even if a previously inspected holdout yields a favorable confidence interval",
+        ]
         report["status"]="SAME_PRODUCTION_ARCHITECTURE_SHADOW_REPLAY_ONLY_NO_PROMOTION"
         report["production_promotion_gate"]={
             "immutable_new_holdout":False,
@@ -325,6 +358,7 @@ def self_test():
        {"date":"2026-01-02","paired_brier_delta":-.02}]
     assert bootstrap(a,"paired_brier_delta")["delta"]<0
     assert not any("catalog" in x for x in fake)
+    assert abs(_isotonic_predict(_isotonic_fit([.1,.9],[0.,1.]),.5)-.5)<1e-8
     print("NBA_PRODUCTION_INJURY_SHADOW_FAIL_CLOSED_TEST_PASS")
 
 def main():
