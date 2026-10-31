@@ -66,6 +66,7 @@ jobs:
           python3 analysis/nba_five_markets.py --joined injury_watch_joined.json --model injury_watch_model.json --jingcai injury_watch_jc.json --top10 injury_watch_crown.json --out injury_watch_five.json
           python3 analysis/nba_injury_prerequisite.py --five injury_watch_five.json --injury injury_watch_context.json --model injury_watch_model.json --out injury_watch_five_gated.json
           mv injury_watch_five_gated.json injury_watch_five.json
+          python3 analysis/nba_five_market_integrity_gate.py --joined injury_watch_joined.json --five injury_watch_five.json --jingcai injury_watch_jc.json --out injury_watch_integrity.json
           python3 analysis/nba_injury_watch.py --mode render --scan injury_watch_diff.json --model injury_watch_model.json --five injury_watch_five.json --out injury_watch_alert.html
       - name: Push only after entire five-market analysis is verified
         if: steps.detect.outputs.changed == 'true'
