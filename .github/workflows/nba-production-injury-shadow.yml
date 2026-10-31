@@ -18,6 +18,8 @@ jobs:
           python-version: '3.12'
       - run: pip install --quiet numpy==2.2.6 pandas==2.3.3 pyarrow==21.0.0
       - run: python3 analysis/nba_production_injury_shadow_replay.py --self-test
+      - name: Verify locked prospective acceptance fails closed on post-tip forecasts
+        run: python3 analysis/nba_injury_prospective_acceptance.py --self-test
       - name: Download checksum-pinned historical research sources
         run: |
           python3 - <<'PY'
