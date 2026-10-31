@@ -286,6 +286,33 @@ def replay(args):
             calraw.append(p)
             outcomes.append(float(r["margin"]>0))
         iso=_isotonic_fit(calraw,outcomes)
+        # Freeze candidate inputs and coefficients from pre-2025-05 data only.
+        # This remains a SHADOW, not a validated production catalog. Its
+        # 2025-26 results have already been seen by the development team.
+        if args.export_candidate:
+            frozen={
+                "schema_version":"nba-injury-prospective-shadow-v1",
+                "scope":"RESEARCH_ONLY_NO_BET_NO_PRODUCTION_ADJUSTMENT",
+                "frozen_candidate_before_prospective_start":True,
+                "candidate_design_locked_utc":"2026-10-31T00:00:00Z",
+                "prospective_start_utc":"2026-11-01T00:00:00Z",
+                "production_base_model_version":MODEL_VERSION,
+                "baseline_training_last":"2025-01-31",
+                "shadow_calibration_first":CAL_START,
+                "shadow_calibration_last":CAL_END,
+                "fit_games":len(fit),"calibration_games":len(cal),
+                "alpha":ALPHA,"delta_clip":MAX_DELTA,
+                "availability_weight_proxy":{"Out":0.0,"Doubtful":0.05,"Questionable":0.48,"Probable":0.89,"Available":1.0},
+                "normal_expected_availability":0.90,
+                "unverifiable_status_proxy_not_player_level_causal_effect":True,
+                "margin_beta":[float(v) for v in beta],
+                "moneyline_isotonic":iso,
+                "source_hashes":hashes,
+                "independent_2026_27_outcomes_seen":False,
+                "release_approved":False,
+            }
+            Path(args.export_candidate).write_text(json.dumps(frozen,indent=2,ensure_ascii=False)+"\n")
+            print("FROZEN_RESEARCH_CANDIDATE_JSON",json.dumps(frozen,sort_keys=True))
         # Mandatory calibration-only placebo: use the SAME historical sample
         # and same isotonic procedure, but never include the injury feature.
         # Otherwise the candidate's apparent Brier gain may be recalibration,
@@ -366,6 +393,7 @@ def main():
     for f in ("injury_2025","injury_2026","players_2025","players_2026","out"):
         parser.add_argument("--"+f.replace("_","-"))
     parser.add_argument("--self-test",action="store_true")
+    parser.add_argument("--export-candidate")
     args=parser.parse_args()
     if args.self_test:return self_test()
     if any(getattr(args,k) is None for k in ("injury_2025","injury_2026","players_2025","players_2026","out")):
