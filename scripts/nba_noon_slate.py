@@ -77,6 +77,22 @@ def freeze(board):
             "official_count":len(fixture),"baseline_quote_count":len(prices),
             "rule":"SAME_OFFICIAL_EVENT_IDS_AND_TEAMS_ALL_SLOTS"}
 
+def late_freeze(board):
+    """Actual late first capture: preserve timestamp; never impersonate 12:00."""
+    cap=aware(board["captured_at_utc"])
+    game_date=date.fromisoformat(board["requested_display_date"])
+    if cap.date()!=game_date-timedelta(days=1) or not time(13,0)<=cap.time().replace(tzinfo=None)<time(22,0):
+        abort("LATE_FIRST_CAPTURE_OUTSIDE_ALLOWED_WINDOW")
+    fixture=official_identity(board)
+    prices=market_identity(board,fixture)
+    return {"schema_version":VERSION,"target_beijing_date":str(game_date),
+            "baseline_slot":"1200","captured_at_utc":board["captured_at_utc"],
+            "official_games":fixture,"first_available_007":prices,
+            "official_count":len(fixture),"baseline_quote_count":len(prices),
+            "noon_on_time":False,"recovery_source":"ACTUAL_LATE_FIRST_CAPTURE",
+            "rule":"SAME_OFFICIAL_EVENT_IDS_AND_TEAMS_ALL_SLOTS"}
+
+
 def recover(archive,target):
     """Create an immutable cohort from a genuine, timestamped archived noon report.
     Its actual capture time is recorded; no imaginary 12:00 observation is made.
@@ -172,11 +188,20 @@ def self_test():
 
 def cli():
     p=argparse.ArgumentParser()
-    p.add_argument("mode",choices=("freeze","enforce","recover","self-test"))
+    p.add_argument("mode",choices=("freeze","late-freeze","enforce","recover","self-test"))
     p.add_argument("--joined");p.add_argument("--lock");p.add_argument("--out");p.add_argument("--archive")
     a=p.parse_args()
     if a.mode=="self-test":return self_test()
     if not a.out:raise SystemExit("OUT_REQUIRED")
+    if a.mode=="late-freeze":
+        if not a.joined:raise SystemExit("JOINED_REQUIRED")
+        board=json.loads(Path(a.joined).read_text(encoding="utf-8"))
+        result=late_freeze(board)
+        dest=Path(a.out);dest.parent.mkdir(parents=True,exist_ok=True)
+        if dest.exists():abort("ALREADY_LOCKED_NO_OVERWRITE")
+        dest.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\\n")
+        print("NBA_LATE_FIRST_CAPTURE_LOCKED",result["official_count"])
+        return
     if a.mode=="recover":
         if not a.archive or not a.joined:raise SystemExit("ARCHIVE_AND_JOINED_REQUIRED")
         board=json.loads(Path(a.joined).read_text(encoding="utf-8"))
