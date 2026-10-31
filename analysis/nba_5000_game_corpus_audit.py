@@ -221,6 +221,39 @@ def audit(cutoff: date, minimum: int = MIN_FIT_GAMES, include_fit_rows: bool = F
     return report
 
 
+
+def shadow_fit_diagnostics(fit_rows):
+    """Fit-only diagnostics; never a holdout score or production promotion."""
+    import numpy as np
+    from nba_chronological_backtest import train_ridge, predict
+    if len(fit_rows) < MIN_FIT_GAMES:
+        raise AssertionError('Insufficient FIT games for shadow fitting')
+    if len({r['game_id'] for r in fit_rows}) != len(fit_rows):
+        raise AssertionError('Duplicate shadow FIT game')
+    if any(r['season'] not in FIT_SEASONS or r['max_feature_date'] >= r['date']
+           for r in fit_rows):
+        raise AssertionError('Invalid FIT partition or feature timestamp')
+    diagnostics = {}
+    for variant in ('baseline', 'form', 'form_h2h'):
+        diagnostics[variant] = {}
+        for target in ('margin', 'total'):
+            model = train_ridge(fit_rows, target, variant, 100.0)
+            truth = np.asarray([r[target] for r in fit_rows], dtype=float)
+            estimate = predict(fit_rows, variant, model)
+            if not np.all(np.isfinite(estimate)):
+                raise AssertionError('Nonfinite shadow predictions')
+            diagnostics[variant][target] = {
+                'fit_only_MAE_NOT_HOLDOUT': float(np.mean(np.abs(truth - estimate))),
+                'fit_only_RMSE_NOT_HOLDOUT': float(np.sqrt(np.mean((truth - estimate) ** 2))),
+                'feature_count': len(model['features']),
+            }
+    return {'status': 'SHADOW_FIT_ONLY', 'fit_games': len(fit_rows),
+            'ridge_alpha_precommitted': 100.0,
+            'diagnostics': diagnostics,
+            'independent_backtest_run': False,
+            'model_promoted': False}
+
+
 def self_test():
     assert len(FIT_SEASONS) == 6 and len(TEAM_IDS) == 30
     assert game_date('Oct 17', 2018) == '2018-10-17'
@@ -247,12 +280,18 @@ if __name__ == '__main__':
     ap.add_argument('--cutoff', default='2026-10-31')
     ap.add_argument('--minimum', type=int, default=MIN_FIT_GAMES)
     ap.add_argument('--self-test', action='store_true')
+    ap.add_argument('--shadow-fit', action='store_true')
     ap.add_argument('--output', default='')
     args = ap.parse_args()
     if args.self_test:
         self_test()
     else:
-        result = audit(date.fromisoformat(args.cutoff), args.minimum)
+        result = audit(date.fromisoformat(args.cutoff), args.minimum,
+                       include_fit_rows=args.shadow_fit)
+        if args.shadow_fit:
+            if result['status'] != 'PASS':
+                raise SystemExit('FIT integrity gate failed; shadow fit prohibited')
+            result['shadow_fit'] = shadow_fit_diagnostics(result.pop('fit_rows'))
         report = json.dumps(result, ensure_ascii=False, indent=2)
         if args.output:
             Path(args.output).write_text(report, encoding='utf-8')
