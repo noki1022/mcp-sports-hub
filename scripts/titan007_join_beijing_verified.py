@@ -162,7 +162,9 @@ def reconcile(fixture,site,odds,target):
         if not accept_match(g,official,g["display_date"],g["display_clock"]):
             reject["SITE_CLOCK_OR_DATE_UNVERIFIED"]+=1;continue
         if mid not in odds:
-            reject["NO_DATE_MARKET_FOR_GAME_ID"]+=1;continue
+            # Preserve a verified fixture and 007 game ID even when Crown ID3
+            # temporarily suspends prices. Jingcai is an independent market.
+            reject["NO_DATE_MARKET_FOR_GAME_ID"]+=1
         bj=datetime.fromisoformat(official["beijing_tip"])
         matched.append({"game_id":mid,"nba_game_id":official["nba_game_id"],
             "league":"NBA","home_team":g["home_team"],"away_team":g["away_team"],
@@ -171,7 +173,7 @@ def reconcile(fixture,site,odds,target):
             "us_eastern_date":official["us_eastern_date"],
             "site_display_date":g["display_date"],"site_display_clock":g["display_clock"],
             "source":"007 dated site verified by ESPN UTC matchup",
-            "markets":odds[mid]})
+            "markets":odds.get(mid) or {"full_spread":{"opening":{},"current":{},"status":"NO_VERIFIED_ID3_SPREAD"},"full_total":{"opening":{},"current":{},"status":"NO_VERIFIED_ID3_TOTAL"}}})
     if len({x["nba_game_id"] for x in matched})!=len(matched):
         raise RuntimeError("MORE_THAN_ONE_007_ID_PER_OFFICIAL_GAME")
     return sorted(matched,key=lambda r:(r["display_clock"],r["game_id"])),dict(reject)
@@ -197,7 +199,9 @@ def run(date,out,*,allow_schedule_only=False):
     ids,odds,coverage,issues,source_errors=source_for_date(date)
     matched,rej=reconcile(fixture,ids,odds,date)
     missing_diagnostics=missing_market_diagnostics(fixture,ids,odds)
-    matched_official={g["nba_game_id"] for g in matched}
+    matched_official={g["nba_game_id"] for g in matched
+        if any((g.get("markets",{}).get(k,{}).get("current") or {}).get("line") is not None
+               for k in ("full_spread","full_total"))}
     missing=[]
     for g in fixture:
         if g["nba_game_id"] in matched_official:continue
@@ -227,7 +231,8 @@ def run(date,out,*,allow_schedule_only=False):
       "source_query_errors":source_errors,
       "unmatched_nba_fixtures":missing,
       "nba_cba_games":matched,
-      "markets_joined_for_date":len(matched),
+      "markets_joined_for_date":len(fixture)-len(missing),
+      "verified_fixture_ids_for_date":len(matched),
       "nba_cba_joined_for_date":len(matched),
       "nba_markets_missing":len(missing),
       "all_scoreboard_matches":len(ids),
@@ -267,6 +272,11 @@ def self_test():
     assert got[0]["site_display_clock"]=="08:00"
     assert got[0]["us_eastern_date"]=="2026-10-30"
     assert got[0]["markets"]["full_spread"]["opening"]=={}
+    no_crown,reasons=reconcile(fixture,{"5":row},{},"2026-10-31")
+    assert len(no_crown)==1 and reasons["NO_DATE_MARKET_FOR_GAME_ID"]==1
+    assert no_crown[0]["markets"]["full_spread"]["current"]=={}
+    assert no_crown[0]["markets"]["full_total"]["status"]=="NO_VERIFIED_ID3_TOTAL"
+
     none,_=reconcile(fixture,{"5":dict(row,display_date="2026-10-30")},{"5":mock},"2026-10-31")
     assert not none
     test=b"<c><match><m>12345,1.5,0.88,0.88,238.5,0.88,0.78,1</m></match></c>"

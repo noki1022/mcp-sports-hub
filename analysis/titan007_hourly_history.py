@@ -49,7 +49,9 @@ def normalized(board):
         if g.get("display_date")!=target or not g.get("home_team") or not g.get("away_team") or g["home_team"]==g["away_team"]:
             raise ValueError("MATCH_IDENTITY_INCONSISTENCY")
         mk={k:{s:point(g,k,s) for s in ("opening","current")} for k in MARKETS}
-        if not any(mk[k]["current"]["line"] is not None for k in ("full_spread","full_total")):
+        # An NBA fixture can have valid JC odds while Crown ID3 is suspended.
+        # Keep its identity and empty Crown markets in movement snapshots.
+        if g["league"]!="NBA" and not any(mk[k]["current"]["line"] is not None for k in ("full_spread","full_total")):
             raise ValueError("NO_VALID_FULL_MARKET")
         games.append({"game_id":gid,"league":g["league"],"display_date":target,
                       "display_clock":g.get("display_clock"),"home_team":g["home_team"],
