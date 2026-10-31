@@ -15,6 +15,7 @@ for(const [date,slot,target] of checks){
   assert.equal(job?.slot,slot,date);assert.equal(job?.target_date,target,date);
 }
 assert.equal(plannedJob(at("2026-10-30T22:00:00Z")),null); // old 06:00
+assert.equal(plannedJob(at("2026-10-30T09:00:00Z")),null); // expired one-off
 const fake={
   async fetch(url,opts){
     if(url.includes("/contents/"))return {status:404,ok:false};
