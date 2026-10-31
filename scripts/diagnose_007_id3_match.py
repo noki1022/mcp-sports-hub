@@ -43,7 +43,7 @@ def run(target):
                 raw,states=breakdown(o)
                 row.update(score_hash=hashlib.sha256(s).hexdigest(),odds_hash=hashlib.sha256(o).hexdigest(),
                     scoreboard=len(identities),nba=sum(v["league"]=="NBA" for v in identities.values()),
-                    odds_raw=len(raw),odds_strict=len(parsed),status=states,
+                    odds_raw=len(raw),odds_any_verified=len(parsed),status=states,
                     rejected_score=len(rejected),rejected_odds=parse_rejected,
                     id_intersection=len(set(identities)&set(raw)))
                 for f in fixtures:
@@ -64,7 +64,7 @@ def test():
     assert raw["10001"]["status"]=="SPREAD_ONLY"
     assert raw["10002"]["status"]=="TOTAL_ONLY"
     assert raw["10003"]["status"]=="BOTH_VALID"
-    assert len(market_entries(xml)[0])==1
+    assert len(market_entries(xml)[0])==3
     print("ID3_FORENSIC_SELFTEST_PASS")
 
 if __name__=="__main__":
