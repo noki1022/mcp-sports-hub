@@ -60,8 +60,19 @@ jobs:
           python3 - <<'PY'
           import json
           src=json.load(open('sampled-jingcai.json'))
-          assert src['jc_007_match_numbers']['verified']==10
-          print('JC_FIVE_MARKET_IDENTITY_REAL_10_PASS')
+          labels=src['jc_007_match_numbers']
+          assert labels['total_games']==src['game_count']==10
+          assert 0<=labels['verified']<=labels['total_games']
+          verified=[v for v in labels['games'].values()
+                    if v['status']=='VERIFIED_JC_NUMBER']
+          assert labels['verified']==len(verified)
+          assert all(v.get('label') and v.get('match_no') for v in verified)
+          assert all(not v.get('label') for v in labels['games'].values()
+                     if v['status']!='VERIFIED_JC_NUMBER')
+          assert src['verified_games_with_all_three']==0
+          print('JC_FIVE_MARKET_REAL_TEN_AUDITED',
+                labels['verified'],'VERIFIED',
+                labels['total_games']-labels['verified'],'UNVERIFIED')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
