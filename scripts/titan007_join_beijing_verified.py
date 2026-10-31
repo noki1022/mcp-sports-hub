@@ -70,21 +70,33 @@ def num(x,minvalue=-10000,maxvalue=10000):
     except (TypeError,ValueError):return None
 
 def market_entries(raw):
+    """Keep individually verified ID3 spread/total; never discard the other market."""
     root=ET.fromstring(raw.decode("gb18030","replace").lstrip("\ufeff"))
     records={};reject=Counter()
     for n in root.findall(".//match/m"):
         v=(n.text or "").split(",")
-        if len(v)<7 or not v[0].isdigit():reject["BAD_ROW_FORMAT"]+=1;continue
+        if not v or not v[0].isdigit():
+            reject["BAD_GAME_ID"]+=1
+            continue
         gid=v[0]
         if gid in records:raise ValueError("DUPLICATE_ODDS_GAME_ID")
-        sp=num(v[1],-80,80);sw1=num(v[2],0.001,9);sw2=num(v[3],0.001,9)
-        tot=num(v[4],80,400);tw1=num(v[5],0.001,9);tw2=num(v[6],0.001,9)
-        if None in (sp,sw1,sw2,tot,tw1,tw2):
-            reject["INVALID_MARKET"]+=1;continue
-        records[gid]={"full_spread":{"opening":{},"current":{"line":sp,
-            "first_side_water":sw1,"second_side_water":sw2}},
-            "full_total":{"opening":{},"current":{"line":tot,
-            "first_side_water":tw1,"second_side_water":tw2}}}
+        def market(field_indices,ranges):
+            if len(v)<=max(field_indices):return None
+            values=[num(v[i],low,high) for i,(low,high) in zip(field_indices,ranges)]
+            if any(x is None for x in values):return None
+            return {"opening":{},"current":{"line":values[0],
+                "first_side_water":values[1],"second_side_water":values[2]}}
+        spread=market((1,2,3),((-80,80),(0.001,9),(0.001,9)))
+        total=market((4,5,6),((80,400),(0.001,9),(0.001,9)))
+        if spread is None:reject["SPREAD_MISSING_OR_INVALID"]+=1
+        if total is None:reject["TOTAL_MISSING_OR_INVALID"]+=1
+        if spread is None and total is None:
+            reject["BOTH_MARKETS_INVALID"]+=1
+            continue
+        records[gid]={"full_spread":spread or {"opening":{},"current":{},
+            "status":"NO_VERIFIED_ID3_SPREAD"},
+            "full_total":total or {"opening":{},"current":{},
+            "status":"NO_VERIFIED_ID3_TOTAL"}}
     return records,dict(reject)
 
 def matchup_key(home,away):
@@ -261,6 +273,14 @@ def self_test():
     parsed,reject=market_entries(test)
     assert parsed["12345"]["full_total"]["current"]["line"]==238.5
     assert parsed["12345"]["full_total"]["opening"]=={}
+    partial=b"<c><match><m>11111,1.5,0.9,0.9,230.5,,0.9</m><m>22222,,0.9,0.9,228.5,0.9,0.9</m></match></c>"
+    separate,bad=market_entries(partial)
+    assert set(separate)=={"11111","22222"}
+    assert separate["11111"]["full_spread"]["current"]["line"]==1.5
+    assert separate["11111"]["full_total"]["status"]=="NO_VERIFIED_ID3_TOTAL"
+    assert separate["22222"]["full_spread"]["status"]=="NO_VERIFIED_ID3_SPREAD"
+    assert separate["22222"]["full_total"]["current"]["line"]==228.5
+    assert bad["SPREAD_MISSING_OR_INVALID"]==1 and bad["TOTAL_MISSING_OR_INVALID"]==1
     print("NBA_US_DAY_BEIJING_007_STRICT_RECONCILIATION_SELFTEST_PASS")
 
 if __name__=="__main__":
