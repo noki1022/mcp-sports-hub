@@ -52,7 +52,7 @@ jobs:
           else
             extra=(--schedule "$GH_HEALTH_SCHEDULE")
           fi
-          python3 scripts/nba_delivery_health.py "${extra[@]}" --send \
+          python3 scripts/nba_delivery_health.py "${extra[@]}" --send --recover \
             --out nba_delivery_health.json --alert-marker-out reports/delivery-alert-sent/health-check.json
       - name: Auto-recover a missed fixed-slot trigger when safe
         run: |
@@ -62,6 +62,19 @@ jobs:
           python3 scripts/nba_delivery_recovery.py \
             --slot "$RECOVERY_SLOT" --target-date "$RECOVERY_TARGET" \
             --out nba_recovery_result.json
+      - name: Persist accepted recovery dispatch request for idempotency
+        run: |
+          git add reports/delivery-recovery-dispatched/ 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git commit -m "Record NBA watchdog recovery dispatch acceptance"
+            for n in 1 2 3; do
+              if git push origin HEAD:main; then exit 0; fi
+              git pull --rebase origin main
+            done
+            exit 1
+          fi
       - name: Save unique alert marker when PushPlus accepted
         run: |
           python3 - <<'PY'
