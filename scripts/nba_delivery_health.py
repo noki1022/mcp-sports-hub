@@ -65,7 +65,7 @@ def infer_slot(schedule:str,now:datetime)->tuple[str,str]:
         if schedule not in SCHEDULES:raise ValueError("UNKNOWN_HEALTH_CRON")
         slot=SCHEDULES[schedule][0]
     target=local.date()
-    if slot in FIXED or slot=="2130" or slot in ("2230","2330"):
+    if slot in FIXED or slot=="2130" or (slot in ("2230","2330") and local.hour>=22):
         target+=timedelta(days=1)
     return slot,target.isoformat()
 
