@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/nba_delivery_health.py'
+      - 'scripts/nba_delivery_recovery.py'
       - '.github/workflows/nba-delivery-health-watchdog.yml'
       - '.github/workflows/titan007-final-hourly.yml'
       - '.github/workflows/verify-nba-delivery-health.yml'
@@ -19,6 +20,7 @@ jobs:
         run: |
           python3 -m py_compile scripts/nba_delivery_health.py
           python3 scripts/nba_delivery_health.py --self-test
+          python3 scripts/nba_delivery_recovery.py --self-test
           python3 -m pip install --quiet PyYAML==6.0.2
           python3 scripts/validate_nba_schedules.py
           python3 - <<'PY'
@@ -31,6 +33,8 @@ jobs:
           assert 'if: steps.hourly_gate.outputs.skip' in hourly
           assert 'reports/pushplus-sent/' in hourly
           assert 'GITHUB_TOKEN:' in health and 'PUSHPLUS_TOKEN:' in health
+          assert 'actions: write' in health
+          assert 'nba_delivery_recovery.py' in health
           assert '--alert-marker-out' in health
           assert '55 14-21 * * *' in health
           for path in ('.github/workflows/titan007-final-hourly.yml',
