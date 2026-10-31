@@ -47,7 +47,7 @@ def score(y,mu,sig):
 def main(out, return_paired=False):
     sources={}
     frames=[];reports=[]
-    for s,year in (("2022-23",2023),("2023-24",2024)):
+    for s,year in (("2022-23",2023),("2023-24",2024),("2024-25",2025),("2025-26",2026)):
         player_url=BASE_LOG+"game_logs_"+s+".parquet"
         injury_url=BASE_INJ+"injury_report_"+str(year)+".parquet"
         f,h=load(player_url);j,g=load(injury_url)
