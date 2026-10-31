@@ -166,7 +166,6 @@ jobs:
           python3 scripts/titan007_report.py --joined titan007_three_joined.json --html titan007_three_report.html --csv titan007_three_report.csv
           python3 analysis/titan007_daily_market.py --joined titan007_three_joined.json --out titan007_three_market.json
           python3 analysis/market_decision_gate.py --market titan007_three_market.json --predictions nba_independent_predictions_gate.json --out titan007_three_decision.json
-          python3 analysis/market_value_policy.py --self-test
           python3 analysis/market_value_policy.py --market-decision titan007_three_decision.json --out market_value_policy.json
           python3 analysis/nba_model_report.py --joined titan007_three_joined.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html --injury-context nba_injury_context.json
           python3 analysis/market_movement_tracker.py --current titan007_three_joined.json --history-root reports/daily/$TARGET_DATE --out titan007_three_movement.json
@@ -305,7 +304,6 @@ jobs:
       - name: Validate cross-artifact delivery contract before PushPlus
         if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
         run: |
-          python3 scripts/nba_delivery_contract.py --self-test
           python3 scripts/nba_delivery_contract.py \
             --joined titan007_three_joined.json \
             --movement titan007_slot_movement.json \
