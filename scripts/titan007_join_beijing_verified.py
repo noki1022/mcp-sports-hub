@@ -180,7 +180,7 @@ def missing_market_diagnostics(fixture, site, odds):
                      "id3_dated_market":"MISSING"})
     return rows
 
-def run(date,out):
+def run(date,out,*,allow_schedule_only=False):
     fixture,sources=fetch_schedule(date)
     ids,odds,coverage,issues,source_errors=source_for_date(date)
     matched,rej=reconcile(fixture,ids,odds,date)
@@ -233,7 +233,11 @@ def run(date,out):
          "missing":missing,"coverage":coverage,"query_errors":source_errors,
          "reject":rej,"missing_id3_ids":missing_diagnostics,"status":output["report_quality"]},ensure_ascii=False),flush=True)
     if fixture and not matched:
-        raise RuntimeError("OFFICIAL_BEIJING_GAMES_EXIST_BUT_007_MARKETS_ZERO")
+        if not allow_schedule_only:
+            raise RuntimeError("OFFICIAL_BEIJING_GAMES_EXIST_BUT_007_MARKETS_ZERO")
+        # This is only permission to preserve the verified fixture identity.
+        # All model/market and PushPlus acceptance gates remain strict.
+        print("SCHEDULE_ONLY_CAPTURE_NO_VERIFIED_007_QUOTES",len(fixture),flush=True)
     return output
 
 def self_test():
@@ -264,6 +268,8 @@ if __name__=="__main__":
     p.add_argument("--date",default="2026-10-31")
     p.add_argument("--out",default="titan007_three_joined.json")
     p.add_argument("--self-test",action="store_true")
+    p.add_argument("--allow-schedule-only",action="store_true",
+                   help="Record official fixture cohort when ID3 is not yet offered; never produce predictions")
     a=p.parse_args()
     if a.self_test:self_test()
-    else:run(a.date,a.out)
+    else:run(a.date,a.out,allow_schedule_only=a.allow_schedule_only)
