@@ -38,9 +38,12 @@ def decision(root,slot,target,now,runs,run_error=None):
         info["reason"]="CANNOT_CONFIRM_RUNNING_JOBS_"+str(run_error);return info
     hint,count=run_hint(runs,slot,target)
     info["existing_run_count"]=count
-    if hint!="NO_RECORDED_WORKFLOW_TRIGGER":
+    # An already-failed run is not a success. Allow exactly one bounded rescue
+    # after all relevant runs have completed; active jobs remain non-retriable.
+    if hint not in ("NO_RECORDED_WORKFLOW_TRIGGER","WORKFLOW_FAILED"):
         info["reason"]=hint;return info
-    info["action"]="DISPATCH";info["reason"]="NO_TRIGGER_AND_WITHIN_WINDOW"
+    info["action"]="DISPATCH"
+    info["reason"]="ALL_RUNS_FAILED_WITHIN_WINDOW" if hint=="WORKFLOW_FAILED" else "NO_TRIGGER_AND_WITHIN_WINDOW"
     return info
 
 def dispatch(repo,token,slot,target):
@@ -69,7 +72,12 @@ def self_test():
                  "status":"in_progress","conclusion":None}]
         assert decision(root,slot,target,at,active)["action"]=="NO_DISPATCH"
         completed=[{**active[0],"status":"completed","conclusion":"failure"}]
-        assert decision(root,slot,target,at,completed)["action"]=="NO_DISPATCH"
+        retried=decision(root,slot,target,at,completed)
+        assert retried["action"]=="DISPATCH" and retried["reason"]=="ALL_RUNS_FAILED_WITHIN_WINDOW"
+        running_and_failed=[completed[0],active[0]]
+        assert decision(root,slot,target,at,running_and_failed)["action"]=="NO_DISPATCH"
+        successful=[{**active[0],"status":"completed","conclusion":"success"}]
+        assert decision(root,slot,target,at,successful)["action"]=="NO_DISPATCH"
         dedup=root/"reports/delivery-recovery-dispatched"/target/(slot+".json")
         dedup.parent.mkdir(parents=True,exist_ok=True)
         dedup.write_text(json.dumps({"state":"DISPATCH_HTTP_204_ACCEPTED_NOT_REPORT_DELIVERED"}))
@@ -110,7 +118,7 @@ def main():
             marker=Path("reports/delivery-recovery-dispatched")/args.target_date/(args.slot+".json")
             marker.parent.mkdir(parents=True,exist_ok=True)
             marker.write_text(json.dumps({"state":report["status"],"slot":args.slot,
-                "target_date":args.target_date,"at_beijing":datetime.now(BJ).isoformat()})+"\\n",
+                "target_date":args.target_date,"at_beijing":datetime.now(BJ).isoformat()})+"\n",
                 encoding="utf-8")
         except (OSError,ValueError,RuntimeError,urllib.error.HTTPError) as exc:
             report["status"]="DISPATCH_FAILED"
