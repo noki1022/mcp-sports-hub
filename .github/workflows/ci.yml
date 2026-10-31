@@ -16,6 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify early fixed-slot gate, remote dedup, and safe retry
+        run: python3 scripts/nba_fixed_slot_gate.py --self-test
+
       - name: Verify NBA official injury watch pretip safety
         run: python3 analysis/nba_injury_watch.py --mode self-test
 

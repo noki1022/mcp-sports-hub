@@ -20,25 +20,38 @@ jobs:
       - name: Verify Beijing 14:00 fixed report and recovery slot mapping
         run: |
           python3 - <<'PY'
+          from datetime import datetime
           from pathlib import Path
-          s=Path('.github/workflows/titan007-three-analysis.yml').read_text()
-          for cron in ('0 6 * * *','15 6 * * *','30 6 * * *'):
+          import sys
+          sys.path.insert(0, str(Path("scripts").resolve()))
+          from nba_fixed_slot_gate import SCHEDULE_SLOTS,resolve_slot,marker_is_accepted
+          s=Path(".github/workflows/titan007-three-analysis.yml").read_text()
+          now=datetime.fromisoformat("2026-10-31T14:15:00+08:00")
+          for cron in ("0 6 * * *","15 6 * * *","30 6 * * *"):
               assert f'- cron: "{cron}"' in s
-              assert f"'{cron}':'1400'" in s
-          assert 'marker="reports/pushplus-sent/${TARGET_DATE}/${REPORT_SLOT}.json"' in s
-          assert 'python3 scripts/pushplus_mobile.py --mode three' in s
-          print('BEIJING_1400_RECOVERY_SLOT_TEST_PASS')
+              assert SCHEDULE_SLOTS[cron]=="1400"
+              assert resolve_slot(cron,"",now)=="1400"
+          assert "python3 scripts/nba_fixed_slot_gate.py --phase preflight" in s
+          assert "python3 scripts/nba_fixed_slot_gate.py --phase recheck" in s
+          assert "python3 scripts/pushplus_mobile.py --mode three" in s
+          print("BEIJING_1400_RECOVERY_SLOT_TEST_PASS")
           PY
       - name: Verify 15 and 18 dynamic delivery and dedup mappings
         run: |
           python3 - <<'PY'
+          from datetime import datetime
           from pathlib import Path
+          import sys
+          sys.path.insert(0, str(Path("scripts").resolve()))
+          from nba_fixed_slot_gate import SCHEDULE_SLOTS,resolve_slot
           s=Path(".github/workflows/titan007-three-analysis.yml").read_text()
+          now=datetime.fromisoformat("2026-10-31T18:30:00+08:00")
           for hour,slot in (("7","1500"),("10","1800")):
               for minute in ("0","15","30"):
                   expr=f"{minute} {hour} * * *"
                   assert f'- cron: "{expr}"' in s
-                  assert f"'{expr}':'{slot}'" in s
+                  assert SCHEDULE_SLOTS[expr]==slot
+                  assert resolve_slot(expr,"",now)==slot
           assert "nba_hourly_dynamic_review.py" in s
           assert "--dynamic nba_slot_dynamic_review.json" in s
           assert s.index("git pull --ff-only origin main")<s.index("titan007_hourly_history.py capture")
