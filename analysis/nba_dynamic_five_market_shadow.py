@@ -39,7 +39,7 @@ def evaluate(joined,model,five,jingcai=None,consensus=None,injury=None,previous=
     for gid,game in games.items():
         p=preds.get(gid,{})
         f=frozen.get(gid,{})
-        if gid not in f or (game.get("home_team"),game.get("away_team")) != (f.get("home_team"),f.get("away_team")):
+        if not f or (game.get("home_team"),game.get("away_team")) != (f.get("home_team"),f.get("away_team")):
             raise ValueError("TEAM_IDENTITY_MISMATCH:"+gid)
         margin=n(p.get("margin_mean_home_minus_away"))
         total=n(p.get("total_mean"))
