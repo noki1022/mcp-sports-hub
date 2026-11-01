@@ -28,9 +28,9 @@ assert.equal(plannedJobs(at("2026-10-30T14:30:00Z")).some(x => x.kind === "hourl
 
 assert.deepEqual(kinds("2026-10-30T14:30:00Z", CRONS.REVIEW), ["night_review"]);
 assert.deepEqual(kinds("2026-10-30T22:45:00Z", CRONS.REVIEW), ["night_review"]);
-assert.deepEqual(kinds("2026-10-30T08:00:00Z", CRONS.FIXED), ["odds_settlement"]);
-assert.deepEqual(kinds("2026-10-30T20:00:00Z", CRONS.FIXED), ["offline_regression"]);
-assert.equal(plannedJobs(at("2026-10-30T08:05:00Z"), CRONS.FIXED)[0].kind, "odds_settlement");
+assert.deepEqual(kinds("2026-10-30T08:01:00Z", CRONS.FIXED), ["odds_settlement"]);
+assert.deepEqual(kinds("2026-10-30T20:01:00Z", CRONS.FIXED), ["offline_regression"]);
+assert.equal(plannedJobs(at("2026-10-30T08:06:00Z"), CRONS.FIXED)[0].kind, "odds_settlement");
 
 const acceptedFixed = {
   async fetch(url) {
