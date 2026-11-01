@@ -1,0 +1,53 @@
+name: NBA shadow forward feature and residual calibration research
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_shadow_forward_improvement.py'
+      - '.github/workflows/nba-shadow-forward-improvement.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned numerical dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Offline anti-leakage and probability tests
+        run: |
+          python3 analysis/nba_chronological_backtest.py --self-test
+          python3 analysis/nba_pregame_context.py
+          python3 analysis/nba_shadow_forward_improvement.py --self-test
+      - name: Run development-only forward folds (through 2025-04-13 only)
+        run: python3 analysis/nba_shadow_forward_improvement.py --out /tmp/nba-shadow-forward-improvement.json
+      - name: Assert production and automation untouched
+        run: |
+          python3 - <<'PY'
+          import json
+          r=json.load(open('/tmp/nba-shadow-forward-improvement.json'))
+          assert r['previously_viewed_2025_26_holdout_accessed'] is False
+          assert r['previously_viewed_2026_27_monitor_accessed'] is False
+          assert r['production_changed'] is False
+          assert r['scheduler_changed'] is False
+          assert r['pushplus_changed'] is False
+          assert r['decision']=='NO_BET'
+          assert len(r['folds'])==4
+          assert all(x['same_date_grouped_splits'] and x['all_feature_dates_pre_game'] for x in r['folds'])
+          assert r['pooled_metrics_across_disjoint_evaluation_windows']['regression']
+          assert r['pooled_paired_calendar_day_bootstrap']
+          print('NBA_SHADOW_FORWARD_RESEARCH_ACCEPTED_NO_PROMOTION')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-shadow-forward-improvement
+          path: /tmp/nba-shadow-forward-improvement.json
+          if-no-files-found: warn
+          retention-days: 30
