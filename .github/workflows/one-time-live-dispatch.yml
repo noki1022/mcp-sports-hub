@@ -1,0 +1,51 @@
+name: One-time live Titan007 dispatch bridge
+on:
+  push:
+    paths:
+      - 'reports/one-time-run-20261101.json'
+permissions:
+  actions: write
+  contents: write
+jobs:
+  dispatch:
+    if: contains(github.event.head_commit.added, 'reports/one-time-run-20261101.json')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Dispatch production workflow once and remove bridge
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            await github.rest.actions.createWorkflowDispatch({
+              owner,
+              repo,
+              workflow_id: "titan007-three-analysis.yml",
+              ref: "main",
+              inputs: {
+                report_slot: "ONCE",
+                target_date: "2026-11-02"
+              }
+            });
+            core.notice("ONE_TIME_LIVE_TITAN007_DISPATCH_ACCEPTED target=2026-11-02 slot=ONCE");
+            for (const path of [
+              "reports/one-time-run-20261101.json",
+              ".github/workflows/one-time-live-dispatch.yml"
+            ]) {
+              try {
+                const current = await github.rest.repos.getContent({
+                  owner, repo, path, ref: "main"
+                });
+                if (Array.isArray(current.data) || !current.data.sha) continue;
+                await github.rest.repos.deleteFile({
+                  owner, repo, path,
+                  message: "Remove temporary one-time live dispatch bridge",
+                  sha: current.data.sha,
+                  branch: "main"
+                });
+                core.info("TEMPORARY_BRIDGE_CLEANED " + path);
+              } catch (error) {
+                core.warning("BRIDGE_CLEANUP_PENDING " + path + " " + error.message);
+              }
+            }
