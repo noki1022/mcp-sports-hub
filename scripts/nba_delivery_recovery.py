@@ -16,8 +16,10 @@ BJ=ZoneInfo("Asia/Shanghai")
 # have a strict cutoff earlier than this watchdog's first normal check.
 RECOVERABLE={"1200","1400","1500","1800","2100","2130","0630"}
 WINDOW_MINUTES=65
-# Run at 21:45/06:45 only. No rescue after the presend cutoff.
-PRIORITY_RECOVERY_WINDOWS={"2130":(12,22),"0630":(12,22)}
+# Start recovery at the first watchdog check (+5m), then let the same
+# Beijing-tipoff preflight gates used by production decide whether a complete
+# report can still be built safely. Never replay a stale pre-tip report.
+PRIORITY_RECOVERY_WINDOWS={"2130":(5,22),"0630":(5,180)}
 
 def decision(root,slot,target,now,runs,run_error=None):
     info={"slot":slot,"target_date":target,"action":"NO_DISPATCH","reason":None}
@@ -53,6 +55,31 @@ def decision(root,slot,target,now,runs,run_error=None):
     lower,upper=PRIORITY_RECOVERY_WINDOWS.get(slot,(35,WINDOW_MINUTES))
     if not (lower<=elapsed<=upper):
         info["reason"]="OUTSIDE_RECOVERY_WINDOW";return info
+    if slot=="0630":
+        # Match the production morning gate: require at least one game from
+        # the immutable 21:30 cohort to remain >=20 minutes pre-tip.
+        try:
+            from nba_0630_priority_gate import decide as morning_gate
+            gate=morning_gate(now,"preflight",root)
+        except (OSError,ValueError,KeyError,TypeError,RuntimeError) as exc:
+            info["reason"]="MORNING_COHORT_OR_TIPOFF_UNVERIFIED_"+type(exc).__name__
+            return info
+        if not gate.get("run_report"):
+            info["reason"]="NO_SAFE_REMAINING_PRETIP_GAME"
+            info["morning_gate"]=gate
+            return info
+        info["eligible_games_by_time"]=gate.get("eligible_games_by_time",0)
+        info["earliest_locked_tip_beijing"]=gate.get("earliest_locked_tip_beijing")
+    elif slot=="2130":
+        try:
+            from nba_2130_priority_gate import decide as evening_gate
+            gate=evening_gate(now,"preflight")
+        except (ValueError,TypeError) as exc:
+            info["reason"]="EVENING_PRIORITY_TIME_UNVERIFIED_"+type(exc).__name__
+            return info
+        if not gate.get("ok"):
+            info["reason"]="OUTSIDE_2130_PRE_CUTOFF_WINDOW"
+            return info
     if runs is None:
         info["reason"]="CANNOT_CONFIRM_RUNNING_JOBS_"+str(run_error);return info
     hint,count=run_hint(runs,slot,target)
@@ -132,9 +159,34 @@ def self_test():
         t=datetime.fromisoformat("2026-10-31T21:45:00+08:00")
         assert decision(root,"2130","2026-11-01",t,[])["action"]=="DISPATCH"
         assert decision(root,"2130","2026-11-01",datetime.fromisoformat("2026-10-31T21:57:00+08:00"),[])["action"]=="NO_DISPATCH"
-        morn=datetime.fromisoformat("2026-11-01T06:45:00+08:00")
-        assert decision(root,"0630","2026-11-01",morn,[])["action"]=="DISPATCH"
-        assert decision(root,"0630","2026-11-01",datetime.fromisoformat("2026-11-01T07:00:00+08:00"),[])["action"]=="NO_DISPATCH"
+        # Dynamic morning recovery uses the immutable official cohort and
+        # the same 20-minute preflight lead as the production report.
+        cohort=root/"reports/overnight-cohorts/2026-11-01/2130.json"
+        cohort.parent.mkdir(parents=True,exist_ok=True)
+        cohort.write_text(json.dumps({"target_date":"2026-11-01","source_slot":"2130",
+            "official_games":{"early":{"tip":"2026-11-01T07:00:00+08:00"},
+                              "late":{"tip":"2026-11-01T06:50:00+08:00"}},
+            "priced_nba_to_007":{"early":"7281","late":"7282"}}))
+        morn_early=datetime.fromisoformat("2026-11-01T06:35:00+08:00")
+        early=decision(root,"0630","2026-11-01",morn_early,[])
+        assert early["action"]=="DISPATCH" and early["eligible_games_by_time"]==1
+        # A 07:00 game is too close at 06:45; do not replay stale prices.
+        cohort.write_text(json.dumps({"target_date":"2026-11-01","source_slot":"2130",
+            "official_games":{"early":{"tip":"2026-11-01T07:00:00+08:00"}},
+            "priced_nba_to_007":{"early":"7281"}}))
+        too_late=decision(root,"0630","2026-11-01",
+            datetime.fromisoformat("2026-11-01T06:45:00+08:00"),[])
+        assert too_late["action"]=="NO_DISPATCH" and too_late["reason"]=="NO_SAFE_REMAINING_PRETIP_GAME"
+        # A later locked game keeps the recovery path open even after the old
+        # fixed +22-minute window; the gate, not a hard-coded delay, decides.
+        cohort.write_text(json.dumps({"target_date":"2026-11-01","source_slot":"2130",
+            "official_games":{"late":{"tip":"2026-11-01T09:30:00+08:00"}},
+            "priced_nba_to_007":{"late":"7282"}}))
+        morn_late=datetime.fromisoformat("2026-11-01T07:15:00+08:00")
+        late=decision(root,"0630","2026-11-01",morn_late,[])
+        assert late["action"]=="DISPATCH" and late["eligible_games_by_time"]==1
+        assert decision(root,"0630","2026-11-01",
+            datetime.fromisoformat("2026-11-01T10:00:00+08:00"),[])["action"]=="NO_DISPATCH"
         assert decision(root,"2130","2026-11-01",t,None,"NETWORK")["action"]=="NO_DISPATCH"
         active_priority=[{"event":"schedule","created_at":"2026-10-31T13:30:00Z",
                           "status":"in_progress","conclusion":None}]
