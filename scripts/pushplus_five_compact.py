@@ -121,6 +121,26 @@ def market_row(key, obj):
             label += " · 弱"
     if obj.get("quote_freshness") == "ARCHIVED_PRIOR_NOT_LIVE":
         label += " · 历史盘"
+    consensus = obj.get("market_consensus") or {}
+    price_status = consensus.get("market_price_consensus_status")
+    market_probability = number(
+        consensus.get("market_price_probability_for_model_direction"))
+    company_count = int(consensus.get("same_line_company_count") or 0)
+    consensus_line = number(consensus.get("consensus_line"))
+    if price_status == "AVAILABLE_SAME_LINE_MEDIAN" and market_probability is not None:
+        line_note = (("，共识主队盘口 " + fmt(-consensus_line, signed=True))
+                     if key.endswith("HANDICAP") and consensus_line is not None else
+                     ("，共识总分线 " + fmt(consensus_line))
+                     if consensus_line is not None else "")
+        line_fit = ("本玩法同线" if consensus.get("direct_line_matches_price_reference") is True
+                    else "共识线参考")
+        label += (" · 同线市场 " + percent(market_probability) + "（" +
+                  str(company_count) + "家" + line_note + "，" + line_fit + "）")
+        gap = number(consensus.get("model_minus_market_probability_for_model_direction"))
+        if gap is not None:
+            label += " · 模型-市场 " + fmt(gap * 100, signed=True) + "pp"
+    elif price_status == "INSUFFICIENT_SAME_LINE_COMPANIES":
+        label += " · 同线市场样本不足"
     return label
 
 
@@ -329,8 +349,16 @@ def self_test():
                  "JINGCAI_HANDICAP": mk("AWAY_COVER", signed_home_handicap=-4.5,
                                         model_direction_probability=0.562),
                  "JINGCAI_TOTAL": mk("OVER", line=221.5, model_direction_probability=0.633),
-                 "CROWN_HANDICAP": {"status": "CROWN_QUOTE_NOT_VERIFIED"},
-                 "CROWN_TOTAL": {"status": "CROWN_QUOTE_NOT_VERIFIED"},
+                 "CROWN_HANDICAP": mk("HOME_COVER", signed_home_handicap=-5.5,
+                     model_direction_probability=.61,
+                     market_consensus={"market_price_consensus_status":"AVAILABLE_SAME_LINE_MEDIAN",
+                         "market_price_probability_for_model_direction":.56,
+                         "same_line_company_count":5,"consensus_line":5.5,
+                         "direct_line_matches_price_reference":True,
+                         "model_minus_market_probability_for_model_direction":.05}),
+                 "CROWN_TOTAL": mk("OVER", line=230.5, model_direction_probability=.61,
+                     market_consensus={"market_price_consensus_status":"INSUFFICIENT_SAME_LINE_COMPANIES",
+                         "same_line_company_count":2}),
              }}
     game = {"game_id": "728884", "home_team": "休斯顿火箭",
             "away_team": "俄克拉荷马城雷霆", "display_clock": "08:30",
@@ -339,7 +367,7 @@ def self_test():
     assert match_label(game, "2026-11-02")[0] == "编号待核"
     game["five_market_forecast"]["tipoff_beijing"]="2026-11-01T08:30:00+08:00"
     h = render_compact([game], {}, "赛前", "2026-11-01", "three")
-    for v in ("北京时间 08:30 开赛", "周六316", "用户确认", "客+4.5 赢盘", "大221.5", "55.5%", "盘口未核实"):
+    for v in ("北京时间 08:30 开赛", "周六316", "用户确认", "客+4.5 赢盘", "大221.5", "55.5%", "同线市场样本不足"):
         assert v in h, v
     for bad in ("七步分析", "007多机构横向比较", "本小时动态研判", "模型 vs 盘口"):
         assert bad not in h, bad
@@ -359,6 +387,10 @@ def self_test():
     assert market_row("JINGCAI_HANDICAP", sample).startswith("客-6.5 赢盘")
     assert market_row("CROWN_HANDICAP", {"status": "CROWN_QUOTE_NOT_VERIFIED"}) == "盘口未核实"
     assert "61.0%（未校准）" in market_row("CROWN_TOTAL",mk("OVER",line=230.5,model_direction_probability=.61))
+    crown = market_row("CROWN_HANDICAP",fcast["markets"]["CROWN_HANDICAP"])
+    assert "同线市场 56.0%（5家，共识主队盘口 -5.5，本玩法同线）" in crown
+    assert "模型-市场 +5.0pp" in crown
+    assert "同线市场样本不足" in market_row("CROWN_TOTAL",fcast["markets"]["CROWN_TOTAL"])
     print("COMPACT_FIVE_MARKET_IPHONE_SELF_TEST_PASS")
 
 
