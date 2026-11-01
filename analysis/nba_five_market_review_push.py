@@ -114,7 +114,7 @@ def self_test():
             k:{"direction":"AWAY_WIN" if k=="JINGCAI_WIN" else "HOME_COVER",
                "signed_home_handicap":7.5,"outcome":"HIT"} for k in MARKETS}}]}
     output=html_report(s)
-    assert output.count("命中率")==2 and "周五314" in output
+    assert "五玩法命中率" in output and "周五314" in output
     assert "主：主" in output and "客：客" in output
     assert all(LABELS[k] in output for k in MARKETS)
     assert missed_actual({"home_points":115,"away_points":115},{"outcome":"MISS","direction":"OVER","line":232})==" · 实际比分115:115（实际总分230，小分）"
