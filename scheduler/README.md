@@ -21,7 +21,8 @@ Automatic overnight hourly market capture/analysis after 21:30 remains disabled.
 wrangler.toml defines four Cron Triggers:
 1. Every fifteen minutes — official-final settlement checks only.
 2. Every five minutes during the pregame window — injury watch, morning retries and morning delivery recovery.
-3. Bounded fixed-time trigger — scheduled reports, evening priority and delivery recovery, plus the 16:00 odds settlement failover.\n4. Dedicated 04:00 Beijing trigger — offline full-chain regression only.
+3. Bounded fixed-time trigger — scheduled reports, evening priority and delivery recovery, plus the 16:00 odds settlement failover.
+4. Dedicated 04:00 Beijing trigger — offline full-chain regression only.
 
 This uses four triggers, leaving headroom under the current Cloudflare Free account limit of five Cron Triggers. The Worker does not wake for the removed 22:30–05:30 hourly market-monitoring schedule.
 
