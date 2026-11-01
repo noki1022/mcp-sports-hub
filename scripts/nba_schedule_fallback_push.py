@@ -9,13 +9,14 @@ from datetime import datetime
 from html import escape
 import json
 import os
+import re
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from titan007_join_beijing_verified import fetch_schedule
 from pushplus_mobile import send
 
 def slot_label(slot):
-    return "一次性手动运行" if slot=="ONCE" else slot[:2]+":"+slot[2:]
+    return "一次性手动运行" if slot=="ONCE" or slot.startswith("ONCE-") else slot[:2]+":"+slot[2:]
 
 
 def build(fixtures, target, slot):
@@ -60,7 +61,7 @@ def main():
         assert "一次性手动运行" in build(sample,"2026-11-01","ONCE")
         print("SCHEDULE_FALLBACK_SELF_TEST_PASS")
         return
-    if args.slot not in ("1200","1400","1500","1800","2100","ONCE"):
+    if args.slot not in ("1200","1400","1500","1800","2100","ONCE") and not re.fullmatch(r"ONCE-[A-Z0-9-]{1,40}",args.slot):
         raise RuntimeError("NOT_A_REGULAR_REPORT_SLOT")
     if datetime.fromisoformat(args.target).date() < datetime.now(ZoneInfo("Asia/Shanghai")).date():
         raise RuntimeError("EXPIRED_TARGET_DATE")
