@@ -12,6 +12,7 @@ from pathlib import Path
 
 DIRECT_KEYS=("JINGCAI_WIN","JINGCAI_HANDICAP","JINGCAI_TOTAL","CROWN_HANDICAP","CROWN_TOTAL")
 MIN_SAMPLE_FOR_FUSION_REVIEW=100
+MIN_DISTINCT_DAYS_FOR_FUSION_REVIEW=24
 
 
 def dt(value):
@@ -34,7 +35,7 @@ def num(value):
 def _metrics(rows):
     n=len(rows)
     if not n:
-        return {"sample_count":0,"accuracy":None,"brier":None,"log_loss":None,
+        return {"sample_count":0,"distinct_days":0,"accuracy":None,"brier":None,"log_loss":None,
                 "calibration_gap":None}
     eps=1e-12
     acc=sum(int((r["probability"]>=.5)==bool(r["outcome"])) for r in rows)/n
@@ -43,7 +44,8 @@ def _metrics(rows):
             (1-r["outcome"])*math.log(max(eps,1-r["probability"])) for r in rows)/n
     gap=abs(sum(r["probability"] for r in rows)/n-
             sum(r["outcome"] for r in rows)/n)
-    return {"sample_count":n,"accuracy":round(acc,6),"brier":round(brier,7),
+    return {"sample_count":n,"distinct_days":len({r.get("day") for r in rows}),
+            "accuracy":round(acc,6),"brier":round(brier,7),
             "log_loss":round(ll,7),"calibration_gap":round(gap,7)}
 
 
@@ -56,6 +58,8 @@ def evaluate(settlements, forecasts):
             forecast_index[(str(doc.get("target_date")),str(game.get("game_id")))].append((doc,game))
     direct_records={}
     consensus=defaultdict(list)
+    market_price=defaultdict(list)
+    model_first_side=defaultdict(list)
     rejects=Counter()
     seen_consensus=set()
     for settlement in settlements:
@@ -144,21 +148,56 @@ def evaluate(settlements, forecasts):
                     "probability":p,"outcome":int(direction==actual_side),
                     "game_id":gid,"day":day,"capture":latest.isoformat(),
                     "line":line,"direction":direction})
+                first_side = "HOME_COVER" if kind == "SPREAD" else "OVER"
+                first_side_outcome = int(actual_side == first_side)
+                model_first_p = num(
+                    ctx.get("model_home_cover_probability_at_consensus_line")
+                    if kind == "SPREAD" else
+                    ctx.get("model_over_probability_at_consensus_line"))
+                if model_first_p is not None and 0 <= model_first_p <= 1:
+                    model_first_side[kind].append({
+                        "probability": model_first_p, "outcome": first_side_outcome,
+                        "game_id": gid, "day": day, "capture": latest.isoformat()})
+                else:
+                    rejects["MODEL_FIRST_SIDE_PROBABILITY_MISSING"] += 1
+                price = ctx.get("same_line_price_consensus") or {}
+                price_line = num(price.get("reference_line"))
+                price_p = num(price.get("first_side_probability"))
+                price_latest = dt(price.get("latest_source_capture_utc"))
+                price_count = int(price.get("company_count") or 0)
+                if (price.get("status") == "AVAILABLE_SAME_LINE_MEDIAN"
+                        and price_line is not None and abs(price_line-line) <= 1e-6
+                        and price_p is not None and 0 <= price_p <= 1
+                        and price_count >= 3 and price_latest is not None
+                        and price_latest < tip
+                        and abs((price_latest-doc_capture).total_seconds()) <= 900):
+                    market_price[kind].append({
+                        "probability": price_p, "outcome": first_side_outcome,
+                        "game_id": gid, "day": day, "capture": price_latest.isoformat(),
+                        "line": price_line, "company_count": price_count})
+                else:
+                    rejects["SAME_LINE_MARKET_PRICE_CONSENSUS_UNAVAILABLE"] += 1
                 seen_consensus.add(key)
     direct=defaultdict(list)
     for (_,_,market),record in direct_records.items():
         direct[market].append({k:v for k,v in record.items() if k!="doc_capture"})
     metrics={k:_metrics(direct[k]) for k in DIRECT_KEYS}
     metrics.update({k:_metrics(consensus[k]) for k in ("CONSENSUS_SPREAD","CONSENSUS_TOTAL")})
+    for kind in ("SPREAD", "TOTAL"):
+        metrics["MODEL_FIRST_SIDE_"+kind] = _metrics(model_first_side[kind])
+        metrics["MULTI_COMPANY_PRICE_"+kind] = _metrics(market_price[kind])
     return {
-        "schema_version":"nba-007-market-consensus-shadow-scorecard-v1",
+        "schema_version":"nba-007-market-consensus-shadow-scorecard-v2",
         "metrics":metrics,
         "minimum_sample_for_fusion_review":MIN_SAMPLE_FOR_FUSION_REVIEW,
-        "fusion_eligible":{k:(v["sample_count"]>=MIN_SAMPLE_FOR_FUSION_REVIEW)
+        "minimum_distinct_days_for_fusion_review":MIN_DISTINCT_DAYS_FOR_FUSION_REVIEW,
+        "fusion_eligible":{k:(v["sample_count"]>=MIN_SAMPLE_FOR_FUSION_REVIEW
+                           and v["distinct_days"]>=MIN_DISTINCT_DAYS_FOR_FUSION_REVIEW)
                            for k,v in metrics.items()},
         "probability_fusion":"DISABLED_NO_WEIGHT_FIT_OR_PRODUCTION_OVERRIDE",
+        "fusion_review_policy":"AT_LEAST_100_MATCHED_EVENTS_AND_24_BEIJING_DATES; NO_AUTOMATIC_PROMOTION",
         "selection_policy":"EXACT_FROZEN_SOURCE_CAPTURE_MATCH_PRETIP_ONLY",
-        "source_orientation":"RAW_MULTI_COMPANY_WATER_SLOTS_NOT_USED_AS_HOME_AWAY_PROBABILITIES",
+        "source_orientation":"USER_CONFIRMED_007_FIRST_SIDE_HOME_OR_OVER; EXACT_SAME_LINE_NO_VIG_ONLY",
         "moneyline_consensus":"NOT_AVAILABLE_NO_DIRECT_MULTI_COMPANY_H2H_FEED",
         "rejections":dict(sorted(rejects.items())),
         "not_betting_advice":True,
@@ -185,10 +224,18 @@ def self_test():
     settled_markets={}
     for key,direction in (("JINGCAI_WIN","HOME_WIN"),("JINGCAI_HANDICAP","HOME_COVER"),
         ("JINGCAI_TOTAL","OVER"),("CROWN_HANDICAP","HOME_COVER"),("CROWN_TOTAL","OVER")):
+        consensus_line = -5.5 if key.endswith("HANDICAP") else 220.5
+        is_spread = key.endswith("HANDICAP")
         markets[key]={"status":"DIRECTION_ISSUED","direction":direction,
             "captured_at_utc":capture,"model_direction_probability":.7,
-            "market_consensus":{"status":"CONSENSUS_AVAILABLE","consensus_line":-5.5 if key.endswith("HANDICAP") else 220.5,
-                "model_probability_at_consensus_line":.65,"model_direction_at_consensus":"HOME_COVER" if key.endswith("HANDICAP") else "OVER",
+            "market_consensus":{"status":"CONSENSUS_AVAILABLE","consensus_line":consensus_line,
+                "model_probability_at_consensus_line":.65,
+                "model_direction_at_consensus":"HOME_COVER" if is_spread else "OVER",
+                "model_home_cover_probability_at_consensus_line":.65 if is_spread else None,
+                "model_over_probability_at_consensus_line":.65 if not is_spread else None,
+                "same_line_price_consensus":{"status":"AVAILABLE_SAME_LINE_MEDIAN",
+                    "reference_line":consensus_line,"first_side_probability":.55,
+                    "company_count":3,"latest_source_capture_utc":capture},
                 "consensus_latest_source_capture_utc":capture}}
         settled_markets[key]={"frozen_capture_utc":capture,"outcome":"HIT"}
     forecast={"schema_version":"nba-five-markets-v1","target_date":day,"board_capture_utc":capture,
@@ -198,6 +245,11 @@ def self_test():
     assert out["metrics"]["JINGCAI_WIN"]["sample_count"]==1
     assert out["metrics"]["CONSENSUS_SPREAD"]["sample_count"]==1
     assert out["metrics"]["CONSENSUS_TOTAL"]["sample_count"]==1
+    assert out["metrics"]["MULTI_COMPANY_PRICE_SPREAD"]["sample_count"]==1
+    assert out["metrics"]["MULTI_COMPANY_PRICE_TOTAL"]["sample_count"]==1
+    assert out["metrics"]["MODEL_FIRST_SIDE_SPREAD"]["sample_count"]==1
+    assert out["metrics"]["MODEL_FIRST_SIDE_TOTAL"]["sample_count"]==1
+    assert out["metrics"]["MULTI_COMPANY_PRICE_TOTAL"]["brier"]==0.3025
     assert out["probability_fusion"]=="DISABLED_NO_WEIGHT_FIT_OR_PRODUCTION_OVERRIDE"
     late=json.loads(json.dumps(forecast))
     for key in ("JINGCAI_TOTAL","CROWN_TOTAL"):
