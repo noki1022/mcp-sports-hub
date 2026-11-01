@@ -144,7 +144,7 @@ def self_test() -> None:
         assert gate_region.count('python3 - "$slot" <<\'PY\'') >= 2
         assert 'os.environ["HOURLY_REPORT_SLOT"]' not in gate_region
         assert content.index("Preflight canonical slot and verified acceptance") < content.index("Install locked NBA numerical dependency")
-        assert content.index("Recheck verified acceptance before PushPlus") < content.index("Send compact iPhone PushPlus")
+        assert content.index("Recheck verified acceptance before PushPlus") < content.index("Send complete iPhone full-board NBA analysis")
         for schedule in SCHEDULE_SLOTS:
             assert '    - cron: "' + schedule + '"' in content
         region = content[content.index("      - name: Join independent UTC fixture"):
