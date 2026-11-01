@@ -19,6 +19,7 @@ MIN_LEAD_SECONDS = 1800
 MAX_LEAD_SECONDS = 48 * 3600
 MIN_EVENTS_FOR_REVIEW = 100
 MIN_DAYS_FOR_REVIEW = 24
+MIN_DAYS_FOR_BOOTSTRAP = 10
 
 
 def dt(value):
@@ -91,7 +92,7 @@ def paired_day_bootstrap(rows, left, right, iterations=1000):
     for row in rows:
         grouped[row["day"]].append(row)
     days = sorted(grouped)
-    if len(days) < 2:
+    if len(days) < MIN_DAYS_FOR_BOOTSTRAP:
         return None
     rng = random.Random(20261101)
     deltas = []
@@ -344,6 +345,7 @@ def self_test():
     assert abs(no_vig(.90, .90)-.5) < 1e-12
     assert no_vig(0, .9) is None
     assert metrics([{"p": .8, "outcome": 1}], "p")["brier"] == .04
+    assert paired_day_bootstrap([{"day":"2026-01-01","p":.8,"q":.7,"outcome":1}],"p","q") is None
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
         legacy=Path(tmp)/"legacy.json"
