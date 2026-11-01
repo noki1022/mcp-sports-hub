@@ -45,8 +45,7 @@ const acceptedFixed = {
     throw new Error("ACCEPTED_FIXED_REPORT_MUST_NOT_QUERY_OR_DISPATCH");
   }
 };
-const accepted = await dispatchAt(at("2026-10-30T07:00:00Z"), { GITHUB_TOKEN: "FAKE" }, acceptedFixed, CRONS.FIXED);
-console.log("ACCEPTED_MARKER_TEST_RESULT", JSON.stringify(accepted));
+const accepted = await dispatchAt(at("2026-10-30T07:00:00Z"), { GITHUB_TOKEN: "FAKE" }, acceptedFixed.fetch, CRONS.FIXED);
 assert.equal(accepted.results[0].state, "API_ALREADY_ACCEPTED");
 
 // A prior review marker for one date must not stop polling another delayed slate.
@@ -61,7 +60,7 @@ const reviewWithOlderMarker = {
     throw new Error("UNEXPECTED_REVIEW_URL_" + url);
   }
 };
-const reviewResult = await dispatchAt(at("2026-10-30T14:30:00Z"), { GITHUB_TOKEN: "FAKE" }, reviewWithOlderMarker, CRONS.REVIEW);
+const reviewResult = await dispatchAt(at("2026-10-30T14:30:00Z"), { GITHUB_TOKEN: "FAKE" }, reviewWithOlderMarker.fetch, CRONS.REVIEW);
 assert.equal(reviewResult.results[0].state, "DISPATCH_ACCEPTED_NOT_COMPLETED");
 assert.equal(reviewDispatch, true);
 
@@ -77,7 +76,7 @@ const fixedFake = {
     throw new Error("UNEXPECTED_URL_" + url);
   }
 };
-const fixedResult = await dispatchAt(at("2026-10-30T07:00:00Z"), { GITHUB_TOKEN: "FAKE" }, fixedFake, CRONS.FIXED);
+const fixedResult = await dispatchAt(at("2026-10-30T07:00:00Z"), { GITHUB_TOKEN: "FAKE" }, fixedFake.fetch, CRONS.FIXED);
 assert.equal(fixedResult.results[0].state, "DISPATCH_ACCEPTED_NOT_COMPLETED");
 assert.equal(posted.inputs.report_slot, "1500");
 assert.equal(posted.inputs.target_date, "2026-10-31");
@@ -96,7 +95,7 @@ const activeInjury = {
     throw new Error("ACTIVE_INJURY_MUST_NOT_DISPATCH");
   }
 };
-const injuryResult = await dispatchAt(at("2026-10-31T04:05:00Z"), { GITHUB_TOKEN: "FAKE" }, activeInjury, CRONS.PREGAME);
+const injuryResult = await dispatchAt(at("2026-10-31T04:05:00Z"), { GITHUB_TOKEN: "FAKE" }, activeInjury.fetch, CRONS.PREGAME);
 assert.equal(injuryResult.results[0].state, "WORKFLOW_RUNNING");
 
 const failedRun = {
@@ -115,7 +114,7 @@ const failedRun = {
     throw new Error(url);
   }
 };
-const retry = await dispatchAt(at("2026-10-30T07:08:00Z"), { GITHUB_TOKEN: "FAKE" }, failedRun, CRONS.FIXED);
+const retry = await dispatchAt(at("2026-10-30T07:08:00Z"), { GITHUB_TOKEN: "FAKE" }, failedRun.fetch, CRONS.FIXED);
 assert.equal(retry.results[0].state, "DISPATCH_ACCEPTED_NOT_COMPLETED");
 
 const successfulRun = {
@@ -133,11 +132,11 @@ const successfulRun = {
     throw new Error("SUCCESSFUL_RUN_MUST_NOT_REDISPATCH");
   }
 };
-const noRetry = await dispatchAt(at("2026-10-30T07:08:00Z"), { GITHUB_TOKEN: "FAKE" }, successfulRun, CRONS.FIXED);
+const noRetry = await dispatchAt(at("2026-10-30T07:08:00Z"), { GITHUB_TOKEN: "FAKE" }, successfulRun.fetch, CRONS.FIXED);
 assert.equal(noRetry.results[0].state, "WORKFLOW_SUCCESS_WITHOUT_NEW_DISPATCH");
 
 const unavailable = { async fetch() { return { ok: false, status: 503 }; } };
-const failedClosed = await dispatchAt(at("2026-10-30T07:00:00Z"), { GITHUB_TOKEN: "FAKE" }, unavailable, CRONS.FIXED);
+const failedClosed = await dispatchAt(at("2026-10-30T07:00:00Z"), { GITHUB_TOKEN: "FAKE" }, unavailable.fetch, CRONS.FIXED);
 assert.equal(failedClosed.state, "PARTIAL_FAILURE");
 
 console.log("CLOUDFLARE_PRIMARY_SCHEDULER_REGRESSION_PASS");
