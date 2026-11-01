@@ -210,8 +210,8 @@ def evaluate(settlements, forecasts):
                         outcome=frozen.get("outcome")
                         if p is not None and 0<=p<=1 and outcome in ("HIT","MISS"):
                             record={"probability":p,"outcome":int(outcome=="HIT"),
-                                "game_id":gid,"day":day,"capture":predicted_time.isoformat(),
-                                "doc_capture":doc_capture}
+                                "game_id":gid,"day":day,"capture":generated_capture.isoformat(),
+                                "doc_capture":generated_capture}
                             record_key=(day,gid,key)
                             if record_key not in direct_records or doc_capture>direct_records[record_key]["doc_capture"]:
                                 direct_records[record_key]=record
@@ -260,7 +260,7 @@ def evaluate(settlements, forecasts):
                     continue
                 consensus["CONSENSUS_"+kind].append({
                     "probability":p,"outcome":int(direction==actual_side),
-                    "game_id":gid,"day":day,"capture":latest.isoformat(),
+                    "game_id":gid,"day":day,"capture":generated_capture.isoformat(),
                     "line":line,"direction":direction})
                 first_side = "HOME_COVER" if kind == "SPREAD" else "OVER"
                 first_side_outcome = int(actual_side == first_side)
