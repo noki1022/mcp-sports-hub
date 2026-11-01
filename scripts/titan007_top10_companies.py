@@ -136,6 +136,8 @@ def collect(board,limit=10):
                         previous=chosen.get(key)
                         if previous is None or candidate["source_capture_utc"]>previous["source_capture_utc"]:
                             chosen[key]=candidate
+                if all((gid,"full_spread") in chosen and (gid,"full_total") in chosen for gid in ids):
+                    break
             except (OSError,ValueError,RuntimeError) as exc:
                 reason="QUERY_"+type(exc).__name__
                 status["rejections"][reason]=status["rejections"].get(reason,0)+1
