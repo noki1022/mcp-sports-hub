@@ -64,6 +64,12 @@ def group_words(words):
             a[-1]['words'].append(w)
     return a
 
+def is_pdf_pagination_artifact(value):
+    """Recognize page-number fragments emitted in the player/team columns."""
+    text=re.sub(r'\s+',' ',str(value or '')).strip()
+    return bool(re.fullmatch(r'(?:of\s+\d+|page\s+\d+(?:\s+of\s+\d+)?)',text,re.I))
+
+
 def read_lines(pages):
     current_team=None
     current_matchup=None
@@ -85,13 +91,18 @@ def read_lines(pages):
                 # Team names must never bleed from previous matchup.
                 current_team=None
             team=' '.join(cols['team']).strip()
-            if team and team not in ('Team','Date') and not team.startswith('Page'):
+            if team and team not in ('Team','Date') and not is_pdf_pagination_artifact(team):
                 current_team=re.sub(r'\s+',' ',team)
             if not current_matchup or not current_team:continue
             record=games[current_matchup][current_team]
             status=' '.join(cols['status']).strip()
             reason=' '.join(cols['reason']).strip()
             player=' '.join(cols['player']).strip()
+            # PDF page footers such as the isolated text 'of 5' can land in
+            # the player-name column. They are layout noise, not ambiguous
+            # player records, and must not poison the whole team's injury gate.
+            if is_pdf_pagination_artifact(player) and not status and not reason:
+                continue
             if 'NOT YET SUBMITTED' in reason.upper() or 'NOT YET SUBMITTED' in status.upper():
                 record['report_state']='NOT_SUBMITTED'
                 continue
@@ -121,13 +132,20 @@ def self_test():
         return [{'text':z,'x0':x,'top':y} for x,z in segments]
     words=(row(129,[(201,'MIA@ATL'),(265,'Miami'),(293,'Heat'),(426,'Fontecchio,'),(482,'Simone'),(587,'Out')])
          +row(151,[(265,'Atlanta'),(300,'Hawks'),(426,'Gueye,'),(455,'Mouhamed'),(587,'Out')])
-         +row(173,[(426,'Wiggins,'),(468,'Aaron'),(587,'Questionable')]))
+         +row(173,[(426,'Wiggins,'),(468,'Aaron'),(587,'Questionable')])
+         +row(195,[(426,'of'),(440,'5')]))
     games,errors=read_lines([words])
     assert games['MIA@ATL']['Miami Heat']['players'][0]['status']=='Out'
     assert games['MIA@ATL']['Atlanta Hawks']['players'][0]['name']=='Gueye, Mouhamed'
     assert games['MIA@ATL']['Atlanta Hawks']['status_counts']['Questionable']==1
     assert not errors,errors
-    print('OFFICIAL_INJURY_PDF_COORD_TEST_PASS')
+    assert is_pdf_pagination_artifact('of 5')
+    assert is_pdf_pagination_artifact('Page 2 of 5')
+    assert not is_pdf_pagination_artifact('Unknown Player')
+    malformed=words+row(217,[(426,'UnknownPlayerToken')])
+    _,malformed_errors=read_lines([malformed])
+    assert len(malformed_errors)==1 and malformed_errors[0]['raw_player']=='UnknownPlayerToken'
+    print('OFFICIAL_INJURY_PDF_COORD_AND_PAGINATION_NOISE_TEST_PASS')
 
 def run(target_date,out,min_matchups=10):
     # NBA morning games shown in China on target_date were previous US ET day.
