@@ -20,6 +20,12 @@ from nba_delivery_health import ACCEPTED, marker_path
 
 BEIJING = ZoneInfo("Asia/Shanghai")
 SCHEDULE_SLOTS = {
+    "30 16 * * *": "0030",
+    "45 16 * * *": "0030",
+    "0 17 * * *": "0030",
+    "30 19 * * *": "0330",
+    "45 19 * * *": "0330",
+    "0 20 * * *": "0330",
     "0 4 * * *": "1200",
     "15 4 * * *": "1200",
     "30 4 * * *": "1200",
@@ -89,6 +95,12 @@ def self_test() -> None:
         assert resolve_slot(schedule, "", now) == slot
     for slot in FIXED_SLOTS:
         assert resolve_slot("", slot, now) == slot
+    assert resolve_slot("30 16 * * *", "", now) == "0030"
+    assert resolve_slot("45 16 * * *", "", now) == "0030"
+    assert resolve_slot("0 17 * * *", "", now) == "0030"
+    assert resolve_slot("30 19 * * *", "", now) == "0330"
+    assert resolve_slot("45 19 * * *", "", now) == "0330"
+    assert resolve_slot("0 20 * * *", "", now) == "0330"
     assert resolve_slot("", "", now) == "1240"
     assert resolve_slot("", "", now, "workflow_dispatch") == "ONCE"
     assert resolve_slot("", "ONCE", now, "workflow_dispatch") == "ONCE"
