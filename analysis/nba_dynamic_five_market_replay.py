@@ -53,7 +53,8 @@ def metric_rows(rows):
                 "accuracy":round(sum(r[key]=="HIT" for r in subset)/len(subset),6) if subset else None}
     consensus=[r for r in rows if r.get("consensus_p") is not None]
     return {
-        "n":n,"brier":round(brier,7),"log_loss":round(ll,7),"ece_10":round(ece,7),
+        "n":n,"distinct_days":len({r["day"] for r in rows}),
+        "brier":round(brier,7),"log_loss":round(ll,7),"ece_10":round(ece,7),
         "first_side_accuracy":round(sum(r["y"] for r in rows)/n,6),
         "candidate_direction_accuracy":direction_accuracy("candidate_outcome"),
         "frozen_direction_accuracy":direction_accuracy("frozen_outcome"),
@@ -187,8 +188,8 @@ def run(daily_root,settled_root):
     records,rejected,snapshot_count,days=collect(daily_root,settled_root)
     by_market,by_slot,latest_by_market,latest_rows=summarize(records)
     sample=sum(v["n"] for v in latest_by_market.values())
-    distinct_days=len({r["day"] for r in []})
-    distinct_days=max((v.get("distinct_days",0) for v in latest_by_market.values()),default=0)
+    min_market_n=min((v["n"] for v in latest_by_market.values()),default=0)
+    min_market_days=min((v.get("distinct_days",0) for v in latest_by_market.values()),default=0)
     return {
         "schema_version":"nba-dynamic-five-market-replay-v1",
         "settled_days":days,"settled_day_count":len(days),
@@ -198,11 +199,12 @@ def run(daily_root,settled_root):
         "by_market_all_snapshots":by_market,
         "by_slot":by_slot,
         "latest_pretip_by_market":latest_by_market,
-        "sample_readiness":{"graded_latest_market_rows":sample,
-            "minimum_events_for_research_review":100,
-            "minimum_distinct_days_for_research_review":24,
-            "distinct_days":distinct_days,
-            "status":"READY_FOR_RESEARCH_REVIEW" if sample>=100 and distinct_days>=24 else "INSUFFICIENT_CHRONOLOGICAL_SAMPLE"},
+        "sample_readiness":{"graded_latest_market_rows_total":sample,
+            "minimum_events_per_market_for_research_review":100,
+            "minimum_distinct_days_per_market_for_research_review":24,
+            "smallest_market_sample_n":min_market_n,
+            "smallest_market_distinct_days":min_market_days,
+            "status":"READY_FOR_RESEARCH_REVIEW" if min_market_n>=100 and min_market_days>=24 else "INSUFFICIENT_CHRONOLOGICAL_SAMPLE"},
         "rejections":dict(sorted(rejected.items())),
         "scoring_policy":"One latest valid pre-tip probability per game/market for primary metrics; per-slot metrics separate; pushes excluded; official final scores only",
         "production_model_modified":False,"probability_fusion_enabled":False,
