@@ -270,6 +270,7 @@ def selection_context(market_key, direct_line, direction, model_margin, model_to
         "crown_id3_line": stats.get("crown_id3_line"),
         "probability_fusion": "DISABLED_PENDING_CHRONOLOGICAL_OOS_VALIDATION",
         "raw_price_orientation": "UNVERIFIED_RAW_SLOTS",
+        "consensus_latest_source_capture_utc": stats.get("latest_source_capture_utc"),
     }
     if not available:
         ctx["model_probability_at_consensus_line"] = None
