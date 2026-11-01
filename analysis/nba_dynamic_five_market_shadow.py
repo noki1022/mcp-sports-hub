@@ -54,7 +54,8 @@ def evaluate(joined,model,five,jingcai=None,consensus=None,injury=None,previous=
             direction=frozen_market.get("direction")
             if key=="JINGCAI_WIN":
                 prob=home_ml if direction=="HOME_WIN" else away_ml if direction=="AWAY_WIN" else None
-                current[key]={"direction":direction,"line":None,
+                current[key]={"direction":direction,"candidate_direction":"HOME_WIN" if home_ml is not None and home_ml>=0.5 else "AWAY_WIN" if away_ml is not None else None,
+                    "line":None,"home_win_probability":home_ml,"away_win_probability":away_ml,
                     "selected_side_probability":prob,
                     "probability_status":"INDEPENDENT_MONEYLINE_BASELINE" if prob is not None else "MODEL_MONEYLINE_MISSING"}
                 continue
