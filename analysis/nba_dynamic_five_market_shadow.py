@@ -224,8 +224,10 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
                 and probs.get("candidate_direction_probability") is not None else None)
 
             mc=selection.get("market_consensus") or {}
-            consensus_capture=stamp(mc.get("consensus_latest_source_capture_utc"))
             price=mc.get("same_line_price_consensus") or {}
+            consensus_capture=stamp(price.get("latest_source_capture_utc")
+                or mc.get("market_price_latest_source_capture_utc")
+                or mc.get("consensus_latest_source_capture_utc"))
             price_p=num(price.get("first_side_probability"))
             price_valid=(mc.get("direct_line_matches_price_reference") is True
                 and price.get("status")=="AVAILABLE_SAME_LINE_MEDIAN"
