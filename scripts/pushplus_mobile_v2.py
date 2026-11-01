@@ -271,7 +271,10 @@ def five_market_panel(x):
             price_count=int(consensus.get("same_line_company_count") or 0)
             consensus_line=num(consensus.get("consensus_line"))
             if price_status=="AVAILABLE_SAME_LINE_MEDIAN" and market_p is not None:
-                line_text=("，共识线 "+f(consensus_line) if consensus_line is not None else "")
+                line_text=(("，共识主队盘口 "+f(-consensus_line,True))
+                           if key.endswith("HANDICAP") and consensus_line is not None else
+                           ("，共识总分线 "+f(consensus_line))
+                           if consensus_line is not None else "")
                 line_fit=("本玩法同线" if consensus.get("direct_line_matches_price_reference") is True
                           else "仅共识线参考")
                 gap_text=("，模型-市场 "+f(gap*100,True)+"pp" if gap is not None else "")
