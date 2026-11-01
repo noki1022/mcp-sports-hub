@@ -128,7 +128,9 @@ def market_row(key, obj):
     company_count = int(consensus.get("same_line_company_count") or 0)
     consensus_line = number(consensus.get("consensus_line"))
     if price_status == "AVAILABLE_SAME_LINE_MEDIAN" and market_probability is not None:
-        line_note = ("，共识线 " + fmt(consensus_line)
+        line_note = (("，共识主队盘口 " + fmt(-consensus_line, signed=True))
+                     if key.endswith("HANDICAP") and consensus_line is not None else
+                     ("，共识总分线 " + fmt(consensus_line))
                      if consensus_line is not None else "")
         line_fit = ("本玩法同线" if consensus.get("direct_line_matches_price_reference") is True
                     else "共识线参考")
