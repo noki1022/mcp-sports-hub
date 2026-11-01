@@ -152,9 +152,8 @@ async function getJson(url, env, fetcher) {
 
 async function markerAccepted(item, env, fetcher) {
   let path;
-  if (item.kind === "night_review") {
-    path = "reports/five-market-settled/" + item.target_date + "/2200.json";
-  } else if (["full", "priority_2130", "priority_0630"].includes(item.kind)) {
+  if (item.kind === "night_review") return false;
+  if (["full", "priority_2130", "priority_0630"].includes(item.kind)) {
     path = "reports/pushplus-sent/" + item.target_date + "/" + item.slot + ".json";
   } else {
     return false;
