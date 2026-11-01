@@ -101,10 +101,14 @@ def apply_platt(model,p):
 
 
 def fit_isotonic(rows):
-    pairs=sorted((float(r["p"]),float(r["y"])) for r in rows)
+    # Aggregate tied input probabilities first; PAV must not emit duplicate x knots.
+    grouped=defaultdict(lambda:[0.0,0])
+    for r in rows:
+        grouped[float(r["p"])][0]+=float(r["y"])
+        grouped[float(r["p"])][1]+=1
     blocks=[]
-    for p,y in pairs:
-        blocks.append([p,y,1,p,p])
+    for p,(wins,count) in sorted(grouped.items()):
+        blocks.append([p*count,wins,count,p,p])
         while len(blocks)>1 and blocks[-2][1]/blocks[-2][2] > blocks[-1][1]/blocks[-1][2]:
             x,z=blocks[-2],blocks[-1]
             blocks[-2:]=[[x[0]+z[0],x[1]+z[1],x[2]+z[2],x[3],z[4]]]
