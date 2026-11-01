@@ -59,7 +59,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           p=Path('.github/workflows/nba-priority-0630.yml').read_text()
-          assert 'cron: "*/10 22-23,0-3 * * *"' in p
+          assert 'cron: "*/10 22-23,0-5 * * *"' in p
           assert 'nba_0630_priority_gate.py --phase preflight' in p
           assert 'nba_0630_priority_gate.py --phase presend' in p
           assert 'nba_0630_pretip_filter.py --joined titan007_priority_joined.json --min-lead 5' in p
