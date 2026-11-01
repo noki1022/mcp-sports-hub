@@ -18,7 +18,7 @@ This isolated research experiment does not alter production probabilities, repor
 3. For both feature sets compare normal residual probabilities against a smoothed empirical residual CDF (Silverman bandwidth), fitted only on the separate calibration partition.
 
 ## Outcomes
-Report margin/total MAE and RMSE; Brier, log loss and ECE for pre-registered spread/total thresholds; paired calendar-day bootstrap intervals for key threshold comparisons.
+Report margin/total MAE and RMSE; Brier, log loss and ECE for pre-registered spread/total thresholds; per-fold and pooled metrics across all disjoint evaluation windows; paired calendar-day bootstrap intervals for key threshold comparisons.
 
 ## Limits
 Thresholds are research probes, not historical bookmaker lines. Historical source publication timestamps and matched 007 JC/Crown odds are unavailable in these files, so no EV/ROI claim is possible. No candidate can be promoted from this report alone; a new untouched future evaluation is required.
