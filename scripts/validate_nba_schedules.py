@@ -18,7 +18,7 @@ workflows={
  "nba-priority-2130.yml":["20 13 * * *","30 13 * * *","40 13 * * *"],
  "titan007-final-hourly.yml":[],
  "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
- "titan007-daily-free.yml":["0 14 * * *"],
+ "titan007-daily-free.yml":[],
  "odds-results-settlement.yml":["0 8 * * *"]
 }
 def load(path):
@@ -63,6 +63,23 @@ def main():
     assert ("titan007-three-analysis.yml","15:00") in all_times
     assert ("titan007-three-analysis.yml","18:00") in all_times
     assert ("titan007-three-analysis.yml","06:00") not in all_times
+    # No automatic 22:00 auxiliary odds scan after the 21:30 final report.
+    assert ("titan007-daily-free.yml","22:00") not in all_times
+    injury=load(ROOT/".github/workflows/nba-injury-change-watch.yml")
+    injury_on=injury.get("on",injury.get(True,{}))
+    injury_crons=[x["cron"] for x in injury_on.get("schedule",[])]
+    assert injury_crons==["30-59/5 22,23 * * *","*/5 0-12 * * *","0-30/5 13 * * *"],injury_crons
+    # Verify every injury cron minute maps only to 06:30–21:30 Beijing.
+    for expr in injury_crons:
+        mm,hh,_,_,_=expr.split()
+        mins=(list(range(30,60,5)) if mm=="30-59/5" else
+              list(range(0,60,5)) if mm=="*/5" else list(range(0,31,5)))
+        hrs=([22,23] if hh=="22,23" else
+             list(range(0,13)) if hh=="0-12" else [13])
+        for hour in hrs:
+            for minute in mins:
+                local=datetime(2026,10,30,hour,minute,tzinfo=timezone.utc).astimezone(bj)
+                assert 6*60+30<=local.hour*60+local.minute<=21*60+30,(expr,local)
     print("NBA_SCHEDULE_YAML_ALL_STRUCTURES_VALIDATED",len(all_times),"scheduled UTC triggers")
     print("NOTE_GITHUB_CRON_BEST_EFFORT_NOT_EXACT_TIME_GUARANTEE")
 if __name__=="__main__":main()
