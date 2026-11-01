@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 from datetime import date, datetime
 from pathlib import Path
@@ -95,9 +96,10 @@ def self_test() -> None:
     assert resolve_slot("", "", now, "workflow_dispatch") == "ONCE"
     assert resolve_slot("", "ONCE", now, "workflow_dispatch") == "ONCE"
     assert resolve_slot("", "ONCE", now, "push", True) == "ONCE"
+    assert resolve_slot("", "ONCE-20261101-REPLAY2", now, "push", True) == "ONCE-20261101-REPLAY2"
     for event, allow in (("push", False), ("schedule", True)):
         try:
-            resolve_slot("", "ONCE", now, event, allow)
+            resolve_slot("", "ONCE-20261101-REPLAY2", now, event, allow)
         except ValueError:
             pass
         else:
