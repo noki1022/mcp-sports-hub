@@ -78,12 +78,16 @@ def evaluate(joined,model,five,jingcai=None,consensus=None,injury=None,previous=
                 home_cover=side_probability(margin,margin_sigma,-signed_home,True) if signed_home is not None else None
                 away_cover=1.0-home_cover if home_cover is not None else None
                 prob=home_cover if direction=="HOME_COVER" else away_cover if direction=="AWAY_COVER" else None
+                candidate="HOME_COVER" if home_cover is not None and home_cover>=0.5 else "AWAY_COVER" if away_cover is not None else None
+                both={"home_cover_probability":home_cover,"away_cover_probability":away_cover}
             else:
                 over=side_probability(total,total_sigma,line,True) if line is not None else None
                 under=1.0-over if over is not None else None
                 prob=over if direction=="OVER" else under if direction=="UNDER" else None
-            current[key]={"direction":direction,"line":line,"signed_home_handicap":signed_home,
-                "selected_side_probability":prob,
+                candidate="OVER" if over is not None and over>=0.5 else "UNDER" if under is not None else None
+                both={"over_probability":over,"under_probability":under}
+            current[key]={"direction":direction,"candidate_direction":candidate,"line":line,
+                "signed_home_handicap":signed_home,**both,"selected_side_probability":prob,
                 "probability_status":"SHADOW_RECALCULATED" if prob is not None else "MISSING_LINE_OR_MODEL_SIGMA"}
         prev=old.get(gid,{})
         for key,item in current.items():
