@@ -114,7 +114,7 @@ def read_json_legacy(path):
     try:
         return json.loads(raw)
     except ValueError:
-        if raw.endswith("\\\\n"):
+        if raw.endswith("\\n"):
             return json.loads(raw[:-2])
         raise
 
