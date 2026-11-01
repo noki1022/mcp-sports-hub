@@ -23,6 +23,15 @@ jobs:
           python3 scripts/nba_0630_priority_gate.py --self-test
           python3 scripts/nba_0630_pretip_filter.py --self-test
           python3 scripts/nba_overnight_cohort.py self-test
+      - name: Verify emitted JSON gate true/false parsing with whitespace
+        run: |
+          printf '%s\\n' 'NBA_0630_DYNAMIC_GATE {"run_report": true}' > /tmp/gate-true.txt
+          grep -Eq '"run_report"[[:space:]]*:[[:space:]]*true' /tmp/gate-true.txt
+          printf '%s\\n' 'NBA_0630_DYNAMIC_GATE {"run_report": false}' > /tmp/gate-false.txt
+          if grep -Eq '"run_report"[[:space:]]*:[[:space:]]*true' /tmp/gate-false.txt; then
+            echo "FALSE_GATE_MUST_NOT_PASS" >&2
+            exit 1
+          fi
       - name: Verify scheduled priority, full-board dynamic review and distinct dedup
         run: |
           python3 - <<'PY'
@@ -40,7 +49,7 @@ jobs:
           # The pre-send JSON gate must parse a true verdict correctly. The
           # former double-escaped sed BRE returned empty for both true/false,
           # silently skipping every otherwise-valid 06:30 delivery.
-          assert s.count("grep -q '\"run_report\":true'") == 2
+          assert s.count("grep -Eq '\"run_report\"[[:space:]]*:[[:space:]]*true'") == 2
           assert "run_report=$(sed" not in s
           assert "nba_0630_pretip_filter.py" in s
           assert "verify_nba_capture_analysis.py" in s
