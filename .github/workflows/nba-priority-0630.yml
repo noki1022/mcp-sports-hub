@@ -241,7 +241,7 @@ jobs:
         name: Archive snapshot, complete analysis and successful PushPlus marker
         run: |
           mkdir -p "reports/daily/$TARGET_DATE/0630" "reports/pushplus-sent/$TARGET_DATE"
-          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_five_market_forecast.json nba_priority_focus.json nba_priority_iphone.html nba_injury_prospective_0630.json "reports/daily/$TARGET_DATE/0630/"
+          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_market_consensus.json nba_five_market_forecast.json nba_priority_focus.json nba_priority_iphone.html nba_injury_prospective_0630.json "reports/daily/$TARGET_DATE/0630/"
           python3 - <<'PY'
           import os,json
           from pathlib import Path
