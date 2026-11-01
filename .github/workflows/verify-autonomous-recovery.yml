@@ -50,5 +50,9 @@ jobs:
           recovery=Path('scripts/nba_delivery_recovery.py').read_text()
           assert 'PRIORITY_RECOVERY_TARGET_DAY_MISMATCH' in recovery
           assert '"2130","0630"' in recovery
-          print('P0_RECOVERY_AUTONOMOUS_SAFETY_PASS')
+          assert 'from nba_0630_priority_gate import decide as morning_gate' in recovery
+          assert 'NO_SAFE_REMAINING_PRETIP_GAME' in recovery
+          assert 'PRIORITY_RECOVERY_WINDOWS={"2130":(5,22),"0630":(5,180)}' in recovery
+          assert 'eligible_games_by_time' in recovery
+          print('P0_DYNAMIC_TIPOFF_RECOVERY_AND_NO_STALE_REPLAY_PASS')
           PY
