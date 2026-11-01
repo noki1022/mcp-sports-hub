@@ -27,9 +27,11 @@ jobs:
           s=pathlib.Path('/tmp/compact-all.html').read_text()
           status=json.loads(pathlib.Path('/tmp/compact-all.json').read_text())
           assert status['games_considered']==7, status
-          assert s.count('竞彩 · 3玩法')==7
-          assert s.count('皇冠ID3 · 2玩法')==7
+          assert s.count('>竞彩</div>')==7
+          assert s.count('>皇冠</div>')==7
           assert '周六316' in s and '主' in s and '客' in s
+assert '北京时间11月1日 NBA球赛研判' in s
+assert '玩法' not in s and 'ID3' not in s
           for bad in ('七步分析研判','八场核心数据','模型 vs 盘口','本小时动态研判'):
               assert bad not in s,bad
           print('ALL_SCHEDULED_PUSHPLUS_COMPACT_ONLY_ACCEPTANCE_PASS')
