@@ -184,7 +184,7 @@ jobs:
             --consensus nba_market_consensus.json \
             --injury nba_priority_injury_context.json \
             --slot 0630 --out nba_dynamic_five_market_shadow.json \
-            "${PREVIOUS_ARGS[@]}"
+            "${PREVIOUS_ARGS[@]}" || { printf '%s\n' '{"schema_version":"nba-dynamic-five-market-shadow-v2","status":"SHADOW_UNAVAILABLE","game_count":0,"games":[],"production_model_modified":false,"pushplus_enabled":false,"market_probability_fusion":"DISABLED","validation_state":"RESEARCH_ONLY_PENDING_CHRONOLOGICAL_OOS"}' > nba_dynamic_five_market_shadow.json; }
           test -s nba_dynamic_five_market_shadow.json
       - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Generate mandatory NBA spread and total research verdicts from ten institutions
