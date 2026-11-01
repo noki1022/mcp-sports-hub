@@ -12,18 +12,18 @@ All Cloudflare Cron expressions are UTC. The Worker converts each event to Asia/
 - Official injury change watch: every five minutes from 06:30 through 21:30.
 - Delivery recovery checks: the existing fixed report and priority recovery windows.
 - Official-final settlement: every fifteen minutes, including overnight, until the last frozen game is officially Final. This is not odds/market monitoring.
-- Ancillary daily audits: odds settlement at 16:00 and offline full-chain regression at 04:00 Beijing.
+- Ancillary daily audits: odds settlement failover at 16:01 and offline full-chain regression at 04:01 Beijing (with bounded retries).
 
 Automatic overnight hourly market capture/analysis after 21:30 remains disabled. The manually triggered titan007-final-hourly workflow remains available for deliberate diagnostics only.
 
 ## Cloudflare triggers
 
-wrangler.toml defines three Cron Triggers:
+wrangler.toml defines four Cron Triggers:
 1. Every fifteen minutes — official-final settlement checks only.
 2. Every five minutes during the pregame window — injury watch, morning retries and morning delivery recovery.
-3. Bounded fixed-time trigger — scheduled reports, evening priority and delivery recovery, plus the two daily audits.
+3. Bounded fixed-time trigger — scheduled reports, evening priority and delivery recovery, plus the 16:00 odds settlement failover.\n4. Dedicated 04:00 Beijing trigger — offline full-chain regression only.
 
-This uses three triggers, leaving headroom under the current Cloudflare Free account limit of five Cron Triggers. The Worker does not wake for the removed 22:30–05:30 hourly market-monitoring schedule.
+This uses four triggers, leaving headroom under the current Cloudflare Free account limit of five Cron Triggers. The Worker does not wake for the removed 22:30–05:30 hourly market-monitoring schedule.
 
 ## Required GitHub repository secrets
 
