@@ -268,6 +268,46 @@ jobs:
         if: steps.preflight.outputs.skip != 'true'
         run: |
           python3 analysis/nba_five_market_integrity_gate.py --joined titan007_three_joined.json --five nba_five_market_forecast.json --jingcai nba_jingcai_three_market.json --out nba_five_market_integrity.json
+      - name: Calculate shadow-only dynamic five-market probabilities
+        if: steps.preflight.outputs.skip != 'true'
+        run: |
+          python3 analysis/nba_dynamic_five_market_shadow.py --self-test
+          PREVIOUS_SHADOW=""
+          if [ -d "reports/daily/$TARGET_DATE" ]; then
+            PREVIOUS_SHADOW=$(python3 - <<'PY'
+          import os
+          from pathlib import Path
+          root=Path("reports/daily")/os.environ["TARGET_DATE"]
+          current=os.environ.get("REPORT_SLOT","")
+          candidates=[]
+          for p in root.glob("*/nba_dynamic_five_market_shadow.json"):
+              slot=p.parent.name
+              if slot.isdigit() and current.isdigit() and slot<current:
+                  candidates.append((slot,p))
+          print(str(sorted(candidates)[-1][1]) if candidates else "")
+          PY
+            )
+          fi
+          PREVIOUS_ARGS=()
+          if [ -n "$PREVIOUS_SHADOW" ]; then PREVIOUS_ARGS=(--previous "$PREVIOUS_SHADOW"); fi
+          python3 analysis/nba_dynamic_five_market_shadow.py \
+            --joined titan007_three_joined.json \
+            --model nba_model_analysis.json \
+            --five nba_five_market_forecast.json \
+            --jingcai nba_jingcai_three_market.json \
+            --consensus nba_market_consensus.json \
+            --injury nba_injury_context.json \
+            --out nba_dynamic_five_market_shadow.json \
+            "${PREVIOUS_ARGS[@]}"
+          python3 - <<'PY'
+          import json
+          x=json.load(open("nba_dynamic_five_market_shadow.json"))
+          assert x["production_model_modified"] is False
+          assert x["pushplus_enabled"] is False
+          assert x["validation_state"]=="RESEARCH_ONLY_PENDING_CHRONOLOGICAL_OOS"
+          assert x["game_count"]>0
+          print("DYNAMIC_FIVE_MARKET_SHADOW_GATE_PASS",x["game_count"])
+          PY
       - name: Generate mandatory NBA spread and total research verdicts from ten institutions
         if: steps.preflight.outputs.skip != 'true'
         run: |
@@ -328,7 +368,7 @@ jobs:
           if [ "$count" -gt 0 ]; then
             dir="reports/daily/${TARGET_DATE}/${REPORT_SLOT}"
             mkdir -p "$dir"
-            cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json titan007_three_decision.json titan007_three_movement.json nba_two_market_forecast.json nba_market_consensus.json nba_five_market_forecast.json "$dir"/
+            cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json titan007_three_decision.json titan007_three_movement.json nba_two_market_forecast.json nba_market_consensus.json nba_five_market_forecast.json nba_model_analysis.json nba_jingcai_three_market.json nba_injury_context.json nba_dynamic_five_market_shadow.json "$dir"/
             git config user.name github-actions[bot]
             git config user.email 41898282+github-actions[bot]@users.noreply.github.com
             git add "$dir"
