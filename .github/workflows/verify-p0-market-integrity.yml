@@ -28,6 +28,6 @@ jobs:
           for path in ('titan007-three-analysis.yml','titan007-final-hourly.yml','nba-priority-2130.yml','nba-priority-0630.yml'):
               text=Path('.github/workflows',path).read_text()
               assert 'analysis/nba_five_market_integrity_gate.py --joined' in text
-              assert text.index('name: P0 fail-closed five-market source and team identity integrity')<text.index('name: Send compact iPhone PushPlus') if path=='titan007-three-analysis.yml' else True
+              assert text.index('name: P0 fail-closed five-market source and team identity integrity')<text.index('name: Send complete iPhone full-board NBA analysis') if path=='titan007-three-analysis.yml' else True
           print('P0_ALL_FOUR_AUTOMATED_MARKET_GATES_PRESENT')
           PY
