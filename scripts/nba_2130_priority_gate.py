@@ -6,6 +6,7 @@ when the cutoff has passed. All time windows use Asia/Shanghai, not US dates.
 """
 from __future__ import annotations
 import argparse
+import os
 from datetime import datetime,time,timedelta
 from zoneinfo import ZoneInfo
 
@@ -25,9 +26,19 @@ def decide(now,phase):
             "slot":"2130","lottery_cutoff_beijing":"22:00",
             "reason":"OK" if good else "OUTSIDE_2130_PRE_CUTOFF_WINDOW"}
 
+def write_outputs(result):
+    path=os.environ.get("GITHUB_OUTPUT")
+    if not path:return
+    with open(path,"a",encoding="utf-8") as f:
+        f.write("skip="+("false" if result["ok"] else "true")+"\\n")
+        f.write("run_report="+("true" if result["ok"] else "false")+"\\n")
+        if result["ok"]:f.write("target_date="+result["target_date"]+"\\n")
+
 def self_test():
-    for ts,valid in (("2026-10-30T21:30:00+08:00",True),
+    for ts,valid in (("2026-10-30T21:20:00+08:00",True),
+                     ("2026-10-30T21:30:00+08:00",True),
                      ("2026-10-30T21:49:00+08:00",True),
+                     ("2026-10-30T21:57:59+08:00",True),
                      ("2026-10-30T21:58:00+08:00",False),
                      ("2026-10-30T22:00:00+08:00",False),
                      ("2026-10-30T14:30:00+01:00",True)):
@@ -45,7 +56,9 @@ if __name__=="__main__":
     else:
         if not a.phase:raise SystemExit("PHASE_REQUIRED")
         r=decide(datetime.now(BEIJING),a.phase)
+        write_outputs(r)
         print("BEIJING_2130_PRIORITY_GATE",r,flush=True)
-        if not r["ok"]:raise SystemExit("PRIORITY_REPORT_MISSED_CUTOFF_NO_LATE_PUSH")
-        if a.phase=="preflight":
+        if not r["ok"]:
+            print("PRIORITY_2130_SKIPPED_OUTSIDE_SAFE_WINDOW_NO_STALE_PUSH",flush=True)
+        elif a.phase=="preflight":
             print("TARGET_DATE="+r["target_date"])
