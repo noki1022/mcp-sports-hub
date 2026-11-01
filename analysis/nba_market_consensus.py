@@ -498,6 +498,7 @@ def self_test():
     assert ctx["consensus_line"] == -5.5
     assert ctx["probability_fusion"].startswith("DISABLED")
     assert ctx["market_price_consensus_status"] == "AVAILABLE_SAME_LINE_MEDIAN"
+    assert ctx["same_line_price_consensus"]["status"] == "AVAILABLE_SAME_LINE_MEDIAN"
     assert ctx["same_line_company_count"] == 3
     assert ctx["market_price_first_side_direction"] == "HOME_COVER"
     assert ctx["market_price_probability_for_model_direction"] is not None
