@@ -26,10 +26,13 @@ def locked_tips(target, root=Path(".")):
     if doc.get("target_date")!=target or doc.get("source_slot")!="2130":
         raise RuntimeError("INVALID_2130_OFFICIAL_SLATE_IDENTITY")
     fixtures=doc.get("official_games") or {}
-    if not fixtures:
-        raise RuntimeError("EMPTY_2130_OFFICIAL_SLATE")
+    priced_ids=set(str(x) for x in (doc.get("priced_nba_to_007") or {}).keys())
+    if not fixtures or not priced_ids:
+        raise RuntimeError("EMPTY_2130_PRICED_OFFICIAL_SLATE")
     tips=[]
     for game_id,game in fixtures.items():
+        if str(game_id) not in priced_ids:
+            continue
         raw=game.get("tip")
         if not raw:
             raise RuntimeError("LOCKED_FIXTURE_TIPOFF_MISSING_"+str(game_id))
@@ -85,7 +88,7 @@ def self_test():
             "a":{"tip":"2026-11-01T04:30:00+08:00"},
             "b":{"tip":"2026-11-01T06:00:00+08:00"},
             "c":{"tip":"2026-11-01T09:30:00+08:00"},
-            "d":{"tip":"2026-11-01T10:00:00+08:00"}}}))
+            "d":{"tip":"2026-11-01T10:00:00+08:00"},\n            "e":{"tip":"2026-11-01T11:00:00+08:00"}} ,\n            "priced_nba_to_007":{"a":"1","b":"2","c":"3","d":"4"}}))
         # The 04:30 and 06:00 games have started; later games remain eligible.
         a=decide(datetime.fromisoformat("2026-11-01T07:13:00+08:00"),"preflight",root)
         assert a["ok"] and a["eligible_games_by_time"]==2
