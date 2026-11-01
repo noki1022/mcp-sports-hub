@@ -1,142 +1,124 @@
 import assert from "node:assert/strict";
-import { CRONS, plannedJobs, dispatchAt } from "./worker.mjs";
-
-const at = value => Date.parse(value);
-const kinds = (date, cron) => plannedJobs(at(date), cron).map(x => x.kind);
-
-assert.deepEqual(Object.keys(CRONS), ["REVIEW", "PREGAME", "FIXED", "REGRESSION"]);
-assert.deepEqual(kinds("2026-10-30T04:00:00Z", CRONS.FIXED), ["full"]);
-assert.deepEqual(kinds("2026-10-30T06:08:00Z", CRONS.FIXED), ["full"]);
-assert.deepEqual(kinds("2026-10-30T07:28:00Z", CRONS.FIXED), ["full"]);
-assert.deepEqual(kinds("2026-10-30T10:18:00Z", CRONS.FIXED), ["full"]);
-assert.deepEqual(kinds("2026-10-30T13:16:00Z", CRONS.FIXED), ["full"]);
-
-assert.deepEqual(kinds("2026-10-30T13:20:00Z", CRONS.FIXED), ["priority_2130", "health"]);
-assert.deepEqual(kinds("2026-10-30T13:30:00Z", CRONS.FIXED), ["priority_2130"]);
-assert.deepEqual(kinds("2026-10-30T13:40:00Z", CRONS.FIXED), ["priority_2130", "health"]);
-assert.deepEqual(kinds("2026-10-30T13:55:00Z", CRONS.FIXED), ["health"]);
-
-assert.deepEqual(kinds("2026-10-30T22:20:00Z", CRONS.PREGAME), ["priority_0630"]);
-assert.deepEqual(kinds("2026-10-31T05:50:00Z", CRONS.PREGAME), ["priority_0630", "injury_watch"]);
-assert.deepEqual(kinds("2026-10-31T05:55:00Z", CRONS.PREGAME), ["injury_watch"]);
-assert.deepEqual(kinds("2026-10-30T22:35:00Z", CRONS.PREGAME), ["injury_watch", "health"]);
-assert.deepEqual(kinds("2026-10-30T22:40:00Z", CRONS.PREGAME), ["priority_0630", "injury_watch", "health"]);
-assert.deepEqual(kinds("2026-10-30T13:30:00Z", CRONS.PREGAME), ["injury_watch"]);
-assert.deepEqual(kinds("2026-10-30T13:35:00Z", CRONS.PREGAME), []);
-assert.deepEqual(kinds("2026-10-30T14:30:00Z", CRONS.PREGAME), []);
-assert.equal(plannedJobs(at("2026-10-30T14:30:00Z")).some(x => x.kind === "hourly"), false);
-
-assert.deepEqual(kinds("2026-10-30T14:30:00Z", CRONS.REVIEW), ["night_review"]);
-assert.deepEqual(kinds("2026-10-30T22:45:00Z", CRONS.REVIEW), ["night_review"]);
-assert.deepEqual(kinds("2026-10-30T08:01:00Z", CRONS.FIXED), ["odds_settlement"]);
-assert.deepEqual(kinds("2026-10-30T20:01:00Z", CRONS.REGRESSION), ["offline_regression"]);
-assert.equal(plannedJobs(at("2026-10-30T08:06:00Z"), CRONS.FIXED)[0].kind, "odds_settlement");
-assert.deepEqual(kinds("2026-10-30T20:01:00Z", CRONS.FIXED), []);
-
-const acceptedFixed = {
-  async fetch(url) {
-    if (url.includes("/contents/")) {
-      return { status: 200, ok: true, json: async () => ({
-        content: btoa(JSON.stringify({
-          state: "API_ACCEPTED_NOT_DEVICE_CONFIRMED", slot: "1500"
-        }))
-      }) };
+import {plannedJob,dispatchAt} from "./worker.mjs";
+const at=s=>Date.parse(s);
+const checks=[
+["2026-10-30T04:00:00Z","1200","2026-10-31"],
+["2026-10-30T07:00:00Z","1500","2026-10-31"],
+["2026-10-30T10:00:00Z","1800","2026-10-31"],
+["2026-10-30T13:20:00Z","2130","2026-10-31"],
+["2026-10-30T22:20:00Z","0630","2026-10-31"],
+["2026-10-30T22:40:00Z","0630","2026-10-31"]
+];
+for(const [date,slot,target] of checks){
+  const job=plannedJob(at(date));
+  assert.equal(job?.slot,slot,date);assert.equal(job?.target_date,target,date);
+}
+assert.equal(plannedJob(at("2026-10-30T22:00:00Z")),null); // old 06:00
+assert.equal(plannedJob(at("2026-10-30T09:00:00Z")),null); // expired one-off
+const fake={
+  async fetch(url,opts){
+    if(url.includes("/contents/"))return {status:404,ok:false};
+    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[]})};
+    if(url.endsWith("/dispatches")){
+      const obj=JSON.parse(opts.body);
+      assert.equal(obj.inputs.report_slot,"1500");
+      assert.equal(obj.inputs.target_date,"2026-10-31");
+      return {status:204};
     }
-    throw new Error("ACCEPTED_FIXED_REPORT_MUST_NOT_QUERY_OR_DISPATCH");
+    throw Error(url);
   }
 };
-const accepted = await dispatchAt(at("2026-10-30T07:00:00Z"), { GITHUB_TOKEN: "FAKE" }, acceptedFixed.fetch, CRONS.FIXED);
-assert.equal(accepted.results[0].state, "API_ALREADY_ACCEPTED");
-
-// A prior review marker for one date must not stop polling another delayed slate.
-let reviewDispatch = false;
-const reviewWithOlderMarker = {
-  async fetch(url, options = {}) {
-    if (url.includes("/runs?")) return { ok: true, json: async () => ({ workflow_runs: [] }) };
-    if (url.endsWith("/dispatches")) {
-      reviewDispatch = true;
-      return { status: 204 };
+assert.equal((await dispatchAt(at("2026-10-30T07:00:00Z"),{GITHUB_TOKEN:"FAKE"},fake.fetch)).state,"DISPATCH_ACCEPTED_NOT_COMPLETED");
+// Regression: nightly watchdog must inspect five-market, not retired two-market marker.
+const nightly=plannedJob(at("2026-10-30T14:00:00Z"));
+assert.equal(nightly?.kind,"night_review");
+let markerUrl="";
+const already={
+  async fetch(url){
+    if(url.includes("/contents/")){
+      markerUrl=url;
+      return {status:200,ok:true,json:async()=>({content:btoa(JSON.stringify({state:"API_ACCEPTED_NOT_DEVICE_CONFIRMED"}))})};
     }
-    throw new Error("UNEXPECTED_REVIEW_URL_" + url);
+    throw Error("Unexpected additional GitHub dispatch: "+url);
   }
 };
-const reviewResult = await dispatchAt(at("2026-10-30T14:30:00Z"), { GITHUB_TOKEN: "FAKE" }, reviewWithOlderMarker.fetch, CRONS.REVIEW);
-assert.equal(reviewResult.results[0].state, "DISPATCH_ACCEPTED_NOT_COMPLETED");
-assert.equal(reviewDispatch, true);
+assert.equal((await dispatchAt(at("2026-10-30T14:00:00Z"),{GITHUB_TOKEN:"FAKE"},already.fetch)).state,"API_ALREADY_ACCEPTED");
+assert.match(markerUrl,/five-market-settled/);
 
-let posted = null;
-const fixedFake = {
-  async fetch(url, options = {}) {
-    if (url.includes("/contents/")) return { status: 404, ok: false };
-    if (url.includes("/runs?")) return { ok: true, json: async () => ({ workflow_runs: [] }) };
-    if (url.endsWith("/dispatches")) {
-      posted = JSON.parse(options.body);
-      return { status: 204 };
-    }
-    throw new Error("UNEXPECTED_URL_" + url);
+const extended=[
+  ["2026-10-30T04:08:00Z","1200","2026-10-31"],
+  ["2026-10-30T06:00:00Z","1400","2026-10-31"],
+  ["2026-10-30T07:18:00Z","1500","2026-10-31"],
+  ["2026-10-30T10:28:00Z","1800","2026-10-31"],
+  ["2026-10-30T13:16:00Z","2100","2026-10-31"],
+  ["2026-10-30T13:40:00Z","2130","2026-10-31"],
+  ["2026-10-30T22:40:00Z","0630","2026-10-31"],
+  ["2026-10-30T14:30:00Z",null], // 22:30 Beijing: overnight monitoring disabled
+  ["2026-10-30T14:40:00Z",null],
+  ["2026-10-30T15:49:00Z",null],
+  ["2026-10-30T16:40:00Z",null],
+  ["2026-10-30T17:49:00Z",null],
+  ["2026-10-30T18:40:00Z",null],
+  ["2026-10-30T19:49:00Z",null],
+  ["2026-10-30T20:40:00Z",null],
+  ["2026-10-30T21:49:00Z",null] // 05:49 Beijing: no late overnight dispatch
+];
+for(const [date,expected,target] of extended){
+  const job=plannedJob(at(date));
+  if(expected===null)assert.equal(job,null,date);
+  else {
+    assert.equal(job?.slot,expected,date);
+    assert.equal(job?.target_date,target,date);
+  }
+}
+assert.equal(plannedJob(at("2026-10-30T13:17:00Z")),null); // outside retry minute
+assert.equal(plannedJob(at("2026-10-30T22:50:00Z")),null); // no stale 06:30 retry
+assert.equal(plannedJob(at("2026-10-30T13:49:00Z")),null); // no late 21:30 retry
+assert.equal(plannedJob(at("2026-10-30T22:49:00Z")),null); // no late 06:30 retry
+// A live matching run must suppress another dispatch.
+const activeRun={
+  async fetch(url){
+    if(url.includes("/contents/"))return {status:404,ok:false};
+    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[
+      {created_at:"2026-10-30T07:00:20Z",event:"schedule",status:"in_progress",conclusion:null}
+    ]})};
+    throw Error("ACTIVE_RUN_MUST_NOT_DISPATCH");
   }
 };
-const fixedResult = await dispatchAt(at("2026-10-30T07:00:00Z"), { GITHUB_TOKEN: "FAKE" }, fixedFake.fetch, CRONS.FIXED);
-assert.equal(fixedResult.results[0].state, "DISPATCH_ACCEPTED_NOT_COMPLETED");
-assert.equal(posted.inputs.report_slot, "1500");
-assert.equal(posted.inputs.target_date, "2026-10-31");
-
-const activeInjury = {
-  async fetch(url) {
-    if (url.includes("/runs?")) return {
-      ok: true,
-      json: async () => ({ workflow_runs: [{
-        created_at: "2026-10-31T04:04:50Z",
-        event: "workflow_dispatch",
-        status: "in_progress",
-        conclusion: null
-      }] })
-    };
-    throw new Error("ACTIVE_INJURY_MUST_NOT_DISPATCH");
+assert.equal((await dispatchAt(at("2026-10-30T07:08:00Z"),{GITHUB_TOKEN:"FAKE"},activeRun.fetch)).state,"WORKFLOW_RUNNING");
+// A successful run suppresses redispatch even when its marker commit is delayed.
+const successfulFixed={
+  async fetch(url){
+    if(url.includes("/contents/"))return {status:404,ok:false};
+    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[
+      {created_at:"2026-10-30T13:30:10Z",updated_at:"2026-10-30T13:35:00Z",
+       event:"schedule",status:"completed",conclusion:"success"}
+    ]})};
+    throw Error("SUCCESSFUL_FIXED_RUN_MUST_NOT_DISPATCH");
   }
 };
-const injuryResult = await dispatchAt(at("2026-10-31T04:05:00Z"), { GITHUB_TOKEN: "FAKE" }, activeInjury.fetch, CRONS.PREGAME);
-assert.equal(injuryResult.results[0].state, "WORKFLOW_RUNNING");
-
-const failedRun = {
-  async fetch(url, options = {}) {
-    if (url.includes("/contents/")) return { status: 404, ok: false };
-    if (url.includes("/runs?")) return {
-      ok: true,
-      json: async () => ({ workflow_runs: [{
-        created_at: "2026-10-30T07:00:10Z",
-        event: "schedule",
-        status: "completed",
-        conclusion: "failure"
-      }] })
-    };
-    if (url.endsWith("/dispatches")) return { status: 204 };
-    throw new Error(url);
+assert.equal((await dispatchAt(at("2026-10-30T13:40:00Z"),{GITHUB_TOKEN:"FAKE"},successfulFixed.fetch)).state,"WORKFLOW_SUCCESS_WITHOUT_ACCEPTED_MARKER");
+// The external scheduler must not query or dispatch overnight hourly market jobs.
+const noOvernightCalls=async()=>{throw Error("OVERNIGHT_MONITOR_MUST_NOT_CALL_GITHUB");};
+assert.equal((await dispatchAt(at("2026-10-30T14:40:00Z"),{GITHUB_TOKEN:"FAKE"},noOvernightCalls)).state,"NO_SLOT");
+assert.equal((await dispatchAt(at("2026-10-30T21:49:00Z"),{GITHUB_TOKEN:"FAKE"},noOvernightCalls)).state,"NO_SLOT");
+// A failed run is eligible for a bounded retry, not treated as success.
+const failedRun={
+  async fetch(url,opts){
+    if(url.includes("/contents/"))return {status:404,ok:false};
+    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[
+      {created_at:"2026-10-30T07:00:10Z",updated_at:"2026-10-30T07:03:00Z",
+       event:"schedule",status:"completed",conclusion:"failure"}
+    ]})};
+    if(url.endsWith("/dispatches"))return {status:204};
+    throw Error(url);
   }
 };
-const retry = await dispatchAt(at("2026-10-30T07:08:00Z"), { GITHUB_TOKEN: "FAKE" }, failedRun.fetch, CRONS.FIXED);
-assert.equal(retry.results[0].state, "DISPATCH_ACCEPTED_NOT_COMPLETED");
-
-const successfulRun = {
-  async fetch(url) {
-    if (url.includes("/contents/")) return { status: 404, ok: false };
-    if (url.includes("/runs?")) return {
-      ok: true,
-      json: async () => ({ workflow_runs: [{
-        created_at: "2026-10-30T07:00:10Z",
-        event: "schedule",
-        status: "completed",
-        conclusion: "success"
-      }] })
-    };
-    throw new Error("SUCCESSFUL_RUN_MUST_NOT_REDISPATCH");
-  }
+assert.equal((await dispatchAt(at("2026-10-30T07:08:00Z"),{GITHUB_TOKEN:"FAKE"},failedRun.fetch)).state,"DISPATCH_ACCEPTED_NOT_COMPLETED");
+// GitHub read/API errors fail closed; they must never be interpreted as "no run".
+const unavailable={
+  async fetch(){return {ok:false,status:503};}
 };
-const noRetry = await dispatchAt(at("2026-10-30T07:08:00Z"), { GITHUB_TOKEN: "FAKE" }, successfulRun.fetch, CRONS.FIXED);
-assert.equal(noRetry.results[0].state, "WORKFLOW_SUCCESS_WITHOUT_NEW_DISPATCH");
+await assert.rejects(()=>dispatchAt(at("2026-10-30T07:08:00Z"),{GITHUB_TOKEN:"FAKE"},unavailable.fetch),/MARKER_READ_HTTP_503/);
 
-const unavailable = { async fetch() { return { ok: false, status: 503 }; } };
-const failedClosed = await dispatchAt(at("2026-10-30T07:00:00Z"), { GITHUB_TOKEN: "FAKE" }, unavailable.fetch, CRONS.FIXED);
-assert.equal(failedClosed.state, "PARTIAL_FAILURE");
-
-console.log("CLOUDFLARE_PRIMARY_SCHEDULER_REGRESSION_PASS");
+console.log("CLOUDFLARE_SCHEDULER_UTC_SLOT_AND_DISPATCH_PASS");
