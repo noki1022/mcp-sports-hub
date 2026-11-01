@@ -331,8 +331,13 @@ def self_test():
             key={"day":day_value,"game_id":f"{day_index}-{game_index}","capture":capture}
             model_rows.append({**key,"probability":.60,"outcome":outcome})
             market_rows.append({**key,"probability":.80,"outcome":outcome})
+    market_rows[0]["capture"]="2026-01-01T10:01:00+00:00"
     fusion=_shadow_fusion(model_rows,market_rows)
+    assert fusion["paired_events"]==150
     assert fusion["status"]=="SHADOW_HOLDOUT_SCORED"
+    market_rows[1]["capture"]="2026-01-01T10:16:00+00:00"
+    skew_rejected=_shadow_fusion(model_rows,market_rows)
+    assert skew_rejected["paired_events"]==149
     assert fusion["split"]["holdout_events"]>=20
     assert fusion["market_weight_selected_on_validation"]==1.0
     assert fusion["production_fusion_enabled"] is False
