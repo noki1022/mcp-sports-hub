@@ -54,7 +54,7 @@ def evaluate(settlements, forecasts):
             continue
         for game in doc.get("games",[]):
             forecast_index[(str(doc.get("target_date")),str(game.get("game_id")))].append((doc,game))
-    direct=defaultdict(list)
+    direct_records={}
     consensus=defaultdict(list)
     rejects=Counter()
     seen_consensus=set()
@@ -90,8 +90,12 @@ def evaluate(settlements, forecasts):
                         p=num(predicted.get("model_direction_probability"))
                         outcome=frozen.get("outcome")
                         if p is not None and 0<=p<=1 and outcome in ("HIT","MISS"):
-                            direct[key].append({"probability":p,"outcome":int(outcome=="HIT"),
-                                "game_id":gid,"day":day,"capture":predicted_time.isoformat()})
+                            record={"probability":p,"outcome":int(outcome=="HIT"),
+                                "game_id":gid,"day":day,"capture":predicted_time.isoformat(),
+                                "doc_capture":doc_capture}
+                            record_key=(day,gid,key)
+                            if record_key not in direct_records or doc_capture>direct_records[record_key]["doc_capture"]:
+                                direct_records[record_key]=record
                         elif outcome not in ("PUSH","EXCLUDED_NOT_ON_SALE","UNSETTLED"):
                             rejects["DIRECT_PROBABILITY_OR_OUTCOME_MISSING"]+=1
                 if matched_keys:
@@ -140,6 +144,9 @@ def evaluate(settlements, forecasts):
                     "game_id":gid,"day":day,"capture":latest.isoformat(),
                     "line":line,"direction":direction})
                 seen_consensus.add(key)
+    direct=defaultdict(list)
+    for (_,_,market),record in direct_records.items():
+        direct[market].append({k:v for k,v in record.items() if k!="doc_capture"})
     metrics={k:_metrics(direct[k]) for k in DIRECT_KEYS}
     metrics.update({k:_metrics(consensus[k]) for k in ("CONSENSUS_SPREAD","CONSENSUS_TOTAL")})
     return {
@@ -192,7 +199,8 @@ def self_test():
     assert out["metrics"]["CONSENSUS_TOTAL"]["sample_count"]==1
     assert out["probability_fusion"]=="DISABLED_NO_WEIGHT_FIT_OR_PRODUCTION_OVERRIDE"
     late=json.loads(json.dumps(forecast))
-    late["games"][0]["markets"]["CROWN_TOTAL"]["market_consensus"]["consensus_latest_source_capture_utc"]="2026-11-01T09:00:00+00:00"
+    for key in ("JINGCAI_TOTAL","CROWN_TOTAL"):
+        late["games"][0]["markets"][key]["market_consensus"]["consensus_latest_source_capture_utc"]="2026-11-01T09:00:00+00:00"
     assert evaluate([settlement],[late])["metrics"]["CONSENSUS_TOTAL"]["sample_count"]==0
     print("NBA_007_MARKET_CONSENSUS_SHADOW_BACKTEST_SELFTEST_PASS")
 
