@@ -50,28 +50,43 @@ def _metrics(rows):
 
 
 def _shadow_fusion(model_rows, market_rows):
-    """Chronological model/market blend experiment; never changes production."""
+    """Chronological model/market blend; market evidence must predate forecast generation."""
     model={(x["day"],x["game_id"]):x for x in model_rows}
     market={(x["day"],x["game_id"]):x for x in market_rows}
     paired=[]
+    rejected=Counter()
     for key in sorted(set(model)&set(market)):
         a,b=model[key],market[key]
         model_capture=dt(a.get("capture"))
         market_capture=dt(b.get("capture"))
         if model_capture is None or market_capture is None:
+            rejected["MISSING_VERIFIED_CAPTURE_TIME"]+=1
             continue
-        capture_skew=abs((model_capture-market_capture).total_seconds())
-        # Both sources are already required to be pre-tip and within 15 min
-        # of the frozen report; permit small same-capture ingestion skew.
-        if capture_skew>900 or int(a["outcome"])!=int(b["outcome"]):
+        # A market quote captured after the forecast cannot be fed back into
+        # that forecast's fusion experiment, even when the skew is only seconds.
+        skew_seconds=(model_capture-market_capture).total_seconds()
+        if skew_seconds < 0:
+            rejected["MARKET_CAPTURE_AFTER_FORECAST"]+=1
+            continue
+        if skew_seconds > 900:
+            rejected["MARKET_CAPTURE_TOO_OLD"]+=1
+            continue
+        if int(a["outcome"])!=int(b["outcome"]):
+            rejected["OUTCOME_MISMATCH"]+=1
+            continue
+        if not (0.0 <= float(a["probability"]) <= 1.0
+                and 0.0 <= float(b["probability"]) <= 1.0
+                and int(a["outcome"]) in (0,1)):
+            rejected["INVALID_PAIRED_VALUE"]+=1
             continue
         paired.append({"day":key[0],"game_id":key[1],
                        "model":float(a["probability"]),
                        "market":float(b["probability"]),
                        "outcome":int(a["outcome"]),
-                       "capture_skew_seconds":round(capture_skew,1)})
+                       "capture_lag_seconds":round(skew_seconds,1)})
     days=sorted({x["day"] for x in paired})
     base={"paired_events":len(paired),"distinct_days":len(days),
+          "pairing_rejections":dict(sorted(rejected.items())),
           "production_fusion_enabled":False,
           "promotion_policy":"DISABLED; REQUIRES CHRONOLOGICAL HOLDOUT AND SEPARATE APPROVAL"}
     if len(paired)<MIN_SAMPLE_FOR_FUSION_REVIEW or len(days)<MIN_DISTINCT_DAYS_FOR_FUSION_REVIEW:
@@ -116,6 +131,7 @@ def _shadow_fusion(model_rows, market_rows):
             "holdout_blend_improved_vs_model":(blend_brier is not None and model_brier is not None and blend_brier<model_brier),
             "holdout_blend_improved_vs_market":(blend_brier is not None and holdout["multi_company_market"]["brier"] is not None and blend_brier<holdout["multi_company_market"]["brier"])}
 
+
 def evaluate(settlements, forecasts):
     forecast_index=defaultdict(list)
     for doc in forecasts:
@@ -148,7 +164,11 @@ def evaluate(settlements, forecasts):
                 tip=dt(game.get("tipoff_beijing"))
                 if tip is None:continue
                 doc_capture=dt(doc.get("board_capture_utc"))
+                forecast_generated=dt(doc.get("forecast_generated_at_utc"))
                 if doc_capture is None or doc_capture>=tip:continue
+                if forecast_generated is not None and forecast_generated>=tip:
+                    rejects["FORECAST_GENERATED_POST_TIP"]+=1
+                    continue
                 forecast_markets=game.get("markets") or {}
                 matched_keys=[]
                 for key in DIRECT_KEYS:
@@ -171,12 +191,12 @@ def evaluate(settlements, forecasts):
                         elif outcome not in ("PUSH","EXCLUDED_NOT_ON_SALE","UNSETTLED"):
                             rejects["DIRECT_PROBABILITY_OR_OUTCOME_MISSING"]+=1
                 if matched_keys:
-                    matched.append((doc,game,matched_keys,tip,doc_capture))
+                    matched.append((doc,game,matched_keys,tip,doc_capture,forecast_generated))
             if not matched:
                 rejects["NO_EXACT_FROZEN_CAPTURE_MATCH"]+=1
                 continue
             # Use the newest report among exact market-capture matches, still pretip.
-            doc,game,matched_keys,tip,doc_capture=max(matched,key=lambda x:x[4])
+            doc,game,matched_keys,tip,doc_capture,forecast_generated=max(matched,key=lambda x:x[4])
             actual_margin=actual_home-actual_away
             actual_total=actual_home+actual_away
             forecast_markets=game.get("markets") or {}
@@ -237,7 +257,10 @@ def evaluate(settlements, forecasts):
                         and price_p is not None and 0 <= price_p <= 1
                         and price_count >= 3 and price_latest is not None
                         and price_latest < tip
-                        and abs((price_latest-doc_capture).total_seconds()) <= 900):
+                        and abs((price_latest-doc_capture).total_seconds()) <= 900
+                        and forecast_generated is not None
+                        and price_latest <= forecast_generated
+                        and (forecast_generated-price_latest).total_seconds() <= 900):
                     market_price[kind].append({
                         "probability": price_p, "outcome": first_side_outcome,
                         "game_id": gid, "day": day, "capture": price_latest.isoformat(),
@@ -309,6 +332,7 @@ def self_test():
                 "consensus_latest_source_capture_utc":capture}}
         settled_markets[key]={"frozen_capture_utc":capture,"outcome":"HIT"}
     forecast={"schema_version":"nba-five-markets-v1","target_date":day,"board_capture_utc":capture,
+        "forecast_generated_at_utc":capture,
         "games":[{"game_id":gid,"tipoff_beijing":tip,"markets":markets}]}
     settlement={"beijing_date":day,"games":[{"game_id":gid,"home_points":120,"away_points":100,"markets":settled_markets}]}
     out=evaluate([settlement],[forecast])
@@ -331,10 +355,16 @@ def self_test():
             key={"day":day_value,"game_id":f"{day_index}-{game_index}","capture":capture}
             model_rows.append({**key,"probability":.60,"outcome":outcome})
             market_rows.append({**key,"probability":.80,"outcome":outcome})
-    market_rows[0]["capture"]="2026-10-31T10:01:00+00:00"
+    market_rows[0]["capture"]="2026-10-31T09:59:00+00:00"
     fusion=_shadow_fusion(model_rows,market_rows)
     assert fusion["paired_events"]==150
     assert fusion["status"]=="SHADOW_HOLDOUT_SCORED"
+    # Even a one-second market quote after the forecast is ineligible.
+    after_forecast = json.loads(json.dumps(market_rows))
+    after_forecast[0]["capture"] = "2026-10-31T10:00:01+00:00"
+    after = _shadow_fusion(model_rows, after_forecast)
+    assert after["paired_events"] == 149
+    assert after["pairing_rejections"]["MARKET_CAPTURE_AFTER_FORECAST"] == 1
     market_rows[1]["capture"]="2026-10-31T10:16:00+00:00"
     skew_rejected=_shadow_fusion(model_rows,market_rows)
     assert skew_rejected["paired_events"]==149
@@ -347,6 +377,11 @@ def self_test():
     for key in ("JINGCAI_TOTAL","CROWN_TOTAL"):
         late["games"][0]["markets"][key]["market_consensus"]["consensus_latest_source_capture_utc"]="2026-11-01T09:00:00+00:00"
     assert evaluate([settlement],[late])["metrics"]["CONSENSUS_TOTAL"]["sample_count"]==0
+    no_clock=json.loads(json.dumps(forecast))
+    no_clock.pop("forecast_generated_at_utc")
+    unverified=evaluate([settlement],[no_clock])
+    assert unverified["shadow_fusion_research"]["SPREAD"]["paired_events"]==0
+
     print("NBA_007_MARKET_CONSENSUS_SHADOW_BACKTEST_SELFTEST_PASS")
 
 
