@@ -89,7 +89,8 @@ def self_test():
             "b":{"tip":"2026-11-01T06:00:00+08:00"},
             "c":{"tip":"2026-11-01T09:30:00+08:00"},
             "d":{"tip":"2026-11-01T10:00:00+08:00"},
-            "e":{"tip":"2026-11-01T11:00:00+08:00"}} ,\n            "priced_nba_to_007":{"a":"1","b":"2","c":"3","d":"4"}}))
+            "e":{"tip":"2026-11-01T11:00:00+08:00"}},
+            "priced_nba_to_007":{"a":"1","b":"2","c":"3","d":"4"}}))
         # The 04:30 and 06:00 games have started; later games remain eligible.
         a=decide(datetime.fromisoformat("2026-11-01T07:13:00+08:00"),"preflight",root)
         assert a["ok"] and a["eligible_games_by_time"]==2
