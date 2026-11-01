@@ -125,7 +125,7 @@ def main():
     assert "nba_final_review_gate.py" in postgame
     assert "nba_five_market_settlement.py" in postgame
     assert "titan007_join_beijing_verified.py" not in postgame
-    # The external Cloudflare trigger must sleep through Beijing 22:30–05:30.
+    # The pregame and fixed-report Cloudflare clocks must sleep through Beijing 22:30–05:30.
     cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
     cloud_crons=cloud["triggers"]["crons"]
     expected_cloud=[
