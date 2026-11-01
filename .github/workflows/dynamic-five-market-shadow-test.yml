@@ -26,6 +26,8 @@ jobs:
         run: |
           python3 -m py_compile analysis/nba_dynamic_five_market_shadow.py
           python3 -m py_compile analysis/nba_dynamic_five_market_replay.py
+      - name: Verify model reports persist a real generation timestamp
+        run: python3 analysis/nba_model_report.py --self-test
       - name: Deterministic five-market probability and source-orientation tests
         run: python3 analysis/nba_dynamic_five_market_shadow.py --self-test
       - name: Chronological replay, latest pre-tip selection and scoring tests
