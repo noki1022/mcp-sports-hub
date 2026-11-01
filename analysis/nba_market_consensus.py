@@ -7,6 +7,7 @@ Raw water slots remain unmapped until side orientation is independently proven.
 """
 from __future__ import annotations
 import argparse, json, math
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -61,33 +62,53 @@ def no_vig_raw_slots(first_water, second_water):
     return (x / total, y / total)
 
 
-def same_line_price_consensus(rows, kind, median_line, market_status):
-    """No-vig price consensus from distinct companies quoting the exact same line.
+def _select_main_line(rows, statistical_median):
+    """Choose an actually quoted modal line; never invent/interpolate a tradable rung."""
+    grouped = defaultdict(list)
+    for row in rows:
+        grouped[round(float(row["line"]), 3)].append(row)
+    if not grouped:
+        return None, [], "NO_MAIN_LINE"
+    max_support = max(len(items) for items in grouped.values())
+    leaders = [line for line, items in grouped.items() if len(items) == max_support]
+    if len(leaders) > 1:
+        nearest = min(abs(line - statistical_median) for line in leaders)
+        leaders = [line for line in leaders if abs(abs(line - statistical_median) - nearest) <= 1e-9]
+    if len(leaders) != 1:
+        return None, [], "AMBIGUOUS_MAIN_LINE"
+    line = leaders[0]
+    selected = sorted(grouped[line], key=lambda row: int(row["company_id"]))
+    ids = [row["company_id"] for row in selected]
+    if len(selected) < MIN_PRICE_COMPANIES:
+        return line, ids, "INSUFFICIENT_MAIN_LINE_COMPANIES"
+    return line, ids, "AVAILABLE_MAIN_LINE"
 
-    Raw first/second slots are mapped using the user's confirmed 007 display
-    convention: first=home on spread, first=over on totals. This remains a
-    shadow market reference; it never rewrites independent model probabilities.
-    """
+
+def same_line_price_consensus(rows, kind, main_line, market_status):
+    """Median of individually no-vig prices from distinct companies at one real line."""
+    first_direction = "HOME_COVER" if kind == "full_spread" else "OVER"
+    second_direction = "AWAY_COVER" if kind == "full_spread" else "UNDER"
     base = {
         "status": "BLOCKED_MARKET_CONSENSUS_UNAVAILABLE",
-        "reference_line": median_line,
+        "reference_line": main_line,
         "company_count": 0,
         "company_ids": [],
         "first_side_probability": None,
         "second_side_probability": None,
         "first_side_probability_iqr": None,
         "first_side_probability_range": None,
-        "first_side_direction": "HOME_COVER" if kind == "full_spread" else "OVER",
-        "second_side_direction": "AWAY_COVER" if kind == "full_spread" else "UNDER",
+        "first_side_direction": first_direction,
+        "second_side_direction": second_direction,
         "orientation_status": "USER_CONFIRMED",
         "orientation_policy": SIDE_ORIENTATION_POLICY,
-        "aggregation": "EQUAL_WEIGHT_MEDIAN_NO_VIG_EXACT_LINE_ONLY",
+        "aggregation": "EQUAL_WEIGHT_MEDIAN_NO_VIG_ACTUAL_MAIN_LINE_ONLY",
     }
-    if market_status != "CONSENSUS_AVAILABLE" or median_line is None:
+    if market_status != "CONSENSUS_AVAILABLE" or main_line is None:
+        base["status"] = market_status
         return base
     same_line = [
         row for row in rows
-        if abs(row["line"] - median_line) <= 1e-6
+        if abs(float(row["line"]) - float(main_line)) <= 1e-6
         and row["raw_slot1_no_vig"] is not None
         and row["raw_slot2_no_vig"] is not None
     ]
@@ -95,23 +116,25 @@ def same_line_price_consensus(rows, kind, median_line, market_status):
     base["company_ids"] = sorted(
         (row["company_id"] for row in same_line), key=lambda value: int(value))
     if len(same_line) < MIN_PRICE_COMPANIES:
-        base["status"] = "INSUFFICIENT_SAME_LINE_COMPANIES"
+        base["status"] = "INSUFFICIENT_MAIN_LINE_COMPANIES"
         return base
     first = [row["raw_slot1_no_vig"] for row in same_line]
     p1 = quantile(first, .5)
     q1, q3 = quantile(first, .25), quantile(first, .75)
     times = [row["source_capture_utc"] for row in same_line]
+    skew = (max(times) - min(times)).total_seconds() if len(times) > 1 else 0.0
+    base["capture_skew_seconds"] = round(skew, 1)
+    if skew > MAX_CAPTURE_SKEW_SECONDS:
+        base["status"] = "ASYNCHRONOUS_MAIN_LINE_QUOTES"
+        return base
     base.update({
         "status": "AVAILABLE_SAME_LINE_MEDIAN",
         "first_side_probability": round(p1, 6),
         "second_side_probability": round(1.0 - p1, 6),
         "first_side_probability_iqr": round(q3 - q1, 6),
-        "first_side_probability_range": [
-            round(min(first), 6), round(max(first), 6)],
+        "first_side_probability_range": [round(min(first), 6), round(max(first), 6)],
         "earliest_source_capture_utc": min(times).isoformat(),
         "latest_source_capture_utc": max(times).isoformat(),
-        "capture_skew_seconds": round(
-            (max(times) - min(times)).total_seconds(), 1),
     })
     return base
 
@@ -125,8 +148,8 @@ def _market_stats(rows, kind, rejected):
     threshold = max(1.0 if kind == "full_spread" else 2.0,
                     3.0 * 1.4826 * (mad or 0.0))
     outliers = [x["company_id"] for x in rows if abs(x["line"] - med) > threshold]
-    p1 = [x["raw_slot1_no_vig"] for x in rows if x["raw_slot1_no_vig"] is not None]
-    p2 = [x["raw_slot2_no_vig"] for x in rows if x["raw_slot2_no_vig"] is not None]
+    outlier_set = set(outliers)
+    effective = [x for x in rows if x["company_id"] not in outlier_set]
     times = [x["source_capture_utc"] for x in rows]
     skew = ((max(times) - min(times)).total_seconds() if len(times) > 1 else 0.0)
     count = len(rows)
@@ -136,14 +159,26 @@ def _market_stats(rows, kind, rejected):
         status = "LOW_COMPANY_COVERAGE"
     elif skew > MAX_CAPTURE_SKEW_SECONDS:
         status = "ASYNCHRONOUS_QUOTES"
+    elif len(effective) < MIN_COMPANIES:
+        status = "LOW_EFFECTIVE_COMPANY_COVERAGE"
     else:
         status = "CONSENSUS_AVAILABLE"
+    main_line, main_line_ids, main_line_status = _select_main_line(effective, med)
+    price_status = status if main_line_status == "AVAILABLE_MAIN_LINE" else main_line_status
+    p1 = [x["raw_slot1_no_vig"] for x in effective if x["raw_slot1_no_vig"] is not None]
+    p2 = [x["raw_slot2_no_vig"] for x in effective if x["raw_slot2_no_vig"] is not None]
     return {
         "status": status,
-        "consensus_available": status == "CONSENSUS_AVAILABLE",
+        "consensus_available": status == "CONSENSUS_AVAILABLE" and main_line_status == "AVAILABLE_MAIN_LINE",
         "company_count": count,
+        "effective_company_count": len(effective),
+        "effective_company_ids": [x["company_id"] for x in sorted(effective, key=lambda r: int(r["company_id"]))],
         "company_ids": [x["company_id"] for x in sorted(rows, key=lambda r: int(r["company_id"]))],
         "median_line": round(med, 3) if med is not None else None,
+        "main_line": round(main_line, 3) if main_line is not None else None,
+        "main_line_status": main_line_status,
+        "main_line_company_count": len(main_line_ids),
+        "main_line_company_ids": main_line_ids,
         "line_min": round(min(values), 3) if values else None,
         "line_q1": round(q1, 3) if q1 is not None else None,
         "line_q3": round(q3, 3) if q3 is not None else None,
@@ -155,7 +190,8 @@ def _market_stats(rows, kind, rejected):
         "raw_slot1_no_vig_median": round(quantile(p1, .5), 6) if p1 else None,
         "raw_slot2_no_vig_median": round(quantile(p2, .5), 6) if p2 else None,
         "raw_slot_orientation": "USER_CONFIRMED_FIRST_HOME_OR_OVER",
-        "same_line_price_consensus": same_line_price_consensus(rows, kind, med, status),
+        "same_line_price_consensus": same_line_price_consensus(
+            effective, kind, main_line, price_status),
         "earliest_source_capture_utc": min(times).isoformat() if times else None,
         "latest_source_capture_utc": max(times).isoformat() if times else None,
         "capture_skew_seconds": round(skew, 1),
@@ -168,10 +204,11 @@ def _market_stats(rows, kind, rejected):
             "source_capture_utc": x["source_capture_utc"].isoformat(),
             "raw_slot1_no_vig": x["raw_slot1_no_vig"],
             "raw_slot2_no_vig": x["raw_slot2_no_vig"],
+            "excluded_as_line_outlier": x["company_id"] in outlier_set,
         } for x in sorted(rows, key=lambda r: int(r["company_id"]))],
         "line_semantics": ("007 spread raw line; positive means HOME GIVES"
                            if kind == "full_spread" else "007 full-game total points"),
-        "aggregation": "EQUAL_WEIGHT_MEDIAN_UNIQUE_VALIDATED_SOURCE_IDS",
+        "aggregation": "OUTLIER_FILTERED_MODAL_ACTUAL_LINE_AND_EQUAL_WEIGHT_MEDIAN_NO_VIG",
     }
 
 
@@ -292,7 +329,7 @@ def selection_context(market_key, direct_line, direction, model_margin, model_to
     """Explain model-vs-consensus alignment without changing production probability."""
     if market_key == "JINGCAI_WIN":
         spread = (game_consensus or {}).get("full_spread") or {}
-        median_line = number(spread.get("median_line"))
+        median_line = number(spread.get("main_line"))
         if not spread.get("consensus_available") or median_line is None:
             return {
                 "status": spread.get("status", "NO_SPREAD_CONSENSUS"),
@@ -317,12 +354,15 @@ def selection_context(market_key, direct_line, direction, model_margin, model_to
 
     kind = "full_spread" if market_key.endswith("HANDICAP") else "full_total"
     stats = (game_consensus or {}).get(kind) or {}
-    line = number(stats.get("median_line"))
+    line = number(stats.get("main_line"))
     available = bool(stats.get("consensus_available") and line is not None)
     ctx = {
         "status": stats.get("status", "NO_VERIFIED_QUOTES"),
         "company_count": stats.get("company_count", 0),
         "consensus_line": line if available else None,
+        "consensus_statistical_median": number(stats.get("median_line")),
+        "main_line_company_count": stats.get("main_line_company_count", 0),
+        "main_line_company_ids": stats.get("main_line_company_ids", []),
         "consensus_line_range": ([stats.get("line_min"), stats.get("line_max")]
                                  if available else None),
         "consensus_line_iqr": stats.get("line_iqr") if available else None,
@@ -333,6 +373,7 @@ def selection_context(market_key, direct_line, direction, model_margin, model_to
         "consensus_latest_source_capture_utc": stats.get("latest_source_capture_utc"),
     }
     price = stats.get("same_line_price_consensus") or {}
+    ctx["same_line_price_consensus"] = price
     ctx["market_price_consensus_status"] = price.get("status")
     ctx["same_line_company_count"] = price.get("company_count", 0)
     ctx["same_line_company_ids"] = price.get("company_ids", [])
@@ -457,6 +498,7 @@ def self_test():
     assert ctx["consensus_line"] == -5.5
     assert ctx["probability_fusion"].startswith("DISABLED")
     assert ctx["market_price_consensus_status"] == "AVAILABLE_SAME_LINE_MEDIAN"
+    assert ctx["same_line_price_consensus"]["status"] == "AVAILABLE_SAME_LINE_MEDIAN"
     assert ctx["same_line_company_count"] == 3
     assert ctx["market_price_first_side_direction"] == "HOME_COVER"
     assert ctx["market_price_probability_for_model_direction"] is not None
@@ -471,7 +513,19 @@ def self_test():
         quote["current"]["line"] = line
     split_stats = build(joined, split)["games"][0]["markets"]["full_spread"]
     assert split_stats["median_line"] == -6.0
-    assert split_stats["same_line_price_consensus"]["status"] == "INSUFFICIENT_SAME_LINE_COMPANIES"
+    assert split_stats["main_line"] == -6.0
+    assert split_stats["main_line_status"] == "INSUFFICIENT_MAIN_LINE_COMPANIES"
+    assert split_stats["same_line_price_consensus"]["status"] == "INSUFFICIENT_MAIN_LINE_COMPANIES"
+    # A median between offered lines resolves to a real, supported market rung.
+    modal = json.loads(json.dumps(top))
+    modal_rows = modal["games"][0]["markets"]["full_spread"]["companies"]
+    for quote, line in zip(modal_rows, (-5.5, -5.5, -5.5, -6.0, -6.0)):
+        quote["current"]["line"] = line
+    modal_stats = build(joined, modal)["games"][0]["markets"]["full_spread"]
+    assert modal_stats["median_line"] == -5.5
+    assert modal_stats["main_line"] == -5.5
+    assert modal_stats["main_line_company_count"] == 3
+    assert modal_stats["same_line_price_consensus"]["reference_line"] == -5.5
     ml = selection_context("JINGCAI_WIN", None, "AWAY_WIN", -2, 225, 12, 18, g)
     assert ml["proxy_type"] == "SPREAD_FAVORITE_NOT_MONEYLINE_ODDS"
     assert ml["moneyline_consensus_probability"] is None
