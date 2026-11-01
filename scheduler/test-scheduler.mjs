@@ -70,6 +70,8 @@ for(const [date,slot,target] of extended){
 }
 assert.equal(plannedJob(at("2026-10-30T13:17:00Z")),null); // outside retry minute
 assert.equal(plannedJob(at("2026-10-30T22:50:00Z")),null); // no stale 06:30 retry
+assert.equal(plannedJob(at("2026-10-30T13:49:00Z")),null); // no late 21:30 retry
+assert.equal(plannedJob(at("2026-10-30T22:49:00Z")),null); // no late 06:30 retry
 // A live matching run must suppress another dispatch.
 const activeRun={
   async fetch(url){
