@@ -7,7 +7,7 @@ are by whole Beijing-independent source game date; same-day fixtures never
 update one another's features. No production model, report or scheduler changes.
 """
 from __future__ import annotations
-import argparse, json, math, random
+import argparse, json, math, random, hashlib
 from collections import defaultdict
 from datetime import date, timedelta, datetime, timezone
 from pathlib import Path
@@ -159,9 +159,26 @@ def grouped_bootstrap_delta(rows, candidate_prob, baseline_prob, outcomes):
                                           float(np.percentile(draws,97.5))],
         "resamples":BOOTSTRAP_REPS,"negative_is_better":True}
 
+def load_development_history(cutoff):
+    """Download only 2022-23..2024-25 files; never request later seasons."""
+    rows=[]; sources={}
+    seasons=("2022-23","2023-24","2024-25")
+    for season in seasons:
+        url=f"{B.PREFIX}{season}-team-game-results.csv"
+        body=B.checked_download(url)
+        parsed=B.parse(body,season,cutoff)
+        rows.extend(parsed)
+        sources[season]={"url":url,"rows_before_cutoff":len(parsed),
+                         "sha256":hashlib.sha256(body.encode("utf-8")).hexdigest()}
+    games,rejected=B.unique_games(rows)
+    if len(games)<3000:
+        raise RuntimeError("INSUFFICIENT_DEVELOPMENT_HISTORY")
+    games.sort(key=lambda g:(g["date"],g["home"],g["away"]))
+    return games,rejected,sources
+
 def run(out):
     cutoff=date(2025,4,14) # Deliberately excludes previously viewed 2025-26 holdout.
-    games,rejected,sources=B.extract_history(cutoff)
+    games,rejected,sources=load_development_history(cutoff)
     rows=build_rows(games)
     results=[]; all_pairwise=[]
     for fold in FOLDS:
