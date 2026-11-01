@@ -8,7 +8,6 @@ permissions:
   contents: read
 jobs:
   resend:
-    if: contains(github.event.head_commit.added, '.github/triggers/one-time-nba-five-market-review-20261101.txt')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
