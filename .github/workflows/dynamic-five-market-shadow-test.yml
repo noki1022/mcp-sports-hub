@@ -1,0 +1,26 @@
+name: Dynamic five-market shadow tests
+on:
+  push:
+    branches: [research/dynamic-five-market-replay-v1]
+    paths:
+      - "analysis/nba_dynamic_five_market_shadow.py"
+      - ".github/workflows/dynamic-five-market-shadow-test.yml"
+  pull_request:
+    paths:
+      - "analysis/nba_dynamic_five_market_shadow.py"
+      - ".github/workflows/dynamic-five-market-shadow-test.yml"
+permissions:
+  contents: read
+jobs:
+  shadow-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile
+        run: python3 -m py_compile analysis/nba_dynamic_five_market_shadow.py
+      - name: Deterministic probability and source-orientation tests
+        run: python3 analysis/nba_dynamic_five_market_shadow.py --self-test
