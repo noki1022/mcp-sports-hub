@@ -95,10 +95,10 @@ def self_test():
         a=decide(datetime.fromisoformat("2026-11-01T07:13:00+08:00"),"preflight",root)
         assert a["ok"] and a["eligible_games_by_time"]==2
         assert a["next_unstarted_tip_beijing"].startswith("2026-11-01T09:30")
-        # A delayed run at 09:16 is too close to the 09:30 game for full analysis.
+        # At 09:46, the 10:00 game is inside the 20-minute full-analysis lead.
         b=decide(datetime.fromisoformat("2026-11-01T09:46:00+08:00"),"preflight",root)
         assert not b["ok"] and b["eligible_games_by_time"]==0
-        # A report already running can still be sent at 09:26 with five minutes.
+        # At 09:50, the 10:00 game still has the required five-minute presend lead.
         c=decide(datetime.fromisoformat("2026-11-01T09:50:00+08:00"),"presend",root)
         assert c["ok"] and c["eligible_games_by_time"]==1
         d=decide(datetime.fromisoformat("2026-11-01T09:50:00+08:00"),"preflight",root)
