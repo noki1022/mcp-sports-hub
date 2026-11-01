@@ -131,12 +131,12 @@ def main():
     expected_cloud=[
         "*/15 * * * *",
         "*/5 22-23,0-13 * * *",
-        "0,1,5,6,7,8,10,11,16,18,20,28,30,35,40,45,50,55 0-8,10,13,20,22-23 * * *",
+        "0,1,5,6,7,8,10,11,16,18,20,28,30,35,40,45,50,55 0-8,10,13,22-23 * * *",\n        "1,6,11 20 * * *",
     ]
     assert cloud_crons==expected_cloud,(cloud_crons,expected_cloud)
     # The pregame and fixed-report clocks must sleep through Beijing 22:30–05:30.
     # The all-day */15 trigger is exclusively official-FINAL settlement polling.
-    for expr in cloud_crons[1:]:
+    for expr in cloud_crons[1:3]:
         mm,hh,_,_,_=expr.split()
         if mm.startswith("*/"):
             step=int(mm.split("/",1)[1])
@@ -151,7 +151,9 @@ def main():
             for minute in mins:
                 utc_minute=hour*60+minute
                 assert not (14*60+30<=utc_minute<=21*60+30),(expr,hour,minute)
+    assert cloud_crons[3]=="1,6,11 20 * * *"
     worker=(ROOT/"scheduler/worker.mjs").read_text()
+    assert '"nba-full-chain-e2e.yml", "offline_regression"' in worker
     assert '"nba-two-market-nightly-2200.yml", "night_review"' in worker
     assert '"titan007-final-hourly.yml"' not in worker
     worker=(ROOT/"scheduler/worker.mjs").read_text()
