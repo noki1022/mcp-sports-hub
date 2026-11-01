@@ -280,7 +280,7 @@ def evaluate(settlements, forecasts):
         shadow_fusion[kind]=_shadow_fusion(model_first_side[kind],market_price[kind])
     return {
         "shadow_fusion_research":shadow_fusion,
-        "schema_version":"nba-007-market-consensus-shadow-scorecard-v2",
+        "schema_version":"nba-007-market-consensus-shadow-scorecard-v3-point-in-time-fusion",
         "metrics":metrics,
         "minimum_sample_for_fusion_review":MIN_SAMPLE_FOR_FUSION_REVIEW,
         "minimum_distinct_days_for_fusion_review":MIN_DISTINCT_DAYS_FOR_FUSION_REVIEW,
@@ -288,8 +288,8 @@ def evaluate(settlements, forecasts):
                            and v["distinct_days"]>=MIN_DISTINCT_DAYS_FOR_FUSION_REVIEW)
                            for k,v in metrics.items()},
         "probability_fusion":"DISABLED_NO_WEIGHT_FIT_OR_PRODUCTION_OVERRIDE",
-        "fusion_review_policy":"AT_LEAST_100_MATCHED_EVENTS_AND_24_BEIJING_DATES; NO_AUTOMATIC_PROMOTION",
-        "selection_policy":"EXACT_FROZEN_SOURCE_CAPTURE_MATCH_PRETIP_ONLY",
+        "fusion_review_policy":"AT_LEAST_100_MATCHED_EVENTS_AND_24_BEIJING_DATES; MARKET_MUST_PRECEDE_FORECAST_GENERATION; NO_AUTOMATIC_PROMOTION",
+        "selection_policy":"EXACT_FROZEN_SOURCE_CAPTURE_MATCH_PRETIP; MARKET_CAPTURE_AT_OR_BEFORE_FORECAST_GENERATION",
         "source_orientation":"USER_CONFIRMED_007_FIRST_SIDE_HOME_OR_OVER; EXACT_SAME_LINE_NO_VIG_ONLY",
         "moneyline_consensus":"NOT_AVAILABLE_NO_DIRECT_MULTI_COMPANY_H2H_FEED",
         "rejections":dict(sorted(rejects.items())),
