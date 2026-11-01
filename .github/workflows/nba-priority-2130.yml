@@ -277,15 +277,7 @@ jobs:
             nba_priority_pushplus_status.json
           if-no-files-found: warn
           retention-days: 14
- "$GITHUB_OUTPUT"; then
-            echo "2130_PRESEND_CUTOFF_PASSED_SKIP_WITHOUT_FAILURE"
-            exit 0
-          fi
-          git fetch origin main
-          if git cat-file -e "origin/main:reports/pushplus-sent/$TARGET_DATE/2130.json" 2>/dev/null; then
-             echo 'PRIORITY_ALREADY_ACCEPTED_IN_REMOTE'; exit 1
-          fi
-      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true' && steps.presend.outputs.skip != 'true'
         name: Push full-board priority analysis to iPhone before 22:00
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
@@ -297,7 +289,7 @@ jobs:
           if s.get('state')!='API_ACCEPTED_NOT_DEVICE_CONFIRMED':raise RuntimeError('PRIORITY_PUSH_NOT_ACCEPTED')
           print('PRIORITY_PUSHPLUS_API_ACCEPTED',s.get('games_considered'))
           PY
-      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true' && steps.presend.outputs.skip != 'true'
         name: Archive snapshot, complete analysis and successful PushPlus marker
         run: |
           mkdir -p "reports/daily/$TARGET_DATE/2130" "reports/pushplus-sent/$TARGET_DATE"
