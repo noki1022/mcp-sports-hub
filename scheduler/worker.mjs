@@ -16,6 +16,7 @@ const FIXED=[
   {hour:14, slot:"1400", attempts:[0,8,18,28], maxDelay:34},
   {hour:15, slot:"1500", attempts:[0,8,18,28], maxDelay:34},
   {hour:18, slot:"1800", attempts:[0,8,18,28], maxDelay:34},
+  {hour:20, slot:"2045", attempts:[48], maxDelay:5},
   {hour:21, slot:"2100", attempts:[0,7,16], maxDelay:19}
 ];
 
