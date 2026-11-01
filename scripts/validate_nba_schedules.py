@@ -131,7 +131,8 @@ def main():
     expected_cloud=[
         "*/15 * * * *",
         "*/5 22-23,0-13 * * *",
-        "0,1,5,6,7,8,10,11,16,18,20,28,30,35,40,45,50,55 0-8,10,13,22-23 * * *",\n        "1,6,11 20 * * *",
+        "0,1,5,6,7,8,10,11,16,18,20,28,30,35,40,45,50,55 0-8,10,13,22-23 * * *",
+        "1,6,11 20 * * *",
     ]
     assert cloud_crons==expected_cloud,(cloud_crons,expected_cloud)
     # The pregame and fixed-report clocks must sleep through Beijing 22:30–05:30.
