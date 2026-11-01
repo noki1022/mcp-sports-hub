@@ -33,6 +33,7 @@ SCHEDULE_SLOTS = {
     "15 10 * * *": "1800",
     "30 10 * * *": "1800",
     "0 13 * * *": "2100",
+    "45 12 * * *": "2045",
 }
 FIXED_SLOTS = frozenset(SCHEDULE_SLOTS.values())
 
