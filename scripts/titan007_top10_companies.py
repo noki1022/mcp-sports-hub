@@ -65,7 +65,37 @@ def collect(board,limit=10):
                   "markets":{k:{"status":"NO_QUOTE","companies":[],"source_id_order_unverified":True}
                              for k in ("full_spread","full_total")}} for gid,g in ids.items()}
     source_audit=[]
+    # ID3 is the canonical Crown source already fetched by the verified
+    # cross-date join. Reuse it rather than issuing a second target-date-only
+    # request that can miss valid adjacent-date rows.
+    canonical_count=0
+    for gid,board_game in ids.items():
+        for market in ("full_spread","full_total"):
+            quote=((board_game.get("markets") or {}).get(market) or {})
+            current=quote.get("current") or {}
+            if (str(board_game.get("market_source_id") or "3")=="3"
+                    and current.get("line") is not None
+                    and current.get("first_side_water") is not None
+                    and current.get("second_side_water") is not None):
+                bygame[gid]["markets"][market]["companies"].append({
+                    "display_rank":None,
+                    "company_display":"皇冠（007机构ID 3）",
+                    "company_id":"3","market":market,
+                    "opening":quote.get("opening") or {},
+                    "current":current,
+                    "side_orientation":"UNVERIFIED_RAW_SLOTS",
+                    "source":"DATED_007_COMPANY_ID",
+                    "source_capture_utc":board.get("crown_quote_captured_at_utc") or board.get("captured_at_utc")})
+                canonical_count+=1
+    source_audit.append({"id":"3","url":"https://bf.titan007.com/nba_Oddsdata.aspx?id=3",
+        "status":"REUSED_CANONICAL_CROSS_DATE_JOIN","matched_games":len({
+            gid for gid,item in bygame.items()
+            if any(c.get("company_id")=="3" for market in item["markets"].values()
+                   for c in market["companies"])}),
+        "verified_market_rows":canonical_count})
     for cid in selected:
+        if cid=="3":
+            continue
         url="https://bf.titan007.com/nba_Oddsdata.aspx?"+urllib.parse.urlencode(
             {"date":target,"id":cid,"h":"12","m":"00"})
         status={"id":cid,"url":url,"status":"UNAVAILABLE","matched_games":0}
@@ -201,6 +231,7 @@ def analyze(current,prior,recovery=None):
         "games":rows,"decision":"NO_BET","model_probability_adjusted":False,
         "caveat":"Ten independently tested company ID feeds; source company names and page top-ten ranking remain UNVERIFIED. These are candidate sources, not authenticated top-ten ranking."}
 def selftest():
+    global VALIDATED_SOURCE_IDS
     raw="<table>"+''.join(f"<tr><td>机构{i}</td><td>0.90</td><td>220.5</td><td>0.92</td><td>0.88</td><td>{220.5+i}</td><td>0.94</td></tr>" for i in range(12))+"</table>"
     x=extract(raw,"full_total")
     assert len(x)==10 and x[0]["company_display"]=="机构0" and x[-1]["display_rank"]==10
@@ -209,6 +240,26 @@ def selftest():
     assert o["games"][0]["markets"]["full_total"]["company_count"]==10
     assert not o["model_probability_adjusted"]
     assert len(VALIDATED_SOURCE_IDS)==10 and len(set(VALIDATED_SOURCE_IDS))==10
+    # The canonical Crown ID3 quote must be reused without a second network
+    # request, even when the institution comparison is restricted to ID3.
+    original_ids=VALIDATED_SOURCE_IDS
+    VALIDATED_SOURCE_IDS=("3",)
+    try:
+        board={"requested_display_date":"2026-10-31",
+          "captured_at_utc":"2026-10-30T14:00:00Z",
+          "crown_quote_captured_at_utc":"2026-10-30T14:00:00Z",
+          "nba_cba_games":[{"game_id":"1234","nba_game_id":"nba1234","league":"NBA",
+            "home_team":"主队","away_team":"客队","market_source_id":"3",
+            "markets":{"full_spread":{"current":{"line":-5.5,"first_side_water":0.9,"second_side_water":0.95}},
+                       "full_total":{"current":{"line":224.5,"first_side_water":0.92,"second_side_water":0.94}}}}]}
+        canonical=collect(board)
+    finally:
+        VALIDATED_SOURCE_IDS=original_ids
+    assert canonical["source_audit"][0]["status"]=="REUSED_CANONICAL_CROSS_DATE_JOIN"
+    assert canonical["source_audit"][0]["verified_market_rows"]==2
+    for market in ("full_spread","full_total"):
+        row=canonical["games"][0]["markets"][market]["companies"][0]
+        assert row["company_id"]=="3" and row["source"]=="DATED_007_COMPANY_ID"
     import tempfile
     with tempfile.TemporaryDirectory() as scratch:
         folder=Path(scratch)

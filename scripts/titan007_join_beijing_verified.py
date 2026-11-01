@@ -180,6 +180,7 @@ def reconcile(fixture,site,odds,target):
             "us_eastern_date":official["us_eastern_date"],
             "site_display_date":g["display_date"],"site_display_clock":g["display_clock"],
             "source":"007 dated site verified by ESPN UTC matchup",
+            "market_source_id":"3",
             "markets":odds.get(mid) or {"full_spread":{"opening":{},"current":{},"status":"NO_VERIFIED_ID3_SPREAD"},"full_total":{"opening":{},"current":{},"status":"NO_VERIFIED_ID3_TOTAL"}}})
     if len({x["nba_game_id"] for x in matched})!=len(matched):
         raise RuntimeError("MORE_THAN_ONE_007_ID_PER_OFFICIAL_GAME")
@@ -249,8 +250,11 @@ def run(date,out,*,allow_schedule_only=False):
                 "007_IDENTITY_AMBIGUOUS")
         missing.append({"nba_game_id":g["nba_game_id"],"home":g["home"],
                         "away":g["away"],"beijing_tip":g["beijing_tip"],"reason":reason})
+    captured_at=datetime.now(timezone.utc).isoformat()
     output={
-      "captured_at_utc":datetime.now(timezone.utc).isoformat(),
+      "captured_at_utc":captured_at,
+      "crown_quote_captured_at_utc":captured_at,
+      "crown_source_id":"3",
       "requested_display_date":date,
       "date_standard":"Asia/Shanghai derived from UTC start",
       "score_source":"https://bf.titan007.com/nba_date.aspx?date=...",
