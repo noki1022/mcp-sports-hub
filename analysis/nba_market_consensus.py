@@ -10,7 +10,9 @@ import argparse, json, math
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION = "nba-007-market-consensus-v1"
+VERSION = "nba-007-market-consensus-v2-same-line-price-shadow"
+MIN_PRICE_COMPANIES = 3
+SIDE_ORIENTATION_POLICY = "USER_CONFIRMED_007_HOME_LEFT_OVER_LEFT"
 CROWN_COMPANY_ID = "3"
 CROWN_COMPANY_NAME = "皇冠"
 VALIDATED_COMPANY_IDS = ("3", "1", "2", "8", "9", "10", "19", "20", "24", "31")
@@ -59,6 +61,61 @@ def no_vig_raw_slots(first_water, second_water):
     return (x / total, y / total)
 
 
+def same_line_price_consensus(rows, kind, median_line, market_status):
+    """No-vig price consensus from distinct companies quoting the exact same line.
+
+    Raw first/second slots are mapped using the user's confirmed 007 display
+    convention: first=home on spread, first=over on totals. This remains a
+    shadow market reference; it never rewrites independent model probabilities.
+    """
+    base = {
+        "status": "BLOCKED_MARKET_CONSENSUS_UNAVAILABLE",
+        "reference_line": median_line,
+        "company_count": 0,
+        "company_ids": [],
+        "first_side_probability": None,
+        "second_side_probability": None,
+        "first_side_probability_iqr": None,
+        "first_side_probability_range": None,
+        "first_side_direction": "HOME_COVER" if kind == "full_spread" else "OVER",
+        "second_side_direction": "AWAY_COVER" if kind == "full_spread" else "UNDER",
+        "orientation_status": "USER_CONFIRMED",
+        "orientation_policy": SIDE_ORIENTATION_POLICY,
+        "aggregation": "EQUAL_WEIGHT_MEDIAN_NO_VIG_EXACT_LINE_ONLY",
+    }
+    if market_status != "CONSENSUS_AVAILABLE" or median_line is None:
+        return base
+    same_line = [
+        row for row in rows
+        if abs(row["line"] - median_line) <= 1e-6
+        and row["raw_slot1_no_vig"] is not None
+        and row["raw_slot2_no_vig"] is not None
+    ]
+    base["company_count"] = len(same_line)
+    base["company_ids"] = sorted(
+        (row["company_id"] for row in same_line), key=lambda value: int(value))
+    if len(same_line) < MIN_PRICE_COMPANIES:
+        base["status"] = "INSUFFICIENT_SAME_LINE_COMPANIES"
+        return base
+    first = [row["raw_slot1_no_vig"] for row in same_line]
+    p1 = quantile(first, .5)
+    q1, q3 = quantile(first, .25), quantile(first, .75)
+    times = [row["source_capture_utc"] for row in same_line]
+    base.update({
+        "status": "AVAILABLE_SAME_LINE_MEDIAN",
+        "first_side_probability": round(p1, 6),
+        "second_side_probability": round(1.0 - p1, 6),
+        "first_side_probability_iqr": round(q3 - q1, 6),
+        "first_side_probability_range": [
+            round(min(first), 6), round(max(first), 6)],
+        "earliest_source_capture_utc": min(times).isoformat(),
+        "latest_source_capture_utc": max(times).isoformat(),
+        "capture_skew_seconds": round(
+            (max(times) - min(times)).total_seconds(), 1),
+    })
+    return base
+
+
 def _market_stats(rows, kind, rejected):
     values = [x["line"] for x in rows]
     med = quantile(values, .5)
@@ -97,7 +154,8 @@ def _market_stats(rows, kind, rejected):
         "outlier_company_ids": sorted(outliers, key=int),
         "raw_slot1_no_vig_median": round(quantile(p1, .5), 6) if p1 else None,
         "raw_slot2_no_vig_median": round(quantile(p2, .5), 6) if p2 else None,
-        "raw_slot_orientation": "UNVERIFIED_NOT_HOME_AWAY_OR_OVER_UNDER",
+        "raw_slot_orientation": "USER_CONFIRMED_FIRST_HOME_OR_OVER",
+        "same_line_price_consensus": same_line_price_consensus(rows, kind, med, status),
         "earliest_source_capture_utc": min(times).isoformat() if times else None,
         "latest_source_capture_utc": max(times).isoformat() if times else None,
         "capture_skew_seconds": round(skew, 1),
@@ -222,6 +280,8 @@ def build(joined, top10):
         "consensus_market_count": available,
         "possible_market_count": total,
         "model_probability_fusion": "SHADOW_ONLY_DISABLED_PENDING_CHRONOLOGICAL_OOS_VALIDATION",
+        "market_price_consensus": "SAME_LINE_NO_VIG_MEDIAN_SHADOW_ONLY",
+        "water_side_mapping": SIDE_ORIENTATION_POLICY,
         "moneyline_coverage": "NO_DIRECT_MULTI_COMPANY_H2H_QUOTES_COLLECTED",
         "decision": "NO_BET",
     }
@@ -269,9 +329,21 @@ def selection_context(market_key, direct_line, direction, model_margin, model_to
         "outlier_company_ids": stats.get("outlier_company_ids", []),
         "crown_id3_line": stats.get("crown_id3_line"),
         "probability_fusion": "DISABLED_PENDING_CHRONOLOGICAL_OOS_VALIDATION",
-        "raw_price_orientation": "UNVERIFIED_RAW_SLOTS",
+        "raw_price_orientation": SIDE_ORIENTATION_POLICY,
         "consensus_latest_source_capture_utc": stats.get("latest_source_capture_utc"),
     }
+    price = stats.get("same_line_price_consensus") or {}
+    ctx["market_price_consensus_status"] = price.get("status")
+    ctx["same_line_company_count"] = price.get("company_count", 0)
+    ctx["same_line_company_ids"] = price.get("company_ids", [])
+    ctx["price_reference_line"] = price.get("reference_line")
+    ctx["market_price_first_side_probability"] = price.get("first_side_probability")
+    ctx["market_price_second_side_probability"] = price.get("second_side_probability")
+    ctx["market_price_first_side_direction"] = price.get("first_side_direction")
+    ctx["market_price_second_side_direction"] = price.get("second_side_direction")
+    ctx["market_price_probability_iqr"] = price.get("first_side_probability_iqr")
+    ctx["market_price_capture_skew_seconds"] = price.get("capture_skew_seconds")
+    ctx["market_price_latest_source_capture_utc"] = price.get("latest_source_capture_utc")
     if not available:
         ctx["model_probability_at_consensus_line"] = None
         return ctx
@@ -296,6 +368,7 @@ def selection_context(market_key, direct_line, direction, model_margin, model_to
             home_p if ctx["model_direction_at_consensus"] == "HOME_COVER" else
             1 - home_p if home_p is not None and ctx["model_direction_at_consensus"] == "AWAY_COVER"
             else None)
+        model_first_side_probability = home_p
     else:
         mu, sigma = number(model_total), number(total_sigma)
         equivalent_direct = number(direct_line)
@@ -313,6 +386,36 @@ def selection_context(market_key, direct_line, direction, model_margin, model_to
             over_p if ctx["model_direction_at_consensus"] == "OVER" else
             1 - over_p if over_p is not None and ctx["model_direction_at_consensus"] == "UNDER"
             else None)
+        model_first_side_probability = over_p
+
+    first_probability = number(price.get("first_side_probability"))
+    model_direction = ctx.get("model_direction_at_consensus")
+    if kind == "full_spread":
+        first_direction, second_direction = "HOME_COVER", "AWAY_COVER"
+        direct_reference_line = equivalent_direct
+    else:
+        first_direction, second_direction = "OVER", "UNDER"
+        direct_reference_line = equivalent_direct
+    if price.get("status") == "AVAILABLE_SAME_LINE_MEDIAN" and first_probability is not None:
+        market_for_model_direction = (
+            first_probability if model_direction == first_direction else
+            1.0 - first_probability if model_direction == second_direction else None)
+        model_for_direction = ctx.get("model_probability_at_consensus_line")
+        ctx["market_price_probability_for_model_direction"] = market_for_model_direction
+        ctx["model_minus_market_probability_for_model_direction"] = (
+            round(model_for_direction - market_for_model_direction, 6)
+            if model_for_direction is not None and market_for_model_direction is not None
+            else None)
+        ctx["direct_line_matches_price_reference"] = (
+            abs(direct_reference_line - line) <= 1e-6
+            if direct_reference_line is not None else None)
+        ctx["market_price_probability_semantics"] = (
+            "NO_VIG_MEDIAN_OF_AT_LEAST_THREE_COMPANIES_AT_EXACT_CONSENSUS_LINE; "
+            "FIRST_SIDE_HOME_COVER_OR_OVER; SHADOW_ONLY")
+    else:
+        ctx["market_price_probability_for_model_direction"] = None
+        ctx["model_minus_market_probability_for_model_direction"] = None
+        ctx["direct_line_matches_price_reference"] = None
     ctx["agrees_with_independent_model_direction"] = (
         direction == ctx.get("model_direction_at_consensus")
         if direction and ctx.get("model_direction_at_consensus") not in (None, "TIE") else None)
@@ -353,9 +456,26 @@ def self_test():
     assert ctx["direct_line_in_007_home_gives_convention"] == -5.5
     assert ctx["consensus_line"] == -5.5
     assert ctx["probability_fusion"].startswith("DISABLED")
+    assert ctx["market_price_consensus_status"] == "AVAILABLE_SAME_LINE_MEDIAN"
+    assert ctx["same_line_company_count"] == 3
+    assert ctx["market_price_first_side_direction"] == "HOME_COVER"
+    assert ctx["market_price_probability_for_model_direction"] is not None
+    assert ctx["direct_line_matches_price_reference"] is True
+    total_ctx = selection_context("CROWN_TOTAL", 224.5, "OVER", -2, 225, 12, 18, g)
+    assert total_ctx["market_price_first_side_direction"] == "OVER"
+    assert total_ctx["same_line_company_count"] == 5
+    # A median between offered lines is not assigned an interpolated market price.
+    split = json.loads(json.dumps(top))
+    spread_rows = split["games"][0]["markets"]["full_spread"]["companies"]
+    for quote, line in zip(spread_rows, (-5.0, -5.5, -6.0, -6.5, -7.0)):
+        quote["current"]["line"] = line
+    split_stats = build(joined, split)["games"][0]["markets"]["full_spread"]
+    assert split_stats["median_line"] == -6.0
+    assert split_stats["same_line_price_consensus"]["status"] == "INSUFFICIENT_SAME_LINE_COMPANIES"
     ml = selection_context("JINGCAI_WIN", None, "AWAY_WIN", -2, 225, 12, 18, g)
     assert ml["proxy_type"] == "SPREAD_FAVORITE_NOT_MONEYLINE_ODDS"
-    print("NBA_007_MULTI_COMPANY_CONSENSUS_SELFTEST_PASS")
+    assert ml["moneyline_consensus_probability"] is None
+    print("NBA_007_MULTI_COMPANY_SAME_LINE_PRICE_SHADOW_SELFTEST_PASS")
 
 
 if __name__ == "__main__":
