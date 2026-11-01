@@ -185,6 +185,35 @@ def reconcile(fixture,site,odds,target):
         raise RuntimeError("MORE_THAN_ONE_007_ID_PER_OFFICIAL_GAME")
     return sorted(matched,key=lambda r:(r["display_clock"],r["game_id"])),dict(reject)
 
+def quote_coverage(matched, fixture_count):
+    """Count verified Crown ID3 quotes, not merely matched 007 fixture IDs."""
+    spread_ids=set()
+    total_ids=set()
+    for game in matched:
+        gid=str(game.get("nba_game_id") or "")
+        markets=game.get("markets") or {}
+        spread=(markets.get("full_spread") or {}).get("current") or {}
+        total=(markets.get("full_total") or {}).get("current") or {}
+        if spread.get("line") is not None:spread_ids.add(gid)
+        if total.get("line") is not None:total_ids.add(gid)
+    any_ids=spread_ids|total_ids
+    complete_ids=spread_ids&total_ids
+    if fixture_count and len(complete_ids)==fixture_count:
+        status="MARKETS_AVAILABLE"
+    elif any_ids:
+        status="PARTIAL_MARKET_COVERAGE"
+    else:
+        status="SCHEDULE_ONLY_NO_VERIFIED_007_MARKETS"
+    return ({
+        "spread_games":len(spread_ids),
+        "total_games":len(total_ids),
+        "any_market_games":len(any_ids),
+        "complete_crown_games":len(complete_ids),
+        "missing_market_games":max(0,fixture_count-len(any_ids)),
+        "status":status,
+    },any_ids)
+
+
 def missing_market_diagnostics(fixture, site, odds):
     """Evidence by exact 007 ID. No cross-bookmaker substitution or inferred odds."""
     official={(g["home"],g["away"]):g for g in fixture}
@@ -206,9 +235,7 @@ def run(date,out,*,allow_schedule_only=False):
     ids,odds,coverage,issues,source_errors=source_for_date(date)
     matched,rej=reconcile(fixture,ids,odds,date)
     missing_diagnostics=missing_market_diagnostics(fixture,ids,odds)
-    matched_official={g["nba_game_id"] for g in matched
-        if any((g.get("markets",{}).get(k,{}).get("current") or {}).get("line") is not None
-               for k in ("full_spread","full_total"))}
+    quote_stats,matched_official=quote_coverage(matched,len(fixture))
     missing=[]
     for g in fixture:
         if g["nba_game_id"] in matched_official:continue
@@ -238,25 +265,28 @@ def run(date,out,*,allow_schedule_only=False):
       "source_query_errors":source_errors,
       "unmatched_nba_fixtures":missing,
       "nba_cba_games":matched,
-      "markets_joined_for_date":len(fixture)-len(missing),
+      "markets_joined_for_date":quote_stats["any_market_games"],
       "verified_fixture_ids_for_date":len(matched),
       "nba_cba_joined_for_date":len(matched),
-      "nba_markets_missing":len(missing),
+      "nba_markets_missing":quote_stats["missing_market_games"],
+      "crown_quote_coverage":quote_stats,
       "all_scoreboard_matches":len(ids),
       "all_untargeted_market_matches":len(odds),
       "market_opening_not_available":True,
       "time_zone":"Asia/Shanghai (verified UTC fixture)",
       "water_orientation":"UNVERIFIED; original market slots",
       "company_identity":"UNVERIFIED",
-      "report_quality":"MARKETS_AVAILABLE" if matched else "SCHEDULE_ONLY_NO_VERIFIED_007_MARKETS",
+      "report_quality":quote_stats["status"],
       "recommendations":[],
     }
     Path(out).write_text(json.dumps(output,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print("NBA_US_TO_BEIJING_TITAN_RECONCILIATION "+json.dumps({
-         "target":date,"fixtures":len(fixture),"verified_market_games":len(matched),
-         "missing":missing,"coverage":coverage,"query_errors":source_errors,
+         "target":date,"fixtures":len(fixture),"verified_fixture_games":len(matched),
+         "verified_market_games":quote_stats["any_market_games"],
+         "crown_quote_coverage":quote_stats,"missing":missing,
+         "coverage":coverage,"query_errors":source_errors,
          "reject":rej,"missing_id3_ids":missing_diagnostics,"status":output["report_quality"]},ensure_ascii=False),flush=True)
-    if fixture and not matched:
+    if fixture and quote_stats["any_market_games"]==0:
         if not allow_schedule_only:
             raise RuntimeError("OFFICIAL_BEIJING_GAMES_EXIST_BUT_007_MARKETS_ZERO")
         # This is only permission to preserve the verified fixture identity.
@@ -283,6 +313,18 @@ def self_test():
     assert len(no_crown)==1 and reasons["NO_DATE_MARKET_FOR_GAME_ID"]==1
     assert no_crown[0]["markets"]["full_spread"]["current"]=={}
     assert no_crown[0]["markets"]["full_total"]["status"]=="NO_VERIFIED_ID3_TOTAL"
+    no_quote_stats,no_quote_ids=quote_coverage(no_crown,1)
+    assert no_quote_stats["status"]=="SCHEDULE_ONLY_NO_VERIFIED_007_MARKETS"
+    assert no_quote_stats["any_market_games"]==0 and not no_quote_ids
+    partial_quote=[{**got[0],"markets":{"full_spread":{"current":{"line":-2.5}},
+                                           "full_total":{"current":{}}}}]
+    partial_stats,partial_ids=quote_coverage(partial_quote,1)
+    assert partial_stats["status"]=="PARTIAL_MARKET_COVERAGE"
+    assert partial_stats["spread_games"]==1 and partial_stats["total_games"]==0
+    complete_quote=[{**got[0],"markets":{"full_spread":{"current":{"line":-2.5}},
+                                            "full_total":{"current":{"line":225.5}}}}]
+    complete_stats,_=quote_coverage(complete_quote,1)
+    assert complete_stats["status"]=="MARKETS_AVAILABLE"
 
     none,_=reconcile(fixture,{"5":dict(row,display_date="2026-10-30")},{"5":mock},"2026-10-31")
     assert not none

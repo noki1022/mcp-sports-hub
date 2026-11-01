@@ -27,6 +27,21 @@ jobs:
           print('PRIORITY_ACCEPTED_MARKER_GATE_PASS')
           PY
 
+      - name: Verify one-time manual delivery mode and truthful 007 quote coverage
+        run: |
+          python3 -m py_compile scripts/nba_fixed_slot_gate.py scripts/nba_schedule_fallback_push.py scripts/titan007_join_beijing_verified.py
+          python3 scripts/nba_fixed_slot_gate.py --self-test
+          python3 scripts/nba_schedule_fallback_push.py --self-test --target 2026-11-02 --slot ONCE
+          python3 scripts/titan007_join_beijing_verified.py --self-test
+          python3 - <<'PY'
+          from pathlib import Path
+          w=Path('.github/workflows/titan007-three-analysis.yml').read_text()
+          assert 'ONE_TIME_MANUAL_CAPTURE_NO_NOON_LOCK' in w
+          assert '2100|ONCE' in w
+          assert 'GITHUB_EVENT_NAME' in Path('scripts/nba_fixed_slot_gate.py').read_text()
+          print('ONE_TIME_MANUAL_DELIVERY_AND_MARKET_COVERAGE_PASS')
+          PY
+
       - name: Verify NBA official injury watch pretip safety
         run: python3 analysis/nba_injury_watch.py --mode self-test
 

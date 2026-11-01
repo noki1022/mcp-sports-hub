@@ -14,10 +14,14 @@ from zoneinfo import ZoneInfo
 from titan007_join_beijing_verified import fetch_schedule
 from pushplus_mobile import send
 
+def slot_label(slot):
+    return "一次性手动运行" if slot=="ONCE" else slot[:2]+":"+slot[2:]
+
+
 def build(fixtures, target, slot):
     lines=["<div style='font-family:-apple-system,Arial;max-width:520px;line-height:1.65;color:#263548'>",
            "<h3>NBA 赛程保底通知｜正式盘口分析失败</h3>",
-           f"<p>北京时间 {escape(slot[:2]+':'+slot[2:])}，比赛日期 {escape(target)}。</p>",
+           f"<p>{escape(slot_label(slot))}｜北京时间日期 {escape(target)}。</p>",
            "<p><b>007 盘口匹配或后续模型流水线未通过校验。</b>以下仅为官方赛程，"
            "没有真实盘口、模型概率或投注判断。五玩法均标记数据未就绪，不应据此下注。</p>"]
     if not fixtures:raise RuntimeError("NO_OFFICIAL_FIXTURES")
@@ -53,9 +57,10 @@ def main():
         sample=[{"beijing_tip":"2026-11-01T08:00:00+08:00","home":"HOU","away":"OKC"}]
         assert "五玩法" in build(sample,"2026-11-01","1200")
         assert "最早 NBA 开赛：北京时间 08:00" in build(sample,"2026-11-01","1200")
+        assert "一次性手动运行" in build(sample,"2026-11-01","ONCE")
         print("SCHEDULE_FALLBACK_SELF_TEST_PASS")
         return
-    if args.slot not in ("1200","1400","1500","1800","2100"):
+    if args.slot not in ("1200","1400","1500","1800","2100","ONCE"):
         raise RuntimeError("NOT_A_REGULAR_REPORT_SLOT")
     if datetime.fromisoformat(args.target).date() < datetime.now(ZoneInfo("Asia/Shanghai")).date():
         raise RuntimeError("EXPIRED_TARGET_DATE")
@@ -69,7 +74,7 @@ def main():
     if not fixtures:
         raise RuntimeError("NO_VERIFIED_OFFICIAL_FIXTURES_FOR_FALLBACK")
     token=os.environ.get("PUSHPLUS_TOKEN","")
-    result=send({"title":f"NBA {args.slot[:2]}:{args.slot[2:]} 赛程保底通知｜盘口分析失败",
+    result=send({"title":f"NBA {slot_label(args.slot)} 赛程保底通知｜盘口分析失败",
                  "html":build(fixtures,args.target,args.slot)},token)
     Path(args.status).write_text(json.dumps({"state":result["state"],"target":args.target,
         "slot":args.slot,"games":len(fixtures)},ensure_ascii=False))
