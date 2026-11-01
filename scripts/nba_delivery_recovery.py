@@ -57,8 +57,9 @@ def decision(root,slot,target,now,runs,run_error=None):
         info["reason"]="CANNOT_CONFIRM_RUNNING_JOBS_"+str(run_error);return info
     hint,count=run_hint(runs,slot,target)
     info["existing_run_count"]=count
-    # An already-failed run is not a success. Allow exactly one bounded rescue
-    # after all relevant runs have completed; active jobs remain non-retriable.
+    # An already-failed run is not a success. Allow a bounded initial rescue
+    # and at most one retry if an accepted dispatch never becomes a visible run.
+    # Active jobs and successful runs remain non-retriable.
     if hint not in ("NO_RECORDED_WORKFLOW_TRIGGER","WORKFLOW_FAILED"):
         info["reason"]=hint;return info
     info["action"]="DISPATCH"
