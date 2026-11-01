@@ -1,10 +1,8 @@
 name: NBA PRIORITY 06:30 Beijing morning full report
 on:
   schedule:
-    # Start early enough for the full model; bounded retries stay before 06:58.
-    - cron: "20 22 * * *"
-    - cron: "30 22 * * *"
-    - cron: "40 22 * * *"
+    # Retry every ten minutes through the morning; the immutable 21:30 slate gate decides whether enough unstarted time remains.
+    - cron: "*/10 22-23 * * *"
   workflow_dispatch:
 permissions:
   contents: write
@@ -20,18 +18,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Preflight Beijing morning window; check prior accepted push
+      - name: Preflight locked Beijing slate, dynamic safe window and accepted-push ledger
         id: gate
         run: |
-          python3 scripts/nba_0630_priority_gate.py --phase preflight >> /tmp/priority_gate.txt
-          target=$(sed -n 's/^TARGET_DATE=//p' /tmp/priority_gate.txt)
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          git pull --ff-only origin main
+          python3 scripts/nba_0630_priority_gate.py --phase preflight | tee /tmp/priority_gate.txt
+          run_report=$(sed -n 's/.*"run_report":\(true\|false\).*/\1/p' /tmp/priority_gate.txt | tail -1)
+          if [ "$run_report" != "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "NO_SAFE_REMAINING_TIPOFF_SKIP_WITHOUT_FAILURE"
+            exit 0
+          fi
+          target=$(sed -n 's/^TARGET_DATE=//p' /tmp/priority_gate.txt | tail -1)
           test -n "$target"
           echo "TARGET_DATE=$target" >> "$GITHUB_ENV"
-          # GITHUB_ENV only reaches later steps; export for this step's gate too.
           export TARGET_DATE="$target"
-          git pull --ff-only origin main
           python3 scripts/nba_fixed_slot_gate.py --phase preflight --priority-slot 0630
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Install pinned model dependencies
         run: python3 -m pip install --quiet --disable-pip-version-check numpy==2.2.6 pdfplumber==0.11.7
       - if: steps.gate.outputs.sent != 'true'
@@ -202,16 +206,19 @@ jobs:
           print('PRIORITY_MODEL_ATTENTION',x['focus_count'],x['total_nba_games'])
           PY
       - if: steps.gate.outputs.sent != 'true'
-        name: Enforce strict presend 06:58 Beijing deadline and dedup
+        name: Recheck remaining games and dedup immediately before delivery
         run: |
           python3 scripts/nba_0630_priority_gate.py --phase presend
-          python3 scripts/nba_0630_pretip_filter.py --joined titan007_priority_joined.json --out nba_priority_presend_verified.json
+          python3 scripts/nba_0630_pretip_filter.py --joined titan007_priority_joined.json --min-lead 5 --out nba_priority_presend_verified.json
           python3 - <<'PY'
           import json
-          a=json.load(open('titan007_priority_joined.json'))
           b=json.load(open('nba_priority_presend_verified.json'))
-          assert len(a['nba_cba_games'])==len(b['nba_cba_games']), 'PRETIP_CHANGED_DURING_ANALYSIS_ABORT'
+          assert b.get('nba_cba_games'), 'NO_REMAINING_PRETIP_GAMES_AT_SEND_TIME'
+          print('DYNAMIC_PRESEND_RETAINED',len(b['nba_cba_games']),
+                'EXCLUDED',len(b['morning_pre_tip_filter']['excluded']))
           PY
+          mv nba_priority_presend_verified.json titan007_priority_joined.json
+          python3 analysis/nba_priority_focus.py --joined titan007_priority_joined.json --model nba_priority_model.json --jingcai nba_jingcai_three_market.json --sop nba_analysis_sop.json --slot 0630 --out nba_priority_focus.json
           git fetch origin main
           if git cat-file -e "origin/main:reports/pushplus-sent/$TARGET_DATE/0630.json" 2>/dev/null; then
              echo 'PRIORITY_ALREADY_ACCEPTED_IN_REMOTE'; exit 1
