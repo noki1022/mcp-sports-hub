@@ -110,9 +110,13 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
         # been produced and consumed; use its time as a conservative upper bound.
         model_capture=stamp(five.get("analysis_generated_at_utc"))
         model_capture_source="FIVE_MARKET_BUILD_UPPER_BOUND_MODEL_EXISTED_BY_THIS_TIME"
+    five_capture=stamp(five.get("analysis_generated_at_utc"))
     if not board_capture or not frozen_board_capture or board_capture!=frozen_board_capture:
         raise ValueError("BOARD_CAPTURE_TIMESTAMP_MISMATCH")
+    if not five_capture: raise ValueError("FIVE_MARKET_GENERATION_TIMESTAMP_MISSING")
     if not model_capture: raise ValueError("MODEL_GENERATION_TIMESTAMP_MISSING")
+    if model_capture>five_capture: raise ValueError("MODEL_GENERATED_AFTER_FIVE_MARKET_FREEZE")
+    if five_capture<board_capture: raise ValueError("FIVE_MARKET_BEFORE_BOARD_CAPTURE")
     if set(joined_games)!=set(frozen_games): raise ValueError("JOINED_FROZEN_GAME_SET_MISMATCH")
 
     rows=[]
@@ -133,9 +137,12 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
         total_sigma=num(pred.get("total_sigma"))
         ml=pred.get("model_probability") or {}
         home_ml,away_ml=num(ml.get("home")),num(ml.get("away"))
-        distribution_ok=(margin is not None and total is not None and margin_sigma is not None
-                  and total_sigma is not None and margin_sigma>0 and total_sigma>0)
-        moneyline_ok=(home_ml is not None and away_ml is not None
+        model_status=pred.get("model_status",pred.get("status"))
+        model_status_ok=model_status in ("OK","PARTIAL")
+        distribution_ok=(model_status_ok and margin is not None and total is not None
+                  and margin_sigma is not None and total_sigma is not None
+                  and margin_sigma>0 and total_sigma>0)
+        moneyline_ok=(model_status_ok and home_ml is not None and away_ml is not None
                   and 0<=home_ml<=1 and 0<=away_ml<=1
                   and abs(home_ml+away_ml-1.0)<=0.02)
         jc_game=jc_games.get(gid,{})
@@ -156,6 +163,11 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
             elif quote_capture>=tip: reasons.append("QUOTE_NOT_PRETIP")
             if board_capture>=tip: reasons.append("BOARD_NOT_PRETIP")
             if model_capture>=tip: reasons.append("MODEL_NOT_PRETIP")
+            if five_capture>=tip: reasons.append("FIVE_MARKET_FORECAST_NOT_PRETIP")
+            if quote_capture and quote_capture>five_capture:
+                reasons.append("QUOTE_CAPTURE_AFTER_FIVE_MARKET_FREEZE")
+            if not model_status_ok:
+                reasons.append("INDEPENDENT_MODEL_STATUS_NOT_OK")
             source=selection.get("source")
             source_id=str(selection.get("source_id") or "")
             quote_freshness=selection.get("quote_freshness")
@@ -232,7 +244,8 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
             price_valid=(mc.get("direct_line_matches_price_reference") is True
                 and price.get("status")=="AVAILABLE_SAME_LINE_MEDIAN"
                 and price_p is not None and 0<=price_p<=1
-                and consensus_capture is not None and consensus_capture<tip)
+                and consensus_capture is not None and consensus_capture<tip
+                and consensus_capture<=five_capture)
             consensus_context={
                 "status":mc.get("status"),"consensus_line":mc.get("consensus_line"),
                 "company_count":mc.get("same_line_company_count"),
@@ -261,7 +274,7 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
             "tipoff_beijing":game.get("start_time_beijing"),
             "board_capture_utc":iso(board_capture),"model_capture_utc":iso(model_capture),
             "model_capture_time_source":model_capture_source,
-            "decision_asof_utc":iso(max([x for x in [board_capture,model_capture]+[
+            "decision_asof_utc":iso(max([x for x in [board_capture,model_capture,five_capture]+[
                 stamp(v.get("quote_capture_utc")) for v in current.values() if v.get("quote_capture_utc")]+[
                 stamp(v.get("consensus_capture_utc")) for v in current.values() if v.get("consensus_capture_utc")]])),
             "model_version":pred.get("model_version"),
@@ -281,6 +294,7 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
         "schema_version":"nba-dynamic-five-market-shadow-v2",
         "target_date":day,"slot":slot,
         "captured_at_utc":iso(board_capture),"model_capture_utc":iso(model_capture),
+        "five_market_freeze_utc":iso(five_capture),
         "model_capture_time_source":model_capture_source,
         "jingcai_feed_capture_utc":iso(stamp(jc_feed.get("captured_at_utc"))),
         "game_count":len(rows),"games":rows,
@@ -304,7 +318,9 @@ def self_test():
       "JINGCAI_TOTAL":{"status":"DIRECTION_ISSUED","direction":"OVER","line":220,"captured_at_utc":capture,"source":"007_JINGCAI"},
       "CROWN_HANDICAP":{"status":"DIRECTION_ISSUED","direction":"AWAY_COVER","line":5.5,"signed_home_handicap":-5.5,"captured_at_utc":capture,"source":"007_CROWN_ID3","source_id":"3","quote_freshness":"CURRENT_CAPTURE"},
       "CROWN_TOTAL":{"status":"DIRECTION_ISSUED","direction":"OVER","line":220,"captured_at_utc":capture,"source":"007_CROWN_ID3","source_id":"3","quote_freshness":"CURRENT_CAPTURE"}}
-    five={"target_date":day,"board_capture_utc":capture,"games":[{"game_id":"1","nba_game_id":"e1",
+    five={"target_date":day,"board_capture_utc":capture,
+      "analysis_generated_at_utc":"2026-10-31T10:02:00+00:00",
+      "games":[{"game_id":"1","nba_game_id":"e1",
       "home_team":"H","away_team":"A","tipoff_beijing":"2026-11-01T08:00:00+08:00","markets":markets}]}
     jc={"target_date":day,"jc_007_public_odds_shadow":{"captured_at_utc":capture,"games":[{
       "game_id":"1","markets":{
@@ -320,6 +336,18 @@ def self_test():
     assert row["markets"]["CROWN_HANDICAP"]["away_cover_probability"]>0.5
     assert row["markets"]["JINGCAI_TOTAL"]["over_probability"]>0.5
     assert out["production_model_modified"] is False and out["pushplus_enabled"] is False
+    assert row["decision_asof_utc"]=="2026-10-31T10:02:00+00:00"
+    late_freeze=dict(five); late_freeze["analysis_generated_at_utc"]="2026-11-01T00:01:00+00:00"
+    late_freeze_out=evaluate(joined,model,late_freeze,jc)
+    assert all(m["market_data_status"]=="INVALID" for m in late_freeze_out["games"][0]["markets"].values())
+    late_model=dict(model); late_model["games"]=[dict(model["games"][0],model_status="DISABLED")]
+    disabled_out=evaluate(joined,late_model,five,jc)
+    assert all(m["market_data_status"]=="INVALID" for m in disabled_out["games"][0]["markets"].values())
+    future_quote=dict(five); future_markets=dict(markets)
+    future_markets["CROWN_TOTAL"]={**markets["CROWN_TOTAL"],"captured_at_utc":"2026-10-31T10:03:00+00:00"}
+    future_quote["games"]=[dict(five["games"][0],markets=future_markets)]
+    future_quote_out=evaluate(joined,model,future_quote,jc)
+    assert future_quote_out["games"][0]["markets"]["CROWN_TOTAL"]["market_data_status"]=="INVALID"
     bad=dict(joined); bad["nba_cba_games"]=[dict(joined["nba_cba_games"][0],home_team="WRONG")]
     try:evaluate(bad,model,five,jc)
     except ValueError as exc: assert "TEAM_IDENTITY" in str(exc)
