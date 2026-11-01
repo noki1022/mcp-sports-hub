@@ -201,8 +201,8 @@ def make(joined,model,jc,top10,consensus=None):
         consensus_market=(consensus_rows.get(gid) or {}).get("markets") or {}
         direct_lines={
             "JINGCAI_WIN":None,
-            "JINGCAI_HANDICAP":n(((pools.get("handicap") or {}).get("data") or {}).get("current",{}).get("line")),
-            "JINGCAI_TOTAL":n(((pools.get("total") or {}).get("data") or {}).get("current",{}).get("line")),
+            "JINGCAI_HANDICAP":n((((pools.get("handicap") or {}).get("data") or {}).get("current") or {}).get("line")),
+            "JINGCAI_TOTAL":n((((pools.get("total") or {}).get("data") or {}).get("current") or {}).get("line")),
             "CROWN_HANDICAP":selected["CROWN_HANDICAP"].get("line"),
             "CROWN_TOTAL":selected["CROWN_TOTAL"].get("line"),
         }
@@ -254,10 +254,19 @@ def self_test():
            "win_lose":{"status":"OBSERVED","data":{"current":{"first_side":2.95,"second_side":1.19}}},
            "handicap":{"status":"OBSERVED","data":{"current":{"line":7.5,"first_side":1.75,"second_side":1.65}}},
            "total":{"status":"OBSERVED","data":{"current":{"line":225.5,"first_side":1.70,"second_side":1.70}}}}}]}}
-    # Crown directions must use the canonical joined ID3 quotes even when the
-    # independent institution-comparison artifact has no matched rows.
-    top={"captured_at_utc":"2026-10-30T14:00:00Z","games":[]}
-    out=make(joined,model,jc,top)
+    # A synchronous five-company quote set should enrich all comparable
+    # selections while leaving the actual production probabilities untouched.
+    top={"captured_at_utc":"2026-10-30T14:00:00Z","collection_completed_at_utc":"2026-10-30T14:01:00Z","games":[]}
+    companies=[{"company_id":cid,"source":"DATED_007_COMPANY_ID",
+        "source_capture_utc":"2026-10-30T14:00:00Z",
+        "current":{"line":6.5 if kind=="full_spread" else 229.5,
+                   "first_side_water":0.91,"second_side_water":0.95}}
+        for cid in ("3","1","2","8","9") for kind in ("full_spread","full_total")]
+    consensus=build_consensus_for_test(joined,companies,top)
+    out=make(joined,model,jc,top,consensus)
+    assert out["market_consensus_status"]=="nba-007-market-consensus-v1"
+    assert m_consensus_present(out,"JINGCAI_HANDICAP")
+    assert out["games"][0]["markets"]["JINGCAI_WIN"]["market_consensus"]["proxy_type"]=="SPREAD_FAVORITE_NOT_MONEYLINE_ODDS"
     m=out["games"][0]["markets"]
     assert out["ready_counts"]=={k:1 for k in MARKETS}
     assert m["JINGCAI_WIN"]["direction"]=="AWAY_WIN"
