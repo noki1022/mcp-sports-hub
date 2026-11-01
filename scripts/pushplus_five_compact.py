@@ -388,7 +388,7 @@ def self_test():
     assert market_row("CROWN_HANDICAP", {"status": "CROWN_QUOTE_NOT_VERIFIED"}) == "盘口未核实"
     assert "61.0%（未校准）" in market_row("CROWN_TOTAL",mk("OVER",line=230.5,model_direction_probability=.61))
     crown = market_row("CROWN_HANDICAP",fcast["markets"]["CROWN_HANDICAP"])
-    assert "同线市场 56.0%（5家，共识线 5.5，本玩法同线）" in crown
+    assert "同线市场 56.0%（5家，共识主队盘口 -5.5，本玩法同线）" in crown
     assert "模型-市场 +5.0pp" in crown
     assert "同线市场样本不足" in market_row("CROWN_TOTAL",fcast["markets"]["CROWN_TOTAL"])
     print("COMPACT_FIVE_MARKET_IPHONE_SELF_TEST_PASS")
