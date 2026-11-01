@@ -37,17 +37,14 @@ SCHEDULE_SLOTS = {
 FIXED_SLOTS = frozenset(SCHEDULE_SLOTS.values())
 
 
-def resolve_slot(schedule: str, supplied: str, now: datetime, event_name: str = "",
-                 allow_once_push: bool = False) -> str:
+def resolve_slot(schedule: str, supplied: str, now: datetime, event_name: str = "") -> str:
     if schedule and schedule not in SCHEDULE_SLOTS:
         raise ValueError("UNKNOWN_FIXED_SLOT_SCHEDULE")
     if schedule and supplied:
         raise ValueError("MIXED_SCHEDULE_AND_DISPATCH_SLOT")
     if supplied == "ONCE" or re.fullmatch(r"ONCE-[A-Z0-9-]{1,40}", supplied):
-        manual_dispatch = event_name == "workflow_dispatch"
-        explicitly_authorized_push = event_name == "push" and allow_once_push
-        if not (manual_dispatch or explicitly_authorized_push):
-            raise ValueError("ONE_TIME_SLOT_ONLY_MANUAL_OR_EXPLICIT_PUSH")
+        if event_name != "workflow_dispatch":
+            raise ValueError("ONE_TIME_SLOT_ONLY_MANUAL_DISPATCH")
         return supplied
     if supplied and supplied not in FIXED_SLOTS:
         raise ValueError("INVALID_FIXED_SLOT")
@@ -95,12 +92,10 @@ def self_test() -> None:
     assert resolve_slot("", "", now) == "1240"
     assert resolve_slot("", "", now, "workflow_dispatch") == "ONCE"
     assert resolve_slot("", "ONCE", now, "workflow_dispatch") == "ONCE"
-    assert resolve_slot("", "ONCE", now, "push", True) == "ONCE"
-    assert resolve_slot("", "ONCE-20261101-REPLAY2", now, "push", True) == "ONCE-20261101-REPLAY2"
-    assert resolve_slot("", "ONCE-20261101-REPLAY2", now, "push", True) == "ONCE-20261101-REPLAY2"
-    for event, allow in (("push", False), ("schedule", True)):
+    assert resolve_slot("", "ONCE-20261101-REPLAY2", now, "workflow_dispatch") == "ONCE-20261101-REPLAY2"
+    for event in ("push", "schedule"):
         try:
-            resolve_slot("", "ONCE-20261101-REPLAY2", now, event, allow)
+            resolve_slot("", "ONCE-20261101-REPLAY2", now, event)
         except ValueError:
             pass
         else:
@@ -155,8 +150,7 @@ def main() -> None:
         slot = args.priority_slot or resolve_slot(
             os.environ.get("SCHEDULE_EXPR", ""),
             os.environ.get("EXTERNAL_REPORT_SLOT", ""), datetime.now(BEIJING),
-            os.environ.get("GITHUB_EVENT_NAME", ""),
-            os.environ.get("ALLOW_ONCE_PUSH", "").lower() == "true")
+            os.environ.get("GITHUB_EVENT_NAME", ""))
         append_env("REPORT_SLOT", slot)
     else:
         slot = os.environ["REPORT_SLOT"]
