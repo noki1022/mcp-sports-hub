@@ -1,0 +1,47 @@
+name: One-time NBA 2026-11-01 five-market review resend
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/triggers/one-time-nba-five-market-review-20261101.txt"
+permissions:
+  contents: read
+jobs:
+  resend:
+    if: contains(github.event.head_commit.added, '.github/triggers/one-time-nba-five-market-review-20261101.txt')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Send the latest Beijing-date settlement once
+        run: |
+          python3 analysis/nba_five_market_review_push.py --self-test
+          python3 analysis/nba_five_market_review_push.py \
+            --settlement reports/five-market-settled/2026-11-01/settlement.json \
+            --preview /tmp/nba-five-market-review-2026-11-01.html \
+            --status /tmp/nba-five-market-review-2026-11-01-status.json \
+            --send
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("/tmp/nba-five-market-review-2026-11-01-status.json")
+          x=json.loads(p.read_text())
+          assert x.get("date") == "2026-11-01", x
+          assert x.get("games") == 7, x
+          assert x.get("state") == "API_ACCEPTED_NOT_DEVICE_CONFIRMED", x
+          print("ONE_TIME_REVIEW_PUSH_ACCEPTED", json.dumps(x, ensure_ascii=False))
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: one-time-nba-five-market-review-2026-11-01
+          path: |
+            /tmp/nba-five-market-review-2026-11-01.html
+            /tmp/nba-five-market-review-2026-11-01-status.json
+          if-no-files-found: ignore
+          retention-days: 7
