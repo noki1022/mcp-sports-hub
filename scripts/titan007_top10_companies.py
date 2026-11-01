@@ -65,7 +65,37 @@ def collect(board,limit=10):
                   "markets":{k:{"status":"NO_QUOTE","companies":[],"source_id_order_unverified":True}
                              for k in ("full_spread","full_total")}} for gid,g in ids.items()}
     source_audit=[]
+    # ID3 is the canonical Crown source already fetched by the verified
+    # cross-date join. Reuse it rather than issuing a second target-date-only
+    # request that can miss valid adjacent-date rows.
+    canonical_count=0
+    for gid,board_game in ids.items():
+        for market in ("full_spread","full_total"):
+            quote=((board_game.get("markets") or {}).get(market) or {})
+            current=quote.get("current") or {}
+            if (str(board_game.get("market_source_id") or "3")=="3"
+                    and current.get("line") is not None
+                    and current.get("first_side_water") is not None
+                    and current.get("second_side_water") is not None):
+                bygame[gid]["markets"][market]["companies"].append({
+                    "display_rank":None,
+                    "company_display":"皇冠（007机构ID 3）",
+                    "company_id":"3","market":market,
+                    "opening":quote.get("opening") or {},
+                    "current":current,
+                    "side_orientation":"UNVERIFIED_RAW_SLOTS",
+                    "source":"DATED_007_COMPANY_ID",
+                    "source_capture_utc":board.get("crown_quote_captured_at_utc") or board.get("captured_at_utc")})
+                canonical_count+=1
+    source_audit.append({"id":"3","url":"https://bf.titan007.com/nba_Oddsdata.aspx?id=3",
+        "status":"REUSED_CANONICAL_CROSS_DATE_JOIN","matched_games":len({
+            gid for gid,item in bygame.items()
+            if any(c.get("company_id")=="3" for market in item["markets"].values()
+                   for c in market["companies"])}),
+        "verified_market_rows":canonical_count})
     for cid in selected:
+        if cid=="3":
+            continue
         url="https://bf.titan007.com/nba_Oddsdata.aspx?"+urllib.parse.urlencode(
             {"date":target,"id":cid,"h":"12","m":"00"})
         status={"id":cid,"url":url,"status":"UNAVAILABLE","matched_games":0}
