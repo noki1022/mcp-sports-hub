@@ -1,0 +1,70 @@
+name: Research 007 multi-company quote and five-market calibration
+on:
+  push:
+    branches: [research/007-company-consensus-and-five-market-calibration-20261101]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'analysis/nba_007_company_quote_backtest.py'
+      - 'analysis/nba_five_market_calibration_shadow.py'
+      - '.github/workflows/research-007-company-and-five-market-calibration.yml'
+      - 'reports/top10/**'
+      - 'reports/five-market-intraday/**'
+      - 'reports/five-market-settled/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and run isolated research self-tests
+        run: |
+          python3 -m py_compile analysis/nba_007_company_quote_backtest.py analysis/nba_five_market_calibration_shadow.py
+          python3 analysis/nba_007_company_quote_backtest.py --self-test
+          python3 analysis/nba_five_market_calibration_shadow.py --self-test
+      - name: Score archived 007 same-line multi-company quotes
+        run: |
+          python3 analysis/nba_007_company_quote_backtest.py --out nba_007_company_quote_backtest.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open('nba_007_company_quote_backtest.json'))
+          assert x['production_weights_fitted'] is False
+          assert x['production_fusion_enabled'] is False
+          assert x['decision'] in ('ELIGIBLE_FOR_LATER_OUT_OF_SAMPLE_REVIEW',
+                                   'BLOCKED_INSUFFICIENT_007_HISTORICAL_SAMPLE')
+          print('007_ARCHIVED_COMPANY_QUOTE_RESEARCH_PASS',x['input_counts'])
+          PY
+      - name: Score five frozen markets and calibration shadow
+        run: |
+          python3 analysis/nba_five_market_calibration_shadow.py --out nba_five_market_calibration_shadow.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open('nba_five_market_calibration_shadow.json'))
+          assert x['production_fusion_enabled'] is False
+          assert x['production_calibration_enabled'] is False
+          assert set(x['markets']) == {'JINGCAI_WIN','JINGCAI_HANDICAP','JINGCAI_TOTAL',
+                                      'CROWN_HANDICAP','CROWN_TOTAL'}
+          for k,v in x['markets'].items():
+              assert v['chronological_calibration_shadow']['production_calibration_enabled'] is False
+              assert v['exact_same_line_market_comparison']['blend_research']['production_fusion_enabled'] is False
+          print('FIVE_MARKET_CALIBRATION_SHADOW_PASS',
+                {k:{'n':v['frozen_independent_probability']['n'],
+                    'paired':v['exact_same_line_market_comparison']['sample_count'],
+                    'calibration':v['chronological_calibration_shadow']['status']}
+                 for k,v in x['markets'].items()})
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-007-company-and-five-market-research
+          path: |
+            nba_007_company_quote_backtest.json
+            nba_five_market_calibration_shadow.json
+          if-no-files-found: warn
+          retention-days: 30
