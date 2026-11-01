@@ -27,7 +27,8 @@ jobs:
                   assert "if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'" in s
                   assert 'cron: "*/10 22-23,0-5 * * *"' in s
               else:
-                  assert "if: steps.gate.outputs.sent != 'true'" in s
+                  assert "if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'" in s
+                  assert "steps.presend.outputs.skip != 'true'" in s
           print('PRIORITY_ACCEPTED_MARKER_GATE_PASS')
           PY
 
