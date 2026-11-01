@@ -31,11 +31,11 @@ def side_probability(mu,sigma,threshold,greater=True):
 def _get_market(row,key):
     return (row.get("markets") or {}).get(key) or {}
 
-def evaluate(joined,model,five,consensus=None,injury=None,previous=None):
+def evaluate(joined,model,five,jingcai=None,consensus=None,injury=None,previous=None):
     games={str(x.get("game_id")):x for x in joined.get("nba_cba_games",[])}
     preds={str(x.get("game_id")):x for x in model.get("games",[])}
     frozen={str(x.get("game_id")):x for x in five.get("games",[])}
-    cons={str(x.get("game_id")):x for x in (consensus or {}).get("games",[])}
+    jc={str(x.get("game_id")):x for x in (jingcai or {}).get("games",[])}\n    cons={str(x.get("game_id")):x for x in (consensus or {}).get("games",[])}
     inj={str(x.get("game_id")):x for x in (injury or {}).get("games",[])}
     old={str(x.get("game_id")):x for x in (previous or {}).get("games",[])}
     rows=[]
@@ -143,7 +143,7 @@ def self_test():
 
 def main():
     ap=argparse.ArgumentParser()
-    for name in ("joined","model","five","consensus","injury","previous","out"):
+    for name in ("joined","model","five","jingcai","consensus","injury","previous","out"):
         ap.add_argument("--"+name,required=name in ("joined","model","five","out"))
     ap.add_argument("--self-test",action="store_true")
     a=ap.parse_args()
@@ -151,7 +151,7 @@ def main():
         self_test();return
     def load(path):
         return json.loads(Path(path).read_text(encoding="utf-8")) if path and Path(path).is_file() else {}
-    result=evaluate(load(a.joined),load(a.model),load(a.five),load(a.consensus),load(a.injury),load(a.previous))
+    result=evaluate(load(a.joined),load(a.model),load(a.five),load(a.jingcai),load(a.consensus),load(a.injury),load(a.previous))
     Path(a.out).write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
     print("DYNAMIC_FIVE_MARKET_SHADOW",result["game_count"],result["validation_state"])
 if __name__=="__main__":main()
