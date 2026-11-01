@@ -165,7 +165,7 @@ def self_test():
         cohort.parent.mkdir(parents=True,exist_ok=True)
         cohort.write_text(json.dumps({"target_date":"2026-11-01","source_slot":"2130",
             "official_games":{"early":{"tip":"2026-11-01T07:00:00+08:00"},
-                              "late":{"tip":"2026-11-01T09:30:00+08:00"}},
+                              "late":{"tip":"2026-11-01T06:50:00+08:00"}},
             "priced_nba_to_007":{"early":"7281","late":"7282"}}))
         morn_early=datetime.fromisoformat("2026-11-01T06:35:00+08:00")
         early=decision(root,"0630","2026-11-01",morn_early,[])
