@@ -217,6 +217,9 @@ def run(out):
             for target,lines in (("margin",SPREAD_LINES),("total",TOTAL_LINES)):
                 cal_res=np.asarray([r[target] for r in cal])-predict(cal,variant,fitted[variant][target])
                 ev_mu=predicted[variant][target]
+                pooled_error[(variant,target)]["actual"].extend(
+                    float(r[target]) for r in ev)
+                pooled_error[(variant,target)]["pred"].extend(float(v) for v in ev_mu)
                 fold_metrics[variant][target]={
                     "mae":float(np.mean(abs(ev_mu-np.asarray([r[target] for r in ev])))),
                     "rmse":float(np.sqrt(np.mean((ev_mu-np.asarray([r[target] for r in ev]))**2))),
@@ -227,6 +230,11 @@ def run(out):
                     y=(np.asarray([r[target] for r in ev])>line).astype(float)
                     pg,mg=gaussian_probs(ev_mu,cal_res,line)
                     pe,me=empirical_kde_probs(ev_mu,cal_res,line)
+                    for method,prob in (("gaussian",pg),("empirical_kde",pe)):
+                        key=(variant,target,str(line),method)
+                        pooled_prob[key]["rows"].extend(ev)
+                        pooled_prob[key]["prob"].extend(float(v) for v in prob)
+                        pooled_prob[key]["truth"].extend(float(v) for v in y)
                     fold_metrics[variant][target]["thresholds"][str(line)]={
                         "gaussian":score_probabilities(pg,y),
                         "empirical_kde":score_probabilities(pe,y),
@@ -252,6 +260,28 @@ def run(out):
             "evaluation_first_date":min(r["date"] for r in ev),"evaluation_last_date":max(r["date"] for r in ev)},
             "feature_models":fold_metrics,"paired_bootstrap":paired,
             "same_date_grouped_splits":True,"all_feature_dates_pre_game":True})
+    pooled_metrics={"regression":{},"probabilities":{}}
+    for (variant,target),vals in pooled_error.items():
+        actual=np.asarray(vals["actual"],float);pred=np.asarray(vals["pred"],float)
+        pooled_metrics["regression"][variant+"_"+target]={
+            "n":len(actual),"mae":float(np.mean(abs(pred-actual))),
+            "rmse":float(np.sqrt(np.mean((pred-actual)**2)))}
+    for (variant,target,line,method),vals in pooled_prob.items():
+        pooled_metrics["probabilities"]["|".join((variant,target,line,method))]=score_probabilities(
+            np.asarray(vals["prob"],float),np.asarray(vals["truth"],float))
+    pooled_paired={}
+    for target,line in (("margin","-5.5"),("margin","5.5"),("total","225.5")):
+        def take(variant,method):
+            return pooled_prob[(variant,target,line,method)]
+        base=take("baseline","gaussian");cand=take("fatigue_h2h","gaussian")
+        kde=take("fatigue_h2h","empirical_kde")
+        if not (len(base["truth"])==len(cand["truth"])==len(kde["truth"])):
+            raise AssertionError("POOLED_PAIRED_COVERAGE_MISMATCH")
+        pooled_paired[target+">"+line]={
+            "fatigue_h2h_gaussian_vs_baseline_gaussian":grouped_bootstrap_delta(
+                base["rows"],cand["prob"],base["prob"],base["truth"]),
+            "empirical_kde_vs_gaussian_with_candidate_features":grouped_bootstrap_delta(
+                cand["rows"],kde["prob"],cand["prob"],cand["truth"])}
     report={"schema_version":"nba-shadow-forward-improvement-v1",
         "generated_at_utc":datetime.now(timezone.utc).isoformat(),
         "purpose":"RESEARCH_ONLY_NO_PRODUCTION_SWITCH",
@@ -265,6 +295,8 @@ def run(out):
         "probability_methods":{"gaussian":"normal residual distribution fitted on separate calibration partition",
           "empirical_kde":"Silverman-smoothed empirical residual distribution fitted on separate calibration partition"},
         "folds":results,
+        "pooled_metrics_across_disjoint_evaluation_windows":pooled_metrics,
+        "pooled_paired_calendar_day_bootstrap":pooled_paired,
         "limitations":["Public result files have date-level availability only; this is not proof of original publication timestamp.",
           "Fatigue features use calendar-day rest, not travel, exact rest hours or player minutes.",
           "H2H features do not establish roster similarity.",
