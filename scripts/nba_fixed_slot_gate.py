@@ -120,6 +120,15 @@ def self_test() -> None:
     workflow = Path(".github/workflows/titan007-three-analysis.yml")
     if workflow.exists():
         content = workflow.read_text(encoding="utf-8")
+        # The published archive must retain the five-market and SOP evidence.
+        for artifact in ("nba_five_market_forecast.json", "nba_five_market_integrity.json",
+                         "nba_analysis_sop.json", "market_value_policy.json"):
+            assert artifact in content, "MISSING_PRODUCTION_ARTIFACT_" + artifact
+    hourly_workflow = Path(".github/workflows/titan007-final-hourly.yml")
+    if hourly_workflow.exists():
+        hourly = hourly_workflow.read_text(encoding="utf-8")
+        assert hourly.count('python3 - "$slot" <<\'PY\'') >= 2
+        assert 'os.environ["HOURLY_REPORT_SLOT"]' not in hourly
         assert content.index("Preflight canonical slot and verified acceptance") < content.index("Install locked NBA numerical dependency")
         assert content.index("Recheck verified acceptance before PushPlus") < content.index("Send compact iPhone PushPlus")
         for schedule in SCHEDULE_SLOTS:
