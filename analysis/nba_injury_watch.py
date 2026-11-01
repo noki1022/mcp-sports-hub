@@ -113,8 +113,8 @@ def extract(cohort,official,active,clock):
     src=str(official["source_url"])
     # Official NBA index publishes legacy hour-only and current hour-minute filenames.
     if not re.fullmatch(
-        r"https://ak-static\\.cms\\.nba\\.com/referee/injury/"
-        r"Injury-Report_\\d{4}-\\d{2}-\\d{2}_\\d{2}(?:_\\d{2})?(?:AM|PM)\\.pdf",
+        r"https://ak-static\.cms\.nba\.com/referee/injury/"
+        r"Injury-Report_\d{4}-\d{2}-\d{2}_\d{2}(?:_\d{2})?(?:AM|PM)\.pdf",
         src,
     ):
         raise ValueError("UNVERIFIED_OFFICIAL_PDF_LINK")
