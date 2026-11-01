@@ -34,7 +34,7 @@ jobs:
             analysis/nba_injury_prerequisite.py \
             analysis/nba_market_consensus_backtest.py
       - name: Verify official injury status is propagated to the actual iPhone renderer
-        run: python3 scripts/pushplus_mobile.py --self-test
+        run: python3 scripts/pushplus_mobile.py --mode three --self-test
       - name: Verify delayed morning runs use locked official tipoffs, not a fixed 06:58 cutoff
         run: |
           python3 scripts/nba_0630_priority_gate.py --self-test
