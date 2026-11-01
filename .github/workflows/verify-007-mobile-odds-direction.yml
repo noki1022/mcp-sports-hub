@@ -21,19 +21,26 @@ jobs:
           python3 scripts/pushplus_mobile.py --mode three --self-test
       - name: Live source 007 lottery price snapshot and ten-game real iPhone preview
         run: |
-          python3 scripts/titan007_jingcai_three_market.py             --joined reports/daily/2026-10-31/1800/titan007_three_joined.json             --out jc-snapshot.json
-          python3 scripts/pushplus_mobile.py --mode three             --joined reports/daily/2026-10-31/1800/titan007_three_joined.json             --jingcai jc-snapshot.json --five reports/daily/2026-10-31/0630/nba_five_market_forecast.json --preview corrected-iphone-preview.html             --status corrected-iphone-status.json
+          python3 scripts/titan007_jingcai_three_market.py \
+            --joined reports/daily/2026-10-31/1800/titan007_three_joined.json \
+            --out jc-snapshot.json
+          python3 scripts/pushplus_mobile.py --mode three \
+            --joined reports/daily/2026-10-31/1800/titan007_three_joined.json \
+            --jingcai jc-snapshot.json \
+            --five reports/daily/2026-10-31/0630/nba_five_market_forecast.json \
+            --preview corrected-iphone-preview.html \
+            --status corrected-iphone-status.json
           python3 - <<'PY'
           import json
+          import re
           from pathlib import Path
           t=Path("corrected-iphone-preview.html").read_text(encoding="utf-8")
           j=json.loads(Path("jc-snapshot.json").read_text(encoding="utf-8"))
           ids=j["jc_007_match_numbers"]
           assert ids["total_games"]==10 and 0<=ids["verified"]<=10
           assert ">竞彩</div>" in t and ">皇冠</div>" in t
-import re
-assert re.search(r"北京时间\d{1,2}月\d{1,2}日 NBA球赛研判",t)
-assert "玩法" not in t and "ID3" not in t
+          assert re.search(r"北京时间\d{1,2}月\d{1,2}日 NBA球赛研判",t)
+          assert "玩法" not in t and "ID3" not in t
           assert "达拉斯独行侠" in t and "休斯顿火箭" in t
           # Historical match pages can outlive the current 007 price feed.
           # Keep deterministic direction tests in the preceding self-test step.
@@ -46,7 +53,6 @@ assert "玩法" not in t and "ID3" not in t
           shown=t.count("竞彩赔率（007）")
           print("007_REAL_PRICE_CARDS_SHOWN",shown,"MAX",10)
           assert shown==0  # compact version intentionally omits verbose odds panels
-          assert "竞彩 · 3玩法" in t and "皇冠ID3 · 2玩法" in t
           print("007_IPHONE_REAL_ODDS_DIRECTION_AND_TEN_GAMES_PASS")
           PY
       - uses: actions/upload-artifact@v4
