@@ -398,6 +398,14 @@ def self_test():
     for key in ("JINGCAI_TOTAL","CROWN_TOTAL"):
         late["games"][0]["markets"][key]["market_consensus"]["consensus_latest_source_capture_utc"]="2026-11-01T09:00:00+00:00"
     assert evaluate([settlement],[late])["metrics"]["CONSENSUS_TOTAL"]["sample_count"]==0
+    after_forecast=json.loads(json.dumps(forecast))
+    for key in ("JINGCAI_TOTAL","CROWN_TOTAL"):
+        ctx=after_forecast["games"][0]["markets"][key]["market_consensus"]
+        ctx["consensus_latest_source_capture_utc"]="2026-10-31T10:06:00+00:00"
+        ctx["same_line_price_consensus"]["latest_source_capture_utc"]="2026-10-31T10:06:00+00:00"
+    after_forecast_result=evaluate([settlement],[after_forecast])
+    assert after_forecast_result["metrics"]["CONSENSUS_TOTAL"]["sample_count"]==0
+    assert after_forecast_result["rejections"]["CONSENSUS_CAPTURE_TIME_INVALID"]>=1
     print("NBA_007_MARKET_CONSENSUS_SHADOW_BACKTEST_SELFTEST_PASS")
 
 
