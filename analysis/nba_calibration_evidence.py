@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Explain sample support of odds-blind isotonic probabilities (NO forecast rewrite).
+"""Explain isotonic support and enforce shadow-only production probability policy.
 
 Reference: scikit-learn calibration guide warns isotonic overfits on small data.
 This diagnostic ONLY measures historical calibration support. It never reads
@@ -8,11 +8,23 @@ bookmaker prices, changes a win probability, or changes focus ranking.
 from __future__ import annotations
 import math
 
+POLICY_VERSION = "nba-probability-calibration-policy-v2-shadow-only"
+
 def finite(x):
     try:
         v=float(x)
         return v if math.isfinite(v) else None
     except (TypeError,ValueError):return None
+
+def select_production_probability(raw, isotonic_shadow, *, isotonic_approved=False):
+    """Keep raw Gaussian active unless isotonic has an explicit OOS approval."""
+    p,q=finite(raw),finite(isotonic_shadow)
+    if p is None or not 0<=p<=1:
+        raise ValueError("INVALID_RAW_PRODUCTION_PROBABILITY")
+    if isotonic_approved and q is not None and 0<=q<=1:
+        return q
+    return p
+
 
 def evidence(model, raw, calibrated):
     p,q=finite(raw),finite(calibrated)
@@ -67,6 +79,12 @@ def self_test():
     assert evidence(m,0.5,0.6)["calibration_shift_pp"]==10
     assert evidence(None,0.099,0.099)["status"]=="UNAVAILABLE"
     assert not evidence(m,0.4,0.3)["modifies_probability"]
+    assert select_production_probability(0.225,0.0)==0.225
+    assert select_production_probability(0.901,1.0)==0.901
+    assert select_production_probability(0.225,0.0,isotonic_approved=True)==0.0
+    try: select_production_probability(float("nan"),0.5)
+    except ValueError: pass
+    else: raise AssertionError("INVALID_RAW_PROBABILITY_ACCEPTED")
     print("NBA_CALIBRATION_EVIDENCE_SELF_TEST_PASS")
 
 if __name__=="__main__":self_test()

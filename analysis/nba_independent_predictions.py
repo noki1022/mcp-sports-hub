@@ -23,10 +23,16 @@ from nba_chronological_backtest import (
 )
 import nba_chronological_backtest as B
 from nba_settlement_probabilities import settlement_probs
-from nba_calibration_evidence import evidence as calibration_evidence
+from nba_calibration_evidence import (evidence as calibration_evidence,
+                                      select_production_probability)
 from nba_pregame_context import build as build_pregame_context
 
-MODEL_VERSION = "nba-independent-v3-isotonic-rolling-production"
+MODEL_VERSION = "nba-independent-v4-gaussian-active-isotonic-shadow"
+# Isotonic calibration is retained as a diagnostic shadow only. The current
+# rolling calibration set has 240 games and sparse PAV knots (including
+# one-observation 0/1 endpoints); it is not yet proven to improve chronological
+# out-of-sample probability scores. Promote only after a separate locked test.
+USE_ISOTONIC_PRODUCTION = False
 _INTERVAL_Z = {"50": 0.67448975, "80": 1.28155157, "95": 1.95996398}
 
 def _quantile(values, probability):
@@ -293,10 +299,21 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
     margin_sigma = float(calibration["margin"]["sigma"])
     total_sigma = float(calibration["total"]["sigma"])
     raw_p_home = p_greater(margin_mu, margin_sigma, 0.0)
-    p_home = _isotonic_predict(calibration.get("moneyline_isotonic"), raw_p_home)
-    p_home_evidence = calibration_evidence(calibration.get("moneyline_isotonic"), raw_p_home, p_home)
+    isotonic_p_home_shadow = _isotonic_predict(
+        calibration.get("moneyline_isotonic"), raw_p_home)
+    # The isotonic result remains available for comparison but does not alter
+    # the production probability until chronological OOS uplift is established.
+    p_home = select_production_probability(
+        raw_p_home, isotonic_p_home_shadow,
+        isotonic_approved=USE_ISOTONIC_PRODUCTION)
+    p_home_evidence = calibration_evidence(
+        calibration.get("moneyline_isotonic"), raw_p_home, isotonic_p_home_shadow)
     raw_p_over_225_5 = p_greater(total_mu, total_sigma, TOTAL_LINE)
-    p_over_225_5 = _isotonic_predict(calibration.get("total_over_225_5_isotonic"), raw_p_over_225_5)
+    isotonic_p_over_225_5_shadow = _isotonic_predict(
+        calibration.get("total_over_225_5_isotonic"), raw_p_over_225_5)
+    p_over_225_5 = select_production_probability(
+        raw_p_over_225_5, isotonic_p_over_225_5_shadow,
+        isotonic_approved=USE_ISOTONIC_PRODUCTION)
     target = target_day.isoformat()
     base = {
         "game_id": str(fixture["game_id"]), "date": target,
@@ -307,9 +324,14 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
         "total_mean": total_mu, "total_sigma": total_sigma,
         "moneyline_home_probability": p_home,
         "moneyline_home_probability_raw": raw_p_home,
+        "moneyline_home_probability_isotonic_shadow": isotonic_p_home_shadow,
         "moneyline_calibration_evidence": p_home_evidence,
+        "moneyline_probability_calibration_mode": (
+            "ISOTONIC_PRODUCTION" if USE_ISOTONIC_PRODUCTION
+            else "RAW_GAUSSIAN_ACTIVE_ISOTONIC_SHADOW_ONLY"),
         "total_over_225_5_probability": p_over_225_5,
         "total_over_225_5_probability_raw": raw_p_over_225_5,
+        "total_over_225_5_probability_isotonic_shadow": isotonic_p_over_225_5_shadow,
         "moneyline_away_probability": 1.0 - p_home,
         "moneyline_probability_semantics": "主队最终得分高于客队；不含加时单独校正",
         "prediction_intervals": {
@@ -428,6 +450,15 @@ def generate(board):
 
 
 def self_test():
+    # Sparse isotonic knots must not overwrite production probabilities until
+    # a separate chronological out-of-sample promotion gate is approved.
+    raw = 0.225
+    sparse_isotonic = {"probability_knots": [0.225], "rate_knots": [0.0]}
+    shadow = _isotonic_predict(sparse_isotonic, raw)
+    active = shadow if USE_ISOTONIC_PRODUCTION else raw
+    assert shadow == 0.0 and active == raw
+    assert USE_ISOTONIC_PRODUCTION is False
+
     board = {"target_display_date": "2026-10-30", "games": [{
         "game_id": "synthetic", "date": "2026-10-30", "home": "ATL", "away": "MIA",
         "spread_line": -3.5, "total_line": 225.5

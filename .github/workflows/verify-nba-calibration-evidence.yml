@@ -16,7 +16,6 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
       - run: |
-          python3 -m pip install -q numpy==2.2.6
           python3 -m py_compile analysis/nba_calibration_evidence.py analysis/nba_independent_predictions.py analysis/nba_model_report.py
           python3 analysis/nba_calibration_evidence.py
           python3 - <<'PY'
@@ -24,8 +23,12 @@ jobs:
           text=Path("analysis/nba_independent_predictions.py").read_text()
           assert "p_home_evidence = calibration_evidence" in text
           assert '"moneyline_home_probability": p_home' in text
-          assert "p_home = _isotonic_predict" in text
+          assert "p_home = select_production_probability(" in text
+          assert "p_over_225_5 = select_production_probability(" in text
+          assert "USE_ISOTONIC_PRODUCTION = False" in text
+          assert '"moneyline_home_probability_isotonic_shadow": isotonic_p_home_shadow' in text
+          assert '"total_over_225_5_probability_isotonic_shadow": isotonic_p_over_225_5_shadow' in text
           assert '"moneyline_calibration_evidence": p_home_evidence' in text
           assert '"model_calibration_evidence": p.get(' in Path('analysis/nba_model_report.py').read_text()
-          print('NBA_CALIBRATION_EVIDENCE_NO_FORECAST_REWRITE_PASS')
+          print('NBA_CALIBRATION_SHADOW_ONLY_GATE_PASS')
           PY
