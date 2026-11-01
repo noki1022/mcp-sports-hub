@@ -4,6 +4,11 @@ on:
     paths:
       - scripts/nba_delivery_recovery.py
       - scripts/nba_delivery_health.py
+      - scheduler/worker.mjs
+      - scheduler/test-scheduler.mjs
+      - .github/workflows/nba-priority-0630.yml
+      - .github/workflows/nba-priority-2130.yml
+      - .github/workflows/titan007-final-hourly.yml
       - analysis/nba_final_review_gate.py
       - .github/workflows/nba-delivery-health-watchdog.yml
       - .github/workflows/verify-autonomous-recovery.yml
@@ -21,6 +26,21 @@ jobs:
       - run: python3 scripts/nba_delivery_health.py --self-test
       - run: python3 scripts/nba_delivery_recovery.py --self-test
       - run: python3 analysis/nba_final_review_gate.py --self-test
+      - name: Assert early priority starts, bounded retries, and silent overnight recovery
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          morning=Path('.github/workflows/nba-priority-0630.yml').read_text()
+          evening=Path('.github/workflows/nba-priority-2130.yml').read_text()
+          hourly=Path('.github/workflows/titan007-final-hourly.yml').read_text()
+          watchdog=Path('.github/workflows/nba-delivery-health-watchdog.yml').read_text()
+          assert '20 22 * * *' in morning and '40 22 * * *' in morning
+          assert '20 13 * * *' in evening and '40 13 * * *' in evening
+          assert '50 22 * * *' in watchdog and '50 13 * * *' in watchdog
+          assert '40 16-21 * * *' in hourly and '49 16-21 * * *' in hourly
+          assert '50 22 * * *' in watchdog
+          print('P0_EARLY_PRIORITY_AND_OVERNIGHT_RETRY_SCHEDULE_PASS')
+          PY
       - name: Assert both priority recovery triggers exist and no stale pretip replay
         run: |
           python3 - <<'PY'
