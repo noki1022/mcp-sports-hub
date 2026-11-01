@@ -289,6 +289,28 @@ def selftest():
         assert row["company_id"]=="3" and row["source"]=="DATED_007_COMPANY_ID"
         assert row["source_capture_utc"]=="2026-10-30T14:00:00Z"
     assert canonical["collection_completed_at_utc"]
+    # Adjacent site-date buckets must still recover the exact verified 007
+    # game ID for another validated company; never match by team-name guess.
+    from unittest.mock import patch
+    import titan007_join_daily
+    def fake_public_get(url,limit=250000):
+        if "date=2026-10-30" in url:
+            return b"<root><match><m>1234,-5.5,0.90,0.95,224.5,0.92,0.94</m></match></root>"
+        return b"<root/>"
+    VALIDATED_SOURCE_IDS=("3","1")
+    try:
+        with patch.object(titan007_join_daily,"public_get",fake_public_get):
+            adjacent=collect({"requested_display_date":"2026-10-31",
+              "captured_at_utc":"2026-10-30T14:00:00Z",
+              "nba_cba_games":[{"game_id":"1234","nba_game_id":"nba1234","league":"NBA",
+                "home_team":"主队","away_team":"客队","market_source_id":"3",
+                "markets":{}}]})
+    finally:
+        VALIDATED_SOURCE_IDS=original_ids
+    one=adjacent["games"][0]["markets"]["full_spread"]["companies"]
+    assert [x["company_id"] for x in one]==["1"]
+    assert one[0]["source_query_date"]=="2026-10-30"
+    assert adjacent["source_audit"][1]["matched_games"]==1
     import tempfile
     with tempfile.TemporaryDirectory() as scratch:
         folder=Path(scratch)
