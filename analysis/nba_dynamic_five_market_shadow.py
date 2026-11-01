@@ -127,9 +127,9 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
         total_sigma=num(pred.get("total_sigma"))
         ml=pred.get("model_probability") or {}
         home_ml,away_ml=num(ml.get("home")),num(ml.get("away"))
-        model_ok=(margin is not None and total is not None and margin_sigma is not None
-                  and total_sigma is not None and margin_sigma>0 and total_sigma>0
-                  and home_ml is not None and away_ml is not None
+        distribution_ok=(margin is not None and total is not None and margin_sigma is not None
+                  and total_sigma is not None and margin_sigma>0 and total_sigma>0)
+        moneyline_ok=(home_ml is not None and away_ml is not None
                   and 0<=home_ml<=1 and 0<=away_ml<=1
                   and abs(home_ml+away_ml-1.0)<=0.02)
         jc_game=jc_games.get(gid,{})
@@ -184,11 +184,12 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
                 reasons.append("FROZEN_SELECTION_STATUS_"+str(selection.get("status") or "MISSING"))
 
             valid=not reasons
-            if valid and model_ok:
+            market_model_ok=moneyline_ok if key=="JINGCAI_WIN" else distribution_ok
+            if valid and market_model_ok:
                 probs=_probability_record(key,frozen_direction,line,signed,margin,margin_sigma,total,total_sigma,home_ml,away_ml)
                 probability_status="PRETIP_VALID"
             else:
-                probs=_probability_record(key,frozen_direction,line,signed,margin,margin_sigma,total,total_sigma,home_ml,away_ml) if valid else {
+                probs=_probability_record(key,frozen_direction,line,signed,margin,margin_sigma,total,total_sigma,home_ml,away_ml) if valid and market_model_ok else {
                     "first_side":"HOME_WIN" if key=="JINGCAI_WIN" else "HOME_COVER" if key.endswith("HANDICAP") else "OVER",
                     "second_side":"AWAY_WIN" if key=="JINGCAI_WIN" else "AWAY_COVER" if key.endswith("HANDICAP") else "UNDER",
                     "first_side_probability":None,"second_side_probability":None,
@@ -235,7 +236,8 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
                 "first_side_probability_delta_pp_same_line":delta,
                 "candidate_probability_delta_pp_same_line":candidate_delta,
                 "candidate_direction_changed":(old_dir!=probs.get("candidate_direction")) if old_dir else None,
-                "market_consensus":consensus_context}
+                "market_consensus":consensus_context,
+                "consensus_capture_utc":iso(consensus_capture) if price_valid else None}
         injury_row=injury_games.get(gid) or pred.get("injury_context") or {}
         injury_capture=stamp(injury_row.get("source_captured_at_utc"))
         rows.append({
@@ -244,11 +246,12 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
             "tipoff_beijing":game.get("start_time_beijing"),
             "board_capture_utc":iso(board_capture),"model_capture_utc":iso(model_capture),
             "decision_asof_utc":iso(max([x for x in [board_capture,model_capture]+[
-                stamp(v.get("quote_capture_utc")) for v in current.values() if v.get("quote_capture_utc")]])),
+                stamp(v.get("quote_capture_utc")) for v in current.values() if v.get("quote_capture_utc")]+[
+                stamp(v.get("consensus_capture_utc")) for v in current.values() if v.get("consensus_capture_utc")])) ,
             "model_version":pred.get("model_version"),
             "model_status":pred.get("model_status",pred.get("status")),
-            "independent_model":{"home_win_probability":home_ml if model_ok else None,
-                "away_win_probability":away_ml if model_ok else None,
+            "independent_model":{"home_win_probability":home_ml if moneyline_ok else None,
+                "away_win_probability":away_ml if moneyline_ok else None,
                 "margin_mean_home_minus_away":margin,"total_mean":total,
                 "margin_sigma":margin_sigma,"total_sigma":total_sigma},
             "injury_context":{"quality":injury_row.get("quality","NOT_PROVIDED"),
