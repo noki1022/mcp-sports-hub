@@ -22,7 +22,7 @@ The pipeline therefore reports both:
 
 Ties in modal support are resolved only when one tied line is uniquely closest to the statistical median. Otherwise the main line is marked ambiguous. A usable main line requires at least three distinct companies at that exact line.
 
-Line outliers are identified using a median/MAD threshold and excluded from the effective-company and same-line price calculations. Raw company count, effective company count, excluded IDs, main-line support and exact same-line IDs remain separately visible.
+Line outliers are identified using a median/MAD threshold and excluded from the effective-company, line-range, same-line price, and effective capture-skew calculations. Raw company count and raw capture skew remain visible for audit; effective company count, excluded IDs, main-line support and exact same-line IDs remain separately visible.
 
 ## Market probability reference
 
