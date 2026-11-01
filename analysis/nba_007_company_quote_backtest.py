@@ -303,6 +303,7 @@ def analyze(top10_root, intraday_root, settled_root):
     return {
         "schema_version": "nba-007-company-quote-backtest-v1",
         "source": "007 archived source-ID quotes only; no external bookmaker odds",
+        "side_orientation_policy": "USER_CONFIRMED_007_FIRST_HOME_OR_OVER",
         "input_counts": {"snapshot_files": len(snapshots),
                          "intraday_forecast_files": len(forecasts),
                          "settlement_files": len(settlements),
