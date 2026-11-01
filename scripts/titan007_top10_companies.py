@@ -231,6 +231,7 @@ def analyze(current,prior,recovery=None):
         "games":rows,"decision":"NO_BET","model_probability_adjusted":False,
         "caveat":"Ten independently tested company ID feeds; source company names and page top-ten ranking remain UNVERIFIED. These are candidate sources, not authenticated top-ten ranking."}
 def selftest():
+    global VALIDATED_SOURCE_IDS
     raw="<table>"+''.join(f"<tr><td>机构{i}</td><td>0.90</td><td>220.5</td><td>0.92</td><td>0.88</td><td>{220.5+i}</td><td>0.94</td></tr>" for i in range(12))+"</table>"
     x=extract(raw,"full_total")
     assert len(x)==10 and x[0]["company_display"]=="机构0" and x[-1]["display_rank"]==10
@@ -241,7 +242,6 @@ def selftest():
     assert len(VALIDATED_SOURCE_IDS)==10 and len(set(VALIDATED_SOURCE_IDS))==10
     # The canonical Crown ID3 quote must be reused without a second network
     # request, even when the institution comparison is restricted to ID3.
-    global VALIDATED_SOURCE_IDS
     original_ids=VALIDATED_SOURCE_IDS
     VALIDATED_SOURCE_IDS=("3",)
     try:
