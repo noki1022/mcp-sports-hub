@@ -11,7 +11,7 @@ import hashlib
 import html
 import json
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -67,6 +67,12 @@ def _cohort_games(cohort):
 
 def select(cohort_root,now=None):
     clock=now_utc(now)
+    local=clock.astimezone(BJ)
+    local_time=local.time().replace(tzinfo=None)
+    if local_time<time(6,30) or local_time>time(21,30):
+        return {"state":"SKIP_OUTSIDE_BEIJING_MONITOR_WINDOW",
+                "time_utc":clock.isoformat(),"time_beijing":local.isoformat(),
+                "monitor_window_beijing":"06:30-21:30"}
     root=Path(cohort_root)
     candidates=[]
     for i in (-1,0,1,2):
@@ -264,6 +270,14 @@ def self_test():
         sel=select(root,"2026-10-31T23:30:00Z")
         assert sel["state"]=="WATCH" and sel["active_official_game_ids"]==["401"]
         assert select(root,"2026-11-01T00:05:00Z")["state"].startswith("SKIP")
+        # A next-day 22:00 Beijing tip is deliberately not monitored after 21:30.
+        late={"target_beijing_date":"2026-10-31","official_games":{
+            "402":{"home":"ATL","away":"MIA","utc_tip":"2026-10-31T14:00:00Z"}},
+            "first_available_007":{"402":"778900"}}
+        save(root/"noon-cohorts/2026-10-31/1200.json",late)
+        assert select(root,"2026-10-31T13:35:00Z")["state"]=="SKIP_OUTSIDE_BEIJING_MONITOR_WINDOW"
+        # The cutoff is inclusive at exactly 21:30 Beijing.
+        assert select(root,"2026-10-31T13:30:00Z")["state"]=="SKIP_NO_IMMINENT_OFFICIAL_GAME"
         def record(status):
             return {"report_state":"PUBLISHED","players":[{"name":"A, B","status":status,"reason":"Injury/Illness - Strain"}]}
         valid_urls=("https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-10-31_05PM.pdf",
