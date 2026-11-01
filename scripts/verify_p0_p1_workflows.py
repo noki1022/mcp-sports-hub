@@ -9,7 +9,9 @@ join=(ROOT/"scripts/titan007_join_daily.py").read_text()
 for s in (daily,three,final):
     assert 'numpy==2.2.6' in s, "model numerical dependency missing"
     assert ('Generate odds-blind NBA prediction artifact' in s or 'Generate independent model for entire hourly board' in s)
-assert 'cron: "30 14-21 * * *"' in final
+assert 'cron: "30 14-21 * * *"' not in final
+assert 'workflow_dispatch:' in final
+assert 'schedule:' not in final.split('permissions:',1)[0]
 assert '*/10 * * * *' not in final
 assert "contents: write" in final
 assert "git add reports/hourly/" in final
