@@ -30,9 +30,9 @@ def write_outputs(result):
     path=os.environ.get("GITHUB_OUTPUT")
     if not path:return
     with open(path,"a",encoding="utf-8") as f:
-        f.write("skip="+("false" if result["ok"] else "true")+"\\n")
-        f.write("run_report="+("true" if result["ok"] else "false")+"\\n")
-        if result["ok"]:f.write("target_date="+result["target_date"]+"\\n")
+        f.write("skip="+("false" if result["ok"] else "true")+"\n")
+        f.write("run_report="+("true" if result["ok"] else "false")+"\n")
+        if result["ok"]:f.write("target_date="+result["target_date"]+"\n")
 
 def self_test():
     for ts,valid in (("2026-10-30T21:20:00+08:00",True),
