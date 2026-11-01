@@ -258,12 +258,30 @@ def five_market_panel(x):
             qualifier=("　主队盘口 "+f(mark,True) if key.endswith("HANDICAP") and mark is not None else
                        "　总分线 "+f(mark) if key.endswith("TOTAL") and mark is not None else "")
             conclusion="<b>"+text(direction)+"</b>"+qualifier
-            if key.startswith("JINGCAI_"):
-                probability=num(obj.get("model_direction_probability"))
-                if probability is not None and 0<=probability<=1:
-                    conclusion+="　模型方向概率 "+f(probability*100)+"%"
-                else:
-                    conclusion+="　模型方向概率未校准"
+            probability=num(obj.get("model_direction_probability"))
+            if probability is not None and 0<=probability<=1:
+                conclusion+="　模型方向概率 "+f(probability*100)+"%"
+            else:
+                reason=text(obj.get("probability_status") or obj.get("model_probability_status") or "模型输入/σ不可用")
+                conclusion+="　模型方向概率不可用（"+reason+"）"
+            consensus=obj.get("market_consensus") or {}
+            price_status=consensus.get("market_price_consensus_status")
+            market_p=num(consensus.get("market_price_probability_for_model_direction"))
+            gap=num(consensus.get("model_minus_market_probability_for_model_direction"))
+            price_count=int(consensus.get("same_line_company_count") or 0)
+            consensus_line=num(consensus.get("consensus_line"))
+            if price_status=="AVAILABLE_SAME_LINE_MEDIAN" and market_p is not None:
+                line_text=("，共识线 "+f(consensus_line) if consensus_line is not None else "")
+                line_fit=("本玩法同线" if consensus.get("direct_line_matches_price_reference") is True
+                          else "仅共识线参考")
+                gap_text=("，模型-市场 "+f(gap*100,True)+"pp" if gap is not None else "")
+                conclusion+=("<div style='font-size:11px;color:#52677f;'>多机构同线去水："+
+                    str(price_count)+"家"+line_text+"，共识线模型方向市场概率 "+
+                    f(market_p*100)+"%"+gap_text+"（"+line_fit+"；影子对照，不改写生产概率）</div>")
+            elif price_status=="INSUFFICIENT_SAME_LINE_COMPANIES":
+                conclusion+="<div style='font-size:11px;color:#718297;'>多机构同线价格共识不足3家，不计算市场概率</div>"
+            elif key=="JINGCAI_WIN" and consensus.get("proxy_type")=="SPREAD_FAVORITE_NOT_MONEYLINE_ODDS":
+                conclusion+="<div style='font-size:11px;color:#718297;'>多机构独赢赔率未采集；让分盘只作胜负方向参照</div>"
             if obj.get("quote_freshness")=="ARCHIVED_PRIOR_NOT_LIVE":
                 conclusion+="（007 ID3历史赛前快照，非实时；采集于 "+text(obj.get("captured_at_utc"))+"）"
             if obj.get("strength")=="WEAK":conclusion+="（弱倾向）"
@@ -438,7 +456,7 @@ def render_v2(games,model_map,title,target,mode,priority_focus=None):
             body+=("<div style='border:1px solid #dae5f1;padding:8px;border-radius:7px;"
                    "font-size:11px;line-height:1.55;'><b>007多机构横向比较 · 10个真实ID（排序待核）</b><div>"+
                    "</div><div>".join(parts)+"</div>"+
-                   "<div>公司名称及排名尚待核验；报价时间、盘口方向未独立验证，不作为盈利信号。</div></div>")
+                   "<div>机构名称及排名待核；采集时点不等于实际赔率更新时间；左右方向按007已确认显示规则映射；同线去水概率仅作影子对照。</div></div>")
 
         if status=="FIRST_SNAPSHOT":
             summary="首次采样，仅建立基线，暂不能计算小时涨跌。"
@@ -465,9 +483,9 @@ def render_v2(games,model_map,title,target,mode,priority_focus=None):
                " · 方向待核 · <b>暂不参与</b></div>")
         out.append(cell(body))
     out.append("<div style='font-size:11px;color:#68788e;padding:12px 3px;'>"
-               "统一说明：盘口采样时间不等于博彩公司报价时间，主客方向与水位槽位尚未核验。"
-               "模型得分为均值估算，不代表精确比分；模型与盘口的差值不等于投注优势。"
-               "未完成方向和价格核验前统一 NO_BET。</div></div>")
+               "统一说明：机构采集时点不等于实际赔率更新时间；左右方向按007已确认显示规则映射。"
+               "多机构去水价格只在至少3家报出同一盘口线时计算，并仅作影子对照，不覆盖独立模型概率。"
+               "模型得分为均值估算，不代表精确比分；未经时间顺序样本外验证不认定投注优势。</div></div>")
     return "".join(out)
 def from_three(joined,model,movement):
     rows=[]
@@ -483,6 +501,32 @@ def from_three(joined,model,movement):
         rows.append({**g,"status":prior.get("status","FIRST_SNAPSHOT"),"markets":markets})
     return rows
 def self_test():
+    panel=five_market_panel({
+        "home_team":"甲","away_team":"乙",
+        "five_market_forecast":{"markets":{
+            "JINGCAI_WIN":{"status":"DIRECTION_ISSUED","direction":"HOME_WIN","model_direction_probability":.62},
+            "JINGCAI_HANDICAP":{"status":"DIRECTION_ISSUED","direction":"HOME_COVER","line":-2.5,
+                "signed_home_handicap":2.5,"model_direction_probability":.58,
+                "market_consensus":{"market_price_consensus_status":"AVAILABLE_SAME_LINE_MEDIAN",
+                    "same_line_company_count":4,"consensus_line":-2.5,
+                    "market_price_probability_for_model_direction":.53,
+                    "model_minus_market_probability_for_model_direction":.05,
+                    "direct_line_matches_price_reference":True}},
+            "JINGCAI_TOTAL":{"status":"DIRECTION_ISSUED","direction":"OVER","line":221.5,"model_direction_probability":.57},
+            "CROWN_HANDICAP":{"status":"DIRECTION_ISSUED","direction":"AWAY_COVER","line":4.5,
+                "signed_home_handicap":-4.5,"model_direction_probability":.61,
+                "market_consensus":{"market_price_consensus_status":"AVAILABLE_SAME_LINE_MEDIAN",
+                    "same_line_company_count":5,"consensus_line":4.5,
+                    "market_price_probability_for_model_direction":.56,
+                    "model_minus_market_probability_for_model_direction":.05,
+                    "direct_line_matches_price_reference":False}},
+            "CROWN_TOTAL":{"status":"DIRECTION_ISSUED","direction":"UNDER","line":224.5,"model_direction_probability":.59}
+        }}})
+    assert panel.count("模型方向概率 ")==5
+    assert "多机构同线去水：4家" in panel
+    assert "仅共识线参考" in panel
+    assert "模型-市场 +5.0pp" in panel
+
     q={"game_id":"1","home_team":"甲","away_team":"乙","display_clock":"07:00",
        "status":"LINE_MOVE","markets":{
        "full_spread":{"opening":{"line":-3.5},"previous":{"line":-4.0},"current":{"line":-5.0},"delta_line_previous":-1},
