@@ -76,6 +76,15 @@ def footer():
 def model_map(model):
     return {str(x.get("game_id")):x for x in model.get("games",[])}
 
+def attach_five_market_fields(row, forecast):
+    """Propagate the frozen per-game injury gate into the actual PushPlus renderer."""
+    forecast = forecast or {}
+    row["five_market_forecast"] = forecast
+    row["injury_review"] = forecast.get("injury_review")
+    row["final_signal_status"] = forecast.get(
+        "final_signal_status", "PROVISIONAL_INJURY_UNVERIFIED")
+    return row
+
 def model_line(item):
     if not item:return p("<span style='color:#69788a;'>独立模型：当前无可验证结果</span>")
     m=item.get("model_probability") or {}
@@ -262,7 +271,7 @@ def main():
             row["analysis_sop"]=sop_rows.get(str(row.get("game_id")))
             if args.five and str(row.get("game_id")) not in five_rows:
                 raise RuntimeError("FIVE_MARKET_FORECAST_MISSING_GAME_"+str(row.get("game_id")))
-            row["five_market_forecast"]=five_rows.get(str(row.get("game_id")))
+            attach_five_market_fields(row, five_rows.get(str(row.get("game_id"))))
             row["top10_comparison"]=top.get(str(row.get("game_id")))
             row["two_market_verdict"]=verdict.get(str(row.get("game_id")))
             row["jingcai_markets"]=jc_rows.get(str(row.get("game_id")))
@@ -338,6 +347,25 @@ def selftest():
                    "full_total":{"previous":{"line":220.5},"current":{"line":223.0},"delta_line_previous":2.5}}}]}
     _,html,count=hourly_report(sample,{},{});assert count==1 and "223.0" in html
     assert parse_response(200,b'{"code":200,"msg":"success","data":"abc"}')["state"]=="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
+    # Injury review lives in the frozen five-market forecast. It must be
+    # propagated to the compact renderer rather than silently defaulting to
+    # "待核" after an official PDF was successfully matched.
+    from pushplus_five_compact import render_compact, report_title
+    injury_forecast={"final_signal_status":"PROVISIONAL_INJURY_UNADJUSTED",
+        "injury_review":{"official_source_verified":True,"quality":"PUBLISHED_AFFECTED"},
+        "markets":{}}
+    injury_row=attach_five_market_fields({
+        "game_id":"7","home_team":"主队","away_team":"客队",
+        "start_time_beijing":"2026-10-31T08:00:00+08:00"},injury_forecast)
+    injury_html=render_compact([injury_row],{},report_title("2026-10-31"),
+        "2026-10-31","three",official_fixtures=[{"utc_tip":"2026-10-31T00:00:00Z"}])
+    assert "已核，尚未纳入模型（临时）" in injury_html
+    assert "待核（临时判断）" not in injury_html
+    injury_row=attach_five_market_fields(injury_row,{
+        "final_signal_status":"PROVISIONAL_INJURY_UNVERIFIED","markets":{}})
+    pending_html=render_compact([injury_row],{},report_title("2026-10-31"),
+        "2026-10-31","three",official_fixtures=[{"utc_tip":"2026-10-31T00:00:00Z"}])
+    assert "待核（临时判断）" in pending_html
     for status,body in ((200,b'{"code":500,"msg":"oops"}'),(500,b'{"code":200}'),(200,b'not json')):
         try:parse_response(status,body);raise AssertionError("WRONG_RESPONSE_ACCEPTED")
         except RuntimeError:pass
