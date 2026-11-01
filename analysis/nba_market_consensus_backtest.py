@@ -244,7 +244,7 @@ def evaluate(settlements, forecasts):
                 if model_first_p is not None and 0 <= model_first_p <= 1:
                     model_first_side[kind].append({
                         "probability": model_first_p, "outcome": first_side_outcome,
-                        "game_id": gid, "day": day, "capture": latest.isoformat()})
+                        "game_id": gid, "day": day, "capture": forecast_generated.isoformat() if forecast_generated is not None else None})
                 else:
                     rejects["MODEL_FIRST_SIDE_PROBABILITY_MISSING"] += 1
                 price = ctx.get("same_line_price_consensus") or {}
