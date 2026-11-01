@@ -222,6 +222,7 @@ def make(joined,model,jc,top10,consensus=None):
           "markets":selected})
     return {"schema_version":"nba-five-markets-v1",
       "target_date":date,"board_capture_utc":joined.get("captured_at_utc"),
+      "forecast_generated_at_utc":datetime.now(timezone.utc).isoformat(),
       "market_settlement_lock":"CAPTURED_PRETIP_ONLY",
       "crown_company_id":"3","crown_source":"007 ID3 (user-confirmed Crown)",
       "crown_identity_mapping":"USER_CONFIRMED_FIXED_MAPPING_ID3_EQUALS_CROWN",
