@@ -227,7 +227,7 @@ def self_test():
     assert alert_ready("2130","2026-10-31",datetime.fromisoformat("2026-10-30T21:45:00+08:00"))
     assert not alert_ready("0630","2026-10-31",datetime.fromisoformat("2026-10-31T06:35:00+08:00"))
     assert alert_ready("0630","2026-10-31",datetime.fromisoformat("2026-10-31T06:45:00+08:00"))
-        fail=[{"event":"workflow_dispatch","created_at":"2026-10-30T13:25:10Z",
+    fail=[{"event":"workflow_dispatch","created_at":"2026-10-30T13:25:10Z",
            "status":"completed","conclusion":"failure"}]
     assert run_hint(fail,"2130","2026-10-31")[0]=="WORKFLOW_FAILED"
     active=[{"event":"workflow_dispatch","created_at":"2026-10-30T13:25:10Z",
