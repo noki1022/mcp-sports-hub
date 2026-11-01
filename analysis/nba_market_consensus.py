@@ -523,6 +523,20 @@ def self_test():
     assert split_stats["consensus_line"] is None
     assert split_stats["status"] == "INSUFFICIENT_MAIN_LINE_SUPPORT"
     assert split_stats["same_line_price_consensus"]["status"] == "BLOCKED_MARKET_CONSENSUS_UNAVAILABLE"
+    # A tied modal line exactly between two quoted lines is ambiguous;
+    # do not silently choose a side or synthesize an interpolated price.
+    tied = json.loads(json.dumps(top))
+    tied_lines = [-6.0] * 3 + [-5.5] * 3
+    tied["games"][0]["markets"]["full_spread"]["companies"] = [
+        {"company_id": cid, "source": "DATED_007_COMPANY_ID",
+         "source_capture_utc": "2026-10-31T10:01:00Z",
+         "current": {"line": line, "first_side_water": .90, "second_side_water": .95}}
+        for cid, line in zip(VALIDATED_COMPANY_IDS, tied_lines)]
+    tied_stats = build(joined, tied)["games"][0]["markets"]["full_spread"]
+    assert tied_stats["median_line"] == -5.75
+    assert tied_stats["status"] == "AMBIGUOUS_MAIN_LINE"
+    assert tied_stats["consensus_line"] is None
+
     # The arithmetic median can fall between offered lines. Select only a
     # supported, actually quoted modal line for pricing and model comparison.
     modal = json.loads(json.dumps(top))
