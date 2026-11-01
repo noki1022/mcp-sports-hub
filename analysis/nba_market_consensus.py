@@ -140,30 +140,41 @@ def same_line_price_consensus(rows, kind, main_line, market_status):
 
 
 def _market_stats(rows, kind, rejected):
-    values = [x["line"] for x in rows]
-    med = quantile(values, .5)
-    q1, q3 = quantile(values, .25), quantile(values, .75)
-    deviations = [abs(x - med) for x in values]
-    mad = quantile(deviations, .5)
+    raw_values = [x["line"] for x in rows]
+    raw_median = quantile(raw_values, .5)
+    deviations = [abs(x - raw_median) for x in raw_values]
+    raw_mad = quantile(deviations, .5)
     threshold = max(1.0 if kind == "full_spread" else 2.0,
-                    3.0 * 1.4826 * (mad or 0.0))
-    outliers = [x["company_id"] for x in rows if abs(x["line"] - med) > threshold]
+                    3.0 * 1.4826 * (raw_mad or 0.0))
+    outliers = [x["company_id"] for x in rows
+                if abs(x["line"] - raw_median) > threshold]
     outlier_set = set(outliers)
     effective = [x for x in rows if x["company_id"] not in outlier_set]
-    times = [x["source_capture_utc"] for x in rows]
+    values = [x["line"] for x in effective]
+    med = quantile(values, .5)
+    q1, q3 = quantile(values, .25), quantile(values, .75)
+    effective_deviations = [abs(x - med) for x in values] if med is not None else []
+    effective_mad = quantile(effective_deviations, .5)
+    main_line, main_line_ids, main_line_status = _select_main_line(effective, med)
+    # Excluded line outliers must not make otherwise synchronous usable quotes
+    # look stale or asynchronous.
+    raw_times = [x["source_capture_utc"] for x in rows]
+    times = [x["source_capture_utc"] for x in effective]
+    raw_skew = ((max(raw_times) - min(raw_times)).total_seconds()
+                if len(raw_times) > 1 else 0.0)
     skew = ((max(times) - min(times)).total_seconds() if len(times) > 1 else 0.0)
     count = len(rows)
+    effective_count = len(effective)
     if count == 0:
         status = "NO_VERIFIED_QUOTES"
     elif count < MIN_COMPANIES:
         status = "LOW_COMPANY_COVERAGE"
+    elif effective_count < MIN_COMPANIES:
+        status = "LOW_EFFECTIVE_COMPANY_COVERAGE"
     elif skew > MAX_CAPTURE_SKEW_SECONDS:
         status = "ASYNCHRONOUS_QUOTES"
-    elif len(effective) < MIN_COMPANIES:
-        status = "LOW_EFFECTIVE_COMPANY_COVERAGE"
     else:
         status = "CONSENSUS_AVAILABLE"
-    main_line, main_line_ids, main_line_status = _select_main_line(effective, med)
     price_status = status if main_line_status == "AVAILABLE_MAIN_LINE" else main_line_status
     p1 = [x["raw_slot1_no_vig"] for x in effective if x["raw_slot1_no_vig"] is not None]
     p2 = [x["raw_slot2_no_vig"] for x in effective if x["raw_slot2_no_vig"] is not None]
@@ -171,10 +182,11 @@ def _market_stats(rows, kind, rejected):
         "status": status,
         "consensus_available": status == "CONSENSUS_AVAILABLE" and main_line_status == "AVAILABLE_MAIN_LINE",
         "company_count": count,
-        "effective_company_count": len(effective),
+        "effective_company_count": effective_count,
         "effective_company_ids": [x["company_id"] for x in sorted(effective, key=lambda r: int(r["company_id"]))],
         "company_ids": [x["company_id"] for x in sorted(rows, key=lambda r: int(r["company_id"]))],
         "median_line": round(med, 3) if med is not None else None,
+        "raw_median_line": round(raw_median, 3) if raw_median is not None else None,
         "main_line": round(main_line, 3) if main_line is not None else None,
         "main_line_status": main_line_status,
         "main_line_company_count": len(main_line_ids),
@@ -183,8 +195,10 @@ def _market_stats(rows, kind, rejected):
         "line_q1": round(q1, 3) if q1 is not None else None,
         "line_q3": round(q3, 3) if q3 is not None else None,
         "line_max": round(max(values), 3) if values else None,
+        "raw_line_min": round(min(raw_values), 3) if raw_values else None,
+        "raw_line_max": round(max(raw_values), 3) if raw_values else None,
         "line_iqr": round(q3 - q1, 3) if q1 is not None and q3 is not None else None,
-        "line_mad": round(mad, 3) if mad is not None else None,
+        "line_mad": round(effective_mad, 3) if effective_mad is not None else None,
         "outlier_threshold_points": round(threshold, 3),
         "outlier_company_ids": sorted(outliers, key=int),
         "raw_slot1_no_vig_median": round(quantile(p1, .5), 6) if p1 else None,
@@ -195,6 +209,7 @@ def _market_stats(rows, kind, rejected):
         "earliest_source_capture_utc": min(times).isoformat() if times else None,
         "latest_source_capture_utc": max(times).isoformat() if times else None,
         "capture_skew_seconds": round(skew, 1),
+        "raw_capture_skew_seconds": round(raw_skew, 1),
         "rejected": dict(sorted(rejected.items())),
         "quotes": [{
             "company_id": x["company_id"],
@@ -359,6 +374,8 @@ def selection_context(market_key, direct_line, direction, model_margin, model_to
     ctx = {
         "status": stats.get("status", "NO_VERIFIED_QUOTES"),
         "company_count": stats.get("company_count", 0),
+        "effective_company_count": stats.get("effective_company_count", stats.get("company_count", 0)),
+        "effective_company_ids": stats.get("effective_company_ids", stats.get("company_ids", [])),
         "consensus_line": line if available else None,
         "consensus_statistical_median": number(stats.get("median_line")),
         "main_line_company_count": stats.get("main_line_company_count", 0),
@@ -485,6 +502,21 @@ def self_test():
     assert g["full_spread"]["median_line"] == -5.5
     assert "9" in g["full_spread"]["outlier_company_ids"]
     assert g["full_spread"]["crown_id3_line"] == -5.5
+    assert g["full_spread"]["effective_company_count"] == 4
+    assert g["full_spread"]["capture_skew_seconds"] == 0.0
+    # An excluded line outlier with a much later source timestamp must not
+    # poison the freshness/skew status of the effective consensus set.
+    skewed = json.loads(json.dumps(top))
+    skewed_rows = skewed["games"][0]["markets"]["full_spread"]["companies"]
+    for quote in skewed_rows:
+        quote["source_capture_utc"] = (
+            "2026-10-31T10:02:30Z" if quote["company_id"] == "9"
+            else "2026-10-31T09:47:00Z")
+    skewed_stats = build(joined, skewed)["games"][0]["markets"]["full_spread"]
+    assert skewed_stats["status"] == "CONSENSUS_AVAILABLE"
+    assert skewed_stats["capture_skew_seconds"] == 0.0
+    assert skewed_stats["raw_capture_skew_seconds"] == 930.0
+    assert skewed_stats["effective_company_count"] == 4
     # duplicate company IDs are not double counted
     dup = json.loads(json.dumps(top))
     dup["games"][0]["markets"]["full_spread"]["companies"].append(companies[0])
