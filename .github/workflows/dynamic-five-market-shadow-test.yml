@@ -32,7 +32,7 @@ jobs:
         run: python3 analysis/nba_dynamic_five_market_shadow.py --self-test
       - name: Chronological replay, latest pre-tip selection and scoring tests
         run: python3 analysis/nba_dynamic_five_market_replay.py --self-test
-      - name: Reject legacy archived 007 capture when model generation time is absent
+      - name: Reject legacy archived 007 capture when frozen decision timestamp is absent
         run: |
           d="reports/daily/2026-11-01/2130"
           if [ -f "$d/titan007_priority_joined.json" ] && [ -f "$d/nba_priority_model.json" ] && [ -f "$d/nba_five_market_forecast.json" ] && [ -f "$d/nba_jingcai_three_market.json" ]; then
@@ -46,7 +46,7 @@ jobs:
           import json
           x=json.load(open("/tmp/legacy_shadow.json"))
           assert x["status"]=="SHADOW_UNAVAILABLE", x
-          assert x["error"]=="MODEL_GENERATION_TIMESTAMP_MISSING", x
+          assert x["error"]=="FIVE_MARKET_GENERATION_TIMESTAMP_MISSING", x
           assert x["production_model_modified"] is False
           assert x["pushplus_enabled"] is False
           assert x["market_probability_fusion"]=="DISABLED"
