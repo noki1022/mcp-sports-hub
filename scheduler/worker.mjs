@@ -17,7 +17,8 @@ const ACTIVE = new Set(["queued", "in_progress", "pending", "waiting", "requeste
 export const CRONS = {
   REVIEW: "*/15 * * * *",
   PREGAME: "*/5 22-23,0-13 * * *",
-  FIXED: "0,1,5,6,7,8,10,11,16,18,20,28,30,35,40,45,50,55 0-8,10,13,20,22-23 * * *"
+  FIXED: "0,1,5,6,7,8,10,11,16,18,20,28,30,35,40,45,50,55 0-8,10,13,22-23 * * *",
+  REGRESSION: "1,6,11 20 * * *"
 };
 
 const FIXED = [
@@ -63,6 +64,7 @@ export function plannedJobs(timestamp, cron = null) {
   const fixedClock = all || cron === CRONS.FIXED;
   const pregameClock = all || cron === CRONS.PREGAME;
   const reviewClock = all || cron === CRONS.REVIEW;
+  const regressionClock = all || cron === CRONS.REGRESSION;
 
   if (fixedClock) {
     for (const f of FIXED) {
@@ -85,10 +87,11 @@ export function plannedJobs(timestamp, cron = null) {
       jobs.push(job("odds-results-settlement.yml", "odds_settlement", "1600", x.day, x, 16, 0,
         { blockAnyActive: true, activeWindowMs: 20 * MINUTE_MS }));
     }
-    if (h === 4 && [1, 6, 11].includes(m)) {
-      jobs.push(job("nba-full-chain-e2e.yml", "offline_regression", "0400", x.day, x, 4, 0,
-        { blockAnyActive: true, activeWindowMs: 20 * MINUTE_MS }));
-    }
+  }
+
+  if (regressionClock && h === 4 && [1, 6, 11].includes(m)) {
+    jobs.push(job("nba-full-chain-e2e.yml", "offline_regression", "0400", x.day, x, 4, 0,
+      { blockAnyActive: true, activeWindowMs: 20 * MINUTE_MS }));
   }
 
   if (pregameClock) {
