@@ -30,13 +30,15 @@ jobs:
           j=json.loads(Path("jc-snapshot.json").read_text(encoding="utf-8"))
           ids=j["jc_007_match_numbers"]
           assert ids["total_games"]==10 and 0<=ids["verified"]<=10
-          assert "竞彩 · 3玩法" in t and "皇冠ID3 · 2玩法" in t
+          assert ">竞彩</div>" in t and ">皇冠</div>" in t
+assert "北京时间10月31日 NBA球赛研判" in t
+assert "玩法" not in t and "ID3" not in t
           assert "达拉斯独行侠" in t and "休斯顿火箭" in t
           # Historical match pages can outlive the current 007 price feed.
           # Keep deterministic direction tests in the preceding self-test step.
           shadow=j.get("jc_007_public_odds_shadow") or {}
           if (shadow.get("nba_coverage") or {}).get("win_lose",0)>0:
-              assert "竞彩 · 3玩法" in t
+              assert ">竞彩</div>" in t
           assert "槽1" not in t and "槽2" not in t
           assert "用户认可为体彩赔率参考" not in t
           assert "两侧方向仍需核验" not in t
