@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse,json,math,re
 from datetime import datetime,timezone
 from pathlib import Path
+from nba_market_consensus import selection_context
 
 MARKETS=("JINGCAI_WIN","JINGCAI_HANDICAP","JINGCAI_TOTAL","CROWN_HANDICAP","CROWN_TOTAL")
 LABELS={"JINGCAI_WIN":"竞彩胜负","JINGCAI_HANDICAP":"竞彩让分","JINGCAI_TOTAL":"竞彩大小分",
@@ -77,7 +78,7 @@ def selection(market,diff,line,price=None,observed_at=None,source=None,status="O
             "source":source,"source_id":source_id,"captured_at_utc":observed_at,
             "note":"冻结研究方向；不等于经历史验证的投注优势"}
 
-def make(joined,model,jc,top10):
+def make(joined,model,jc,top10,consensus=None):
     date=joined.get("requested_display_date")
     board=idx([g for g in joined.get("nba_cba_games",[]) if g.get("league")=="NBA"])
     preds=idx(model.get("games",[]))
@@ -85,6 +86,7 @@ def make(joined,model,jc,top10):
     feed=(jc.get("jc_007_public_odds_shadow") or {})
     prices=idx(feed.get("games",[]))
     institution=idx(top10.get("games",[]))
+    consensus_rows=idx((consensus or {}).get("games",[]))
     capture=when(feed.get("captured_at_utc"))
     crown_source_id=str(joined.get("crown_source_id") or "")
     crown_capture_value=(joined.get("crown_quote_captured_at_utc")
@@ -193,6 +195,23 @@ def make(joined,model,jc,top10):
                     prob_market,selected[market]["direction"],p,prob_line)
                 selected[market]["probability_status"]="MODEL_NORMAL_UNCALIBRATED_CROWN_ID3"
 
+        # Multi-company consensus is an additional independent reference.
+        # It never replaces the actual Jingcai or Crown ID3 quote and does not
+        # alter the production model probability before chronological OOS proof.
+        consensus_market=(consensus_rows.get(gid) or {}).get("markets") or {}
+        direct_lines={
+            "JINGCAI_WIN":None,
+            "JINGCAI_HANDICAP":n(((pools.get("handicap") or {}).get("data") or {}).get("current",{}).get("line")),
+            "JINGCAI_TOTAL":n(((pools.get("total") or {}).get("data") or {}).get("current",{}).get("line")),
+            "CROWN_HANDICAP":selected["CROWN_HANDICAP"].get("line"),
+            "CROWN_TOTAL":selected["CROWN_TOTAL"].get("line"),
+        }
+        for market in MARKETS:
+            selected[market]["market_consensus"]=selection_context(
+                market, direct_lines.get(market), selected[market].get("direction"),
+                margin, total, n(p.get("margin_sigma")), n(p.get("total_sigma")),
+                consensus_market)
+
         assert set(selected)==set(MARKETS)
         rows.append({"game_id":gid,"nba_game_id":g.get("nba_game_id"),
           "jingcai_number":label if verified else None,
@@ -205,6 +224,10 @@ def make(joined,model,jc,top10):
       "target_date":date,"board_capture_utc":joined.get("captured_at_utc"),
       "market_settlement_lock":"CAPTURED_PRETIP_ONLY",
       "crown_company_id":"3","crown_source":"007 ID3 (user-confirmed Crown)",
+      "crown_identity_mapping":"USER_CONFIRMED_FIXED_MAPPING_ID3_EQUALS_CROWN",
+      "market_consensus_source":"007_VALIDATED_COMPANY_IDS",
+      "market_consensus_status":(consensus or {}).get("schema_version","NOT_SUPPLIED"),
+      "probability_fusion":"SHADOW_ONLY_DISABLED_PENDING_CHRONOLOGICAL_OOS_VALIDATION",
       "games":rows,"game_count":len(rows),"market_keys":list(MARKETS),
       "ready_counts":{k:sum(r["markets"][k]["status"]=="DIRECTION_ISSUED" for r in rows) for k in MARKETS},
       "priority_weights":{"jingcai":0.7,"crown":0.3},
@@ -304,12 +327,13 @@ def self_test():
 
 if __name__=="__main__":
     a=argparse.ArgumentParser()
-    a.add_argument("--joined");a.add_argument("--model");a.add_argument("--jingcai");a.add_argument("--top10");a.add_argument("--out");a.add_argument("--self-test",action="store_true")
+    a.add_argument("--joined");a.add_argument("--model");a.add_argument("--jingcai");a.add_argument("--top10");a.add_argument("--consensus");a.add_argument("--out");a.add_argument("--self-test",action="store_true")
     v=a.parse_args()
     if v.self_test:self_test()
     else:
         if not all((v.joined,v.model,v.jingcai,v.top10,v.out)):raise SystemExit("REQUIRED_INPUT_MISSING")
         def load(p):return json.loads(Path(p).read_text(encoding="utf-8"))
-        o=make(load(v.joined),load(v.model),load(v.jingcai),load(v.top10))
+        o=make(load(v.joined),load(v.model),load(v.jingcai),load(v.top10),
+               load(v.consensus) if v.consensus else None)
         Path(v.out).write_text(json.dumps(o,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         print("NBA_FIVE_MARKETS_PRODUCED",json.dumps({"games":o["game_count"],"counts":o["ready_counts"]},ensure_ascii=False))
