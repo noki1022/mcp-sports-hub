@@ -22,7 +22,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           s=Path('/tmp/compact.html').read_text()
-          print("REPORT_TITLE", "北京时间11月2日 NBA球赛研判" in s)
+          print("REPORT_TITLE", "北京时间11月1日 NBA球赛研判" in s)
           print("JINGCAI_LABELS", s.count(">竞彩</div>"))
           print("CROWN_LABELS", s.count(">皇冠</div>"))
           print("HAS_ISSUE_NUMBER", "周六316" in s)
