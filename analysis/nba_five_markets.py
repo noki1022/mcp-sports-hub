@@ -86,7 +86,9 @@ def make(joined,model,jc,top10):
     prices=idx(feed.get("games",[]))
     institution=idx(top10.get("games",[]))
     capture=when(feed.get("captured_at_utc"))
-    institutional_capture=when(top10.get("captured_at_utc"))
+    crown_source_id=str(joined.get("crown_source_id") or "")
+    crown_capture_value=(joined.get("crown_quote_captured_at_utc")
+                         or joined.get("captured_at_utc"))
     rows=[]
     for gid,g in board.items():
         tip=when(g.get("start_time_beijing"))
@@ -97,11 +99,10 @@ def make(joined,model,jc,top10):
         margin=n(p.get("margin_mean_home_minus_away")) if p.get("model_status") in ("OK","PARTIAL") else None
         total=n(p.get("total_mean")) if p.get("model_status") in ("OK","PARTIAL") else None
         # JC sale-number verification governs only the displayed number.
-        # Market eligibility is anchored to exact 007 match ID on verified board.
+        # Market eligibility is anchored to exact 007 match ID and a pre-tip XML capture.
         jc_valid=bool(capture and tip and capture<tip and gid in prices)
-        # Crown source is independent of Jingcai sales-number verification.
-        crow_valid=bool(institutional_capture and tip and institutional_capture<tip)
         pools=(prices.get(gid) or {}).get("markets") or {}
+
         def jc_market(key,market):
             item=pools.get(key) or {}
             state=item.get("status","NO_QUOTE_IN_007_FEED")
@@ -109,64 +110,89 @@ def make(joined,model,jc,top10):
                 return selection(market,None,None,status=state,source="007_JINGCAI")
             cur=(item.get("data") or {}).get("current") or {}
             line=n(cur.get("line"))
-            if not jc_valid:return selection(market,None,line,status="JC_PRICE_TIME_OR_GAME_ID_UNVERIFIED",source="007_JINGCAI")
-            a,b=n(cur.get("first_side")),n(cur.get("second_side"))
-            if a is None or b is None or not (1<a<30 and 1<b<30):
+            if not jc_valid:
+                return selection(market,None,line,status="JC_PRICE_TIME_OR_GAME_ID_UNVERIFIED",source="007_JINGCAI")
+            first,second=n(cur.get("first_side")),n(cur.get("second_side"))
+            if first is None or second is None or not (1<first<30 and 1<second<30):
                 return selection(market,None,line,status="JC_INVALID_PRICE_PAIR",source="007_JINGCAI")
             if key=="win_lose":
                 ans=selection(market,margin,None,observed_at=feed.get("captured_at_utc"),source="007_JINGCAI")
-                if ans["status"]=="DIRECTION_ISSUED":
-                    ans["model_direction_probability"]=jc_probability(market,ans["direction"],p,None)
-                return ans
-            if line is None:return selection(market,None,None,status="INVALID_JC_LINE",source="007_JINGCAI")
-            gap=(margin+line) if key=="handicap" and margin is not None else (
-                 total-line if key=="total" and total is not None else None)
-            ans=selection(market,gap,line,observed_at=feed.get("captured_at_utc"),source="007_JINGCAI")
+            else:
+                if line is None:
+                    return selection(market,None,None,status="INVALID_JC_LINE",source="007_JINGCAI")
+                gap=(margin+line) if key=="handicap" and margin is not None else (
+                     total-line if key=="total" and total is not None else None)
+                ans=selection(market,gap,line,observed_at=feed.get("captured_at_utc"),source="007_JINGCAI")
             if ans["status"]=="DIRECTION_ISSUED":
                 ans["model_direction_probability"]=jc_probability(market,ans["direction"],p,line)
+                ans["raw_price_slots"]={"first":first,"second":second,
+                    "orientation":"UNVERIFIED_RAW_FIRST_SECOND"}
             return ans
+
         selected={"JINGCAI_WIN":jc_market("win_lose","JINGCAI_WIN"),
                   "JINGCAI_HANDICAP":jc_market("handicap","JINGCAI_HANDICAP"),
                   "JINGCAI_TOTAL":jc_market("total","JINGCAI_TOTAL")}
+
+        # Crown ID3 is already captured in the canonical joined board. Do not
+        # re-fetch it from the separate institution-comparison path: that path
+        # used only the target date and silently lost valid adjacent-date rows.
+        # Archived ID3 evidence remains an explicit, non-live fallback only.
         im=(institution.get(gid) or {}).get("markets") or {}
         for kind,market in (("full_spread","CROWN_HANDICAP"),("full_total","CROWN_TOTAL")):
-            company=(im.get(kind) or {}).get("companies") or []
-            live=[c for c in company if str(c.get("company_id"))=="3"
-                  and c.get("source")=="DATED_007_COMPANY_ID"]
-            archived=[c for c in company if str(c.get("company_id"))=="3"
-                      and c.get("source")=="DATED_007_COMPANY_ID_ARCHIVED_PRETIP"]
-            matches=live if live else archived
-            archived_fallback=not live and bool(archived)
-            if len(matches)!=1 or not crow_valid:
-                selected[market]=selection(market,None,None,source="007_CROWN_ID3",
-                    status="CROWN_QUOTE_NOT_VERIFIED",source_id="3")
-                continue
-            quote=(matches[0].get("current") or {})
+            direct_source_ok=(crown_source_id=="3"
+                              and str(g.get("market_source_id") or "3")=="3")
+            direct=(g.get("markets") or {}).get(kind) or {}
+            quote=(direct.get("current") or {}) if direct_source_ok else {}
             line=n(quote.get("line"))
+            quote_time=crown_capture_value
+            source="007_CROWN_ID3"
+            archived_fallback=False
+
+            if line is None:
+                candidates=[c for c in ((im.get(kind) or {}).get("companies") or [])
+                    if str(c.get("company_id"))=="3"
+                    and c.get("source")=="DATED_007_COMPANY_ID_ARCHIVED_PRETIP"]
+                if len(candidates)==1:
+                    archived=candidates[0]
+                    archived_quote=archived.get("current") or {}
+                    archived_line=n(archived_quote.get("line"))
+                    archived_time=archived.get("observed_capture_utc")
+                    if archived_line is not None:
+                        line=archived_line
+                        quote=archived_quote
+                        quote_time=archived_time
+                        source="007_CROWN_ID3_ARCHIVED_PRETIP"
+                        archived_fallback=True
+
             if line is None:
                 selected[market]=selection(market,None,None,source="007_CROWN_ID3",
-                    status="INVALID_CROWN_LINE",source_id="3")
+                    status="CROWN_ID3_QUOTE_MISSING",source_id="3")
                 continue
-            # Crow* raw positive line denotes home gives, not the JC home receiver.
-            gap=((margin-line) if kind=="full_spread" and margin is not None else
-                 (total-line) if kind=="full_total" and total is not None else None)
-            quote_time=(matches[0].get("observed_capture_utc") if archived_fallback
-                        else top10.get("captured_at_utc"))
             actual_time=when(quote_time)
             if actual_time is None or tip is None or actual_time>=tip:
-                selected[market]=selection(market,None,line,status="CROWN_ARCHIVE_NOT_PRETIP",
-                    source="007_CROWN_ID3",source_id="3")
+                selected[market]=selection(market,None,line,source=source,
+                    status="CROWN_QUOTE_NOT_PRETIP",source_id="3")
                 continue
-            selected[market]=selection(market,gap,line,
-                source="007_CROWN_ID3_ARCHIVED_PRETIP" if archived_fallback else "007_CROWN_ID3",
-                source_id="3",observed_at=quote_time)
-            selected[market]["quote_freshness"]=("ARCHIVED_PRIOR_NOT_LIVE" if archived_fallback else "CURRENT_CAPTURE")
+
+            # Crown/Crow* raw positive line denotes HOME GIVES, so signed home
+            # handicap is the negative of the source line.
+            gap=((margin-line) if kind=="full_spread" and margin is not None else
+                 (total-line) if kind=="full_total" and total is not None else None)
+            selected[market]=selection(market,gap,line,source=source,source_id="3",
+                observed_at=quote_time)
+            selected[market]["quote_freshness"]=(
+                "ARCHIVED_PRIOR_NOT_LIVE" if archived_fallback else "CURRENT_CAPTURE")
+            selected[market]["raw_water_slots"]={
+                "first_side":n(quote.get("first_side_water")),
+                "second_side":n(quote.get("second_side_water")),
+                "orientation":"UNVERIFIED_RAW_FIRST_SECOND"}
             if selected[market]["status"]=="DIRECTION_ISSUED":
                 prob_market="JINGCAI_HANDICAP" if market=="CROWN_HANDICAP" else "JINGCAI_TOTAL"
                 prob_line=-line if market=="CROWN_HANDICAP" else line
                 selected[market]["model_direction_probability"]=jc_probability(
                     prob_market,selected[market]["direction"],p,prob_line)
                 selected[market]["probability_status"]="MODEL_NORMAL_UNCALIBRATED_CROWN_ID3"
+
         assert set(selected)==set(MARKETS)
         rows.append({"game_id":gid,"nba_game_id":g.get("nba_game_id"),
           "jingcai_number":label if verified else None,
@@ -178,7 +204,7 @@ def make(joined,model,jc,top10):
     return {"schema_version":"nba-five-markets-v1",
       "target_date":date,"board_capture_utc":joined.get("captured_at_utc"),
       "market_settlement_lock":"CAPTURED_PRETIP_ONLY",
-      "crown_company_id":"3","crown_source":"007 source ID 3 (Crow* label crosscheck required)",
+      "crown_company_id":"3","crown_source":"007 ID3 (user-confirmed Crown)",
       "games":rows,"game_count":len(rows),"market_keys":list(MARKETS),
       "ready_counts":{k:sum(r["markets"][k]["status"]=="DIRECTION_ISSUED" for r in rows) for k in MARKETS},
       "priority_weights":{"jingcai":0.7,"crown":0.3},
@@ -189,78 +215,92 @@ def make(joined,model,jc,top10):
 
 def self_test():
     joined={"requested_display_date":"2026-10-31","captured_at_utc":"2026-10-30T14:00:00Z",
+      "crown_quote_captured_at_utc":"2026-10-30T14:00:00Z","crown_source_id":"3",
       "nba_cba_games":[{"game_id":"170","nba_game_id":"nba170","league":"NBA",
-        "home_team":"独行侠","away_team":"火箭","start_time_beijing":"2026-10-31T08:00:00+08:00"}]}
+        "home_team":"独行侠","away_team":"火箭","market_source_id":"3",
+        "start_time_beijing":"2026-10-31T08:00:00+08:00",
+        "markets":{"full_spread":{"current":{"line":6.5,"first_side_water":0.91,"second_side_water":0.95}},
+                   "full_total":{"current":{"line":229.5,"first_side_water":0.92,"second_side_water":0.94}}}}]}
     model={"games":[{"game_id":"170","model_status":"OK","margin_mean_home_minus_away":-6,
-                     "total_mean":230}]}
+                     "total_mean":230,"margin_sigma":12,"total_sigma":18,
+                     "model_probability":{"home":0.42,"away":0.58}}]}
     jc={"jc_007_match_numbers":{"games":{"170":{"status":"VERIFIED_JC_NUMBER","label":"周五314"}}},
        "jc_007_public_odds_shadow":{"captured_at_utc":"2026-10-30T14:00:00Z",
+         "007_jingcai_reference_user_confirmed":True,
          "games":[{"game_id":"170","markets":{
            "win_lose":{"status":"OBSERVED","data":{"current":{"first_side":2.95,"second_side":1.19}}},
            "handicap":{"status":"OBSERVED","data":{"current":{"line":7.5,"first_side":1.75,"second_side":1.65}}},
            "total":{"status":"OBSERVED","data":{"current":{"line":225.5,"first_side":1.70,"second_side":1.70}}}}}]}}
-    top = {
-      "captured_at_utc": "2026-10-30T14:00:00Z",
-      "games": [{
-        "game_id": "170",
-        "markets": {
-          "full_spread": {"companies": [{
-            "company_id": "3", "source": "DATED_007_COMPANY_ID",
-            "current": {"line": 6.5}
-          }]},
-          "full_total": {"companies": [{
-            "company_id": "3", "source": "DATED_007_COMPANY_ID",
-            "current": {"line": 229.5}
-          }]}
-        }
-      }]
-    }
+    # Crown directions must use the canonical joined ID3 quotes even when the
+    # independent institution-comparison artifact has no matched rows.
+    top={"captured_at_utc":"2026-10-30T14:00:00Z","games":[]}
     out=make(joined,model,jc,top)
     m=out["games"][0]["markets"]
     assert out["ready_counts"]=={k:1 for k in MARKETS}
     assert m["JINGCAI_WIN"]["direction"]=="AWAY_WIN"
     assert m["JINGCAI_HANDICAP"]["direction"]=="HOME_COVER"
     assert m["JINGCAI_HANDICAP"]["signed_home_handicap"]==7.5
+    assert m["JINGCAI_TOTAL"]["direction"]=="OVER"
     assert m["CROWN_HANDICAP"]["direction"]=="AWAY_COVER"
     assert m["CROWN_HANDICAP"]["signed_home_handicap"]==-6.5
-    assert m["JINGCAI_TOTAL"]["direction"]=="OVER"
     assert m["CROWN_TOTAL"]["direction"]=="OVER"
+    assert m["CROWN_TOTAL"]["source_id"]=="3"
+    assert m["CROWN_TOTAL"]["raw_water_slots"]["first_side"]==0.92
     assert m["CROWN_HANDICAP"]["probability_status"]=="MODEL_NORMAL_UNCALIBRATED_CROWN_ID3"
-    assert m["CROWN_TOTAL"]["probability_status"]=="MODEL_NORMAL_UNCALIBRATED_CROWN_ID3"
-    jc["jc_007_public_odds_shadow"]["games"][0]["markets"]["win_lose"]={"status":"NOT_ON_SALE_USER_CONFIRMED"}
-    missing=make(joined,model,jc,top)
-    assert missing["games"][0]["markets"]["JINGCAI_WIN"]["status"]=="NOT_ON_SALE_USER_CONFIRMED"
-    assert missing["ready_counts"]["JINGCAI_WIN"]==0
-    top["games"][0]["markets"]["full_spread"]["companies"][0]["company_id"]="9"
-    assert make(joined,model,jc,top)["games"][0]["markets"]["CROWN_HANDICAP"]["direction"] is None
-    top["games"][0]["markets"]["full_spread"]["companies"]=[{
-        "company_id":"3","source":"DATED_007_COMPANY_ID_ARCHIVED_PRETIP",
-        "observed_capture_utc":"2026-10-30T13:00:00Z","current":{"line":6.5}}]
-    top["games"][0]["markets"]["full_total"]["companies"]=[{
-        "company_id":"3","source":"DATED_007_COMPANY_ID_ARCHIVED_PRETIP",
-        "observed_capture_utc":"2026-10-30T13:00:00Z","current":{"line":229.5}}]
-    recovered=make(joined,model,jc,top)["games"][0]["markets"]
+
+    # The Crown market is independently missing per game/market; do not
+    # replace a missing total with a spread or another bookmaker's quote.
+    partial={"requested_display_date":joined["requested_display_date"],
+      "captured_at_utc":joined["captured_at_utc"],"crown_quote_captured_at_utc":joined["crown_quote_captured_at_utc"],
+      "crown_source_id":"3","nba_cba_games":[{**joined["nba_cba_games"][0],
+      "markets":{"full_spread":joined["nba_cba_games"][0]["markets"]["full_spread"],"full_total":{"current":{}}}}]}
+    partial_out=make(partial,model,jc,top)["games"][0]["markets"]
+    assert partial_out["CROWN_HANDICAP"]["direction"]=="AWAY_COVER"
+    assert partial_out["CROWN_TOTAL"]["status"]=="CROWN_ID3_QUOTE_MISSING"
+    assert partial_out["CROWN_TOTAL"]["direction"] is None
+
+    # If the canonical capture lacks a live quote, a prior ID3 quote may only
+    # be used when its own timestamp is verified pre-tip and is visibly stale.
+    no_live={"requested_display_date":joined["requested_display_date"],
+      "captured_at_utc":joined["captured_at_utc"],"crown_source_id":"3",
+      "nba_cba_games":[{**joined["nba_cba_games"][0],"markets":{}}]}
+    archived={"captured_at_utc":"2026-10-30T13:00:00Z","games":[{"game_id":"170","markets":{
+      "full_spread":{"companies":[{"company_id":"3","source":"DATED_007_COMPANY_ID_ARCHIVED_PRETIP",
+        "observed_capture_utc":"2026-10-30T13:00:00Z","current":{"line":6.5}}]},
+      "full_total":{"companies":[{"company_id":"3","source":"DATED_007_COMPANY_ID_ARCHIVED_PRETIP",
+        "observed_capture_utc":"2026-10-30T13:00:00Z","current":{"line":229.5}}]}}}]}
+    recovered=make(no_live,model,jc,archived)["games"][0]["markets"]
     assert recovered["CROWN_HANDICAP"]["direction"]=="AWAY_COVER"
     assert recovered["CROWN_TOTAL"]["direction"]=="OVER"
     assert recovered["CROWN_TOTAL"]["quote_freshness"]=="ARCHIVED_PRIOR_NOT_LIVE"
-    assert recovered["CROWN_TOTAL"]["source_id"]=="3"
-    # A missing JC number must not invalidate a correctly timestamped ID3 quote.
+
+    # A non-ID3 source must never be promoted as Crown.
+    wrong_source={**joined,"crown_source_id":"9"}
+    wrong=make(wrong_source,model,jc,top)["games"][0]["markets"]
+    assert wrong["CROWN_HANDICAP"]["direction"] is None
+    assert wrong["CROWN_TOTAL"]["direction"] is None
+
+    # Jingcai numbering is display metadata only; it must not block Crown or
+    # the three 007 price/line observations when a label lookup is unavailable.
     jc["jc_007_match_numbers"]["games"]["170"]={"status":"UNVERIFIED","label":None}
-    independent=make(joined,model,jc,top)["games"][0]["markets"]
-    assert independent["JINGCAI_HANDICAP"]["direction"]=="HOME_COVER"
-    assert make(joined,model,jc,top)["games"][0]["jingcai_number"] is None
-    assert independent["CROWN_HANDICAP"]["direction"]=="AWAY_COVER"
-    assert independent["CROWN_TOTAL"]["direction"]=="OVER"
+    independent=make(joined,model,jc,top)["games"][0]
+    assert independent["jingcai_number"] is None
+    assert independent["markets"]["JINGCAI_HANDICAP"]["direction"]=="HOME_COVER"
+    assert independent["markets"]["CROWN_HANDICAP"]["direction"]=="AWAY_COVER"
     assert out["priority_weights"]=={"jingcai":0.7,"crown":0.3}
     assert out["jingcai_three_ready_games"]==1
-    jc["jc_007_public_odds_shadow"]["games"][0]["markets"]["win_lose"]={"status":"OBSERVED","data":{"current":{"first_side":2.95,"second_side":1.19}}}
-    no_crown=make(joined,model,jc,{"captured_at_utc":top["captured_at_utc"],"games":[]})
-    assert all(no_crown["games"][0]["markets"][k]["status"]=="DIRECTION_ISSUED" for k in MARKETS[:3])
-    assert all(no_crown["games"][0]["markets"][k]["direction"] is None for k in MARKETS[3:])
+
+    # A post-tip ID3 snapshot is not a valid pre-game quote.
+    late={**joined,"crown_quote_captured_at_utc":"2026-10-31T02:00:00Z"}
+    late_out=make(late,model,jc,top)["games"][0]["markets"]
+    assert late_out["CROWN_HANDICAP"]["direction"] is None
+    assert late_out["CROWN_TOTAL"]["direction"] is None
+
+    # A post-tip Jingcai capture is not accepted.
     jc["jc_007_public_odds_shadow"]["captured_at_utc"]="2026-10-31T02:00:00Z"
-    late=make(joined,model,jc,top)["games"][0]["markets"]
-    assert all(late[k]["direction"] is None for k in MARKETS[:3])
-    print("NBA_FIVE_MARKETS_DIRECTION_AND_SOURCE_SELFTEST_PASS")
+    late_jc=make(joined,model,jc,top)["games"][0]["markets"]
+    assert all(late_jc[k]["direction"] is None for k in MARKETS[:3])
+    print("NBA_FIVE_MARKETS_CANONICAL_007_SOURCE_SELFTEST_PASS")
 
 if __name__=="__main__":
     a=argparse.ArgumentParser()
