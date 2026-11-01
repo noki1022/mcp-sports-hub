@@ -46,18 +46,19 @@ jobs:
         run: |
           python3 scripts/pushplus_mobile.py --mode three \
             --joined reports/daily/2026-10-31/1800/titan007_three_joined.json \
-            --jingcai verified-jingcai-with-numbers.json --five reports/daily/2026-10-31/0630/nba_five_market_forecast.json \
+            --jingcai verified-jingcai-with-numbers.json \
+            --five reports/daily/2026-10-31/0630/nba_five_market_forecast.json \
             --preview verified-jingcai-iphone-preview.html \
             --status verified-jingcai-iphone-status.json
           python3 - <<'PY'
+          import re
           from pathlib import Path
           s=Path("verified-jingcai-iphone-preview.html").read_text(encoding="utf-8")
-          import json
-          v=json.load(open("verified-jingcai-with-numbers.json"))["jc_007_match_numbers"]
-          assert "竞彩 · 3玩法" in s and "皇冠ID3 · 2玩法" in s
+          assert ">竞彩</div>" in s and ">皇冠</div>" in s
+          assert re.search(r"北京时间\d{1,2}月\d{1,2}日 NBA球赛研判",s)
+          assert "玩法" not in s and "ID3" not in s
           assert "编号待核" in s or "周五" in s
           assert "#01" not in s and "#02" not in s
-          assert "竞彩 · 3玩法" in s and "皇冠ID3 · 2玩法" in s
           print("JC_PUSH_IPHONE_TEN_CODES_NO_POSITION_ORDINALS_PASS")
           PY
       - uses: actions/upload-artifact@v4
