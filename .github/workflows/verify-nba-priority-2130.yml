@@ -27,7 +27,8 @@ jobs:
           for t in ('20 13 * * *','30 13 * * *','40 13 * * *'):
               assert f'- cron: "{t}"' in s
           assert '30 13-22 * * *' not in h
-          assert '30 14-21 * * *' in h
+          assert '30 14-21 * * *' not in h
+          assert 'workflow_dispatch:' in h and 'schedule:' not in h.split('permissions:',1)[0]
           for cmd in ('titan007_hourly_history.py capture','nba_prediction_adapter.py',
                       'nba_hourly_dynamic_review.py','pushplus_mobile.py --mode three',
                       '--phase presend','reports/pushplus-sent/$TARGET_DATE/2130.json'):

@@ -6,15 +6,8 @@ on:
         description: "Beijing NBA tipoff date YYYY-MM-DD; defaults to next morning"
         required: false
         type: string
-  schedule:
-    # 21:30 belongs exclusively to priority pre-22:00 full report.
-    # 06:30 is exclusively the highest-priority complete morning report.
-    # Ordinary hourly conditional alerts run Beijing 22:30-05:30.
-    - cron: "30 14-21 * * *"
-    # Native recovery for the six silent 00:30-05:30 Beijing captures.
-    # The immutable evidence gate makes retries idempotent.
-    - cron: "40 16-21 * * *"
-    - cron: "49 16-21 * * *"
+  # Automatic overnight hourly monitoring removed by explicit operator request.
+  # workflow_dispatch is retained for deliberate manual diagnostics only.
 permissions:
   contents: write
 concurrency:

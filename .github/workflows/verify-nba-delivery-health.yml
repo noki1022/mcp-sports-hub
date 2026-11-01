@@ -37,6 +37,7 @@ jobs:
           import yaml
           hourly=Path('.github/workflows/titan007-final-hourly.yml').read_text()
           health=Path('.github/workflows/nba-delivery-health-watchdog.yml').read_text()
+          health_logic=Path('scripts/nba_delivery_health.py').read_text()
           assert '--require-delivery' in hourly
           assert 'HOURLY_REPORT_SLOT' in hourly and 'HOURLY_DELIVERY_MARKED' in hourly
           hourly_gate=hourly.split('      - name: Resolve canonical hourly slot; skip if API already accepted',1)[1].split('      - name: Join Beijing NBA fixtures',1)[0]
@@ -52,7 +53,10 @@ jobs:
           assert 'infer_slot(os.environ.get("GH_HEALTH_SCHEDULE",""),datetime.now(BJ))' in health
           assert 'except (OSError,ValueError)' in health
           assert '--alert-marker-out' in health
-          assert '55 14-21 * * *' in health
+          assert '55 14-21 * * *' not in health
+          assert 'schedule:' not in hourly.split('permissions:',1)[0]
+          assert 'workflow_dispatch:' in hourly
+          assert '55 14-21 * * *' in health_logic  # legacy parser retained only for manual diagnostics
           for path in ('.github/workflows/titan007-final-hourly.yml',
                        '.github/workflows/nba-delivery-health-watchdog.yml'):
               obj=yaml.safe_load(Path(path).read_text())
