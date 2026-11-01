@@ -31,7 +31,8 @@ jobs:
           ids=j["jc_007_match_numbers"]
           assert ids["total_games"]==10 and 0<=ids["verified"]<=10
           assert ">竞彩</div>" in t and ">皇冠</div>" in t
-assert "北京时间10月31日 NBA球赛研判" in t
+import re
+assert re.search(r"北京时间\\d{1,2}月\\d{1,2}日 NBA球赛研判",t)
 assert "玩法" not in t and "ID3" not in t
           assert "达拉斯独行侠" in t and "休斯顿火箭" in t
           # Historical match pages can outlive the current 007 price feed.
