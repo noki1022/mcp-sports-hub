@@ -217,11 +217,11 @@ jobs:
       - name: Capture 007 visible top-ten companies and compare last stored sample
         if: steps.preflight.outputs.skip != 'true'
         run: |
-          python3 scripts/titan007_top10_companies.py --joined titan007_three_joined.json --out nba_top10_companies.json --analysis nba_top10_comparison.json --history-root reports/top10
+          python3 scripts/optional_007_enrichment.py collect --joined titan007_three_joined.json --out nba_top10_companies.json --analysis nba_top10_comparison.json --history-root reports/top10 --status nba_top10_capture_status.json --timeout 120
       - name: Build point-in-time multi-company 007 market consensus
         if: steps.preflight.outputs.skip != 'true'
         run: |
-          python3 analysis/nba_market_consensus.py --joined titan007_three_joined.json --top10 nba_top10_companies.json --out nba_market_consensus.json
+          python3 scripts/optional_007_enrichment.py consensus --joined titan007_three_joined.json --top10 nba_top10_companies.json --out nba_market_consensus.json --status nba_market_consensus_status.json --timeout 25
           python3 - <<'PY'
           import json
           x=json.load(open("nba_market_consensus.json"))
@@ -232,6 +232,7 @@ jobs:
           PY
       - name: Persist top-ten institution snapshots for next scheduled comparison
         if: steps.preflight.outputs.skip != 'true'
+        continue-on-error: true
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
