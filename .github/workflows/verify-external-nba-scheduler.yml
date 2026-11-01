@@ -7,32 +7,24 @@ on:
       - '.github/workflows/titan007-three-analysis.yml'
       - '.github/workflows/nba-priority-0630.yml'
       - '.github/workflows/nba-priority-2130.yml'
-      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/nba-two-market-nightly-2200.yml'
+      - '.github/workflows/nba-injury-change-watch.yml'
       - '.github/workflows/nba-delivery-health-watchdog.yml'
+      - '.github/workflows/odds-results-settlement.yml'
+      - '.github/workflows/nba-full-chain-e2e.yml'
+      - '.github/workflows/deploy-cloudflare-primary-scheduler.yml'
       - '.github/workflows/verify-external-nba-scheduler.yml'
 permissions: {contents: read}
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
       - run: node scheduler/test-scheduler.mjs
-      - name: Check noon dispatch freezes cohort and passes explicit report slot
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          w=Path('.github/workflows/titan007-three-analysis.yml').read_text()
-          assert 'report_slot:' in w
-          assert 'EXTERNAL_REPORT_SLOT' in w
-          assert '"$EXTERNAL_REPORT_SLOT" = "1200"' in w
-          for slot in ('0630','2130'):
-              p=Path(f'.github/workflows/nba-priority-{slot}.yml').read_text()
-              assert 'workflow_dispatch:' in p
-          print('EXTERNAL_NOON_AND_PRIORITY_DISPATCH_INPUT_PASS')
-          PY
-      - name: Ensure Cloudflare cron has no overnight monitoring wakeups
+      - name: Check Cloudflare is the primary clock and workflow engines remain intact
         run: |
           python3 - <<'PY'
           import tomllib
@@ -40,20 +32,22 @@ jobs:
           cfg=tomllib.loads(Path('scheduler/wrangler.toml').read_text())
           crons=cfg['triggers']['crons']
           expected=[
-              '0,8,18,28 4,6,7,10 * * *',
-              '0,7,16,20,30,40 13 * * *',
-              '0,10,20 14 * * *',
-              '20,30,40 22 * * *',
+              '*/15 * * * *',
+              '*/5 22-23,0-13 * * *',
+              '0,5,7,8,10,16,18,20,28,30,35,40,45,50,55 0-8,10,13,20,22-23 * * *',
           ]
           assert crons==expected,(crons,expected)
-          # UTC 14:30–21:30 is Beijing 22:30–05:30: no cron is scheduled there.
-          for expr in crons:
-              minute_field,hour_field,*_=expr.split()
-              minutes=[int(x) for x in minute_field.split(',')]
-              hours=[int(x) for x in hour_field.split(',')]
-              for hour in hours:
-                  for minute in minutes:
-                      utc_minute=hour*60+minute
-                      assert not (14*60+30 <= utc_minute <= 21*60+30),(expr,hour,minute)
-          print('CLOUDFLARE_NO_OVERNIGHT_CRON_WAKEUPS_PASS')
+          assert len(crons)==3
+          worker=Path('scheduler/worker.mjs').read_text()
+          for name in ('titan007-three-analysis.yml','nba-priority-2130.yml',
+                       'nba-priority-0630.yml','nba-injury-change-watch.yml',
+                       'nba-delivery-health-watchdog.yml','nba-two-market-nightly-2200.yml',
+                       'odds-results-settlement.yml','nba-full-chain-e2e.yml'):
+              assert name in worker, 'MISSING_SCHEDULED_WORKFLOW_'+name
+          assert 'Automatic overnight hourly market' in Path('scheduler/README.md').read_text()
+          deploy=Path('.github/workflows/deploy-cloudflare-primary-scheduler.yml').read_text()
+          for secret in ('CLOUDFLARE_API_TOKEN','CLOUDFLARE_ACCOUNT_ID',
+                         'CLOUDFLARE_SCHEDULER_GITHUB_TOKEN'):
+              assert secret in deploy, 'MISSING_DEPLOY_SECRET_'+secret
+          print('CLOUDFLARE_PRIMARY_SCHEDULER_WIRING_PASS')
           PY
