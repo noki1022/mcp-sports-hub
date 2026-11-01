@@ -254,7 +254,7 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
             "board_capture_utc":iso(board_capture),"model_capture_utc":iso(model_capture),
             "decision_asof_utc":iso(max([x for x in [board_capture,model_capture]+[
                 stamp(v.get("quote_capture_utc")) for v in current.values() if v.get("quote_capture_utc")]+[
-                stamp(v.get("consensus_capture_utc")) for v in current.values() if v.get("consensus_capture_utc")])) ,
+                stamp(v.get("consensus_capture_utc")) for v in current.values() if v.get("consensus_capture_utc")]])),
             "model_version":pred.get("model_version"),
             "model_status":pred.get("model_status",pred.get("status")),
             "independent_model":{"home_win_probability":home_ml if moneyline_ok else None,
