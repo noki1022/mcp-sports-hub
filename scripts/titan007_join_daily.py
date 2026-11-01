@@ -99,11 +99,20 @@ def join(matches, markets, target_date=None):
         "markets_missing_identity_ids":unlinked
     }
 
+_ROBOTS_POLICY_CACHE=None
+
 def public_get(url,limit=250000):
-    with urllib.request.urlopen(urllib.request.Request(ROBOTS_URL,headers={"User-Agent":odds.UA}),timeout=12) as r:
-        rp=urllib.robotparser.RobotFileParser()
-        rp.parse(r.read(60000).decode("utf-8","replace").splitlines())
-    if not rp.can_fetch(odds.UA,url):raise RuntimeError(f"Access disallowed: {url}")
+    global _ROBOTS_POLICY_CACHE
+    # robots.txt is immutable enough for one short capture process. Cache the
+    # policy once rather than issuing an extra robots request for every source
+    # ID/date combination during multi-company consensus collection.
+    if _ROBOTS_POLICY_CACHE is None:
+        with urllib.request.urlopen(urllib.request.Request(ROBOTS_URL,headers={"User-Agent":odds.UA}),timeout=12) as r:
+            rp=urllib.robotparser.RobotFileParser()
+            rp.parse(r.read(60000).decode("utf-8","replace").splitlines())
+        _ROBOTS_POLICY_CACHE=rp
+    if not _ROBOTS_POLICY_CACHE.can_fetch(odds.UA,url):
+        raise RuntimeError(f"Access disallowed: {url}")
     with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":odds.UA}),timeout=12) as r:
         raw=r.read(limit+1)
     if len(raw)>limit:raise RuntimeError("Score XML too large")
