@@ -1,5 +1,9 @@
 name: Titan007 daily three analysis before lottery cutoff
 on:
+  # Temporary path-scoped one-time production acceptance trigger.
+  push:
+    paths:
+      - '.github/one-time-full-chain-trigger'
   workflow_dispatch:
     inputs:
       report_slot:
@@ -40,7 +44,7 @@ jobs:
     env:
       REQUESTED_DATE: ${{ inputs.target_date || '' }}
       SCHEDULE_EXPR: ${{ github.event.schedule || '' }}
-      EXTERNAL_REPORT_SLOT: ${{ inputs.report_slot || (github.event_name == 'push' && github.event.head_commit.message == 'ONE_TIME_FULL_CHAIN_PRODUCTION_RUN' && 'ONCE-20261101-REPLAY2') || '' }}
+      EXTERNAL_REPORT_SLOT: ${{ inputs.report_slot || (github.event_name == 'push' && github.event.head_commit.message == 'ONE_TIME_FULL_CHAIN_PRODUCTION_RUN' && 'ONCE-20261101-REPLAY3') || '' }}
       ALLOW_ONCE_PUSH: ${{ github.event_name == 'push' && github.event.head_commit.message == 'ONE_TIME_FULL_CHAIN_PRODUCTION_RUN' }}
       PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
     steps:
