@@ -2,7 +2,7 @@ name: NBA PRIORITY 06:30 Beijing morning full report
 on:
   schedule:
     # Retry every ten minutes through the morning; the immutable 21:30 slate gate decides whether enough unstarted time remains.
-    - cron: "*/10 22-23,0-3 * * *"
+    - cron: "*/10 22-23,0-5 * * *"
   workflow_dispatch:
 permissions:
   contents: write
