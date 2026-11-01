@@ -63,8 +63,13 @@ const extended=[
   ["2026-10-30T20:40:00Z",null],
   ["2026-10-30T21:49:00Z",null] // 05:49 Beijing: no late overnight dispatch
 ];
-for(const [date,expected] of extended){
-  assert.equal(plannedJob(at(date)),expected,date);
+for(const [date,expected,target] of extended){
+  const job=plannedJob(at(date));
+  if(expected===null)assert.equal(job,null,date);
+  else {
+    assert.equal(job?.slot,expected,date);
+    assert.equal(job?.target_date,target,date);
+  }
 }
 assert.equal(plannedJob(at("2026-10-30T13:17:00Z")),null); // outside retry minute
 assert.equal(plannedJob(at("2026-10-30T22:50:00Z")),null); // no stale 06:30 retry
