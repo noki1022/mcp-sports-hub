@@ -1,5 +1,10 @@
 name: Titan007 daily three analysis before lottery cutoff
 on:
+  # Explicit, path-scoped one-time production acceptance run.
+  # The trigger file is removed immediately after GitHub confirms the run was queued.
+  push:
+    paths:
+      - '.github/one-time-full-chain-trigger'
   workflow_dispatch:
     inputs:
       report_slot:
@@ -40,7 +45,8 @@ jobs:
     env:
       REQUESTED_DATE: ${{ inputs.target_date || '' }}
       SCHEDULE_EXPR: ${{ github.event.schedule || '' }}
-      EXTERNAL_REPORT_SLOT: ${{ inputs.report_slot || '' }}
+      EXTERNAL_REPORT_SLOT: ${{ inputs.report_slot || (github.event_name == 'push' && github.event.head_commit.message == 'ONE_TIME_FULL_CHAIN_PRODUCTION_RUN' && 'ONCE') || '' }}
+      ALLOW_ONCE_PUSH: ${{ github.event_name == 'push' && github.event.head_commit.message == 'ONE_TIME_FULL_CHAIN_PRODUCTION_RUN' }}
       PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
