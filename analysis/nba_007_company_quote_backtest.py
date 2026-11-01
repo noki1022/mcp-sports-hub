@@ -107,6 +107,18 @@ def paired_day_bootstrap(rows, left, right, iterations=1000):
             round(deltas[int(.975*(len(deltas)-1))], 7)]
 
 
+def read_json_legacy(path):
+    # Existing 007 archive reader explicitly supports older literal-backslash-n
+    # suffixes; preserve those historical snapshots without weakening JSON checks.
+    raw=Path(path).read_text(encoding="utf-8")
+    try:
+        return json.loads(raw)
+    except ValueError:
+        if raw.endswith("\\\\n"):
+            return json.loads(raw[:-2])
+        raise
+
+
 def load_docs(root, pattern):
     out = []
     base = Path(root)
@@ -114,7 +126,7 @@ def load_docs(root, pattern):
         return out
     for path in sorted(base.glob(pattern)):
         try:
-            obj = json.loads(path.read_text(encoding="utf-8"))
+            obj = read_json_legacy(path)
             if isinstance(obj, dict):
                 out.append((path, obj))
         except (OSError, ValueError, TypeError):
@@ -332,6 +344,11 @@ def self_test():
     assert abs(no_vig(.90, .90)-.5) < 1e-12
     assert no_vig(0, .9) is None
     assert metrics([{"p": .8, "outcome": 1}], "p")["brier"] == .04
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        legacy=Path(tmp)/"legacy.json"
+        legacy.write_text('{"ok":true}\\\\n',encoding="utf-8")
+        assert read_json_legacy(legacy)=={"ok":True}
     # Positive raw spread means home gives; margin must exceed the line to cover.
     assert (110-100)-5.5 > 0
     assert (100-110)-(-5.5) < 0
