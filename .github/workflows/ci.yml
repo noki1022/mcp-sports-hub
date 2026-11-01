@@ -31,7 +31,7 @@ jobs:
         run: |
           python3 -m py_compile scripts/nba_fixed_slot_gate.py scripts/nba_schedule_fallback_push.py scripts/titan007_join_beijing_verified.py
           python3 scripts/nba_fixed_slot_gate.py --self-test
-          python3 scripts/nba_schedule_fallback_push.py --self-test
+          python3 scripts/nba_schedule_fallback_push.py --self-test --target 2026-11-02 --slot ONCE
           python3 scripts/titan007_join_beijing_verified.py --self-test
           python3 - <<'PY'
           from pathlib import Path
