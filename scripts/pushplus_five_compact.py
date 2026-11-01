@@ -140,6 +140,14 @@ def small_move(game):
     return "　".join(parts[:2])
 
 
+def report_title(target):
+    try:
+        d = datetime.strptime(str(target), "%Y-%m-%d")
+    except (TypeError, ValueError):
+        raise RuntimeError("NBA_REPORT_DATE_INVALID")
+    return f"北京时间{d.month}月{d.day}日 NBA球赛研判"
+
+
 def render_compact(games, model_map, title, target, mode, snapshot_utc=None, official_fixtures=None):
     """A single view; one card per game, Jingcai 70% visual priority, Crown 30%.
 
@@ -168,9 +176,9 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None, off
             pass
     head = (
         "<div style='background:#edf3fa;border-radius:9px;padding:11px 12px;'>"
-        "<div style='font-weight:750;font-size:18px;'>NBA赛前五玩法 · " + esc(date_label) + "</div>"
-        "<div style='font-size:12px;color:#5f7085;'>北京时间 · " + str(len(rows)) +
-        "场 · 竞彩优先" + esc(stamp) + (" · 模拟" if synthetic else "") + "</div></div>"
+        "<div style='font-weight:750;font-size:18px;'>" + esc(report_title(target)) + "</div>"
+        "<div style='font-size:12px;color:#5f7085;'>共 " + str(len(rows)) +
+        " 场" + esc(stamp) + (" · 模拟" if synthetic else "") + "</div></div>"
     )
     # First capture already carries verified official UTC fixture tipoffs.
     # Show earliest tip on every push so users need not spot an early game manually.
@@ -213,13 +221,13 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None, off
             + home + " <span style='font-size:11px;color:#7b8998;font-weight:400;'>主</span>　"
             + away + " <span style='font-size:11px;color:#7b8998;font-weight:400;'>客</span></div>"
             "<div style='border-radius:7px;background:#edf4fc;padding:7px 9px;'>"
-            "<div style='font-size:11px;color:#527399;font-weight:700;margin-bottom:2px;'>竞彩 · 3玩法</div>"
+            "<div style='font-size:11px;color:#527399;font-weight:700;margin-bottom:2px;'>竞彩</div>"
         )
         for key, name in MARKETS[:3]:
             body += ("<div style='padding:3px 0;font-size:13px;'><span style='color:#536a82;'>"
                      + esc(name) + "　</span><b>" + esc(market_row(key, mk.get(key))) + "</b></div>")
         body += ("</div><div style='border-radius:7px;background:#f6f7fa;padding:6px 9px;margin-top:6px;'>"
-                 "<div style='font-size:11px;color:#718094;font-weight:650;'>皇冠ID3 · 2玩法</div>")
+                 "<div style='font-size:11px;color:#718094;font-weight:650;'>皇冠</div>")
         for key, name in MARKETS[3:]:
             body += ("<div style='padding:2px 0;font-size:12px;'><span style='color:#68788b;'>"
                      + esc(name) + "　</span>" + esc(market_row(key, mk.get(key))) + "</div>")
@@ -251,11 +259,7 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None, off
                      "高置信度输出需复核校准与伤停</div>")
         body += "</div>"
         output.append(body)
-    output.append(
-        "<div style='font-size:11px;color:#6d7c8d;padding:7px 2px 12px;'>"
-        "让分均按主客队标注正负号；皇冠未校准概率会单独注明。"
-        "</div></div>"
-    )
+    output.append("</div>")
     return "".join(output)
 
 
@@ -283,7 +287,7 @@ def cli():
             raise RuntimeError("FIVE_MARKET_KEYS_MISSING")
     target = obj.get("target_date")
     rows = [{**g, "five_market_forecast": g} for g in games]
-    title = "NBA 赛前五玩法 · 精简重发｜" + str(target)
+    title = report_title(target)
     html = render_compact(rows, {}, title, target, "three", obj.get("board_capture_utc"))
     Path(args.preview).write_text(html, encoding="utf-8")
     state = {"target_date": target, "games_considered": len(games),
@@ -335,7 +339,10 @@ def self_test():
           "quote_captured_at_utc":"2026-10-31T13:30:00Z"}
     ph=render_compact([past], {}, "赛前", "2026-11-01", "three")
     assert "历史快照" in ph and "非即时盘" in ph and "10-31 21:30" in ph
-    assert "皇冠ID3" in h and "竞彩 · 3玩法" in h
+    assert "皇冠" in h and "竞彩" in h
+    assert "北京时间11月1日 NBA球赛研判" in h
+    assert "玩法" not in h and "ID3" not in h
+    assert "北京时间11月1日 NBA球赛研判" == report_title("2026-11-01")
     injected = {**game, "home_team": "<script>alert(1)</script>"}
     h = render_compact([injected], {}, "赛前", "2026-11-01", "three")
     assert "<script>" not in h and "&lt;script&gt;" in h
