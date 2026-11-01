@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/titan007_top10_companies.py'
+      - 'scripts/optional_007_enrichment.py'
       - 'scripts/pushplus_mobile.py'
       - 'scripts/pushplus_mobile_v2.py'
       - '.github/workflows/titan007-three-analysis.yml'
@@ -20,8 +21,9 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
       - run: |
-          python3 -m py_compile scripts/titan007_top10_companies.py scripts/pushplus_mobile.py scripts/pushplus_mobile_v2.py
+          python3 -m py_compile scripts/titan007_top10_companies.py scripts/optional_007_enrichment.py scripts/pushplus_mobile.py scripts/pushplus_mobile_v2.py
           python3 scripts/titan007_top10_companies.py --self-test
+          python3 scripts/optional_007_enrichment.py --self-test
           python3 scripts/pushplus_mobile.py --mode smoke --self-test
       - name: Verify complete pipeline coverage and no made-up company IDs
         run: |
@@ -37,9 +39,14 @@ jobs:
             ".github/workflows/nba-priority-2130.yml",
             ".github/workflows/nba-priority-0630.yml"]:
               s=Path(path).read_text()
-              assert "scripts/titan007_top10_companies.py" in s
+              assert "scripts/optional_007_enrichment.py collect" in s
               assert "--top10 nba_top10_comparison.json" in s
               assert "--history-root reports/top10" in s
               assert "git add reports/top10/" in s
+          wrapper=Path("scripts/optional_007_enrichment.py").read_text()
+          assert "scripts/titan007_top10_companies.py" in wrapper
+          assert "COLLECT_TIMEOUT_AFTER_" in wrapper
+          assert "DEGRADED_CANONICAL_ID3_ONLY" in wrapper
+          assert "PRIMARY_PIPELINE_CONTINUES" in wrapper
           print("007_TOP10_ALL_SLOTS_WIRED_PASS")
           PY
