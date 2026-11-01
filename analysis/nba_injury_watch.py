@@ -111,7 +111,12 @@ def extract(cohort,official,active,clock):
     if not isinstance(official,dict) or not official.get("source_url"):
         raise ValueError("NO_OFFICIAL_SOURCE_URL")
     src=str(official["source_url"])
-    if not re.search(r"/Injury-Report_\d{4}-\d{2}-\d{2}_\d{2}(?:AM|PM)\.pdf$",src):
+    # Official NBA index publishes legacy hour-only and current hour-minute filenames.
+    if not re.fullmatch(
+        r"https://ak-static\.cms\.nba\.com/referee/injury/"
+        r"Injury-Report_\d{4}-\d{2}-\d{2}_\d{2}(?:_\d{2})?(?:AM|PM)\.pdf",
+        src,
+    ):
         raise ValueError("UNVERIFIED_OFFICIAL_PDF_LINK")
     capture=as_utc(official.get("captured_at_utc"))
     if not capture or capture>clock+timedelta(minutes=2) or clock-capture>timedelta(minutes=20):
@@ -261,7 +266,18 @@ def self_test():
         assert select(root,"2026-11-01T00:05:00Z")["state"].startswith("SKIP")
         def record(status):
             return {"report_state":"PUBLISHED","players":[{"name":"A, B","status":status,"reason":"Injury/Illness - Strain"}]}
-        official={"source_url":"https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-10-31_05PM.pdf",
+        valid_urls=("https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-10-31_05PM.pdf",
+                    "https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-10-31_05_00PM.pdf")
+        for url in valid_urls:
+            probe={"source_url":url,"captured_at_utc":"2026-10-31T23:30:00Z","matchups":{}}
+            assert isinstance(extract(j,probe,{"401":1},now_utc("2026-10-31T23:30:00Z")),dict)
+        for url in ("https://example.com/referee/injury/Injury-Report_2026-10-31_05_00PM.pdf",
+                    "https://ak-static.cms.nba.com.evil.test/referee/injury/Injury-Report_2026-10-31_05_00PM.pdf",
+                    "https://ak-static.cms.nba.com/referee/injury/not-an-injury-report.pdf"):
+            try: extract(j,{"source_url":url,"captured_at_utc":"2026-10-31T23:30:00Z","matchups":{}},{"401":1},now_utc("2026-10-31T23:30:00Z"))
+            except ValueError as exc: assert str(exc)=="UNVERIFIED_OFFICIAL_PDF_LINK"
+            else: raise AssertionError("UNVERIFIED_INJURY_SOURCE_ACCEPTED: "+url)
+        official={"source_url":valid_urls[0],
                   "captured_at_utc":"2026-10-31T23:30:00Z",
                   "matchups":{"MIA@ATL":{"Atlanta Hawks":record("Questionable"),
                                        "Miami Heat":{"report_state":"PUBLISHED","players":[]}}}}
