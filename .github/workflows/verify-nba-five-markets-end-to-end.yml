@@ -7,6 +7,7 @@ on:
       - 'analysis/nba_market_consensus.py'
       - 'analysis/nba_market_consensus_backtest.py'
       - 'scripts/titan007_top10_companies.py'
+      - 'scripts/optional_007_enrichment.py'
       - 'scripts/pushplus_five_compact.py'
       - 'analysis/nba_five_market_settlement.py'
       - 'analysis/nba_five_market_review_push.py'
@@ -28,7 +29,8 @@ jobs:
         with: {python-version: '3.12'}
       - name: Verify five market signs, outcomes and iPhone format
         run: |
-          python3 -m py_compile analysis/nba_five_markets.py analysis/nba_market_consensus.py analysis/nba_market_consensus_backtest.py analysis/nba_five_market_settlement.py analysis/nba_five_market_review_push.py scripts/pushplus_mobile_v2.py scripts/pushplus_five_compact.py
+          python3 -m py_compile scripts/optional_007_enrichment.py analysis/nba_five_markets.py analysis/nba_market_consensus.py analysis/nba_market_consensus_backtest.py analysis/nba_five_market_settlement.py analysis/nba_five_market_review_push.py scripts/pushplus_mobile_v2.py scripts/pushplus_five_compact.py
+          python3 scripts/optional_007_enrichment.py --self-test
           python3 analysis/nba_market_consensus.py --self-test
           python3 analysis/nba_market_consensus_backtest.py --self-test
           python3 analysis/nba_five_markets.py --self-test
@@ -58,6 +60,20 @@ jobs:
           assert '--scores nba_final_review_scores.json' in nightly
           assert 'analysis/nba_five_market_review_push.py' in nightly
           assert 'nba_final_review_readiness.json' in nightly
+          # Multi-company capture and consensus are optional enrichment only.
+          for path in paths:
+              content=Path(path).read_text()
+              assert 'scripts/optional_007_enrichment.py collect' in content,path
+              assert 'scripts/optional_007_enrichment.py consensus' in content,path
+              for label in ('Persist top-ten institution snapshot',
+                            'Persist top-ten institution snapshots'):
+                  pos=content.find('name: '+label)
+                  if pos >= 0:
+                      assert 'continue-on-error: true' in content[pos:pos+260],path
+                      break
+              else:
+                  raise AssertionError('MISSING_BEST_EFFORT_ARCHIVE_STEP: '+path)
+          print('OPTIONAL_007_ENRICHMENT_FAIL_OPEN_ALL_SCHEDULES_PASS')
           print('NBA_FIVE_MARKET_FOUR_SCHEDULED_AND_NIGHTLY_WIRED_PASS')
           PY
       - name: Audit 10 pretip real 007 lottery games without posting PushPlus
