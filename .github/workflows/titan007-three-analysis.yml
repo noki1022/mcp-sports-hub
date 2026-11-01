@@ -28,6 +28,8 @@ on:
     - cron: "15 10 * * *"
     - cron: "30 10 * * *"
     - cron: "0 13 * * *"
+    # Daily Beijing 20:45 full-board report; UTC 12:45.
+    - cron: "45 12 * * *"
 permissions:
   contents: write
 concurrency:
@@ -389,7 +391,7 @@ jobs:
         run: |
           FALLBACK_SLOT="${REPORT_SLOT:-}"
           case "$FALLBACK_SLOT" in
-            1200|1400|1500|1800|2100|ONCE|ONCE-*) ;;
+            1200|1400|1500|1800|2100|2045|ONCE|ONCE-*) ;;
             *) echo "FALLBACK_UNKNOWN_SLOT" >&2; exit 1 ;;
           esac
           git fetch --quiet origin main
