@@ -347,7 +347,7 @@ def self_test():
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
         legacy=Path(tmp)/"legacy.json"
-        legacy.write_text('{"ok":true}\\\\n',encoding="utf-8")
+        legacy.write_text('{"ok":true}'+chr(92)+'n',encoding="utf-8")
         assert read_json_legacy(legacy)=={"ok":True}
     # Positive raw spread means home gives; margin must exceed the line to cover.
     assert (110-100)-5.5 > 0
