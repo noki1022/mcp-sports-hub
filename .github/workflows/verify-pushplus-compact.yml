@@ -18,4 +18,18 @@ jobs:
           python-version: '3.12'
       - run: python3 scripts/pushplus_five_compact.py --self-test
       - run: python3 scripts/pushplus_five_compact.py --five reports/daily/2026-11-01/1400/nba_five_market_forecast.json --preview /tmp/compact.html
-      - run: python3 -c "from pathlib import Path; s=Path('/tmp/compact.html').read_text(); assert s.count('>竞彩</div>')==7; assert '周六316' in s; assert '北京时间11月2日 NBA球赛研判' in s; assert '玩法' not in s and 'ID3' not in s"
+      - run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('/tmp/compact.html').read_text()
+          print("REPORT_TITLE", "北京时间11月2日 NBA球赛研判" in s)
+          print("JINGCAI_LABELS", s.count(">竞彩</div>"))
+          print("CROWN_LABELS", s.count(">皇冠</div>"))
+          print("HAS_ISSUE_NUMBER", "周六316" in s)
+          print("FORBIDDEN_TERMS", [x for x in ("玩法","ID3") if x in s])
+          assert s.count(">竞彩</div>")==7, "JINGCAI_LABEL_COUNT"
+          assert s.count(">皇冠</div>")==7, "CROWN_LABEL_COUNT"
+          assert "周六316" in s, "MISSING_MATCH_NUMBER"
+          assert "北京时间11月2日 NBA球赛研判" in s, "WRONG_REPORT_TITLE"
+          assert "玩法" not in s and "ID3" not in s, "LEGACY_WORDING"
+          PY
