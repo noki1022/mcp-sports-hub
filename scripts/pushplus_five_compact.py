@@ -225,6 +225,22 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None, off
         for key, name in MARKETS[3:]:
             body += ("<div style='padding:2px 0;font-size:12px;'><span style='color:#68788b;'>"
                      + esc(name) + "　</span>" + esc(market_row(key, mk.get(key))) + "</div>")
+        spread_cons=(mk.get("JINGCAI_HANDICAP") or {}).get("market_consensus") or {}
+        total_cons=(mk.get("JINGCAI_TOTAL") or {}).get("market_consensus") or {}
+        consensus_parts=[]
+        if spread_cons.get("consensus_line") is not None and spread_cons.get("consensus_available", True):
+            home_handicap=-float(spread_cons["consensus_line"])
+            spread_label=("主让 " if home_handicap<0 else "主受让 ")
+            spread_label+=fmt(home_handicap,signed=True)
+            spread_label+="（"+str(spread_cons.get("company_count",0))+"家）"
+            consensus_parts.append("让分 "+spread_label)
+        if total_cons.get("consensus_line") is not None and total_cons.get("consensus_available", True):
+            total_label="总分 "+fmt(total_cons["consensus_line"])
+            total_label+="（"+str(total_cons.get("company_count",0))+"家）"
+            consensus_parts.append(total_label)
+        if consensus_parts:
+            body += ("<div style='font-size:11px;color:#486b63;margin-top:5px;'>"
+                     "多机构共识：" + esc("　".join(consensus_parts)) + "</div>")
         if game.get("quote_freshness") == "ARCHIVED_PRIOR_NOT_LIVE":
             snapshot = game.get("quote_captured_at_utc")
             try:

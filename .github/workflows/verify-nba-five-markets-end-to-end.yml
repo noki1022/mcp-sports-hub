@@ -4,6 +4,10 @@ on:
     branches: [main]
     paths:
       - 'analysis/nba_five_markets.py'
+      - 'analysis/nba_market_consensus.py'
+      - 'analysis/nba_market_consensus_backtest.py'
+      - 'scripts/titan007_top10_companies.py'
+      - 'scripts/pushplus_five_compact.py'
       - 'analysis/nba_five_market_settlement.py'
       - 'analysis/nba_five_market_review_push.py'
       - 'scripts/pushplus_mobile_v2.py'
@@ -24,7 +28,9 @@ jobs:
         with: {python-version: '3.12'}
       - name: Verify five market signs, outcomes and iPhone format
         run: |
-          python3 -m py_compile analysis/nba_five_markets.py analysis/nba_five_market_settlement.py analysis/nba_five_market_review_push.py scripts/pushplus_mobile_v2.py
+          python3 -m py_compile analysis/nba_five_markets.py analysis/nba_market_consensus.py analysis/nba_market_consensus_backtest.py analysis/nba_five_market_settlement.py analysis/nba_five_market_review_push.py scripts/pushplus_mobile_v2.py scripts/pushplus_five_compact.py
+          python3 analysis/nba_market_consensus.py --self-test
+          python3 analysis/nba_market_consensus_backtest.py --self-test
           python3 analysis/nba_five_markets.py --self-test
           python3 analysis/nba_five_market_settlement.py --self-test
           python3 analysis/nba_final_review_gate.py --self-test
@@ -42,6 +48,8 @@ jobs:
           for path in paths:
               content=Path(path).read_text()
               assert 'analysis/nba_five_markets.py' in content,path
+              assert 'analysis/nba_market_consensus.py' in content,path
+              assert '--consensus nba_market_consensus.json' in content,path
               assert '--five nba_five_market_forecast.json' in content,path
               assert 'nba_five_market_forecast.json' in content,path
           nightly=Path('.github/workflows/nba-two-market-nightly-2200.yml').read_text()

@@ -114,6 +114,18 @@ jobs:
         name: Capture 007 visible top-ten companies and compare last stored sample
         run: |
           python3 scripts/titan007_top10_companies.py --joined titan007_priority_joined.json --out nba_top10_companies.json --analysis nba_top10_comparison.json --history-root reports/top10
+      - name: Build point-in-time multi-company 007 market consensus
+        if: steps.gate.outputs.sent != 'true'
+        run: |
+          python3 analysis/nba_market_consensus.py --joined titan007_priority_joined.json --top10 nba_top10_companies.json --out nba_market_consensus.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open("nba_market_consensus.json"))
+          assert x["crown_company_id"]=="3"
+          assert x["identity_mapping"]=="USER_CONFIRMED_FIXED_MAPPING_ID3_EQUALS_CROWN"
+          assert x["game_count"]>0
+          print("NBA_MULTI_COMPANY_CONSENSUS",x["consensus_market_count"],"/",x["possible_market_count"])
+          PY
       - if: steps.gate.outputs.sent != 'true'
         name: Persist top-ten institution snapshot
         run: |
@@ -136,6 +148,7 @@ jobs:
             --model nba_priority_model.json \
             --jingcai nba_jingcai_three_market.json \
             --top10 nba_top10_comparison.json \
+            --consensus nba_market_consensus.json \
             --out nba_five_market_forecast.json
           python3 analysis/nba_injury_prerequisite.py --five nba_five_market_forecast.json --injury nba_priority_injury_context.json --model nba_priority_model.json --out nba_five_market_forecast_gated.json
           mv nba_five_market_forecast_gated.json nba_five_market_forecast.json
@@ -228,7 +241,7 @@ jobs:
         name: Archive snapshot, complete analysis and successful PushPlus marker
         run: |
           mkdir -p "reports/daily/$TARGET_DATE/0630" "reports/pushplus-sent/$TARGET_DATE"
-          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_five_market_forecast.json nba_priority_focus.json nba_priority_iphone.html nba_injury_prospective_0630.json "reports/daily/$TARGET_DATE/0630/"
+          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_market_consensus.json nba_five_market_forecast.json nba_priority_focus.json nba_priority_iphone.html nba_injury_prospective_0630.json "reports/daily/$TARGET_DATE/0630/"
           python3 - <<'PY'
           import os,json
           from pathlib import Path
@@ -253,6 +266,7 @@ jobs:
             nba_priority_model.json
             nba_top10_companies.json
             nba_top10_comparison.json
+            nba_market_consensus.json
             nba_jingcai_three_market.json
             nba_two_market_forecast.json
             nba_five_market_forecast.json

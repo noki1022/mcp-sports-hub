@@ -101,6 +101,7 @@ def collect(board,limit=10):
         status={"id":cid,"url":url,"status":"UNAVAILABLE","matched_games":0}
         try:
             raw=public_get(url,limit=250000)
+            source_capture_utc=datetime.now(timezone.utc).isoformat()
             quotes,reject=market_entries(raw)
             status.update({"status":"PARSED","source_rows":len(quotes),"rejections":reject,
                           "matched_games":sum(gid in quotes for gid in ids)})
@@ -117,17 +118,20 @@ def collect(board,limit=10):
                         "company_id":cid,"market":market,
                         "opening":m.get("opening") or {},
                         "current":m["current"],"side_orientation":"UNVERIFIED_RAW_SLOTS",
-                        "source":"DATED_007_COMPANY_ID"})
+                        "source":"DATED_007_COMPANY_ID",
+                        "source_capture_utc":source_capture_utc})
         except (OSError,ValueError,RuntimeError) as exc:
             status["error"]=type(exc).__name__+": "+str(exc)[:105]
         source_audit.append(status)
+    collection_completed_at_utc=datetime.now(timezone.utc).isoformat()
     for src in bygame.values():
         for market,item in src["markets"].items():
             item["status"]="QUOTES_WITH_UNVERIFIED_COMPANY_RANK" if item["companies"] else "NO_VERIFIED_QUOTE"
             item["company_ids"]=[c["company_id"] for c in item["companies"]]
     return {"schema_version":"nba-007-visible-top10-v1",
         "target_date":target,"captured_at_utc":board["captured_at_utc"],
-        "quote_timestamp":"NOT_VERIFIED","company_order":"TEN_VALIDATED_SOURCE_IDS_NOT_TOP_TEN_RANKED",
+        "collection_completed_at_utc":collection_completed_at_utc,
+        "quote_timestamp":"PER_SOURCE_CAPTURE_TIME_RECORDED","company_order":"TEN_VALIDATED_SOURCE_IDS_NOT_TOP_TEN_RANKED",
         "candidate_ids":list(selected),"source_audit":source_audit,
         "games":list(bygame.values()),"model_probability_adjusted":False,"decision":"NO_BET"}
 
@@ -260,6 +264,8 @@ def selftest():
     for market in ("full_spread","full_total"):
         row=canonical["games"][0]["markets"][market]["companies"][0]
         assert row["company_id"]=="3" and row["source"]=="DATED_007_COMPANY_ID"
+        assert row["source_capture_utc"]=="2026-10-30T14:00:00Z"
+    assert canonical["collection_completed_at_utc"]
     import tempfile
     with tempfile.TemporaryDirectory() as scratch:
         folder=Path(scratch)
