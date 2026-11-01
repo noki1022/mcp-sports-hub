@@ -4,7 +4,7 @@ import { CRONS, plannedJobs, dispatchAt } from "./worker.mjs";
 const at = value => Date.parse(value);
 const kinds = (date, cron) => plannedJobs(at(date), cron).map(x => x.kind);
 
-assert.deepEqual(Object.keys(CRONS), ["REVIEW", "PREGAME", "FIXED"]);
+assert.deepEqual(Object.keys(CRONS), ["REVIEW", "PREGAME", "FIXED", "REGRESSION"]);
 assert.deepEqual(kinds("2026-10-30T04:00:00Z", CRONS.FIXED), ["full"]);
 assert.deepEqual(kinds("2026-10-30T06:08:00Z", CRONS.FIXED), ["full"]);
 assert.deepEqual(kinds("2026-10-30T07:28:00Z", CRONS.FIXED), ["full"]);
@@ -17,7 +17,7 @@ assert.deepEqual(kinds("2026-10-30T13:40:00Z", CRONS.FIXED), ["priority_2130", "
 assert.deepEqual(kinds("2026-10-30T13:55:00Z", CRONS.FIXED), ["health"]);
 
 assert.deepEqual(kinds("2026-10-30T22:20:00Z", CRONS.PREGAME), ["priority_0630"]);
-assert.deepEqual(kinds("2026-10-31T05:50:00Z", CRONS.PREGAME), ["priority_0630"]);
+assert.deepEqual(kinds("2026-10-31T05:50:00Z", CRONS.PREGAME), ["priority_0630", "injury_watch"]);
 assert.deepEqual(kinds("2026-10-31T05:55:00Z", CRONS.PREGAME), ["injury_watch"]);
 assert.deepEqual(kinds("2026-10-30T22:35:00Z", CRONS.PREGAME), ["injury_watch", "health"]);
 assert.deepEqual(kinds("2026-10-30T22:40:00Z", CRONS.PREGAME), ["priority_0630", "injury_watch", "health"]);
@@ -29,8 +29,9 @@ assert.equal(plannedJobs(at("2026-10-30T14:30:00Z")).some(x => x.kind === "hourl
 assert.deepEqual(kinds("2026-10-30T14:30:00Z", CRONS.REVIEW), ["night_review"]);
 assert.deepEqual(kinds("2026-10-30T22:45:00Z", CRONS.REVIEW), ["night_review"]);
 assert.deepEqual(kinds("2026-10-30T08:01:00Z", CRONS.FIXED), ["odds_settlement"]);
-assert.deepEqual(kinds("2026-10-30T20:01:00Z", CRONS.FIXED), ["offline_regression"]);
+assert.deepEqual(kinds("2026-10-30T20:01:00Z", CRONS.REGRESSION), ["offline_regression"]);
 assert.equal(plannedJobs(at("2026-10-30T08:06:00Z"), CRONS.FIXED)[0].kind, "odds_settlement");
+assert.deepEqual(kinds("2026-10-30T20:01:00Z", CRONS.FIXED), []);
 
 const acceptedFixed = {
   async fetch(url) {
