@@ -140,11 +140,13 @@ def self_test():
 def main():
     ap=argparse.ArgumentParser()
     for name in ("joined","model","five","jingcai","consensus","injury","previous","out"):
-        ap.add_argument("--"+name,required=name in ("joined","model","five","jingcai","out"))
+        ap.add_argument("--"+name)
     ap.add_argument("--self-test",action="store_true")
     a=ap.parse_args()
     if a.self_test:
         self_test(); return
+    if not all((a.joined,a.model,a.five,a.jingcai,a.out)):
+        raise SystemExit("REQUIRED_INPUT_MISSING")
     def load(path):
         return json.loads(Path(path).read_text(encoding="utf-8")) if path and Path(path).is_file() else {}
     result=evaluate(load(a.joined),load(a.model),load(a.five),load(a.jingcai),
