@@ -485,7 +485,8 @@ def render_v2(games,model_map,title,target,mode,priority_focus=None):
     out.append("<div style='font-size:11px;color:#68788e;padding:12px 3px;'>"
                "统一说明：机构采集时点不等于实际赔率更新时间；左右方向按007已确认显示规则映射。"
                "多机构去水价格只在至少3家报出同一盘口线时计算，并仅作影子对照，不覆盖独立模型概率。"
-               "模型得分为均值估算，不代表精确比分；未经时间顺序样本外验证不认定投注优势。</div></div>")
+               "模型得分为均值估算，不代表精确比分；未经时间顺序样本外验证不认定投注优势。"
+               "方向待核的项目统一 NO_BET。</div></div>")
     return "".join(out)
 def from_three(joined,model,movement):
     rows=[]
