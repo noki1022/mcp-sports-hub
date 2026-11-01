@@ -172,12 +172,19 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
                 if source_id!="3": reasons.append("CROWN_SOURCE_ID_NOT_3")
                 kind="full_spread" if key=="CROWN_HANDICAP" else "full_total"
                 raw_current=((raw_markets.get(kind) or {}).get("current") or {})
-                if raw_current.get("line") is not None and not _line_equal(line,raw_current.get("line")):
-                    reasons.append("CROWN_LINE_MISMATCH")
-                if raw_current.get("line") is None and quote_freshness!="ARCHIVED_PRIOR_NOT_LIVE":
-                    reasons.append("CROWN_CURRENT_QUOTE_MISSING")
+                # The joined board may expose a different default company line.
+                # The frozen selection's exact ID3 provenance is authoritative;
+                # never reject an ID3 quote merely because a non-ID3 joined line differs.
+                if line is None:
+                    reasons.append("CROWN_FROZEN_LINE_MISSING")
+                if key=="CROWN_HANDICAP" and line is not None and signed is not None and abs(signed+line)>1e-6:
+                    reasons.append("CROWN_HOME_HANDICAP_SIGN_MISMATCH")
+                if key=="CROWN_TOTAL" and raw_current.get("line") is None and quote_freshness!="ARCHIVED_PRIOR_NOT_LIVE":
+                    reasons.append("CROWN_CURRENT_TOTAL_QUOTE_MISSING")
             if key.endswith("HANDICAP") and (line is None or signed is None):
                 reasons.append("HANDICAP_LINE_OR_SIGN_MISSING")
+            if key=="JINGCAI_HANDICAP" and line is not None and signed is not None and abs(signed-line)>1e-6:
+                reasons.append("JINGCAI_HOME_HANDICAP_SIGN_MISMATCH")
             if key.endswith("TOTAL") and line is None:
                 reasons.append("TOTAL_LINE_MISSING")
             if selection.get("status") not in ("DIRECTION_ISSUED","NO_MODEL_EDGE_TIE","MISSING_MODEL_OR_LINE"):
