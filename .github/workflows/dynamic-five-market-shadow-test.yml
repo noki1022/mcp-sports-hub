@@ -1,13 +1,15 @@
 name: Dynamic five-market shadow tests
 on:
   push:
-    branches: [research/dynamic-five-market-replay-v1]
+    branches: [research/dynamic-five-market-oos-v2]
     paths:
       - "analysis/nba_dynamic_five_market_shadow.py"
+      - "analysis/nba_dynamic_five_market_replay.py"
       - ".github/workflows/dynamic-five-market-shadow-test.yml"
   pull_request:
     paths:
       - "analysis/nba_dynamic_five_market_shadow.py"
+      - "analysis/nba_dynamic_five_market_replay.py"
       - ".github/workflows/dynamic-five-market-shadow-test.yml"
 permissions:
   contents: read
@@ -21,6 +23,35 @@ jobs:
         with:
           python-version: "3.12"
       - name: Compile
-        run: python3 -m py_compile analysis/nba_dynamic_five_market_shadow.py
-      - name: Deterministic probability and source-orientation tests
+        run: |
+          python3 -m py_compile analysis/nba_dynamic_five_market_shadow.py
+          python3 -m py_compile analysis/nba_dynamic_five_market_replay.py
+      - name: Deterministic five-market probability and source-orientation tests
         run: python3 analysis/nba_dynamic_five_market_shadow.py --self-test
+      - name: Chronological replay, latest pre-tip selection and scoring tests
+        run: python3 analysis/nba_dynamic_five_market_replay.py --self-test
+      - name: Replay a real archived 007 pre-tip capture through the shadow engine
+        run: |
+          d="reports/daily/2026-11-01/2130"
+          if [ -f "$d/titan007_priority_joined.json" ] && [ -f "$d/nba_priority_model.json" ] && [ -f "$d/nba_five_market_forecast.json" ] && [ -f "$d/nba_jingcai_three_market.json" ]; then
+            python3 analysis/nba_dynamic_five_market_shadow.py \
+              --joined "$d/titan007_priority_joined.json" \
+              --model "$d/nba_priority_model.json" \
+              --five "$d/nba_five_market_forecast.json" \
+              --jingcai "$d/nba_jingcai_three_market.json" \
+              --slot 2130 --out /tmp/real_shadow.json
+            python3 - <<'PY'
+          import json
+          x=json.load(open("/tmp/real_shadow.json"))
+          assert x["game_count"]>0, x
+          assert x["production_model_modified"] is False
+          assert x["pushplus_enabled"] is False
+          assert x["market_probability_fusion"]=="DISABLED"
+          first=x["games"][0]
+          assert set(first["markets"])=={"JINGCAI_WIN","JINGCAI_HANDICAP","JINGCAI_TOTAL","CROWN_HANDICAP","CROWN_TOTAL"}
+          assert first["markets"]["JINGCAI_WIN"]["market_data_status"]=="PRETIP_VALID", first["markets"]["JINGCAI_WIN"]
+          print("REAL_007_ARCHIVE_SHADOW_PASS",x["game_count"],first["markets"]["JINGCAI_WIN"]["candidate_direction"])
+          PY
+          else
+            echo "NO_REAL_ARCHIVE_FIXTURE_AVAILABLE"
+          fi
