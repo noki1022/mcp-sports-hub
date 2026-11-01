@@ -1,17 +1,24 @@
-name: Titan007 daily three analysis before lottery cutoff
+name: Titan007 scheduled full-board NBA analysis and PushPlus delivery
 on:
   workflow_dispatch:
     inputs:
       report_slot:
-        description: "Canonical Beijing slot, or ONCE for a one-time manual run; blank manual input also defaults to ONCE"
+        description: "Canonical Beijing slot (including 00:30 and 03:30), or ONCE for a one-time manual run"
         required: false
         type: string
       target_date:
-        description: "Next-day Beijing tipoff date YYYY-MM-DD; default is tomorrow in Asia/Shanghai"
+        description: "Beijing game display date YYYY-MM-DD; 00:30/03:30 default to today, daytime slots to tomorrow"
         required: false
         type: string
   schedule:
-    # 12:00, 14:00, 15:00, 18:00, 21:00 Beijing; 06:00 removed.
+    # Full-board overnight reports: Beijing 00:30 and 03:30, with bounded retries.
+    - cron: "30 16 * * *"
+    - cron: "45 16 * * *"
+    - cron: "0 17 * * *"
+    - cron: "30 19 * * *"
+    - cron: "45 19 * * *"
+    - cron: "0 20 * * *"
+    # 12:00 Beijing full-board report and bounded retries.
     - cron: "0 4 * * *"
     # Retry opportunities when GitHub drops/delays the 12:00 scheduled event.
     - cron: "15 4 * * *"
@@ -47,7 +54,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Select next-day display date
+      - name: Select Beijing game display date for the scheduled slot
         run: |
           python3 - <<'PY' >> "$GITHUB_ENV"
           import os,re
@@ -58,7 +65,13 @@ jobs:
               if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',x): raise ValueError('invalid target date')
               target=x
           else:
-              target=(datetime.now(ZoneInfo('Asia/Shanghai')).date()+timedelta(days=1)).isoformat()
+              local=datetime.now(ZoneInfo('Asia/Shanghai'))
+              same_day_crons={'30 16 * * *','45 16 * * *','0 17 * * *',
+                              '30 19 * * *','45 19 * * *','0 20 * * *'}
+              same_day_slots={'0030','0330'}
+              same_day=(os.environ.get('SCHEDULE_EXPR','').strip() in same_day_crons
+                        or os.environ.get('EXTERNAL_REPORT_SLOT','').strip() in same_day_slots)
+              target=(local.date() if same_day else local.date()+timedelta(days=1)).isoformat()
           print('TARGET_DATE='+target)
           PY
       - name: Preflight canonical slot and verified acceptance
@@ -383,7 +396,7 @@ jobs:
             --movement titan007_slot_movement.json \
             --dynamic nba_slot_dynamic_review.json \
             --five nba_five_market_forecast.json
-      - name: Send compact iPhone PushPlus three-times-daily model report
+      - name: Send complete iPhone full-board NBA analysis
         if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
@@ -428,7 +441,7 @@ jobs:
         run: |
           FALLBACK_SLOT="${REPORT_SLOT:-}"
           case "$FALLBACK_SLOT" in
-            1200|1400|1500|1800|2100|ONCE|ONCE-*) ;;
+            0030|0330|1200|1400|1500|1800|2100|ONCE|ONCE-*) ;;
             *) echo "FALLBACK_UNKNOWN_SLOT" >&2; exit 1 ;;
           esac
           git fetch --quiet origin main
