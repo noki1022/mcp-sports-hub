@@ -29,8 +29,9 @@ jobs:
           from pathlib import Path
           s=Path('.github/workflows/nba-priority-0630.yml').read_text()
           h=Path('.github/workflows/titan007-final-hourly.yml').read_text()
-          for c in ('20 22 * * *','30 22 * * *','40 22 * * *'):
-              assert f'- cron: "{c}"' in s,c
+          assert '- cron: "*/10 22-23,0-5 * * *"' in s
+          assert '06:58' not in s
+          assert "steps.presend.outputs.skip != 'true'" in s
           assert '30 14-21 * * *' in h
           assert '30 14-22 * * *' not in h
           assert "nba_0630_priority_gate.py --phase preflight" in s
@@ -44,7 +45,7 @@ jobs:
           assert 'reports/pushplus-sent/$TARGET_DATE/0630.json' in s
           assert "'slot':'0630'" in s
           assert s.index('--phase presend')<s.index('pushplus_mobile.py --mode three')
-          preflight=s.split('      - name: Preflight Beijing morning window; check prior accepted push',1)[1].split('      - if:',1)[0]
+          preflight=s.split('      - name: Preflight locked Beijing slate, dynamic safe window and accepted-push ledger',1)[1].split('      - if:',1)[0]
           assert 'export TARGET_DATE="$target"' in preflight
           assert preflight.index('export TARGET_DATE="$target"')<preflight.index('nba_fixed_slot_gate.py')
           hourly_gate=h.split('      - name: Resolve canonical hourly slot; skip if API already accepted',1)[1].split('      - name: Join Beijing NBA fixtures',1)[0]

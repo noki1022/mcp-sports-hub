@@ -1,10 +1,8 @@
 name: NBA PRIORITY 06:30 Beijing morning full report
 on:
   schedule:
-    # Start early enough for the full model; bounded retries stay before 06:58.
-    - cron: "20 22 * * *"
-    - cron: "30 22 * * *"
-    - cron: "40 22 * * *"
+    # Retry every ten minutes through the morning; the immutable 21:30 slate gate decides whether enough unstarted time remains.
+    - cron: "*/10 22-23,0-5 * * *"
   workflow_dispatch:
 permissions:
   contents: write
@@ -20,43 +18,48 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Preflight Beijing morning window; check prior accepted push
+      - name: Preflight locked Beijing slate, dynamic safe window and accepted-push ledger
         id: gate
         run: |
-          python3 scripts/nba_0630_priority_gate.py --phase preflight >> /tmp/priority_gate.txt
-          target=$(sed -n 's/^TARGET_DATE=//p' /tmp/priority_gate.txt)
+          git pull --ff-only origin main
+          python3 scripts/nba_0630_priority_gate.py --phase preflight | tee /tmp/priority_gate.txt
+          run_report=$(sed -n 's/.*"run_report":\(true\|false\).*/\1/p' /tmp/priority_gate.txt | tail -1)
+          if [ "$run_report" != "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "NO_SAFE_REMAINING_TIPOFF_SKIP_WITHOUT_FAILURE"
+            exit 0
+          fi
+          target=$(sed -n 's/^TARGET_DATE=//p' /tmp/priority_gate.txt | tail -1)
           test -n "$target"
           echo "TARGET_DATE=$target" >> "$GITHUB_ENV"
-          # GITHUB_ENV only reaches later steps; export for this step's gate too.
           export TARGET_DATE="$target"
-          git pull --ff-only origin main
           python3 scripts/nba_fixed_slot_gate.py --phase preflight --priority-slot 0630
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Install pinned model dependencies
         run: python3 -m pip install --quiet --disable-pip-version-check numpy==2.2.6 pdfplumber==0.11.7
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Refresh same-morning NBA market odds from 007
         run: |
           for n in 1 2; do
             if python3 scripts/titan007_join_beijing_verified.py --date "$TARGET_DATE" --out titan007_priority_joined.json; then exit 0; fi
           done
           exit 1
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Enforce official NBA cohort originally frozen at 12:00
         run: |
           python3 scripts/nba_noon_slate.py enforce --joined titan007_priority_joined.json --lock "reports/noon-cohorts/$TARGET_DATE/1200.json" --out nba_same_slate.json
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Enforce same official games AND 007 IDs as last night's 21:30
         run: |
           git pull --ff-only origin main
           python3 scripts/nba_overnight_cohort.py enforce --cohort "reports/overnight-cohorts/$TARGET_DATE/2130.json" --joined titan007_priority_joined.json --phase morning --out nba_priority_same_slate.json
           mv nba_priority_same_slate.json titan007_priority_joined.json
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Exclude started and wrong-day NBA games
         run: |
           python3 scripts/nba_0630_pretip_filter.py --joined titan007_priority_joined.json --out nba_priority_pretip.json
           mv nba_priority_pretip.json titan007_priority_joined.json
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Verify all official games and Beijing tipoffs
         run: |
           python3 - <<'PY'
@@ -69,30 +72,30 @@ jobs:
               assert datetime.fromisoformat(g['start_time_beijing']).date().isoformat()==os.environ['TARGET_DATE']
           print('PRIORITY_VERIFIED_GAMES',len(j['nba_cba_games']),'MISSING',j.get('nba_markets_missing'))
           PY
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Compare preceding hourly and fixed-slot market snapshots
         run: |
           python3 analysis/titan007_hourly_history.py capture --current titan007_priority_joined.json --root reports/hourly --daily-root reports/daily --out-movement titan007_priority_movement.json
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Independent model, full board
         run: |
           python3 analysis/nba_prediction_adapter.py --joined titan007_priority_joined.json --out nba_priority_predictions.json
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Collect injury quality, unknown on source failure
         run: |
           python3 analysis/nba_official_injury.py --date "$TARGET_DATE" --out nba_priority_injuries.json || echo "OFFICIAL_INJURY_UNAVAILABLE"
           python3 analysis/nba_injury_context.py --joined titan007_priority_joined.json --injuries nba_priority_injuries.json --out nba_priority_injury_context.json
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Complete per-game dynamic model interpretation
         run: |
           python3 analysis/nba_model_report.py --joined titan007_priority_joined.json --predictions nba_priority_predictions.json --injury-context nba_priority_injury_context.json --out-json nba_priority_model.json --impact-catalog config/nba_player_impact_validated.json --out-html nba_priority_model.html
           python3 analysis/nba_hourly_dynamic_review.py --movement titan007_priority_movement.json --model nba_priority_model.json --injury nba_priority_injury_context.json --out nba_priority_dynamic.json
           python3 analysis/nba_market_bc_diagnostics.py --joined titan007_priority_joined.json --movement titan007_priority_movement.json --model nba_priority_model.json --out nba_priority_bc.json
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Seal prospective original versus injury research shadow before kickoff
         run: |
           python3 analysis/nba_injury_prospective_capture.py --joined titan007_priority_joined.json --model nba_priority_model.json --injuries nba_priority_injury_context.json --out nba_injury_prospective_0630.json
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Audit all three user-supplied Jingcai pricing sources before market fusion
         env:
           MARZDATA_APP_ID: ${{ secrets.MARZDATA_APP_ID }}
@@ -110,12 +113,12 @@ jobs:
           assert x["game_count"]==len(x["games"])
           print("JINGCAI_REQUIRED_SOURCE_AUDIT",x["status"],x["verified_games_with_all_three"])
           PY
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Capture 007 visible top-ten companies and compare last stored sample
         run: |
           python3 scripts/titan007_top10_companies.py --joined titan007_priority_joined.json --out nba_top10_companies.json --analysis nba_top10_comparison.json --history-root reports/top10
       - name: Build point-in-time multi-company 007 market consensus
-        if: steps.gate.outputs.sent != 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         run: |
           python3 analysis/nba_market_consensus.py --joined titan007_priority_joined.json --top10 nba_top10_companies.json --out nba_market_consensus.json
           python3 - <<'PY'
@@ -126,7 +129,7 @@ jobs:
           assert x["game_count"]>0
           print("NBA_MULTI_COMPANY_CONSENSUS",x["consensus_market_count"],"/",x["possible_market_count"])
           PY
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Persist top-ten institution snapshot
         run: |
           git config user.name github-actions[bot]
@@ -140,7 +143,7 @@ jobs:
               if [ "$n" -eq 3 ]; then exit 1; fi
             done
           fi
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Freeze five independent Jingcai/Crown NBA research directions
         run: |
           python3 analysis/nba_five_markets.py \
@@ -159,19 +162,19 @@ jobs:
           assert all(set(g["markets"])==set(x["market_keys"]) for g in x["games"])
           print("FIVE_MARKET_SNAPSHOT_FROZEN",x["game_count"],x["ready_counts"])
           PY
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: P0 fail-closed five-market source and team identity integrity
         run: |
           python3 analysis/nba_five_market_integrity_gate.py --joined titan007_priority_joined.json --five nba_five_market_forecast.json --jingcai nba_jingcai_three_market.json --out nba_five_market_integrity.json
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Generate mandatory NBA spread and total research verdicts from ten institutions
         run: |
           python3 analysis/nba_two_market_forecast.py --joined titan007_priority_joined.json --model nba_priority_model.json --top10 nba_top10_comparison.json --out nba_two_market_forecast.json
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Enforce same-capture market trend and full-board model review
         run: |
           python3 scripts/verify_nba_capture_analysis.py --joined titan007_priority_joined.json --movement titan007_priority_movement.json --model nba_priority_model.json --dynamic nba_priority_dynamic.json --out nba_capture_audit.json
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Enforce seven-stage 007 NBA model and market SOP
         run: |
           python3 analysis/nba_analysis_sop.py \
@@ -190,7 +193,7 @@ jobs:
           assert len(o['stages'])==7
           print('NBA_SOP_PRIORITY_PRESEND_VALIDATED',o['game_count'],o['verified_jingcai_ids'])
           PY
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Rank verified high-attention NBA games for 0630 priority message
         run: |
           python3 analysis/nba_priority_focus.py --joined titan007_priority_joined.json --model nba_priority_model.json --jingcai nba_jingcai_three_market.json --sop nba_analysis_sop.json --slot 0630 --out nba_priority_focus.json
@@ -201,22 +204,33 @@ jobs:
           assert x['focus_count']<=3 and x['confidence_threshold'] is None
           print('PRIORITY_MODEL_ATTENTION',x['focus_count'],x['total_nba_games'])
           PY
-      - if: steps.gate.outputs.sent != 'true'
-        name: Enforce strict presend 06:58 Beijing deadline and dedup
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
+        id: presend
+        name: Recheck remaining games and dedup immediately before delivery
         run: |
-          python3 scripts/nba_0630_priority_gate.py --phase presend
-          python3 scripts/nba_0630_pretip_filter.py --joined titan007_priority_joined.json --out nba_priority_presend_verified.json
+          python3 scripts/nba_0630_priority_gate.py --phase presend | tee /tmp/priority_presend_gate.txt
+          run_report=$(sed -n 's/.*"run_report":\\(true\\|false\\).*/\\1/p' /tmp/priority_presend_gate.txt | tail -1)
+          if [ "$run_report" != "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "NO_REMAINING_SAFE_PRETIP_GAME_SKIP_WITHOUT_FAILURE"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          python3 scripts/nba_0630_pretip_filter.py --joined titan007_priority_joined.json --min-lead 5 --out nba_priority_presend_verified.json
           python3 - <<'PY'
           import json
-          a=json.load(open('titan007_priority_joined.json'))
           b=json.load(open('nba_priority_presend_verified.json'))
-          assert len(a['nba_cba_games'])==len(b['nba_cba_games']), 'PRETIP_CHANGED_DURING_ANALYSIS_ABORT'
+          assert b.get('nba_cba_games'), 'NO_REMAINING_PRETIP_GAMES_AT_SEND_TIME'
+          print('DYNAMIC_PRESEND_RETAINED',len(b['nba_cba_games']),
+                'EXCLUDED',len(b['morning_pre_tip_filter']['excluded']))
           PY
+          mv nba_priority_presend_verified.json titan007_priority_joined.json
+          python3 analysis/nba_priority_focus.py --joined titan007_priority_joined.json --model nba_priority_model.json --jingcai nba_jingcai_three_market.json --sop nba_analysis_sop.json --slot 0630 --out nba_priority_focus.json
           git fetch origin main
           if git cat-file -e "origin/main:reports/pushplus-sent/$TARGET_DATE/0630.json" 2>/dev/null; then
              echo 'PRIORITY_ALREADY_ACCEPTED_IN_REMOTE'; exit 1
           fi
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true' && steps.presend.outputs.skip != 'true'
         name: Verify immutable midnight six-slot capture and analysis ledger
         run: |
           # The 05:30 job may have committed after this 06:30 run checked out main.
@@ -225,7 +239,7 @@ jobs:
             git checkout origin/main -- "reports/overnight-six/$TARGET_DATE"
           fi
           python3 scripts/nba_overnight_six_audit.py digest --day "$TARGET_DATE" --out nba_overnight_six_audit.json
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true' && steps.presend.outputs.skip != 'true'
         name: Push full-board priority analysis to iPhone before morning NBA tipoffs
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
@@ -237,7 +251,7 @@ jobs:
           if s.get('state')!='API_ACCEPTED_NOT_DEVICE_CONFIRMED':raise RuntimeError('PRIORITY_PUSH_NOT_ACCEPTED')
           print('PRIORITY_PUSHPLUS_API_ACCEPTED',s.get('games_considered'))
           PY
-      - if: steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true' && steps.presend.outputs.skip != 'true'
         name: Archive snapshot, complete analysis and successful PushPlus marker
         run: |
           mkdir -p "reports/daily/$TARGET_DATE/0630" "reports/pushplus-sent/$TARGET_DATE"

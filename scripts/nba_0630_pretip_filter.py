@@ -40,12 +40,12 @@ def self_test():
 
 if __name__=="__main__":
     p=argparse.ArgumentParser();p.add_argument("--joined")
-    p.add_argument("--out");p.add_argument("--self-test",action="store_true")
+    p.add_argument("--out");p.add_argument("--min-lead",type=float,default=5.0);p.add_argument("--self-test",action="store_true")
     a=p.parse_args()
     if a.self_test:self_test()
     else:
         if not a.joined or not a.out:raise SystemExit("JOINED_AND_OUT_REQUIRED")
-        o=select(json.loads(Path(a.joined).read_text(encoding="utf-8")),datetime.now(BJ))
-        if not o["nba_cba_games"]:raise SystemExit("NO_PRETIP_NBA_GAMES_NO_MISLEADING_PUSH")
+        o=select(json.loads(Path(a.joined).read_text(encoding="utf-8")),datetime.now(BJ),min_lead=a.min_lead)
+        if not o["nba_cba_games"]:raise SystemExit("NO_PRETIP_NBA_GAMES_WITH_REQUIRED_LEAD_NO_PUSH")
         Path(a.out).write_text(json.dumps(o,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         print("NBA_0630_PRETIP_VERIFIED",len(o["nba_cba_games"]))

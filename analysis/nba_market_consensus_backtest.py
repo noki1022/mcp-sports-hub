@@ -49,6 +49,73 @@ def _metrics(rows):
             "log_loss":round(ll,7),"calibration_gap":round(gap,7)}
 
 
+def _shadow_fusion(model_rows, market_rows):
+    """Chronological model/market blend experiment; never changes production."""
+    model={(x["day"],x["game_id"]):x for x in model_rows}
+    market={(x["day"],x["game_id"]):x for x in market_rows}
+    paired=[]
+    for key in sorted(set(model)&set(market)):
+        a,b=model[key],market[key]
+        model_capture=dt(a.get("capture"))
+        market_capture=dt(b.get("capture"))
+        if model_capture is None or market_capture is None:
+            continue
+        capture_skew=abs((model_capture-market_capture).total_seconds())
+        # Both sources are already required to be pre-tip and within 15 min
+        # of the frozen report; permit small same-capture ingestion skew.
+        if capture_skew>900 or int(a["outcome"])!=int(b["outcome"]):
+            continue
+        paired.append({"day":key[0],"game_id":key[1],
+                       "model":float(a["probability"]),
+                       "market":float(b["probability"]),
+                       "outcome":int(a["outcome"]),
+                       "capture_skew_seconds":round(capture_skew,1)})
+    days=sorted({x["day"] for x in paired})
+    base={"paired_events":len(paired),"distinct_days":len(days),
+          "production_fusion_enabled":False,
+          "promotion_policy":"DISABLED; REQUIRES CHRONOLOGICAL HOLDOUT AND SEPARATE APPROVAL"}
+    if len(paired)<MIN_SAMPLE_FOR_FUSION_REVIEW or len(days)<MIN_DISTINCT_DAYS_FOR_FUSION_REVIEW:
+        return {**base,"status":"BLOCKED_INSUFFICIENT_CHRONOLOGICAL_OOS",
+                "required_events":MIN_SAMPLE_FOR_FUSION_REVIEW,
+                "required_distinct_days":MIN_DISTINCT_DAYS_FOR_FUSION_REVIEW,
+                "market_weight":None,"validation":None,"holdout":None}
+    cut_train=max(1,int(len(days)*.60))
+    cut_valid=max(cut_train+1,int(len(days)*.80))
+    train_days=set(days[:cut_train]);valid_days=set(days[cut_train:cut_valid]);test_days=set(days[cut_valid:])
+    train=[x for x in paired if x["day"] in train_days]
+    valid=[x for x in paired if x["day"] in valid_days]
+    test=[x for x in paired if x["day"] in test_days]
+    if len(valid)<15 or len(test)<20 or not train:
+        return {**base,"status":"BLOCKED_CHRONOLOGICAL_SPLIT_TOO_SMALL",
+                "split":{"train":len(train),"validation":len(valid),"holdout":len(test)},
+                "market_weight":None,"validation":None,"holdout":None}
+    def brier(rows,weight):
+        return sum((((1-weight)*x["model"]+weight*x["market"])-x["outcome"])**2
+                   for x in rows)/len(rows)
+    grid=[round(i/20,2) for i in range(21)]
+    # Choose the market weight on validation dates only. Holdout labels remain untouched.
+    weight=min(grid,key=lambda w:(brier(valid,w),w))
+    def score(rows,key):
+        values=[{"probability":x[key],"outcome":x["outcome"],"day":x["day"]} for x in rows]
+        return _metrics(values)
+    holdout_rows=[{**x,"blend":(1-weight)*x["model"]+weight*x["market"]} for x in test]
+    holdout={"independent_model":score(holdout_rows,"model"),
+             "multi_company_market":score(holdout_rows,"market"),
+             "shadow_blend":score(holdout_rows,"blend")}
+    model_brier=holdout["independent_model"]["brier"]
+    blend_brier=holdout["shadow_blend"]["brier"]
+    return {**base,"status":"SHADOW_HOLDOUT_SCORED",
+            "split":{"train_events":len(train),"validation_events":len(valid),
+                     "holdout_events":len(test),"train_end":days[cut_train-1],
+                     "validation_end":days[cut_valid-1],"holdout_start":days[cut_valid]},
+            "market_weight_selected_on_validation":weight,
+            "validation":{"model_brier":round(brier(valid,0.0),7),
+                          "market_brier":round(brier(valid,1.0),7),
+                          "blend_brier":round(brier(valid,weight),7)},
+            "holdout":holdout,
+            "holdout_blend_improved_vs_model":(blend_brier is not None and model_brier is not None and blend_brier<model_brier),
+            "holdout_blend_improved_vs_market":(blend_brier is not None and holdout["multi_company_market"]["brier"] is not None and blend_brier<holdout["multi_company_market"]["brier"])}
+
 def evaluate(settlements, forecasts):
     forecast_index=defaultdict(list)
     for doc in forecasts:
@@ -183,10 +250,13 @@ def evaluate(settlements, forecasts):
         direct[market].append({k:v for k,v in record.items() if k!="doc_capture"})
     metrics={k:_metrics(direct[k]) for k in DIRECT_KEYS}
     metrics.update({k:_metrics(consensus[k]) for k in ("CONSENSUS_SPREAD","CONSENSUS_TOTAL")})
+    shadow_fusion={}
     for kind in ("SPREAD", "TOTAL"):
         metrics["MODEL_FIRST_SIDE_"+kind] = _metrics(model_first_side[kind])
         metrics["MULTI_COMPANY_PRICE_"+kind] = _metrics(market_price[kind])
+        shadow_fusion[kind]=_shadow_fusion(model_first_side[kind],market_price[kind])
     return {
+        "shadow_fusion_research":shadow_fusion,
         "schema_version":"nba-007-market-consensus-shadow-scorecard-v2",
         "metrics":metrics,
         "minimum_sample_for_fusion_review":MIN_SAMPLE_FOR_FUSION_REVIEW,
@@ -251,6 +321,28 @@ def self_test():
     assert out["metrics"]["MODEL_FIRST_SIDE_TOTAL"]["sample_count"]==1
     assert out["metrics"]["MULTI_COMPANY_PRICE_TOTAL"]["brier"]==0.3025
     assert out["probability_fusion"]=="DISABLED_NO_WEIGHT_FIT_OR_PRODUCTION_OVERRIDE"
+    # A 30-day synthetic chronological sample validates that market weight is
+    # selected only on validation dates and scored on later holdout dates.
+    model_rows=[];market_rows=[]
+    for day_index in range(30):
+        day_value=(datetime(2026,1,1)+__import__("datetime").timedelta(days=day_index)).date().isoformat()
+        for game_index in range(5):
+            outcome=int(game_index<4)
+            key={"day":day_value,"game_id":f"{day_index}-{game_index}","capture":capture}
+            model_rows.append({**key,"probability":.60,"outcome":outcome})
+            market_rows.append({**key,"probability":.80,"outcome":outcome})
+    market_rows[0]["capture"]="2026-10-31T10:01:00+00:00"
+    fusion=_shadow_fusion(model_rows,market_rows)
+    assert fusion["paired_events"]==150
+    assert fusion["status"]=="SHADOW_HOLDOUT_SCORED"
+    market_rows[1]["capture"]="2026-10-31T10:16:00+00:00"
+    skew_rejected=_shadow_fusion(model_rows,market_rows)
+    assert skew_rejected["paired_events"]==149
+    assert fusion["split"]["holdout_events"]>=20
+    assert fusion["market_weight_selected_on_validation"]==1.0
+    assert fusion["production_fusion_enabled"] is False
+    blocked=_shadow_fusion(model_rows[:10],market_rows[:10])
+    assert blocked["status"]=="BLOCKED_INSUFFICIENT_CHRONOLOGICAL_OOS"
     late=json.loads(json.dumps(forecast))
     for key in ("JINGCAI_TOTAL","CROWN_TOTAL"):
         late["games"][0]["markets"][key]["market_consensus"]["consensus_latest_source_capture_utc"]="2026-11-01T09:00:00+00:00"

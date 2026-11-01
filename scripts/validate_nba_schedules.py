@@ -17,7 +17,7 @@ workflows={
  "0 10 * * *","15 10 * * *","30 10 * * *","0 13 * * *"],
  "nba-priority-2130.yml":["20 13 * * *","30 13 * * *","40 13 * * *"],
  "titan007-final-hourly.yml":["30 14-21 * * *","40 16-21 * * *","49 16-21 * * *"],
- "nba-priority-0630.yml":["20 22 * * *","30 22 * * *","40 22 * * *"],
+ "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
  "titan007-daily-free.yml":["0 14 * * *"],
  "odds-results-settlement.yml":["0 8 * * *"]
 }
@@ -44,12 +44,20 @@ def main():
         for expr in crons:
             mm,hh,day,month,weekday=expr.split()
             assert (day,month,weekday)==("*","*","*"),expr
-            mins=[int(mm)]
-            parts=hh.split("-")
-            hrs=range(int(parts[0]),int(parts[1])+1) if len(parts)==2 else [int(hh)]
+            if mm.startswith("*/"):
+                step=int(mm[2:])
+                assert 1<=step<=60,expr
+                mins=list(range(0,60,step))
+            else:
+                mins=[int(x) for x in mm.split(",")]
+            hrs=[]
+            for item in hh.split(","):
+                parts=item.split("-")
+                hrs.extend(range(int(parts[0]),int(parts[1])+1) if len(parts)==2 else [int(item)])
             for hour in hrs:
-                t=datetime(2026,10,30,hour,mins[0],tzinfo=timezone.utc).astimezone(bj)
-                all_times.append((name,t.strftime("%H:%M")))
+                for minute in mins:
+                    t=datetime(2026,10,30,hour,minute,tzinfo=timezone.utc).astimezone(bj)
+                    all_times.append((name,t.strftime("%H:%M")))
     assert ("nba-priority-2130.yml","21:30") in all_times
     assert ("nba-priority-0630.yml","06:30") in all_times
     assert ("titan007-three-analysis.yml","15:00") in all_times

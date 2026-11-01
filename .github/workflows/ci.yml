@@ -23,7 +23,11 @@ jobs:
               s=Path(f'.github/workflows/nba-priority-{slot}.yml').read_text()
               assert f'--phase preflight --priority-slot {slot}' in s
               assert s.index(f'--priority-slot {slot}') < s.index('Install pinned model dependencies')
-              assert "if: steps.gate.outputs.sent != 'true'" in s
+              if slot=='0630':
+                  assert "if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'" in s
+                  assert 'cron: "*/10 22-23,0-5 * * *"' in s
+              else:
+                  assert "if: steps.gate.outputs.sent != 'true'" in s
           print('PRIORITY_ACCEPTED_MARKER_GATE_PASS')
           PY
 
