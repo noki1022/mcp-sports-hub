@@ -168,6 +168,25 @@ jobs:
         run: |
           python3 analysis/nba_five_market_integrity_gate.py --joined titan007_priority_joined.json --five nba_five_market_forecast.json --jingcai nba_jingcai_three_market.json --out nba_five_market_integrity.json
       - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
+        name: Calculate 0630 shadow-only dynamic five-market probabilities
+        run: |
+          PREVIOUS_SHADOW=""
+          if [ -d "reports/daily/$TARGET_DATE" ]; then
+            PREVIOUS_SHADOW=$(find "reports/daily/$TARGET_DATE" -mindepth 2 -maxdepth 2 -name nba_dynamic_five_market_shadow.json -type f | sort | tail -1)
+          fi
+          PREVIOUS_ARGS=()
+          if [ -n "$PREVIOUS_SHADOW" ]; then PREVIOUS_ARGS=(--previous "$PREVIOUS_SHADOW"); fi
+          python3 analysis/nba_dynamic_five_market_shadow.py \
+            --joined titan007_priority_joined.json \
+            --model nba_priority_model.json \
+            --five nba_five_market_forecast.json \
+            --jingcai nba_jingcai_three_market.json \
+            --consensus nba_market_consensus.json \
+            --injury nba_priority_injury_context.json \
+            --slot 0630 --out nba_dynamic_five_market_shadow.json \
+            "${PREVIOUS_ARGS[@]}" || { printf '%s\n' '{"schema_version":"nba-dynamic-five-market-shadow-v2","status":"SHADOW_UNAVAILABLE","game_count":0,"games":[],"production_model_modified":false,"pushplus_enabled":false,"market_probability_fusion":"DISABLED","validation_state":"RESEARCH_ONLY_PENDING_CHRONOLOGICAL_OOS"}' > nba_dynamic_five_market_shadow.json; }
+          test -s nba_dynamic_five_market_shadow.json
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Generate mandatory NBA spread and total research verdicts from ten institutions
         run: |
           python3 analysis/nba_two_market_forecast.py --joined titan007_priority_joined.json --model nba_priority_model.json --top10 nba_top10_comparison.json --out nba_two_market_forecast.json
@@ -252,7 +271,7 @@ jobs:
         name: Archive snapshot, complete analysis and successful PushPlus marker
         run: |
           mkdir -p "reports/daily/$TARGET_DATE/0630" "reports/pushplus-sent/$TARGET_DATE"
-          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_market_consensus.json nba_five_market_forecast.json nba_priority_focus.json nba_priority_iphone.html nba_injury_prospective_0630.json "reports/daily/$TARGET_DATE/0630/"
+          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_market_consensus.json nba_five_market_forecast.json nba_dynamic_five_market_shadow.json nba_priority_focus.json nba_priority_iphone.html nba_injury_prospective_0630.json "reports/daily/$TARGET_DATE/0630/"
           python3 - <<'PY'
           import os,json
           from pathlib import Path

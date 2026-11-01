@@ -2,6 +2,7 @@
 """Render a mobile NBA model analysis report from joined data and predictions."""
 from __future__ import annotations
 import argparse, html, json
+from datetime import datetime, timezone
 from pathlib import Path
 from nba_injury_probability import adjust as adjust_injury_probability
 
@@ -91,7 +92,7 @@ def render(joined, gate, out_json, out_html, injury_context=None, impact_catalog
             + "；结论：<b>NO_BET</b></p></section>"
         )
     report = {"target_display_date": joined.get("requested_display_date"),
-              "generated_at_utc": gate.get("generated_at_utc"),
+              "generated_at_utc": gate.get("generated_at_utc") or datetime.now(timezone.utc).isoformat(),
               "games": rows, "decision": "NO_BET"}
     Path(out_json).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     doc = ("<!doctype html><html lang='zh'><meta charset='utf-8'>"
@@ -110,6 +111,8 @@ def self_test():
     gate = {"game_predictions": [], "predictions": []}
     render(joined, gate, "/tmp/model.json", "/tmp/model.html")
     assert "NO_BET" in Path("/tmp/model.html").read_text()
+    generated=json.loads(Path("/tmp/model.json").read_text()).get("generated_at_utc")
+    assert generated and datetime.fromisoformat(generated.replace("Z","+00:00")).tzinfo is not None
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()

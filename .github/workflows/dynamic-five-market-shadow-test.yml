@@ -1,13 +1,15 @@
 name: Dynamic five-market shadow tests
 on:
   push:
-    branches: [research/dynamic-five-market-replay-v1]
+    branches: [research/dynamic-five-market-oos-v2]
     paths:
       - "analysis/nba_dynamic_five_market_shadow.py"
+      - "analysis/nba_dynamic_five_market_replay.py"
       - ".github/workflows/dynamic-five-market-shadow-test.yml"
   pull_request:
     paths:
       - "analysis/nba_dynamic_five_market_shadow.py"
+      - "analysis/nba_dynamic_five_market_replay.py"
       - ".github/workflows/dynamic-five-market-shadow-test.yml"
 permissions:
   contents: read
@@ -21,6 +23,35 @@ jobs:
         with:
           python-version: "3.12"
       - name: Compile
-        run: python3 -m py_compile analysis/nba_dynamic_five_market_shadow.py
-      - name: Deterministic probability and source-orientation tests
+        run: |
+          python3 -m py_compile analysis/nba_dynamic_five_market_shadow.py
+          python3 -m py_compile analysis/nba_dynamic_five_market_replay.py
+      - name: Verify model reports persist a real generation timestamp
+        run: python3 analysis/nba_model_report.py --self-test
+      - name: Deterministic five-market probability and source-orientation tests
         run: python3 analysis/nba_dynamic_five_market_shadow.py --self-test
+      - name: Chronological replay, latest pre-tip selection and scoring tests
+        run: python3 analysis/nba_dynamic_five_market_replay.py --self-test
+      - name: Reject legacy archived 007 capture when frozen decision timestamp is absent
+        run: |
+          d="reports/daily/2026-11-01/2130"
+          if [ -f "$d/titan007_priority_joined.json" ] && [ -f "$d/nba_priority_model.json" ] && [ -f "$d/nba_five_market_forecast.json" ] && [ -f "$d/nba_jingcai_three_market.json" ]; then
+            python3 analysis/nba_dynamic_five_market_shadow.py \
+              --joined "$d/titan007_priority_joined.json" \
+              --model "$d/nba_priority_model.json" \
+              --five "$d/nba_five_market_forecast.json" \
+              --jingcai "$d/nba_jingcai_three_market.json" \
+              --slot 2130 --out /tmp/legacy_shadow.json
+            python3 - <<'PY'
+          import json
+          x=json.load(open("/tmp/legacy_shadow.json"))
+          assert x["status"]=="SHADOW_UNAVAILABLE", x
+          assert x["error"]=="FIVE_MARKET_GENERATION_TIMESTAMP_MISSING", x
+          assert x["production_model_modified"] is False
+          assert x["pushplus_enabled"] is False
+          assert x["market_probability_fusion"]=="DISABLED"
+          print("LEGACY_007_ARCHIVE_FAIL_CLOSED_PASS",x["error"])
+          PY
+          else
+            echo "NO_LEGACY_ARCHIVE_FIXTURE_AVAILABLE"
+          fi
