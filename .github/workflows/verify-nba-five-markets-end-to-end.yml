@@ -50,7 +50,7 @@ jobs:
           for path in paths:
               content=Path(path).read_text()
               assert 'analysis/nba_five_markets.py' in content,path
-              assert 'analysis/nba_market_consensus.py' in content,path
+              assert 'scripts/optional_007_enrichment.py consensus' in content,path
               assert '--consensus nba_market_consensus.json' in content,path
               assert '--five nba_five_market_forecast.json' in content,path
               assert 'nba_five_market_forecast.json' in content,path
@@ -61,6 +61,8 @@ jobs:
           assert 'analysis/nba_five_market_review_push.py' in nightly
           assert 'nba_final_review_readiness.json' in nightly
           # Multi-company capture and consensus are optional enrichment only.
+          wrapper=Path('scripts/optional_007_enrichment.py').read_text()
+          assert 'analysis/nba_market_consensus.py' in wrapper
           for path in paths:
               content=Path(path).read_text()
               assert 'scripts/optional_007_enrichment.py collect' in content,path
