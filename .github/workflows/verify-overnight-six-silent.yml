@@ -31,8 +31,9 @@ jobs:
           assert "steps.silent.outputs.send == 'true'" in h
           assert 'last_safe_analysis_slot' in h
           m=Path('.github/workflows/nba-priority-0630.yml').read_text()
-          assert 'nba_overnight_six_audit.py digest' in m
-          assert '--overnight-audit nba_overnight_six_audit.json' in m
+          assert 'nba_overnight_six_audit.py digest' not in m
+          assert '--overnight-audit nba_overnight_six_audit.json' not in m
+          assert 'NO_OVERNIGHT_MONITOR_DEPENDENCY' in m
           w=Path('.github/workflows/nba-injury-change-watch.yml').read_text()
           assert 'SILENT_MIDNIGHT_INJURY_CHANGE_RECORDED_NOT_PUSHED' in w
           print("SIX_OVERNIGHT_SILENT_WITH_PRETIP_EXCEPTION_AND_0630_DIGEST_PASS")
