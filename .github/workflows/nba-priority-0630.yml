@@ -230,7 +230,7 @@ jobs:
           if git cat-file -e "origin/main:reports/pushplus-sent/$TARGET_DATE/0630.json" 2>/dev/null; then
              echo 'PRIORITY_ALREADY_ACCEPTED_IN_REMOTE'; exit 1
           fi
-      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true' && steps.presend.outputs.skip != 'true'
         name: Verify immutable midnight six-slot capture and analysis ledger
         run: |
           # The 05:30 job may have committed after this 06:30 run checked out main.
