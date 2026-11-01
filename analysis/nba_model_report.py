@@ -111,6 +111,8 @@ def self_test():
     gate = {"game_predictions": [], "predictions": []}
     render(joined, gate, "/tmp/model.json", "/tmp/model.html")
     assert "NO_BET" in Path("/tmp/model.html").read_text()
+    generated=json.loads(Path("/tmp/model.json").read_text()).get("generated_at_utc")
+    assert generated and datetime.fromisoformat(generated.replace("Z","+00:00")).tzinfo is not None
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
