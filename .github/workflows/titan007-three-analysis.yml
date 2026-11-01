@@ -1,10 +1,5 @@
 name: Titan007 daily three analysis before lottery cutoff
 on:
-  # Explicit, path-scoped one-time production acceptance run.
-  # The trigger file is removed immediately after GitHub confirms the run was queued.
-  push:
-    paths:
-      - '.github/one-time-full-chain-trigger'
   workflow_dispatch:
     inputs:
       report_slot:
