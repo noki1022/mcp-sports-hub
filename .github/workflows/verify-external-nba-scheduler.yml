@@ -37,7 +37,7 @@ jobs:
               '0,1,5,6,7,8,10,11,16,18,20,28,30,35,40,45,50,55 0-8,10,13,20,22-23 * * *',
           ]
           assert crons==expected,(crons,expected)
-          assert len(crons)==3
+          assert len(crons)==4
           worker=Path('scheduler/worker.mjs').read_text()
           for name in ('titan007-three-analysis.yml','nba-priority-2130.yml',
                        'nba-priority-0630.yml','nba-injury-change-watch.yml',
