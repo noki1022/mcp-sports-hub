@@ -118,7 +118,7 @@ def market_row(key, obj):
     if key.startswith("CROWN_"):
         label += "（参考）"
     if obj.get("quote_freshness") == "ARCHIVED_PRIOR_NOT_LIVE":
-        label += " · 历史盘口"
+        label += " · 历史盘口口"
     return label
 
 
@@ -325,7 +325,7 @@ def self_test():
     assert match_label(game, "2026-11-02")[0] == "编号待核"
     game["five_market_forecast"]["tipoff_beijing"]="2026-11-01T08:30:00+08:00"
     h = render_compact([game], {}, "赛前", "2026-11-01", "three")
-    for v in ("北京时间 08:30 开赛", "周六316", "用户确认", "客-4.5 赢盘", "大221.5", "55.5%"):
+    for v in ("北京时间 08:30 开赛", "周六316", "用户确认", "客+4.5 赢盘", "大221.5", "55.5%"):
         assert v in h, v
     for hidden in ("同线市场", "模型-市场", "多机构共识", "共识总分线", "共识主队盘口", "5家"):
         assert hidden not in h, hidden
