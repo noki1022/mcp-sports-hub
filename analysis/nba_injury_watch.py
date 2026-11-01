@@ -277,7 +277,8 @@ def self_test():
         save(root/"noon-cohorts/2026-10-31/1200.json",late)
         assert select(root,"2026-10-31T13:35:00Z")["state"]=="SKIP_OUTSIDE_BEIJING_MONITOR_WINDOW"
         # The cutoff is inclusive at exactly 21:30 Beijing.
-        assert select(root,"2026-10-31T13:30:00Z")["state"]=="SKIP_NO_IMMINENT_OFFICIAL_GAME"
+        boundary=select(root,"2026-10-31T13:30:00Z")
+        assert boundary["state"]=="WATCH" and boundary["active_official_game_ids"]==["402"]
         def record(status):
             return {"report_state":"PUBLISHED","players":[{"name":"A, B","status":status,"reason":"Injury/Illness - Strain"}]}
         valid_urls=("https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-10-31_05PM.pdf",
