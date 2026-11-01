@@ -8,6 +8,7 @@ on:
       - scheduler/test-scheduler.mjs
       - .github/workflows/nba-priority-0630.yml
       - .github/workflows/nba-priority-2130.yml
+      - .github/workflows/titan007-three-analysis.yml
       - .github/workflows/titan007-final-hourly.yml
       - analysis/nba_final_review_gate.py
       - .github/workflows/nba-delivery-health-watchdog.yml
@@ -53,7 +54,7 @@ jobs:
           assert '"2130","0630"' in recovery
           assert 'from nba_0630_priority_gate import decide as morning_gate' in recovery
           assert 'NO_SAFE_REMAINING_PRETIP_GAME' in recovery
-          assert 'PRIORITY_RECOVERY_WINDOWS={"2130":(5,22),"0630":(5,180)}' in recovery
+          assert 'PRIORITY_RECOVERY_WINDOWS={"0030":(5,65),"0330":(5,65),"2130":(5,22),"0630":(5,180)}' in recovery
           assert 'eligible_games_by_time' in recovery
           print('P0_DYNAMIC_TIPOFF_RECOVERY_AND_NO_STALE_REPLAY_PASS')
           PY

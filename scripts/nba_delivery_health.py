@@ -23,11 +23,15 @@ from zoneinfo import ZoneInfo
 
 BJ=ZoneInfo("Asia/Shanghai")
 ACCEPTED="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
-FIXED={"1200":4,"1400":6,"1500":7,"1800":10,"2100":13}
+FIXED={"0030":16,"0330":19,"1200":4,"1400":6,"1500":7,"1800":10,"2100":13}
 HOURS={f"{h:02d}30" for h in [22,23,0,1,2,3,4,5]}
-SILENT_SIX={f"{h:02d}30" for h in range(6)}
+SILENT_SIX={f"{h:02d}30" for h in range(6)}-{"0030","0330"}
 # UTC cron -> (Beijing report slot, display date offset relative to cron date).
 SCHEDULES={
+    "30 16 * * *":("0030",0), "45 16 * * *":("0030",0), "0 17 * * *":("0030",0),
+    "35 16 * * *":("0030",0), "50 16 * * *":("0030",0), "5 17 * * *":("0030",0),
+    "30 19 * * *":("0330",0), "45 19 * * *":("0330",0), "0 20 * * *":("0330",0),
+    "35 19 * * *":("0330",0), "50 19 * * *":("0330",0), "5 20 * * *":("0330",0),
     "40 4 * * *":("1200",1), "40 6 * * *":("1400",1),
     "40 7 * * *":("1500",1), "40 10 * * *":("1800",1),
     "20 13 * * *":("2100",1), "35 13 * * *":("2130",1), "40 13 * * *":("2100",1),
@@ -68,7 +72,7 @@ def infer_slot(schedule:str,now:datetime)->tuple[str,str]:
         if schedule not in SCHEDULES:raise ValueError("UNKNOWN_HEALTH_CRON")
         slot=SCHEDULES[schedule][0]
     target=local.date()
-    if slot in FIXED or slot=="2130" or (slot in ("2230","2330") and local.hour>=22):
+    if (slot in FIXED and slot not in ("0030","0330")) or slot=="2130" or (slot in ("2230","2330") and local.hour>=22):
         target+=timedelta(days=1)
     return slot,target.isoformat()
 
@@ -95,7 +99,7 @@ def accepted_marker(root:Path,slot:str,target:str)->bool:
 
 def scheduled_start(slot:str,target:str)->datetime:
     day=datetime.fromisoformat(target).date()
-    if slot in FIXED or slot=="2130" or slot in ("2230","2330"):
+    if (slot in FIXED and slot not in ("0030","0330")) or slot=="2130" or slot in ("2230","2330"):
         day-=timedelta(days=1)
     hh=int(slot[:2]);mm=int(slot[2:])
     return datetime(day.year,day.month,day.day,hh,mm,tzinfo=BJ)
@@ -133,7 +137,7 @@ def run_hint(runs:list|None,slot:str,target:str)->tuple[str,int]:
 
 def alert_ready(slot:str,target:str,now:datetime)->bool:
     """Avoid alarming during the intentional priority workflow startup grace."""
-    if slot not in ("2130","0630"):return True
+    if slot not in ("2130","0630","0030","0330"):return True
     elapsed=(now.astimezone(BJ)-scheduled_start(slot,target)).total_seconds()/60
     return elapsed>=12
 
@@ -193,6 +197,14 @@ def self_test():
     assert infer_slot("55 14-21 * * *",datetime.fromisoformat("2026-11-01T00:18:22+08:00"))==("2330","2026-11-01")
 
     for cron,now,slot,target in (
+        ("30 16 * * *","2026-10-31T00:30:00+08:00","0030","2026-10-31"),
+        ("35 16 * * *","2026-10-31T00:35:00+08:00","0030","2026-10-31"),
+        ("50 16 * * *","2026-10-31T00:50:00+08:00","0030","2026-10-31"),
+        ("0 17 * * *","2026-10-31T01:00:00+08:00","0030","2026-10-31"),
+        ("30 19 * * *","2026-10-31T03:30:00+08:00","0330","2026-10-31"),
+        ("35 19 * * *","2026-10-31T03:35:00+08:00","0330","2026-10-31"),
+        ("50 19 * * *","2026-10-31T03:50:00+08:00","0330","2026-10-31"),
+        ("0 20 * * *","2026-10-31T04:00:00+08:00","0330","2026-10-31"),
         ("40 4 * * *","2026-10-30T12:40:00+08:00","1200","2026-10-31"),
         ("40 13 * * *","2026-10-30T21:40:00+08:00","2100","2026-10-31"),
         ("55 13 * * *","2026-10-30T21:55:00+08:00","2130","2026-10-31"),
@@ -220,11 +232,20 @@ def self_test():
         path.write_text(json.dumps({"slot":"2130","state":ACCEPTED}),encoding="utf-8")
         assert inspect(root,"2130","2026-10-31",runs=[])["status"]==ACCEPTED
         assert "未见推送成功标记" in alert_html(x)
-        silent=inspect(root,"0030","2026-10-31",runs=[])
+        silent=inspect(root,"0130","2026-10-31",runs=[])
         assert silent["status"]=="SILENT_ANALYSIS_MISSING"
         assert silent["run_hint"]=="SILENT_NO_PUSH_REQUIRED"
+        assert inspect(root,"0030","2026-10-31",runs=[])["status"]=="MISSING_API_ACCEPTANCE"
+        assert expected_workflow("0030")=="titan007-three-analysis.yml"
+        assert expected_workflow("0330")=="titan007-three-analysis.yml"
+        assert scheduled_start("0030","2026-10-31").isoformat()=="2026-10-31T00:30:00+08:00"
+        assert scheduled_start("0330","2026-10-31").isoformat()=="2026-10-31T03:30:00+08:00"
     assert not alert_ready("2130","2026-10-31",datetime.fromisoformat("2026-10-30T21:35:00+08:00"))
     assert alert_ready("2130","2026-10-31",datetime.fromisoformat("2026-10-30T21:45:00+08:00"))
+    assert not alert_ready("0030","2026-10-31",datetime.fromisoformat("2026-10-31T00:40:00+08:00"))
+    assert alert_ready("0030","2026-10-31",datetime.fromisoformat("2026-10-31T00:43:00+08:00"))
+    assert not alert_ready("0330","2026-10-31",datetime.fromisoformat("2026-10-31T03:40:00+08:00"))
+    assert alert_ready("0330","2026-10-31",datetime.fromisoformat("2026-10-31T03:43:00+08:00"))
     assert not alert_ready("0630","2026-10-31",datetime.fromisoformat("2026-10-31T06:35:00+08:00"))
     assert alert_ready("0630","2026-10-31",datetime.fromisoformat("2026-10-31T06:45:00+08:00"))
     fail=[{"event":"workflow_dispatch","created_at":"2026-10-30T13:25:10Z",

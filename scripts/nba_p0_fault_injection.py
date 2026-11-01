@@ -51,7 +51,16 @@ def test():
         assert decision(root,"1200",day,at("2026-10-31T14:00:00+08:00"),[])["action"]=="NO_DISPATCH"
         checks["no_stale_recovery"]="PASS"
         assert decision(root,"2130",day,at("2026-10-31T21:45:00+08:00"),[])["action"]=="DISPATCH"
+        cohort=root/"reports/overnight-cohorts"/day/"2130.json"
+        cohort.parent.mkdir(parents=True,exist_ok=True)
+        cohort.write_text(json.dumps({"target_date":day,"source_slot":"2130",
+            "official_games":{"late":{"tip":"2026-11-01T08:00:00+08:00"}},
+            "priced_nba_to_007":{"late":"7282"}}))
         assert decision(root,"0630",day,at("2026-11-01T06:45:00+08:00"),[])["action"]=="DISPATCH"
         checks["priority_bounded_recovery"]="PASS"
+        for night_slot,clock in (("0030","2026-11-01T00:35:00+08:00"),
+                                 ("0330","2026-11-01T03:35:00+08:00")):
+            assert decision(root,night_slot,day,at(clock),[])["action"]=="DISPATCH"
+        checks["overnight_full_report_recovery"]="PASS"
     print("P0_ISOLATED_FAULT_INJECTION",json.dumps(checks,sort_keys=True))
 if __name__=="__main__":test()

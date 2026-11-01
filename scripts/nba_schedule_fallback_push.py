@@ -61,7 +61,7 @@ def main():
         assert "一次性手动运行" in build(sample,"2026-11-01","ONCE")
         print("SCHEDULE_FALLBACK_SELF_TEST_PASS")
         return
-    if args.slot not in ("1200","1400","1500","1800","2100","ONCE") and not re.fullmatch(r"ONCE-[A-Z0-9-]{1,40}",args.slot):
+    if args.slot not in ("0030","0330","1200","1400","1500","1800","2100","ONCE") and not re.fullmatch(r"ONCE-[A-Z0-9-]{1,40}",args.slot):
         raise RuntimeError("NOT_A_REGULAR_REPORT_SLOT")
     if datetime.fromisoformat(args.target).date() < datetime.now(ZoneInfo("Asia/Shanghai")).date():
         raise RuntimeError("EXPIRED_TARGET_DATE")

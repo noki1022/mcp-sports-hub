@@ -12,7 +12,9 @@ import tomllib
 
 ROOT=Path(__file__).resolve().parents[1]
 workflows={
- "titan007-three-analysis.yml": ["0 4 * * *","15 4 * * *","30 4 * * *",
+ "titan007-three-analysis.yml": ["30 16 * * *","45 16 * * *","0 17 * * *",
+ "30 19 * * *","45 19 * * *","0 20 * * *",
+ "0 4 * * *","15 4 * * *","30 4 * * *",
  "0 6 * * *","15 6 * * *","30 6 * * *",
  "0 7 * * *","15 7 * * *","30 7 * * *",
  "0 10 * * *","15 10 * * *","30 10 * * *","0 13 * * *"],
@@ -23,6 +25,8 @@ workflows={
  # Post-21:30 jobs are bounded delivery recovery or official-FINAL settlement,
  # not overnight odds or injury monitoring.
  "nba-delivery-health-watchdog.yml":[
+ "35 16 * * *","50 16 * * *","5 17 * * *",
+ "35 19 * * *","50 19 * * *","5 20 * * *",
  "40 4 * * *","40 6 * * *","40 7 * * *","40 10 * * *",
  "20 13 * * *","35 13 * * *","45 13 * * *","50 13 * * *",
  "40 13 * * *","55 13 * * *",
@@ -91,6 +95,8 @@ def main():
     assert ("nba-priority-2130.yml","21:30") in all_times
     assert ("nba-priority-0630.yml","06:30") in all_times
     assert ("titan007-three-analysis.yml","15:00") in all_times
+    assert ("titan007-three-analysis.yml","00:30") in all_times
+    assert ("titan007-three-analysis.yml","03:30") in all_times
     assert ("titan007-three-analysis.yml","18:00") in all_times
     assert ("titan007-three-analysis.yml","06:00") not in all_times
     # No automatic 22:00 auxiliary odds scan after the 21:30 final report.

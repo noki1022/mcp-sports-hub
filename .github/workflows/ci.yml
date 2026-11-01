@@ -36,6 +36,9 @@ jobs:
         run: |
           python3 -m py_compile scripts/nba_fixed_slot_gate.py scripts/nba_schedule_fallback_push.py scripts/titan007_join_beijing_verified.py
           python3 scripts/nba_fixed_slot_gate.py --self-test
+          python3 -m py_compile scripts/nba_delivery_health.py scripts/nba_delivery_recovery.py
+          python3 scripts/nba_delivery_health.py --self-test
+          python3 scripts/nba_delivery_recovery.py --self-test
           python3 scripts/nba_schedule_fallback_push.py --self-test --target 2026-11-02 --slot ONCE
           python3 scripts/titan007_join_beijing_verified.py --self-test
           python3 -m py_compile scripts/titan007_join_beijing_verified.py scripts/titan007_top10_companies.py scripts/titan007_jingcai_three_market.py scripts/parse_007_jc_three_market.py scripts/pushplus_five_compact.py analysis/nba_five_markets.py analysis/nba_market_consensus.py analysis/nba_market_consensus_backtest.py

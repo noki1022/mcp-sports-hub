@@ -13,7 +13,7 @@ for expr in ("0 4 * * *","15 4 * * *","30 4 * * *"):
     assert SCHEDULE_SLOTS[expr]=="1200"
     assert resolve_slot(expr,"",now)=="1200"
 assert s.index("Preflight canonical slot and verified acceptance") < s.index("Join independent UTC fixture")
-assert s.index("Recheck verified acceptance before PushPlus") < s.index("Send compact iPhone PushPlus")
+assert s.index("Recheck verified acceptance before PushPlus") < s.index("Send complete iPhone full-board NBA analysis")
 assert "python3 scripts/nba_fixed_slot_gate.py --phase preflight" in s
 assert "python3 scripts/nba_fixed_slot_gate.py --phase recheck" in s
 assert "if: steps.preflight.outputs.skip != 'true'" in s
