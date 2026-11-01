@@ -19,6 +19,17 @@ workflows={
  "nba-priority-2130.yml":["20 13 * * *","30 13 * * *","40 13 * * *"],
  "titan007-final-hourly.yml":[],
  "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
+ # Complete allowlist: every scheduled workflow must be declared here.
+ # Post-21:30 jobs are bounded delivery recovery or official-FINAL settlement,
+ # not overnight odds or injury monitoring.
+ "nba-delivery-health-watchdog.yml":[
+ "40 4 * * *","40 6 * * *","40 7 * * *","40 10 * * *",
+ "20 13 * * *","35 13 * * *","45 13 * * *","50 13 * * *",
+ "40 13 * * *","55 13 * * *",
+ "35 22 * * *","40 22 * * *","45 22 * * *","50 22 * * *","55 22 * * *"],
+ "nba-full-chain-e2e.yml":["0 20 * * *"],
+ "nba-injury-change-watch.yml":["30-59/5 22,23 * * *","*/5 0-12 * * *","0-30/5 13 * * *"],
+ "nba-two-market-nightly-2200.yml":["*/15 0-15 * * *","*/15 16-23 * * *"],
  "titan007-daily-free.yml":[],
  "odds-results-settlement.yml":["0 8 * * *"]
 }
@@ -34,7 +45,18 @@ def load(path):
             # GitHub permits unnamed run steps; only orphan blocks are invalid.
     return obj
 def main():
-    for path in sorted((ROOT/".github/workflows").glob("*.yml")):load(path)
+    workflow_paths=sorted((ROOT/".github/workflows").glob("*.yml"))
+    scheduled_names=set()
+    for path in workflow_paths:
+        cfg=load(path)
+        on=cfg.get("on",cfg.get(True,{}))
+        if on.get("schedule"):
+            scheduled_names.add(path.name)
+    expected_scheduled_names={name for name,crons in workflows.items() if crons}
+    assert scheduled_names==expected_scheduled_names,(
+        "UNREVIEWED_OR_MISSING_SCHEDULED_WORKFLOW",
+        sorted(scheduled_names-expected_scheduled_names),
+        sorted(expected_scheduled_names-scheduled_names))
     bj=ZoneInfo("Asia/Shanghai")
     all_times=[]
     for name,expected in workflows.items():
@@ -73,6 +95,8 @@ def main():
     assert ("titan007-three-analysis.yml","06:00") not in all_times
     # No automatic 22:00 auxiliary odds scan after the 21:30 final report.
     assert ("titan007-daily-free.yml","22:00") not in all_times
+    assert ("nba-full-chain-e2e.yml","04:00") in all_times
+    assert ("nba-two-market-nightly-2200.yml","22:00") in all_times
     injury=load(ROOT/".github/workflows/nba-injury-change-watch.yml")
     injury_on=injury.get("on",injury.get(True,{}))
     injury_crons=[x["cron"] for x in injury_on.get("schedule",[])]
@@ -88,6 +112,19 @@ def main():
             for minute in mins:
                 local=datetime(2026,10,30,hour,minute,tzinfo=timezone.utc).astimezone(bj)
                 assert 6*60+30<=local.hour*60+local.minute<=21*60+30,(expr,local)
+    # The post-21:30 watchdog may inspect delivery markers and perform bounded
+    # safe recovery, but must never refetch 007 odds or recalculate the model.
+    watchdog=(ROOT/".github/workflows/nba-delivery-health-watchdog.yml").read_text()
+    assert "nba_delivery_health.py" in watchdog
+    assert "nba_delivery_recovery.py" in watchdog
+    assert "titan007_join_beijing_verified.py" not in watchdog
+    assert "optional_007_enrichment.py" not in watchdog
+    # The 24-hour postgame trigger waits for official FINAL and settles frozen
+    # predictions only; it is not a live odds or injury polling workflow.
+    postgame=(ROOT/".github/workflows/nba-two-market-nightly-2200.yml").read_text()
+    assert "nba_final_review_gate.py" in postgame
+    assert "nba_five_market_settlement.py" in postgame
+    assert "titan007_join_beijing_verified.py" not in postgame
     # The external Cloudflare trigger must sleep through Beijing 22:30–05:30.
     cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
     cloud_crons=cloud["triggers"]["crons"]
