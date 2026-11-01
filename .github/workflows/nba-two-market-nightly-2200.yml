@@ -33,6 +33,24 @@ jobs:
           python3 analysis/nba_five_market_settlement.py --self-test
           python3 analysis/nba_five_market_settlement.py --forecast "$FROZEN_FORECAST" --day "$REVIEW_DAY" \
             --scores nba_final_review_scores.json --out "reports/five-market-settled/$REVIEW_DAY/settlement.json"
+      - name: Replay chronological five-market shadow probabilities against official finals
+        if: env.RUN_REPORT == 'true'
+        run: |
+          python3 analysis/nba_dynamic_five_market_replay.py --self-test
+          python3 analysis/nba_dynamic_five_market_replay.py \
+            --daily-root reports/daily \
+            --settled-root reports/five-market-settled \
+            --out "reports/five-market-settled/$REVIEW_DAY/dynamic_probability_scorecard.json"
+          python3 - <<'PY'
+          import json
+          p="reports/five-market-settled/"+__import__("os").environ["REVIEW_DAY"]+"/dynamic_probability_scorecard.json"
+          x=json.load(open(p))
+          assert x["production_model_modified"] is False
+          assert x["probability_fusion_enabled"] is False
+          print("DYNAMIC_FIVE_MARKET_OOS_SCORECARD",x["sample_readiness"]["status"],
+                x["sample_readiness"]["smallest_market_sample_n"],
+                x["sample_readiness"]["smallest_market_distinct_days"])
+          PY
       - name: Score multi-company consensus against exact frozen pretip captures
         if: env.RUN_REPORT == 'true'
         run: |
