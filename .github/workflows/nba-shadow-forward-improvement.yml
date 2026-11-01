@@ -40,6 +40,8 @@ jobs:
           assert r['decision']=='NO_BET'
           assert len(r['folds'])==4
           assert all(x['same_date_grouped_splits'] and x['all_feature_dates_pre_game'] for x in r['folds'])
+          assert r['pooled_metrics_across_disjoint_evaluation_windows']['regression']
+          assert r['pooled_paired_calendar_day_bootstrap']
           print('NBA_SHADOW_FORWARD_RESEARCH_ACCEPTED_NO_PROMOTION')
           PY
       - if: always()
