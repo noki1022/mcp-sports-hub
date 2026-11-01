@@ -199,6 +199,18 @@ jobs:
         if: steps.hourly_gate.outputs.skip != 'true'
         run: |
           python3 scripts/titan007_top10_companies.py --joined titan007_joined_today.json --out nba_top10_companies.json --analysis nba_top10_comparison.json --history-root reports/top10
+      - name: Build point-in-time multi-company 007 market consensus
+        if: steps.hourly_gate.outputs.skip != 'true'
+        run: |
+          python3 analysis/nba_market_consensus.py --joined titan007_joined_today.json --top10 nba_top10_companies.json --out nba_market_consensus.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open("nba_market_consensus.json"))
+          assert x["crown_company_id"]=="3"
+          assert x["identity_mapping"]=="USER_CONFIRMED_FIXED_MAPPING_ID3_EQUALS_CROWN"
+          assert x["game_count"]>0
+          print("NBA_MULTI_COMPANY_CONSENSUS",x["consensus_market_count"],"/",x["possible_market_count"])
+          PY
       - name: Persist top-ten institution snapshots for next scheduled comparison
         if: steps.hourly_gate.outputs.skip != 'true'
         run: |
@@ -221,6 +233,7 @@ jobs:
             --model nba_model_analysis.json \
             --jingcai nba_jingcai_three_market.json \
             --top10 nba_top10_comparison.json \
+            --consensus nba_market_consensus.json \
             --out nba_five_market_forecast.json
           python3 analysis/nba_injury_prerequisite.py --five nba_five_market_forecast.json --injury nba_injury_context.json --model nba_model_analysis.json --out nba_five_market_forecast_gated.json
           mv nba_five_market_forecast_gated.json nba_five_market_forecast.json
@@ -380,6 +393,7 @@ jobs:
             nba_model_analysis.json
             nba_top10_companies.json
             nba_top10_comparison.json
+            nba_market_consensus.json
             nba_jingcai_three_market.json
             nba_two_market_forecast.json
             nba_capture_audit.json
