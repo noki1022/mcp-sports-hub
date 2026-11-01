@@ -329,7 +329,7 @@ def selection_context(market_key, direct_line, direction, model_margin, model_to
     """Explain model-vs-consensus alignment without changing production probability."""
     if market_key == "JINGCAI_WIN":
         spread = (game_consensus or {}).get("full_spread") or {}
-        median_line = number(spread.get("median_line"))
+        median_line = number(spread.get("main_line"))
         if not spread.get("consensus_available") or median_line is None:
             return {
                 "status": spread.get("status", "NO_SPREAD_CONSENSUS"),
@@ -373,6 +373,7 @@ def selection_context(market_key, direct_line, direction, model_margin, model_to
         "consensus_latest_source_capture_utc": stats.get("latest_source_capture_utc"),
     }
     price = stats.get("same_line_price_consensus") or {}
+    ctx["same_line_price_consensus"] = price
     ctx["market_price_consensus_status"] = price.get("status")
     ctx["same_line_company_count"] = price.get("company_count", 0)
     ctx["same_line_company_ids"] = price.get("company_ids", [])
