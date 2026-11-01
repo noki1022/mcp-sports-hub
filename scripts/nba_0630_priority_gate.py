@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 
 BJ=ZoneInfo("Asia/Shanghai")
 DEFAULT_START=datetime.strptime("06:20","%H:%M").time()
-PREFLIGHT_LEAD_MINUTES=15
+PREFLIGHT_LEAD_MINUTES=20
 PRESEND_LEAD_MINUTES=5
 
 def locked_tips(target, root=Path(".")):
