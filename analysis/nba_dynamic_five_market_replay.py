@@ -52,15 +52,19 @@ def metric_rows(rows):
                 "misses":sum(r[key]=="MISS" for r in subset),
                 "accuracy":round(sum(r[key]=="HIT" for r in subset)/len(subset),6) if subset else None}
     consensus=[r for r in rows if r.get("consensus_p") is not None]
+    consensus_model_brier=(sum((r["p"]-r["y"])**2 for r in consensus)/len(consensus)) if consensus else None
+    consensus_brier=(sum((r["consensus_p"]-r["y"])**2 for r in consensus)/len(consensus)) if consensus else None
     return {
         "n":n,"distinct_days":len({r["day"] for r in rows}),
         "brier":round(brier,7),"log_loss":round(ll,7),"ece_10":round(ece,7),
-        "first_side_accuracy":round(sum(r["y"] for r in rows)/n,6),
+        "first_side_realized_rate":round(sum(r["y"] for r in rows)/n,6),
         "candidate_direction_accuracy":direction_accuracy("candidate_outcome"),
         "frozen_direction_accuracy":direction_accuracy("frozen_outcome"),
         "consensus_benchmark":{"n":len(consensus),
-            "brier":round(sum((r["consensus_p"]-r["y"])**2 for r in consensus)/len(consensus),7) if consensus else None,
-            "log_loss":round(sum(logloss(r["consensus_p"],r["y"]) for r in consensus)/len(consensus),7) if consensus else None},
+            "model_brier_same_sample":round(consensus_model_brier,7) if consensus_model_brier is not None else None,
+            "market_brier":round(consensus_brier,7) if consensus_brier is not None else None,
+            "market_minus_model_brier":round(consensus_brier-consensus_model_brier,7) if consensus else None,
+            "market_log_loss":round(sum(logloss(r["consensus_p"],r["y"]) for r in consensus)/len(consensus),7) if consensus else None},
         "calibration_bins":bins}
 
 def actual_first_side(key,market,home,away):
