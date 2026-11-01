@@ -58,6 +58,7 @@ def build_fallback_top10(board: dict[str, Any], reason: str) -> tuple[dict, dict
     completed = utc_now()
     snap_games = []
     compare_games = []
+    canonical_quote_count = 0
 
     for game in nba_games(board):
         gid = str(game["game_id"])
@@ -82,6 +83,7 @@ def build_fallback_top10(board: dict[str, Any], reason: str) -> tuple[dict, dict
                     "source_capture_utc": captured,
                 }
                 companies.append(quote)
+                canonical_quote_count += 1
 
             state = ("CANONICAL_ID3_ONLY" if companies
                      else "AUXILIARY_CAPTURE_UNAVAILABLE")
@@ -123,10 +125,12 @@ def build_fallback_top10(board: dict[str, Any], reason: str) -> tuple[dict, dict
         "collection_completed_at_utc": completed,
         "quote_timestamp": "CANONICAL_ID3_CAPTURE_TIME_ONLY",
         "company_order": "CANONICAL_ID3_ONLY_NO_MULTI_COMPANY_RANKING",
-        "candidate_ids": [CROWN_ID],
+        "candidate_ids": [CROWN_ID] if canonical_quote_count else [],
         "source_audit": [{
             "id": CROWN_ID,
-            "status": "REUSED_CANONICAL_CROSS_DATE_JOIN",
+            "status": ("REUSED_CANONICAL_CROSS_DATE_JOIN" if canonical_quote_count
+                        else "NO_CANONICAL_ID3_QUOTE_IN_PRIMARY_JOIN"),
+            "verified_market_rows": canonical_quote_count,
             "reason": reason,
         }, {
             "status": "OPTIONAL_MULTI_COMPANY_CAPTURE_DEGRADED",
@@ -362,6 +366,37 @@ def self_test() -> None:
     assert forecast["games"][0]["markets"]["SPREAD"]["company_count"] == 1
     assert forecast["games"][0]["markets"]["TOTAL"]["company_count"] == 1
     assert forecast["games"][0]["markets"]["SPREAD"]["line"] == 5.5
+
+    # Exercise the actual wrappers with injected failures: neither auxiliary
+    # timeout nor missing consensus input may escape into the production job.
+    import tempfile
+    from unittest.mock import patch
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        joined_path = root / "joined.json"
+        joined_path.write_text(json.dumps(board), encoding="utf-8")
+        out_path = root / "top10.json"
+        analysis_path = root / "comparison.json"
+        collect_status = root / "collect-status.json"
+        collect_args = argparse.Namespace(
+            joined=str(joined_path), out=str(out_path), analysis=str(analysis_path),
+            history_root=None, status=str(collect_status), timeout=1)
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("mock", 1)):
+            assert run_collect(collect_args) == 0
+        assert read_json(out_path)["degraded"] is True
+        assert read_json(analysis_path)["degraded"] is True
+        assert read_json(collect_status)["state"] == "DEGRADED_CANONICAL_ID3_ONLY"
+
+        consensus_path = root / "consensus.json"
+        consensus_status = root / "consensus-status.json"
+        consensus_args = argparse.Namespace(
+            joined=str(joined_path), top10=str(root / "missing-top10.json"),
+            out=str(consensus_path), status=str(consensus_status), timeout=1)
+        with patch("subprocess.run", side_effect=FileNotFoundError("mock missing optional input")):
+            assert run_consensus(consensus_args) == 0
+        assert read_json(consensus_path)["degraded"] is True
+        assert read_json(consensus_status)["state"] == "DEGRADED_NO_CONSENSUS"
+
     print("OPTIONAL_007_ENRICHMENT_FAIL_OPEN_SELF_TEST_PASS")
 
 
