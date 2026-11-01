@@ -11,6 +11,8 @@ on:
       - 'analysis/nba_injury_prerequisite.py'
       - 'analysis/nba_market_consensus_backtest.py'
       - '.github/workflows/nba-priority-0630.yml'
+      - 'analysis/nba_injury_watch.py'
+      - '.github/workflows/nba-injury-change-watch.yml'
       - '.github/workflows/verify-nba-dynamic-morning-injury-and-fusion.yml'
 permissions:
   contents: read
@@ -67,4 +69,19 @@ jobs:
           assert 'if: steps.gate.outputs.skip != \'true\' && steps.gate.outputs.sent != \'true\'' in p
           assert p.count('steps.gate.outputs.skip !=') >= 20
           print('NBA_DYNAMIC_MORNING_WORKFLOW_WIRING_PASS')
+          PY
+      - name: Verify injury polling is bounded to Beijing 06:30–21:30
+        run: |
+          python3 analysis/nba_injury_watch.py --mode self-test
+          python3 - <<'PY'
+          from pathlib import Path
+          w=Path('.github/workflows/nba-injury-change-watch.yml').read_text()
+          assert '- cron: "30-59/5 22,23 * * *"' in w
+          assert '- cron: "*/5 0-12 * * *"' in w
+          assert '- cron: "0-30/5 13 * * *"' in w
+          assert '*/5 * * * *' not in w
+          s=Path('analysis/nba_injury_watch.py').read_text()
+          assert 'SKIP_OUTSIDE_BEIJING_MONITOR_WINDOW' in s
+          assert 'time(6,30)' in s and 'time(21,30)' in s
+          print('NBA_INJURY_MONITOR_0630_2130_ONLY_PASS')
           PY
