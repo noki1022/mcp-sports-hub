@@ -367,7 +367,7 @@ def self_test():
     assert match_label(game, "2026-11-02")[0] == "编号待核"
     game["five_market_forecast"]["tipoff_beijing"]="2026-11-01T08:30:00+08:00"
     h = render_compact([game], {}, "赛前", "2026-11-01", "three")
-    for v in ("北京时间 08:30 开赛", "周六316", "用户确认", "客+4.5 赢盘", "大221.5", "55.5%", "盘口未核实"):
+    for v in ("北京时间 08:30 开赛", "周六316", "用户确认", "客+4.5 赢盘", "大221.5", "55.5%", "同线市场样本不足"):
         assert v in h, v
     for bad in ("七步分析", "007多机构横向比较", "本小时动态研判", "模型 vs 盘口"):
         assert bad not in h, bad
