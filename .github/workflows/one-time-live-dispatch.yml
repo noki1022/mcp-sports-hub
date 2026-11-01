@@ -8,7 +8,6 @@ permissions:
   contents: write
 jobs:
   dispatch:
-    if: contains(github.event.head_commit.added, 'reports/one-time-run-20261101.json')
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
