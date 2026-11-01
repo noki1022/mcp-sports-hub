@@ -21,7 +21,6 @@ jobs:
       - name: Preflight locked Beijing slate, dynamic safe window and accepted-push ledger
         id: gate
         run: |
-          echo "skip=false" >> "$GITHUB_OUTPUT"
           git pull --ff-only origin main
           python3 scripts/nba_0630_priority_gate.py --phase preflight | tee /tmp/priority_gate.txt
           run_report=$(sed -n 's/.*"run_report":\(true\|false\).*/\1/p' /tmp/priority_gate.txt | tail -1)
@@ -206,9 +205,17 @@ jobs:
           print('PRIORITY_MODEL_ATTENTION',x['focus_count'],x['total_nba_games'])
           PY
       - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
+        id: presend
         name: Recheck remaining games and dedup immediately before delivery
         run: |
-          python3 scripts/nba_0630_priority_gate.py --phase presend
+          python3 scripts/nba_0630_priority_gate.py --phase presend | tee /tmp/priority_presend_gate.txt
+          run_report=$(sed -n 's/.*"run_report":\\(true\\|false\\).*/\\1/p' /tmp/priority_presend_gate.txt | tail -1)
+          if [ "$run_report" != "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "NO_REMAINING_SAFE_PRETIP_GAME_SKIP_WITHOUT_FAILURE"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
           python3 scripts/nba_0630_pretip_filter.py --joined titan007_priority_joined.json --min-lead 5 --out nba_priority_presend_verified.json
           python3 - <<'PY'
           import json
@@ -232,7 +239,7 @@ jobs:
             git checkout origin/main -- "reports/overnight-six/$TARGET_DATE"
           fi
           python3 scripts/nba_overnight_six_audit.py digest --day "$TARGET_DATE" --out nba_overnight_six_audit.json
-      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true' && steps.presend.outputs.skip != 'true'
         name: Push full-board priority analysis to iPhone before morning NBA tipoffs
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
@@ -244,7 +251,7 @@ jobs:
           if s.get('state')!='API_ACCEPTED_NOT_DEVICE_CONFIRMED':raise RuntimeError('PRIORITY_PUSH_NOT_ACCEPTED')
           print('PRIORITY_PUSHPLUS_API_ACCEPTED',s.get('games_considered'))
           PY
-      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true' && steps.presend.outputs.skip != 'true'
         name: Archive snapshot, complete analysis and successful PushPlus marker
         run: |
           mkdir -p "reports/daily/$TARGET_DATE/0630" "reports/pushplus-sent/$TARGET_DATE"
