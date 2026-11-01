@@ -37,6 +37,11 @@ jobs:
           python3 scripts/titan007_top10_companies.py --self-test
           python3 analysis/nba_market_consensus.py --self-test
           python3 analysis/nba_market_consensus_backtest.py --self-test
+          python3 - <<'PY'
+          from scripts.pushplus_mobile_v2 import self_test
+          self_test()
+          print("PUSHPLUS_FIVE_MARKET_PROBABILITY_AND_MULTI_COMPANY_SHADOW_PASS")
+          PY
           python3 scripts/parse_007_jc_three_market.py --self-test
           python3 scripts/titan007_jingcai_three_market.py --self-test
           python3 analysis/nba_five_markets.py --self-test
