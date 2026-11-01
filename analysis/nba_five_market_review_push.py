@@ -36,7 +36,10 @@ def missed_actual(g, market):
     direction = market.get("direction")
     if direction in ("OVER", "UNDER"):
         total = hp + ap
-        actual_side = "大分" if total > market.get("line", total) else "小分"
+        line = market.get("line")
+        if not isinstance(line, (int, float)) or isinstance(line, bool):
+            return f" · {score}（实际总分{total}；大小盘线待核）"
+        actual_side = "大分" if total > line else "小分" if total < line else "走盘"
         return f" · {score}（实际总分{total}，{actual_side}）"
     if direction in ("HOME_WIN", "AWAY_WIN"):
         winner = "主队胜" if hp > ap else "客队胜" if ap > hp else "平局"
@@ -119,6 +122,8 @@ def self_test():
     assert all(LABELS[k] in output for k in MARKETS)
     assert missed_actual({"home_points":115,"away_points":115},{"outcome":"MISS","direction":"OVER","line":232})==" · 实际比分115:115（实际总分230，小分）"
     assert missed_actual({"home_points":115,"away_points":115},{"outcome":"HIT","direction":"UNDER"})==""
+    assert "大小盘线待核" in missed_actual({"home_points":115,"away_points":115},{"outcome":"MISS","direction":"OVER"})
+    assert "走盘" in missed_actual({"home_points":115,"away_points":115},{"outcome":"MISS","direction":"OVER","line":230})
     assert missed_actual({"home_points":108,"away_points":100},{"outcome":"MISS","direction":"AWAY_WIN"}).startswith(" · 实际比分108:100（实际结果：主队胜）")
     assert "实际比分103:100（主队净胜+3分；客队赢盘）" in missed_actual({"home_points":103,"away_points":100},{"outcome":"MISS","direction":"HOME_COVER","signed_home_handicap":-5.5})
     assert "实际比分90:112（主队净胜-22分；客队赢盘）" in missed_actual({"home_points":90,"away_points":112},{"outcome":"MISS","direction":"HOME_COVER","signed_home_handicap":8.5})
