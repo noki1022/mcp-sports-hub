@@ -38,6 +38,7 @@ def decision(root,slot,target,now,runs,run_error=None):
         try:
             attempts=int(attempts)
             sent_at=datetime.fromisoformat(previous["at_beijing"])
+            if sent_at.tzinfo is None:raise ValueError("NAIVE_RECOVERY_TIMESTAMP")
         except (ValueError,KeyError,TypeError):
             info["reason"]="RECOVERY_MARKER_TIMESTAMP_UNVERIFIED";return info
         age=(now.astimezone(BJ)-sent_at.astimezone(BJ)).total_seconds()/60
