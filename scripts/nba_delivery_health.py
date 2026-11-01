@@ -30,8 +30,11 @@ SILENT_SIX={f"{h:02d}30" for h in range(6)}
 SCHEDULES={
     "40 4 * * *":("1200",1), "40 6 * * *":("1400",1),
     "40 7 * * *":("1500",1), "40 10 * * *":("1800",1),
-    "20 13 * * *":("2100",1), "40 13 * * *":("2100",1), "55 13 * * *":("2130",1), "45 13 * * *":("2130",1),
-    "40 14 * * *":("2200",0), "55 22 * * *":("0630",0), "45 22 * * *":("0630",0),
+    "20 13 * * *":("2100",1), "35 13 * * *":("2130",1), "40 13 * * *":("2100",1),
+    "45 13 * * *":("2130",1), "50 13 * * *":("2130",1), "55 13 * * *":("2130",1),
+    "40 14 * * *":("2200",0), "35 22 * * *":("0630",0),
+    "40 22 * * *":("0630",0), "45 22 * * *":("0630",0),
+    "50 22 * * *":("0630",0), "55 22 * * *":("0630",0),
 }
 for hour in range(14,22):
     SCHEDULES[f"55 {hour} * * *"]= (f"{(hour+8)%24:02d}30", 1 if hour<16 else 0)
@@ -128,6 +131,13 @@ def run_hint(runs:list|None,slot:str,target:str)->tuple[str,int]:
         return "WORKFLOW_FAILED",len(relevant)
     return "WORKFLOW_UNVERIFIED",len(relevant)
 
+def alert_ready(slot:str,target:str,now:datetime)->bool:
+    """Avoid alarming during the intentional priority workflow startup grace."""
+    if slot not in ("2130","0630"):return True
+    elapsed=(now.astimezone(BJ)-scheduled_start(slot,target)).total_seconds()/60
+    return elapsed>=12
+
+
 def inspect(root:Path,slot:str,target:str,runs:list|None=None,run_error:str|None=None)->dict:
     datetime.fromisoformat(target)
     if slot in SILENT_SIX:
@@ -186,8 +196,11 @@ def self_test():
         ("40 4 * * *","2026-10-30T12:40:00+08:00","1200","2026-10-31"),
         ("40 13 * * *","2026-10-30T21:40:00+08:00","2100","2026-10-31"),
         ("55 13 * * *","2026-10-30T21:55:00+08:00","2130","2026-10-31"),
+         ("35 13 * * *","2026-10-30T21:35:00+08:00","2130","2026-10-31"),
          ("45 13 * * *","2026-10-30T21:45:00+08:00","2130","2026-10-31"),
+         ("50 13 * * *","2026-10-30T21:50:00+08:00","2130","2026-10-31"),
          ("45 22 * * *","2026-10-31T06:45:00+08:00","0630","2026-10-31"),
+         ("50 22 * * *","2026-10-31T06:50:00+08:00","0630","2026-10-31"),
         ("40 14 * * *","2026-10-30T22:40:00+08:00","2200","2026-10-30"),
         ("55 14-21 * * *","2026-10-30T22:55:00+08:00","2230","2026-10-31"),
         ("55 14-21 * * *","2026-10-31T00:55:00+08:00","0030","2026-10-31"),
@@ -210,6 +223,10 @@ def self_test():
         silent=inspect(root,"0030","2026-10-31",runs=[])
         assert silent["status"]=="SILENT_ANALYSIS_MISSING"
         assert silent["run_hint"]=="SILENT_NO_PUSH_REQUIRED"
+    assert not alert_ready("2130","2026-10-31",datetime.fromisoformat("2026-10-30T21:35:00+08:00"))
+    assert alert_ready("2130","2026-10-31",datetime.fromisoformat("2026-10-30T21:45:00+08:00"))
+    assert not alert_ready("0630","2026-10-31",datetime.fromisoformat("2026-10-31T06:35:00+08:00"))
+    assert alert_ready("0630","2026-10-31",datetime.fromisoformat("2026-10-31T06:45:00+08:00"))
     fail=[{"event":"workflow_dispatch","created_at":"2026-10-30T13:25:10Z",
            "status":"completed","conclusion":"failure"}]
     assert run_hint(fail,"2130","2026-10-31")[0]=="WORKFLOW_FAILED"
@@ -263,7 +280,7 @@ def main():
     report["checked_at_beijing"]=datetime.now(BJ).isoformat()
     report["alert_api_accepted"]=False
     status=report["status"]
-    if status=="MISSING_API_ACCEPTANCE" and slot not in SILENT_SIX:
+    if status=="MISSING_API_ACCEPTANCE" and slot not in SILENT_SIX and alert_ready(slot,target,check_now):
         alarm=root/"reports"/"delivery-alert-sent"/target/(slot+".json")
         if alarm.is_file():
             try:

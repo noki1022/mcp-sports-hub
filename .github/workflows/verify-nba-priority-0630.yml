@@ -29,7 +29,7 @@ jobs:
           from pathlib import Path
           s=Path('.github/workflows/nba-priority-0630.yml').read_text()
           h=Path('.github/workflows/titan007-final-hourly.yml').read_text()
-          for c in ('30 22 * * *','40 22 * * *','50 22 * * *'):
+          for c in ('20 22 * * *','30 22 * * *','40 22 * * *'):
               assert f'- cron: "{c}"' in s,c
           assert '30 14-21 * * *' in h
           assert '30 14-22 * * *' not in h

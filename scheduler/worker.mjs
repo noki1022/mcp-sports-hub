@@ -40,11 +40,11 @@ export function plannedJob(timestamp) {
       target_date:x.day,start_hour:22,start_minute:0,
       date:x.day,kind:"night_review",attempt:m};
   }
-  if(h===21 && [25,30,40,49].includes(m)){
+  if(h===21 && [20,30,40].includes(m)){
     return {workflow:"nba-priority-2130.yml",slot:"2130",target_date:x.tomorrow,
       start_hour:21,start_minute:25,date:x.day,kind:"priority",attempt:m};
   }
-  if(h===6 && [25,30,40,49].includes(m)){
+  if(h===6 && [20,30,40].includes(m)){
     return {workflow:"nba-priority-0630.yml",slot:"0630",target_date:x.day,
       start_hour:6,start_minute:25,date:x.day,kind:"priority",attempt:m};
   }
@@ -108,14 +108,11 @@ export async function dispatchAt(timestamp,env,fetcher=fetch){
   });
   if(matching.some(x=>ACTIVE.has(x.status)))
     return {state:"WORKFLOW_RUNNING",slot:job.slot,kind:job.kind};
-  // Native GH trigger or earlier external attempt succeeded. For fixed reports
-  // we still require the accepted marker; allow brief consistency delay.
-  if(matching.some(x=>x.conclusion==="success")){
-    const newest=Math.max(...matching.filter(x=>x.conclusion==="success")
-      .map(x=>Date.parse(x.updated_at||x.created_at)));
-    if(job.kind==="hourly" || timestamp-newest<240000)
-      return {state:"SUCCESS_RECENTLY_OR_HOURLY_COMPLETE",slot:job.slot};
-  }
+  // A completed successful run is never dispatched again merely because
+  // its PushPlus marker is absent: the API may have accepted the message while
+  // the final Git commit failed. Alert/health reconciliation handles that case.
+  if(matching.some(x=>x.conclusion==="success"))
+    return {state:"WORKFLOW_SUCCESS_WITHOUT_ACCEPTED_MARKER",slot:job.slot,kind:job.kind};
   const body={ref:"main"};
   if(job.kind==="full")body.inputs={target_date:job.target_date,report_slot:job.slot};
   if(job.kind==="hourly")body.inputs={target_date:job.target_date};

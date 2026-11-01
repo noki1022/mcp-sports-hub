@@ -16,13 +16,19 @@ on:
     - cron: "40 7 * * *"
     - cron: "40 10 * * *"
     - cron: "20 13 * * *"
-    # Late bounded 21:00 retry: 21:20 is deliberately too early to dispatch.
+    # Priority recovery checks: first check at +5 minutes, then final cutoff check.
+    - cron: "35 13 * * *"
+    - cron: "45 13 * * *"
+    - cron: "50 13 * * *"
+    # Late bounded 21:00 retry.
     - cron: "40 13 * * *"
     - cron: "55 13 * * *"
-    - cron: "45 13 * * *"
     - cron: "55 14-21 * * *"
-    - cron: "55 22 * * *"
+    - cron: "35 22 * * *"
+    - cron: "40 22 * * *"
     - cron: "45 22 * * *"
+    - cron: "50 22 * * *"
+    - cron: "55 22 * * *"
 permissions:
   actions: write
   contents: write

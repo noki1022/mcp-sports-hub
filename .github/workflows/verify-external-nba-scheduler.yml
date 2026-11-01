@@ -5,6 +5,10 @@ on:
     paths:
       - 'scheduler/**'
       - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/nba-priority-0630.yml'
+      - '.github/workflows/nba-priority-2130.yml'
+      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/nba-delivery-health-watchdog.yml'
       - '.github/workflows/verify-external-nba-scheduler.yml'
 permissions: {contents: read}
 jobs:
@@ -23,5 +27,8 @@ jobs:
           assert 'report_slot:' in w
           assert 'EXTERNAL_REPORT_SLOT' in w
           assert '"$EXTERNAL_REPORT_SLOT" = "1200"' in w
-          print('EXTERNAL_NOON_COHORT_INPUT_PASS')
+          for slot in ('0630','2130'):
+              p=Path(f'.github/workflows/nba-priority-{slot}.yml').read_text()
+              assert 'workflow_dispatch:' in p
+          print('EXTERNAL_NOON_AND_PRIORITY_DISPATCH_INPUT_PASS')
           PY

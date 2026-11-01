@@ -5,9 +5,9 @@ const checks=[
 ["2026-10-30T04:00:00Z","1200","2026-10-31"],
 ["2026-10-30T07:00:00Z","1500","2026-10-31"],
 ["2026-10-30T10:00:00Z","1800","2026-10-31"],
-["2026-10-30T13:25:00Z","2130","2026-10-31"],
+["2026-10-30T13:20:00Z","2130","2026-10-31"],
 ["2026-10-30T14:30:00Z","2230","2026-10-31"],
-["2026-10-30T22:25:00Z","0630","2026-10-31"],
+["2026-10-30T22:20:00Z","0630","2026-10-31"],
 ["2026-10-30T22:40:00Z","0630","2026-10-31"]
 ];
 for(const [date,slot,target] of checks){
@@ -52,8 +52,8 @@ const extended=[
   ["2026-10-30T07:18:00Z","1500","2026-10-31"],
   ["2026-10-30T10:28:00Z","1800","2026-10-31"],
   ["2026-10-30T13:16:00Z","2100","2026-10-31"],
-  ["2026-10-30T13:49:00Z","2130","2026-10-31"],
-  ["2026-10-30T22:49:00Z","0630","2026-10-31"],
+  ["2026-10-30T13:40:00Z","2130","2026-10-31"],
+  ["2026-10-30T22:40:00Z","0630","2026-10-31"],
   ["2026-10-30T14:40:00Z","2230","2026-10-31"],
   ["2026-10-30T15:49:00Z","2330","2026-10-31"],
   ["2026-10-30T16:40:00Z","0030","2026-10-31"],
@@ -70,6 +70,8 @@ for(const [date,slot,target] of extended){
 }
 assert.equal(plannedJob(at("2026-10-30T13:17:00Z")),null); // outside retry minute
 assert.equal(plannedJob(at("2026-10-30T22:50:00Z")),null); // no stale 06:30 retry
+assert.equal(plannedJob(at("2026-10-30T13:49:00Z")),null); // no late 21:30 retry
+assert.equal(plannedJob(at("2026-10-30T22:49:00Z")),null); // no late 06:30 retry
 // A live matching run must suppress another dispatch.
 const activeRun={
   async fetch(url){
@@ -81,6 +83,18 @@ const activeRun={
   }
 };
 assert.equal((await dispatchAt(at("2026-10-30T07:08:00Z"),{GITHUB_TOKEN:"FAKE"},activeRun.fetch)).state,"WORKFLOW_RUNNING");
+// A successful run suppresses redispatch even when its marker commit is delayed.
+const successfulFixed={
+  async fetch(url){
+    if(url.includes("/contents/"))return {status:404,ok:false};
+    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[
+      {created_at:"2026-10-30T13:30:10Z",updated_at:"2026-10-30T13:35:00Z",
+       event:"schedule",status:"completed",conclusion:"success"}
+    ]})};
+    throw Error("SUCCESSFUL_FIXED_RUN_MUST_NOT_DISPATCH");
+  }
+};
+assert.equal((await dispatchAt(at("2026-10-30T13:40:00Z"),{GITHUB_TOKEN:"FAKE"},successfulFixed.fetch)).state,"WORKFLOW_SUCCESS_WITHOUT_ACCEPTED_MARKER");
 // A recently successful hourly run suppresses duplicate retry dispatch.
 const successfulHourly={
   async fetch(url){
@@ -92,7 +106,7 @@ const successfulHourly={
     throw Error("RECENT_HOURLY_SUCCESS_MUST_NOT_DISPATCH");
   }
 };
-assert.equal((await dispatchAt(at("2026-10-30T14:40:00Z"),{GITHUB_TOKEN:"FAKE"},successfulHourly.fetch)).state,"SUCCESS_RECENTLY_OR_HOURLY_COMPLETE");
+assert.equal((await dispatchAt(at("2026-10-30T14:40:00Z"),{GITHUB_TOKEN:"FAKE"},successfulHourly.fetch)).state,"WORKFLOW_SUCCESS_WITHOUT_ACCEPTED_MARKER");
 // A failed run is eligible for a bounded retry, not treated as success.
 const failedRun={
   async fetch(url,opts){

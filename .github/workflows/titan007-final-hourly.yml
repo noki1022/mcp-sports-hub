@@ -11,6 +11,10 @@ on:
     # 06:30 is exclusively the highest-priority complete morning report.
     # Ordinary hourly conditional alerts run Beijing 22:30-05:30.
     - cron: "30 14-21 * * *"
+    # Native recovery for the six silent 00:30-05:30 Beijing captures.
+    # The immutable evidence gate makes retries idempotent.
+    - cron: "40 16-21 * * *"
+    - cron: "49 16-21 * * *"
 permissions:
   contents: write
 concurrency:

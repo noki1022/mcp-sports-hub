@@ -26,12 +26,28 @@ def decision(root,slot,target,now,runs,run_error=None):
     if accepted_marker(root,slot,target):
         info["reason"]="ALREADY_API_ACCEPTED";return info
     marker=root/"reports"/"delivery-recovery-dispatched"/target/(slot+".json")
+    previous=None
     if marker.is_file():
         try:
             previous=json.loads(marker.read_text(encoding="utf-8"))
-            if previous.get("state")=="DISPATCH_HTTP_204_ACCEPTED_NOT_REPORT_DELIVERED":
-                info["reason"]="RECOVERY_DISPATCH_ALREADY_ACCEPTED";return info
-        except (ValueError,OSError):pass
+        except (ValueError,OSError):
+            info["reason"]="RECOVERY_MARKER_INVALID_FAIL_CLOSED";return info
+        if previous.get("state")!="DISPATCH_HTTP_204_ACCEPTED_NOT_REPORT_DELIVERED":
+            info["reason"]="RECOVERY_MARKER_STATE_UNVERIFIED";return info
+        attempts=previous.get("attempt_count",1)
+        try:
+            attempts=int(attempts)
+            sent_at=datetime.fromisoformat(previous["at_beijing"])
+            if sent_at.tzinfo is None:raise ValueError("NAIVE_RECOVERY_TIMESTAMP")
+        except (ValueError,KeyError,TypeError):
+            info["reason"]="RECOVERY_MARKER_TIMESTAMP_UNVERIFIED";return info
+        age=(now.astimezone(BJ)-sent_at.astimezone(BJ)).total_seconds()/60
+        if attempts>=2:
+            info["reason"]="RECOVERY_MAX_ATTEMPTS_REACHED";return info
+        if age<4:
+            info["reason"]="RECOVERY_DISPATCH_GRACE_PERIOD";return info
+        if age<0:
+            info["reason"]="RECOVERY_MARKER_FROM_FUTURE";return info
     start=scheduled_start(slot,target)
     elapsed=(now.astimezone(BJ)-start).total_seconds()/60
     lower,upper=PRIORITY_RECOVERY_WINDOWS.get(slot,(35,WINDOW_MINUTES))
@@ -41,12 +57,17 @@ def decision(root,slot,target,now,runs,run_error=None):
         info["reason"]="CANNOT_CONFIRM_RUNNING_JOBS_"+str(run_error);return info
     hint,count=run_hint(runs,slot,target)
     info["existing_run_count"]=count
-    # An already-failed run is not a success. Allow exactly one bounded rescue
-    # after all relevant runs have completed; active jobs remain non-retriable.
+    # An already-failed run is not a success. Allow a bounded initial rescue
+    # and at most one retry if an accepted dispatch never becomes a visible run.
+    # Active jobs and successful runs remain non-retriable.
     if hint not in ("NO_RECORDED_WORKFLOW_TRIGGER","WORKFLOW_FAILED"):
         info["reason"]=hint;return info
     info["action"]="DISPATCH"
-    info["reason"]="ALL_RUNS_FAILED_WITHIN_WINDOW" if hint=="WORKFLOW_FAILED" else "NO_TRIGGER_AND_WITHIN_WINDOW"
+    info["dispatch_attempt"]=(int(previous.get("attempt_count",1))+1) if previous else 1
+    info["reason"]=("SECOND_DISPATCH_NO_RUN_VISIBLE" if previous and hint=="NO_RECORDED_WORKFLOW_TRIGGER"
+                    else "SECOND_DISPATCH_AFTER_FAILED_RUN" if previous
+                    else "ALL_RUNS_FAILED_WITHIN_WINDOW" if hint=="WORKFLOW_FAILED"
+                    else "NO_TRIGGER_AND_WITHIN_WINDOW")
     return info
 
 def dispatch(repo,token,slot,target):
@@ -94,8 +115,15 @@ def self_test():
         assert decision(root,slot,target,at,successful)["action"]=="NO_DISPATCH"
         dedup=root/"reports/delivery-recovery-dispatched"/target/(slot+".json")
         dedup.parent.mkdir(parents=True,exist_ok=True)
-        dedup.write_text(json.dumps({"state":"DISPATCH_HTTP_204_ACCEPTED_NOT_REPORT_DELIVERED"}))
-        assert decision(root,slot,target,at,[])["reason"]=="RECOVERY_DISPATCH_ALREADY_ACCEPTED"
+        dedup.write_text(json.dumps({"state":"DISPATCH_HTTP_204_ACCEPTED_NOT_REPORT_DELIVERED",
+            "attempt_count":1,"at_beijing":"2026-10-31T12:40:00+08:00"}))
+        assert decision(root,slot,target,at,[])["reason"]=="RECOVERY_DISPATCH_GRACE_PERIOD"
+        later=datetime.fromisoformat("2026-10-31T12:45:00+08:00")
+        second=decision(root,slot,target,later,[])
+        assert second["action"]=="DISPATCH" and second["dispatch_attempt"]==2
+        dedup.write_text(json.dumps({"state":"DISPATCH_HTTP_204_ACCEPTED_NOT_REPORT_DELIVERED",
+            "attempt_count":2,"at_beijing":"2026-10-31T12:45:00+08:00"}))
+        assert decision(root,slot,target,datetime.fromisoformat("2026-10-31T12:50:00+08:00"),[])["reason"]=="RECOVERY_MAX_ATTEMPTS_REACHED"
         dedup.unlink()
         assert decision(root,slot,target,datetime.fromisoformat("2026-10-31T14:00:00+08:00"),[])["action"]=="NO_DISPATCH"
         at21=datetime.fromisoformat("2026-10-31T21:40:00+08:00")
@@ -147,9 +175,10 @@ def main():
             report["status"]="DISPATCH_HTTP_204_ACCEPTED_NOT_REPORT_DELIVERED"
             marker=Path("reports/delivery-recovery-dispatched")/args.target_date/(args.slot+".json")
             marker.parent.mkdir(parents=True,exist_ok=True)
+            previous_attempt=report.get("dispatch_attempt",1)
             marker.write_text(json.dumps({"state":report["status"],"slot":args.slot,
-                "target_date":args.target_date,"at_beijing":datetime.now(BJ).isoformat()})+"\n",
-                encoding="utf-8")
+                "target_date":args.target_date,"attempt_count":previous_attempt,
+                "at_beijing":datetime.now(BJ).isoformat()})+"\n",encoding="utf-8")
         except (OSError,ValueError,RuntimeError,urllib.error.HTTPError) as exc:
             report["status"]="DISPATCH_FAILED"
             report["error"]=type(exc).__name__
