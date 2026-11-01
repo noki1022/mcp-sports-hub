@@ -153,12 +153,12 @@ def self_test():
         assert decision(root,slot,target,datetime.fromisoformat("2026-10-31T12:50:00+08:00"),[])["reason"]=="RECOVERY_MAX_ATTEMPTS_REACHED"
         dedup.unlink()
         assert decision(root,slot,target,datetime.fromisoformat("2026-10-31T14:00:00+08:00"),[])["action"]=="NO_DISPATCH"
-        for slot,day,clock in (("0030","2026-10-31","2026-10-31T00:35:00+08:00"),
-                                ("0330","2026-10-31","2026-10-31T03:35:00+08:00")):
+        for night_slot,night_day,clock in (("0030","2026-10-31","2026-10-31T00:35:00+08:00"),
+                                     ("0330","2026-10-31","2026-10-31T03:35:00+08:00")):
             at_midnight=datetime.fromisoformat(clock)
-            assert decision(root,slot,day,at_midnight,[])["action"]=="DISPATCH"
-            assert decision(root,slot,day,at_midnight-timedelta(minutes=5),[])["action"]=="NO_DISPATCH"
-            assert decision(root,slot,day,at_midnight+timedelta(minutes=70),[])["action"]=="NO_DISPATCH"
+            assert decision(root,night_slot,night_day,at_midnight,[])["action"]=="DISPATCH"
+            assert decision(root,night_slot,night_day,at_midnight-timedelta(minutes=5),[])["action"]=="NO_DISPATCH"
+            assert decision(root,night_slot,night_day,at_midnight+timedelta(minutes=70),[])["action"]=="NO_DISPATCH"
         at21=datetime.fromisoformat("2026-10-31T21:40:00+08:00")
         assert decision(root,"2100","2026-11-01",at21,[])["action"]=="DISPATCH"
         assert decision(root,"2100","2026-11-01",datetime.fromisoformat("2026-10-31T21:20:00+08:00"),[])["action"]=="NO_DISPATCH"
