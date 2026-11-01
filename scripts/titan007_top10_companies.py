@@ -239,6 +239,27 @@ def selftest():
     assert o["games"][0]["markets"]["full_total"]["company_count"]==10
     assert not o["model_probability_adjusted"]
     assert len(VALIDATED_SOURCE_IDS)==10 and len(set(VALIDATED_SOURCE_IDS))==10
+    # The canonical Crown ID3 quote must be reused without a second network
+    # request, even when the institution comparison is restricted to ID3.
+    global VALIDATED_SOURCE_IDS
+    original_ids=VALIDATED_SOURCE_IDS
+    VALIDATED_SOURCE_IDS=("3",)
+    try:
+        board={"requested_display_date":"2026-10-31",
+          "captured_at_utc":"2026-10-30T14:00:00Z",
+          "crown_quote_captured_at_utc":"2026-10-30T14:00:00Z",
+          "nba_cba_games":[{"game_id":"1234","nba_game_id":"nba1234","league":"NBA",
+            "home_team":"主队","away_team":"客队","market_source_id":"3",
+            "markets":{"full_spread":{"current":{"line":-5.5,"first_side_water":0.9,"second_side_water":0.95}},
+                       "full_total":{"current":{"line":224.5,"first_side_water":0.92,"second_side_water":0.94}}}}]}
+        canonical=collect(board)
+    finally:
+        VALIDATED_SOURCE_IDS=original_ids
+    assert canonical["source_audit"][0]["status"]=="REUSED_CANONICAL_CROSS_DATE_JOIN"
+    assert canonical["source_audit"][0]["verified_market_rows"]==2
+    for market in ("full_spread","full_total"):
+        row=canonical["games"][0]["markets"][market]["companies"][0]
+        assert row["company_id"]=="3" and row["source"]=="DATED_007_COMPANY_ID"
     import tempfile
     with tempfile.TemporaryDirectory() as scratch:
         folder=Path(scratch)
