@@ -8,6 +8,7 @@ from pathlib import Path
 from datetime import datetime,timedelta,timezone
 from zoneinfo import ZoneInfo
 import yaml
+import tomllib
 
 ROOT=Path(__file__).resolve().parents[1]
 workflows={
@@ -87,6 +88,24 @@ def main():
             for minute in mins:
                 local=datetime(2026,10,30,hour,minute,tzinfo=timezone.utc).astimezone(bj)
                 assert 6*60+30<=local.hour*60+local.minute<=21*60+30,(expr,local)
+    # The external Cloudflare trigger must sleep through Beijing 22:30–05:30.
+    cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
+    cloud_crons=cloud["triggers"]["crons"]
+    expected_cloud=[
+        "0,8,18,28 4,6,7,10 * * *",
+        "0,7,16,20,30,40 13 * * *",
+        "0,10,20 14 * * *",
+        "20,30,40 22 * * *",
+    ]
+    assert cloud_crons==expected_cloud,(cloud_crons,expected_cloud)
+    for expr in cloud_crons:
+        mm,hh,_,_,_=expr.split()
+        for hour in (int(x) for x in hh.split(",")):
+            for minute in (int(x) for x in mm.split(",")):
+                utc_minute=hour*60+minute
+                assert not (14*60+30<=utc_minute<=21*60+30),(expr,hour,minute)
+    worker=(ROOT/"scheduler/worker.mjs").read_text()
+    assert 'if((h>=22 || h<=5) && [30,40,49].includes(m))' not in worker
     print("NBA_SCHEDULE_YAML_ALL_STRUCTURES_VALIDATED",len(all_times),"scheduled UTC triggers")
     print("NOTE_GITHUB_CRON_BEST_EFFORT_NOT_EXACT_TIME_GUARANTEE")
 if __name__=="__main__":main()
