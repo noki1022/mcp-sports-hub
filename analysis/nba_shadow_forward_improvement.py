@@ -188,7 +188,9 @@ def run(out):
     cutoff=date(2025,4,14) # Deliberately excludes previously viewed 2025-26 holdout.
     games,rejected,sources=load_development_history(cutoff)
     rows=build_rows(games)
-    results=[]; all_pairwise=[]
+    results=[]
+    pooled_prob=defaultdict(lambda:{"rows":[],"prob":[],"truth":[]})
+    pooled_error=defaultdict(lambda:{"actual":[],"pred":[]})
     for fold in FOLDS:
         def between(a,b):
             return [r for r in rows if a<=r["date"]<=b]
