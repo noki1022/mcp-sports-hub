@@ -56,12 +56,20 @@ def _shadow_fusion(model_rows, market_rows):
     paired=[]
     for key in sorted(set(model)&set(market)):
         a,b=model[key],market[key]
-        if a.get("capture")!=b.get("capture"):
+        model_capture=dt(a.get("capture"))
+        market_capture=dt(b.get("capture"))
+        if model_capture is None or market_capture is None:
+            continue
+        capture_skew=abs((model_capture-market_capture).total_seconds())
+        # Both sources are already required to be pre-tip and within 15 min
+        # of the frozen report; permit small same-capture ingestion skew.
+        if capture_skew>900 or int(a["outcome"])!=int(b["outcome"]):
             continue
         paired.append({"day":key[0],"game_id":key[1],
                        "model":float(a["probability"]),
                        "market":float(b["probability"]),
-                       "outcome":int(a["outcome"])})
+                       "outcome":int(a["outcome"]),
+                       "capture_skew_seconds":round(capture_skew,1)})
     days=sorted({x["day"] for x in paired})
     base={"paired_events":len(paired),"distinct_days":len(days),
           "production_fusion_enabled":False,
