@@ -264,6 +264,8 @@ def selftest():
     for market in ("full_spread","full_total"):
         row=canonical["games"][0]["markets"][market]["companies"][0]
         assert row["company_id"]=="3" and row["source"]=="DATED_007_COMPANY_ID"
+        assert row["source_capture_utc"]=="2026-10-30T14:00:00Z"
+    assert canonical["collection_completed_at_utc"]
     import tempfile
     with tempfile.TemporaryDirectory() as scratch:
         folder=Path(scratch)
