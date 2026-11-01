@@ -54,8 +54,10 @@ jobs:
           python3 analysis/nba_official_injury.py --self-test
           python3 analysis/nba_injury_watch.py --mode self-test
 
-      - name: Verify fail-closed market policy and cross-artifact delivery contract
+      - name: Verify fail-closed market policy, probability calibration gate and delivery contract
         run: |
+          python3 analysis/nba_calibration_evidence.py
+          python3 -m py_compile analysis/nba_independent_predictions.py
           python3 analysis/market_value_policy.py --self-test
           python3 scripts/nba_delivery_contract.py --self-test
 
