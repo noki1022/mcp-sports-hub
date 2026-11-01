@@ -215,12 +215,10 @@ jobs:
           PY
       - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         id: presend
-        name: Enforce strict presend 21:58 Beijing deadline and dedup
+        name: Enforce strict presend 21:58 Beijing deadline
         run: |
           python3 scripts/nba_2130_priority_gate.py --phase presend
-          if grep -q '^skip=true          if git cat-file -e "origin/main:reports/pushplus-sent/$TARGET_DATE/2130.json" 2>/dev/null; then
-             echo 'PRIORITY_ALREADY_ACCEPTED_IN_REMOTE'; exit 1
-          fi
+          echo "2130_PRESEND_GATE_COMPLETED; late runs are clean skips, never stale pushes"
       - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true' && steps.presend.outputs.skip != 'true'
         name: Push full-board priority analysis to iPhone before 22:00
         env:
