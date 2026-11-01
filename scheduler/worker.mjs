@@ -48,12 +48,8 @@ export function plannedJob(timestamp) {
     return {workflow:"nba-priority-0630.yml",slot:"0630",target_date:x.day,
       start_hour:6,start_minute:25,date:x.day,kind:"priority",attempt:m};
   }
-  if((h>=22 || h<=5) && [30,40,49].includes(m)){
-    return {workflow:"titan007-final-hourly.yml",
-      slot:`${String(h).padStart(2,"0")}30`,
-      target_date:h>=22?x.tomorrow:x.day,
-      start_hour:h,start_minute:30,date:x.day,kind:"hourly",attempt:m};
-  }
+  // Automatic 22:30–05:30 Beijing hourly market monitoring is disabled.
+  // Keep 21:30 final analysis, 22:00 official-final review and 06:30 morning report.
   return null;
 }
 
