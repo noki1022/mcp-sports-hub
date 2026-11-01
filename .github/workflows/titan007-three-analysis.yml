@@ -327,7 +327,7 @@ jobs:
           if [ "$count" -gt 0 ]; then
             dir="reports/daily/${TARGET_DATE}/${REPORT_SLOT}"
             mkdir -p "$dir"
-            cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json titan007_three_decision.json titan007_three_movement.json nba_two_market_forecast.json nba_five_market_forecast.json "$dir"/
+            cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json titan007_three_decision.json titan007_three_movement.json nba_two_market_forecast.json nba_market_consensus.json nba_five_market_forecast.json "$dir"/
             git config user.name github-actions[bot]
             git config user.email 41898282+github-actions[bot]@users.noreply.github.com
             git add "$dir"
