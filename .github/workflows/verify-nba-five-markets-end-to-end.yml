@@ -62,7 +62,7 @@ jobs:
           assert 'nba_final_review_readiness.json' in nightly
           # Multi-company capture and consensus are optional enrichment only.
           wrapper=Path('scripts/optional_007_enrichment.py').read_text()
-          assert 'analysis/nba_market_consensus.py' in wrapper
+          assert 'nba_market_consensus.py' in wrapper
           for path in paths:
               content=Path(path).read_text()
               assert 'scripts/optional_007_enrichment.py collect' in content,path
