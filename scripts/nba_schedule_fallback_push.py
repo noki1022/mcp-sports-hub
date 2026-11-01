@@ -21,7 +21,7 @@ def slot_label(slot):
 def build(fixtures, target, slot):
     lines=["<div style='font-family:-apple-system,Arial;max-width:520px;line-height:1.65;color:#263548'>",
            "<h3>NBA 赛程保底通知｜正式盘口分析失败</h3>",
-           f"<p>北京时间 {escape(slot[:2]+':'+slot[2:])}，比赛日期 {escape(target)}。</p>",
+           f"<p>{escape(slot_label(slot))}｜北京时间日期 {escape(target)}。</p>",
            "<p><b>007 盘口匹配或后续模型流水线未通过校验。</b>以下仅为官方赛程，"
            "没有真实盘口、模型概率或投注判断。五玩法均标记数据未就绪，不应据此下注。</p>"]
     if not fixtures:raise RuntimeError("NO_OFFICIAL_FIXTURES")
