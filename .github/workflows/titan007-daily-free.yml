@@ -6,9 +6,6 @@ on:
         description: "007 display date YYYY-MM-DD (optional; default based on Beijing time)"
         required: false
         type: string
-  schedule:
-    # Beijing 22:00 previous-day review.
-    - cron: "0 14 * * *"
   push:
     branches: ["feature/nba-daily-form-h2h-efficiency"]
     paths: [".github/workflows/titan007-daily-free.yml"]
