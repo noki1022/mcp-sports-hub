@@ -1,0 +1,70 @@
+name: Verify dynamic NBA morning delivery, injury display and market fusion shadow
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/pushplus_mobile.py'
+      - 'scripts/pushplus_mobile_v2.py'
+      - 'scripts/pushplus_five_compact.py'
+      - 'scripts/nba_0630_priority_gate.py'
+      - 'scripts/nba_0630_pretip_filter.py'
+      - 'analysis/nba_injury_prerequisite.py'
+      - 'analysis/nba_market_consensus_backtest.py'
+      - '.github/workflows/nba-priority-0630.yml'
+      - '.github/workflows/verify-nba-dynamic-morning-injury-and-fusion.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile modified report, injury, schedule and fusion modules
+        run: |
+          python3 -m py_compile \
+            scripts/pushplus_mobile.py \
+            scripts/pushplus_mobile_v2.py \
+            scripts/pushplus_five_compact.py \
+            scripts/nba_0630_priority_gate.py \
+            scripts/nba_0630_pretip_filter.py \
+            analysis/nba_injury_prerequisite.py \
+            analysis/nba_market_consensus_backtest.py
+      - name: Verify official injury status is propagated to the actual iPhone renderer
+        run: python3 scripts/pushplus_mobile.py --self-test
+      - name: Verify delayed morning runs use locked official tipoffs, not a fixed 06:58 cutoff
+        run: |
+          python3 scripts/nba_0630_priority_gate.py --self-test
+          python3 scripts/nba_0630_pretip_filter.py --self-test
+      - name: Verify multi-company model versus market blend uses chronological holdout only
+        run: python3 analysis/nba_market_consensus_backtest.py --self-test
+      - name: Verify injury gate and production fusion remain fail-closed
+        run: |
+          python3 analysis/nba_injury_prerequisite.py --self-test
+          python3 - <<'PY'
+          from pathlib import Path
+          gate=Path('analysis/nba_injury_prerequisite.py').read_text()
+          fusion=Path('analysis/nba_market_consensus_backtest.py').read_text()
+          assert 'PROVISIONAL_INJURY_UNADJUSTED' in gate
+          assert 'PENDING_OFFICIAL_INJURY' in gate
+          assert 'DISABLED_NO_WEIGHT_FIT_OR_PRODUCTION_OVERRIDE' in fusion
+          assert 'production_fusion_enabled":False' in fusion
+          print('INJURY_AND_FUSION_FAIL_CLOSED_PASS')
+          PY
+      - name: Verify every scheduled morning step respects dynamic skip and pre-tip filtering
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('.github/workflows/nba-priority-0630.yml').read_text()
+          assert 'cron: "*/10 22-23,0-3 * * *"' in p
+          assert 'nba_0630_priority_gate.py --phase preflight' in p
+          assert 'nba_0630_priority_gate.py --phase presend' in p
+          assert 'nba_0630_pretip_filter.py --joined titan007_priority_joined.json --min-lead 5' in p
+          assert '06:58' not in p
+          assert 'if: steps.gate.outputs.skip != \'true\' && steps.gate.outputs.sent != \'true\'' in p
+          assert p.count('steps.gate.outputs.skip !=') >= 20
+          print('NBA_DYNAMIC_MORNING_WORKFLOW_WIRING_PASS')
+          PY
