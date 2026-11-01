@@ -17,7 +17,7 @@ workflows={
  "0 10 * * *","15 10 * * *","30 10 * * *","0 13 * * *"],
  "nba-priority-2130.yml":["20 13 * * *","30 13 * * *","40 13 * * *"],
  "titan007-final-hourly.yml":["30 14-21 * * *","40 16-21 * * *","49 16-21 * * *"],
- "nba-priority-0630.yml":["*/10 22-23,0-3 * * *"],
+ "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
  "titan007-daily-free.yml":["0 14 * * *"],
  "odds-results-settlement.yml":["0 8 * * *"]
 }
