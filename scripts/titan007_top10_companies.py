@@ -3,7 +3,7 @@
 NO invented IDs, labels, water orientation, or bookmaker odds timestamps.
 """
 import argparse,html,json,re,time,urllib.request,urllib.robotparser
-from datetime import datetime,timezone
+from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from statistics import median
 from html.parser import HTMLParser
@@ -93,35 +93,58 @@ def collect(board,limit=10):
             if any(c.get("company_id")=="3" for market in item["markets"].values()
                    for c in market["companies"])}),
         "verified_market_rows":canonical_count})
+    # Query target and adjacent 007 site dates; Beijing display date is not
+    # assumed identical to the source-date bucket. Join only exact verified IDs.
+    query_dates=[(datetime.fromisoformat(target)+timedelta(days=offset)).date().isoformat()
+                 for offset in (0,-1,1)]
     for cid in selected:
         if cid=="3":
             continue
-        url="https://bf.titan007.com/nba_Oddsdata.aspx?"+urllib.parse.urlencode(
-            {"date":target,"id":cid,"h":"12","m":"00"})
-        status={"id":cid,"url":url,"status":"UNAVAILABLE","matched_games":0}
-        try:
-            raw=public_get(url,limit=250000)
-            source_capture_utc=datetime.now(timezone.utc).isoformat()
-            quotes,reject=market_entries(raw)
-            status.update({"status":"PARSED","source_rows":len(quotes),"rejections":reject,
-                          "matched_games":sum(gid in quotes for gid in ids)})
-            for gid,src in bygame.items():
-                quote=quotes.get(gid)
-                if quote is None:continue
-                for market in ("full_spread","full_total"):
-                    m=quote[market]
-                    if not all(m["current"].get(k) is not None
-                               for k in ("line","first_side_water","second_side_water")):continue
-                    src["markets"][market]["companies"].append({
-                        "display_rank":None,
-                        "company_display":"007机构ID "+cid+"（名称待核）",
-                        "company_id":cid,"market":market,
-                        "opening":m.get("opening") or {},
-                        "current":m["current"],"side_orientation":"UNVERIFIED_RAW_SLOTS",
-                        "source":"DATED_007_COMPANY_ID",
-                        "source_capture_utc":source_capture_utc})
-        except (OSError,ValueError,RuntimeError) as exc:
-            status["error"]=type(exc).__name__+": "+str(exc)[:105]
+        status={"id":cid,"url":None,"status":"UNAVAILABLE","matched_games":0,
+                "query_dates":query_dates,"source_rows":0,"verified_market_rows":0,
+                "rejections":{},"query_capture_utc":[]}
+        chosen={}
+        matched=set()
+        for day in query_dates:
+            url="https://bf.titan007.com/nba_Oddsdata.aspx?"+urllib.parse.urlencode(
+                {"date":day,"id":cid,"h":"12","m":"00"})
+            if status["url"] is None:status["url"]=url
+            try:
+                raw=public_get(url,limit=250000)
+                source_capture_utc=datetime.now(timezone.utc).isoformat()
+                status["query_capture_utc"].append({"date":day,"captured_at_utc":source_capture_utc})
+                quotes,reject=market_entries(raw)
+                status["source_rows"]+=len(quotes)
+                for reason,count in reject.items():
+                    status["rejections"][reason]=status["rejections"].get(reason,0)+count
+                for gid in ids:
+                    quote=quotes.get(gid)
+                    if quote is None:continue
+                    matched.add(gid)
+                    for market in ("full_spread","full_total"):
+                        m=quote[market]
+                        current=m.get("current") or {}
+                        if not all(current.get(k) is not None for k in ("line","first_side_water","second_side_water")):continue
+                        key=(gid,market)
+                        candidate={"display_rank":None,
+                            "company_display":"007机构ID "+cid+"（名称待核）",
+                            "company_id":cid,"market":market,
+                            "opening":m.get("opening") or {},"current":current,
+                            "side_orientation":"UNVERIFIED_RAW_SLOTS",
+                            "source":"DATED_007_COMPANY_ID",
+                            "source_capture_utc":source_capture_utc,"source_query_date":day}
+                        previous=chosen.get(key)
+                        if previous is None or candidate["source_capture_utc"]>previous["source_capture_utc"]:
+                            chosen[key]=candidate
+            except (OSError,ValueError,RuntimeError) as exc:
+                reason="QUERY_"+type(exc).__name__
+                status["rejections"][reason]=status["rejections"].get(reason,0)+1
+                status.setdefault("query_errors",[]).append({"date":day,"error":type(exc).__name__+": "+str(exc)[:105]})
+        for (gid,market),candidate in chosen.items():
+            bygame[gid]["markets"][market]["companies"].append(candidate)
+            status["verified_market_rows"]+=1
+        status["matched_games"]=len(matched)
+        status["status"]="PARSED" if status["source_rows"] else "NO_ROWS"
         source_audit.append(status)
     collection_completed_at_utc=datetime.now(timezone.utc).isoformat()
     for src in bygame.values():
