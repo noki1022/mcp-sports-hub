@@ -111,36 +111,14 @@ def market_row(key, obj):
                  if direction in ("OVER", "UNDER") and line is not None else None)
     if not label:
         return "方向待核"
-    if key.startswith("JINGCAI_"):
-        label += " · " + percent(obj.get("model_direction_probability"))
-        if obj.get("strength") == "WEAK":
-            label += " · 弱"
-    else:
-        label += " · " + percent(obj.get("model_direction_probability")) + "（未校准）"
-        if obj.get("strength") == "WEAK":
-            label += " · 弱"
+    # Keep the final push outcome-only. Multi-book consensus, same-line
+    # counts, market-implied probabilities and model-market gaps remain in
+    # the frozen source JSON for research, but are intentionally not rendered.
+    label += " · " + percent(obj.get("model_direction_probability"))
+    if key.startswith("CROWN_"):
+        label += "（参考）"
     if obj.get("quote_freshness") == "ARCHIVED_PRIOR_NOT_LIVE":
-        label += " · 历史盘"
-    consensus = obj.get("market_consensus") or {}
-    price_status = consensus.get("market_price_consensus_status")
-    market_probability = number(
-        consensus.get("market_price_probability_for_model_direction"))
-    company_count = int(consensus.get("same_line_company_count") or 0)
-    consensus_line = number(consensus.get("consensus_line"))
-    if price_status == "AVAILABLE_SAME_LINE_MEDIAN" and market_probability is not None:
-        line_note = (("，共识主队盘口 " + fmt(-consensus_line, signed=True))
-                     if key.endswith("HANDICAP") and consensus_line is not None else
-                     ("，共识总分线 " + fmt(consensus_line))
-                     if consensus_line is not None else "")
-        line_fit = ("本玩法同线" if consensus.get("direct_line_matches_price_reference") is True
-                    else "共识线参考")
-        label += (" · 同线市场 " + percent(market_probability) + "（" +
-                  str(company_count) + "家" + line_note + "，" + line_fit + "）")
-        gap = number(consensus.get("model_minus_market_probability_for_model_direction"))
-        if gap is not None:
-            label += " · 模型-市场 " + fmt(gap * 100, signed=True) + "pp"
-    elif price_status == "INSUFFICIENT_SAME_LINE_COMPANIES":
-        label += " · 同线市场样本不足"
+        label += " · 历史盘口"
     return label
 
 
@@ -160,6 +138,14 @@ def small_move(game):
         parts.append(title + " " + fmt(opening, signed=(k == "handicap")) + "→"
                      + fmt(current, signed=(k == "handicap")))
     return "　".join(parts[:2])
+
+
+def report_title(target):
+    try:
+        d = datetime.strptime(str(target), "%Y-%m-%d")
+    except (TypeError, ValueError):
+        raise RuntimeError("NBA_REPORT_DATE_INVALID")
+    return f"北京时间{d.month}月{d.day}日 NBA球赛研判"
 
 
 def render_compact(games, model_map, title, target, mode, snapshot_utc=None, official_fixtures=None):
@@ -190,9 +176,9 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None, off
             pass
     head = (
         "<div style='background:#edf3fa;border-radius:9px;padding:11px 12px;'>"
-        "<div style='font-weight:750;font-size:18px;'>NBA赛前五玩法 · " + esc(date_label) + "</div>"
-        "<div style='font-size:12px;color:#5f7085;'>北京时间 · " + str(len(rows)) +
-        "场 · 竞彩优先" + esc(stamp) + (" · 模拟" if synthetic else "") + "</div></div>"
+        "<div style='font-weight:750;font-size:18px;'>" + esc(report_title(target)) + "</div>"
+        "<div style='font-size:12px;color:#5f7085;'>共 " + str(len(rows)) +
+        " 场" + esc(stamp) + (" · 模拟" if synthetic else "") + "</div></div>"
     )
     # First capture already carries verified official UTC fixture tipoffs.
     # Show earliest tip on every push so users need not spot an early game manually.
@@ -235,32 +221,16 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None, off
             + home + " <span style='font-size:11px;color:#7b8998;font-weight:400;'>主</span>　"
             + away + " <span style='font-size:11px;color:#7b8998;font-weight:400;'>客</span></div>"
             "<div style='border-radius:7px;background:#edf4fc;padding:7px 9px;'>"
-            "<div style='font-size:11px;color:#527399;font-weight:700;margin-bottom:2px;'>竞彩 · 3玩法</div>"
+            "<div style='font-size:11px;color:#527399;font-weight:700;margin-bottom:2px;'>竞彩</div>"
         )
         for key, name in MARKETS[:3]:
             body += ("<div style='padding:3px 0;font-size:13px;'><span style='color:#536a82;'>"
                      + esc(name) + "　</span><b>" + esc(market_row(key, mk.get(key))) + "</b></div>")
         body += ("</div><div style='border-radius:7px;background:#f6f7fa;padding:6px 9px;margin-top:6px;'>"
-                 "<div style='font-size:11px;color:#718094;font-weight:650;'>皇冠ID3 · 2玩法</div>")
+                 "<div style='font-size:11px;color:#718094;font-weight:650;'>皇冠</div>")
         for key, name in MARKETS[3:]:
             body += ("<div style='padding:2px 0;font-size:12px;'><span style='color:#68788b;'>"
                      + esc(name) + "　</span>" + esc(market_row(key, mk.get(key))) + "</div>")
-        spread_cons=(mk.get("JINGCAI_HANDICAP") or {}).get("market_consensus") or {}
-        total_cons=(mk.get("JINGCAI_TOTAL") or {}).get("market_consensus") or {}
-        consensus_parts=[]
-        if spread_cons.get("consensus_line") is not None and spread_cons.get("consensus_available", True):
-            home_handicap=-float(spread_cons["consensus_line"])
-            spread_label=("主让 " if home_handicap<0 else "主受让 ")
-            spread_label+=fmt(home_handicap,signed=True)
-            spread_label+="（"+str(spread_cons.get("company_count",0))+"家）"
-            consensus_parts.append("让分 "+spread_label)
-        if total_cons.get("consensus_line") is not None and total_cons.get("consensus_available", True):
-            total_label="总分 "+fmt(total_cons["consensus_line"])
-            total_label+="（"+str(total_cons.get("company_count",0))+"家）"
-            consensus_parts.append(total_label)
-        if consensus_parts:
-            body += ("<div style='font-size:11px;color:#486b63;margin-top:5px;'>"
-                     "多机构共识：" + esc("　".join(consensus_parts)) + "</div>")
         if game.get("quote_freshness") == "ARCHIVED_PRIOR_NOT_LIVE":
             snapshot = game.get("quote_captured_at_utc")
             try:
@@ -276,28 +246,20 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None, off
         injury = game.get("injury_review") or {}
         gate = game.get("final_signal_status", "PROVISIONAL_INJURY_UNVERIFIED")
         if gate == "FINAL_INJURY_VERIFIED":
-            injury_label = "官方伤停已核 · 模型已调整"
+            injury_label = "已核，已纳入模型"
         elif gate == "PROVISIONAL_INJURY_UNADJUSTED":
-            injury_label = "官方伤停已核 · 模型尚未调整 · 临时判断"
+            injury_label = "已核，尚未纳入模型（临时）"
         else:
-            injury_label = "官方伤停待核 · 临时判断，非最终信号"
+            injury_label = "待核（临时判断）"
         body += "<div style='font-size:11px;color:#945b23;margin-top:5px;'>伤停：" + esc(injury_label) + "</div>"
         body += "</div>"
-        movement = small_move(game)
-        if movement:
-            body += "<div style='font-size:11px;color:#60768e;margin-top:5px;'>" + esc(movement) + "</div>"
         p = number((mk.get("JINGCAI_WIN") or {}).get("model_direction_probability"))
         if p is not None and p >= 0.85:
             body += ("<div style='font-size:11px;color:#97531b;margin-top:4px;'>"
                      "高置信度输出需复核校准与伤停</div>")
         body += "</div>"
         output.append(body)
-    output.append(
-        "<div style='font-size:11px;color:#6d7c8d;padding:7px 2px 12px;'>"
-        "让分正负号按对应球队显示；概率仅为竞彩模型方向概率，"
-        "皇冠缺盘口不补造。研究判断不等于投注优势。"
-        "</div></div>"
-    )
+    output.append("</div>")
     return "".join(output)
 
 
@@ -325,7 +287,7 @@ def cli():
             raise RuntimeError("FIVE_MARKET_KEYS_MISSING")
     target = obj.get("target_date")
     rows = [{**g, "five_market_forecast": g} for g in games]
-    title = "NBA 赛前五玩法 · 精简重发｜" + str(target)
+    title = report_title(target)
     html = render_compact(rows, {}, title, target, "three", obj.get("board_capture_utc"))
     Path(args.preview).write_text(html, encoding="utf-8")
     state = {"target_date": target, "games_considered": len(games),
@@ -367,15 +329,20 @@ def self_test():
     assert match_label(game, "2026-11-02")[0] == "编号待核"
     game["five_market_forecast"]["tipoff_beijing"]="2026-11-01T08:30:00+08:00"
     h = render_compact([game], {}, "赛前", "2026-11-01", "three")
-    for v in ("北京时间 08:30 开赛", "周六316", "用户确认", "客+4.5 赢盘", "大221.5", "55.5%", "同线市场样本不足"):
+    for v in ("北京时间 08:30 开赛", "周六316", "用户确认", "客+4.5 赢盘", "大221.5", "55.5%"):
         assert v in h, v
+    for hidden in ("同线市场", "模型-市场", "多机构共识", "共识总分线", "共识主队盘口", "5家"):
+        assert hidden not in h, hidden
     for bad in ("七步分析", "007多机构横向比较", "本小时动态研判", "模型 vs 盘口"):
         assert bad not in h, bad
     past={**game, "quote_freshness":"ARCHIVED_PRIOR_NOT_LIVE",
           "quote_captured_at_utc":"2026-10-31T13:30:00Z"}
     ph=render_compact([past], {}, "赛前", "2026-11-01", "three")
     assert "历史快照" in ph and "非即时盘" in ph and "10-31 21:30" in ph
-    assert "皇冠ID3" in h and "竞彩 · 3玩法" in h
+    assert "皇冠" in h and "竞彩" in h
+    assert "北京时间11月1日 NBA球赛研判" in h
+    assert "玩法" not in h and "ID3" not in h
+    assert "北京时间11月1日 NBA球赛研判" == report_title("2026-11-01")
     injected = {**game, "home_team": "<script>alert(1)</script>"}
     h = render_compact([injected], {}, "赛前", "2026-11-01", "three")
     assert "<script>" not in h and "&lt;script&gt;" in h
@@ -386,11 +353,11 @@ def self_test():
     sample = mk("AWAY_COVER", signed_home_handicap=6.5, model_direction_probability=.549)
     assert market_row("JINGCAI_HANDICAP", sample).startswith("客-6.5 赢盘")
     assert market_row("CROWN_HANDICAP", {"status": "CROWN_QUOTE_NOT_VERIFIED"}) == "盘口未核实"
-    assert "61.0%（未校准）" in market_row("CROWN_TOTAL",mk("OVER",line=230.5,model_direction_probability=.61))
+    assert "61.0%（参考）" in market_row("CROWN_TOTAL",mk("OVER",line=230.5,model_direction_probability=.61))
     crown = market_row("CROWN_HANDICAP",fcast["markets"]["CROWN_HANDICAP"])
-    assert "同线市场 56.0%（5家，共识主队盘口 -5.5，本玩法同线）" in crown
-    assert "模型-市场 +5.0pp" in crown
-    assert "同线市场样本不足" in market_row("CROWN_TOTAL",fcast["markets"]["CROWN_TOTAL"])
+    assert crown.endswith("61.0%（参考）")
+    assert "同线市场" not in crown and "模型-市场" not in crown
+    assert "61.0%（参考）" in market_row("CROWN_TOTAL",fcast["markets"]["CROWN_TOTAL"])
     print("COMPACT_FIVE_MARKET_IPHONE_SELF_TEST_PASS")
 
 

@@ -18,7 +18,7 @@ import sys
 import urllib.error
 import urllib.request
 from pushplus_mobile_v2 import from_three
-from pushplus_five_compact import render_compact
+from pushplus_five_compact import render_compact, report_title
 
 ENDPOINT="https://www.pushplus.plus/send"
 TEMPLATE="html"
@@ -225,8 +225,8 @@ def main():
             rows=from_three(joined,read(args.model),read(args.movement))
         model={str(x.get("game_id")):x for x in read(args.model).get("games",[])}
         count=len(rows)
-        title="NBA 赛前五玩法｜"+str(joined.get("requested_display_date","未知"))
-        html="" if args.five else render_compact(rows,model,"NBA/CBA 赛前五玩法",joined.get("requested_display_date","未知"),"three",official_fixtures=joined.get("upcoming_nba_games"))
+        title=report_title(joined.get("requested_display_date","未知"))
+        html="" if args.five else render_compact(rows,model,title,joined.get("requested_display_date","未知"),"three",official_fixtures=joined.get("upcoming_nba_games"))
     else:
         movement=read(args.movement)
         dynamic={str(g.get("game_id")):g for g in read(args.dynamic).get("games",[])}
@@ -240,8 +240,8 @@ def main():
         # selections when the full market board actually contains games.
         rows=list(movement.get("games",[]))
         count=len(rows)
-        title="NBA 赛前五玩法｜"+str(movement.get("target_date","未知"))
-        html="" if args.five else render_compact(rows,model,"NBA/CBA 赛前五玩法",movement.get("target_date","未知"),"hourly",official_fixtures=window.get("upcoming_nba_games"))
+        title=report_title(movement.get("target_date","未知"))
+        html="" if args.five else render_compact(rows,model,title,movement.get("target_date","未知"),"hourly",official_fixtures=window.get("upcoming_nba_games"))
     if args.mode!="smoke" and args.send and not args.five:
         raise RuntimeError("COMPACT_FIVE_MARKET_SOURCE_REQUIRED_NO_LONG_FALLBACK")
     if (args.top10 or args.verdict or args.jingcai or args.sop or args.five) and args.mode!="smoke":
@@ -295,8 +295,11 @@ def main():
             +(("<div style='color:#97531b;'>缺失说明："+esc(misses)+"</div>") if misses else "")
             +"<div>已开赛比赛不重新生成赛前判断；本报告只给尚未开赛比赛更新方向。</div></div>")
         html=notice+html
-    if args.mode!="smoke" and args.send and ("竞彩 · 3玩法" not in html or "皇冠ID3 · 2玩法" not in html):
-        raise RuntimeError("COMPACT_RENDER_INCOMPLETE_NO_LEGACY_FALLBACK")
+    if args.mode!="smoke" and args.send:
+        target_date = joined.get("requested_display_date") if args.mode=="three" else movement.get("target_date")
+        if (report_title(target_date) not in html or ">竞彩</div>" not in html
+                or ">皇冠</div>" not in html or "玩法" in html or "ID3" in html):
+            raise RuntimeError("COMPACT_RENDER_INCOMPLETE_OR_LEGACY_LABELS_NO_FALLBACK")
     html="<div style='"+style()+"max-width:560px;margin:0 auto;'>"+html+"</div>"
     Path(args.preview).write_text(html,encoding="utf-8")
     state={"mode":args.mode,"games_considered":count,"template":"html","preview":args.preview}

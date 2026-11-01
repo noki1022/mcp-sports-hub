@@ -17,7 +17,7 @@ from nba_capture_recovery import recover, self_test as recovery_selftest
 from nba_five_market_integrity_gate import verify as verify_five
 from nba_five_market_settlement import settle
 from nba_final_review_gate import completion, point_in_time_valid
-from pushplus_five_compact import render_compact, MARKETS
+from pushplus_five_compact import render_compact, MARKETS, report_title
 from titan007_hourly_history import normalized, analyze
 from nba_hourly_dynamic_review import assess
 from verify_nba_capture_analysis import verify as verify_capture
@@ -55,8 +55,9 @@ def test():
     cards=[{**g,"five_market_forecast":five[str(g["game_id"])]} for g in rows]
     html=render_compact(cards,{}, "回放验证", day,"three",
                         official_fixtures=restored["upcoming_nba_games"])
-    assert html.count("竞彩 · 3玩法")==len(fixture)
-    assert html.count("皇冠ID3 · 2玩法")==len(fixture)
+    assert html.count(">竞彩</div>")==len(fixture)
+    assert html.count(">皇冠</div>")==len(fixture)
+    assert report_title(day) in html and "玩法" not in html and "ID3" not in html
     for g in rows:
         assert g["home_team"] in html and g["away_team"] in html
     # Intraday snapshot, dynamic interpretation and independent model consistency.
