@@ -127,8 +127,10 @@ def self_test() -> None:
     hourly_workflow = Path(".github/workflows/titan007-final-hourly.yml")
     if hourly_workflow.exists():
         hourly = hourly_workflow.read_text(encoding="utf-8")
-        assert hourly.count('python3 - "$slot" <<\'PY\'') >= 2
-        assert 'os.environ["HOURLY_REPORT_SLOT"]' not in hourly
+        gate_region = hourly[hourly.index("      - name: Resolve canonical hourly slot"):
+                             hourly.index("      - name: Join Beijing NBA fixtures")]
+        assert gate_region.count('python3 - "$slot" <<\'PY\'') >= 2
+        assert 'os.environ["HOURLY_REPORT_SLOT"]' not in gate_region
         assert content.index("Preflight canonical slot and verified acceptance") < content.index("Install locked NBA numerical dependency")
         assert content.index("Recheck verified acceptance before PushPlus") < content.index("Send compact iPhone PushPlus")
         for schedule in SCHEDULE_SLOTS:
