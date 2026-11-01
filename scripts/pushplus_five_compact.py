@@ -116,9 +116,9 @@ def market_row(key, obj):
     # the frozen source JSON for research, but are intentionally not rendered.
     label += " · " + percent(obj.get("model_direction_probability"))
     if key.startswith("CROWN_"):
-        label += "（暂未校准）"
+        label += "（参考）"
     if obj.get("quote_freshness") == "ARCHIVED_PRIOR_NOT_LIVE":
-        label += " · 历史盘"
+        label += " · 历史盘口"
     return label
 
 
@@ -238,16 +238,13 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None, off
         injury = game.get("injury_review") or {}
         gate = game.get("final_signal_status", "PROVISIONAL_INJURY_UNVERIFIED")
         if gate == "FINAL_INJURY_VERIFIED":
-            injury_label = "官方伤停已核 · 模型已调整"
+            injury_label = "已核，已纳入模型"
         elif gate == "PROVISIONAL_INJURY_UNADJUSTED":
-            injury_label = "官方伤停已核 · 模型尚未调整 · 临时判断"
+            injury_label = "已核，尚未纳入模型（临时）"
         else:
-            injury_label = "官方伤停待核 · 临时判断，非最终信号"
+            injury_label = "待核（临时判断）"
         body += "<div style='font-size:11px;color:#945b23;margin-top:5px;'>伤停：" + esc(injury_label) + "</div>"
         body += "</div>"
-        movement = small_move(game)
-        if movement:
-            body += "<div style='font-size:11px;color:#60768e;margin-top:5px;'>" + esc(movement) + "</div>"
         p = number((mk.get("JINGCAI_WIN") or {}).get("model_direction_probability"))
         if p is not None and p >= 0.85:
             body += ("<div style='font-size:11px;color:#97531b;margin-top:4px;'>"
@@ -349,11 +346,11 @@ def self_test():
     sample = mk("AWAY_COVER", signed_home_handicap=6.5, model_direction_probability=.549)
     assert market_row("JINGCAI_HANDICAP", sample).startswith("客-6.5 赢盘")
     assert market_row("CROWN_HANDICAP", {"status": "CROWN_QUOTE_NOT_VERIFIED"}) == "盘口未核实"
-    assert "61.0%（未校准）" in market_row("CROWN_TOTAL",mk("OVER",line=230.5,model_direction_probability=.61))
+    assert "61.0%（参考）" in market_row("CROWN_TOTAL",mk("OVER",line=230.5,model_direction_probability=.61))
     crown = market_row("CROWN_HANDICAP",fcast["markets"]["CROWN_HANDICAP"])
-    assert crown.endswith("61.0%（暂未校准）")
+    assert crown.endswith("61.0%（参考）")
     assert "同线市场" not in crown and "模型-市场" not in crown
-    assert "61.0%（暂未校准）" in market_row("CROWN_TOTAL",fcast["markets"]["CROWN_TOTAL"])
+    assert "61.0%（参考）" in market_row("CROWN_TOTAL",fcast["markets"]["CROWN_TOTAL"])
     print("COMPACT_FIVE_MARKET_IPHONE_SELF_TEST_PASS")
 
 
