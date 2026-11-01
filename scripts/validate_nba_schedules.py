@@ -44,10 +44,17 @@ def main():
         for expr in crons:
             mm,hh,day,month,weekday=expr.split()
             assert (day,month,weekday)==("*","*","*"),expr
-            if mm.startswith("*/"):
-                step=int(mm[2:])
+            if "/" in mm:
+                base,step_text=mm.split("/",1)
+                step=int(step_text)
                 assert 1<=step<=60,expr
-                mins=list(range(0,60,step))
+                if base=="*":start,stop=0,60
+                else:
+                    start,end=map(int,base.split("-",1))
+                    stop=end+1
+                mins=list(range(start,stop,step))
+            elif mm=="*":
+                mins=list(range(60))
             else:
                 mins=[int(x) for x in mm.split(",")]
             hrs=[]
