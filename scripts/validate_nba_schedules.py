@@ -125,22 +125,38 @@ def main():
     assert "nba_final_review_gate.py" in postgame
     assert "nba_five_market_settlement.py" in postgame
     assert "titan007_join_beijing_verified.py" not in postgame
-    # The external Cloudflare trigger must sleep through Beijing 22:30–05:30.
+    # The pregame and fixed-report Cloudflare clocks must sleep through Beijing 22:30–05:30.
     cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
     cloud_crons=cloud["triggers"]["crons"]
     expected_cloud=[
-        "0,8,18,28 4,6,7,10 * * *",
-        "0,7,16,20,30,40 13 * * *",
-        "0,10,20 14 * * *",
-        "20,30,40 22 * * *",
+        "*/15 * * * *",
+        "*/5 22-23,0-13 * * *",
+        "0,1,5,6,7,8,10,11,16,18,20,28,30,35,40,45,50,55 0-8,10,13,22-23 * * *",
+        "1,6,11 20 * * *",
     ]
     assert cloud_crons==expected_cloud,(cloud_crons,expected_cloud)
-    for expr in cloud_crons:
+    # The pregame and fixed-report clocks must sleep through Beijing 22:30–05:30.
+    # The all-day */15 trigger is exclusively official-FINAL settlement polling.
+    for expr in cloud_crons[1:3]:
         mm,hh,_,_,_=expr.split()
-        for hour in (int(x) for x in hh.split(",")):
-            for minute in (int(x) for x in mm.split(",")):
+        if mm.startswith("*/"):
+            step=int(mm.split("/",1)[1])
+            mins=list(range(0,60,step))
+        else:
+            mins=[int(x) for x in mm.split(",")]
+        hrs=[]
+        for item in hh.split(","):
+            parts=item.split("-")
+            hrs.extend(range(int(parts[0]),int(parts[1])+1) if len(parts)==2 else [int(item)])
+        for hour in hrs:
+            for minute in mins:
                 utc_minute=hour*60+minute
                 assert not (14*60+30<=utc_minute<=21*60+30),(expr,hour,minute)
+    assert cloud_crons[3]=="1,6,11 20 * * *"
+    worker=(ROOT/"scheduler/worker.mjs").read_text()
+    assert '"nba-full-chain-e2e.yml", "offline_regression"' in worker
+    assert '"nba-two-market-nightly-2200.yml", "night_review"' in worker
+    assert '"titan007-final-hourly.yml"' not in worker
     worker=(ROOT/"scheduler/worker.mjs").read_text()
     assert 'if((h>=22 || h<=5) && [30,40,49].includes(m))' not in worker
     print("NBA_SCHEDULE_YAML_ALL_STRUCTURES_VALIDATED",len(all_times),"scheduled UTC triggers")
