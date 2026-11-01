@@ -46,6 +46,7 @@ const acceptedFixed = {
   }
 };
 const accepted = await dispatchAt(at("2026-10-30T07:00:00Z"), { GITHUB_TOKEN: "FAKE" }, acceptedFixed, CRONS.FIXED);
+console.log("ACCEPTED_MARKER_TEST_RESULT", JSON.stringify(accepted));
 assert.equal(accepted.results[0].state, "API_ALREADY_ACCEPTED");
 
 // A prior review marker for one date must not stop polling another delayed slate.
