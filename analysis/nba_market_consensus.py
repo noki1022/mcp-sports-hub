@@ -526,18 +526,18 @@ def self_test():
     # The arithmetic median can fall between offered lines. Select only a
     # supported, actually quoted modal line for pricing and model comparison.
     modal = json.loads(json.dumps(top))
-    modal_rows = modal["games"][0]["markets"]["full_spread"]["companies"]
-    for quote, line in zip(modal_rows, (-6.0, -6.0, -6.0, -6.0, -6.0)):
-        quote["current"]["line"] = line
-    modal_rows[0]["current"]["line"] = -6.5
-    modal_rows[1]["current"]["line"] = -6.5
-    modal_rows[2]["current"]["line"] = -6.5
-    modal_rows[3]["current"]["line"] = -6.5
+    modal_lines = [-6.5] * 4 + [-6.0] * 5 + [-7.0]
+    modal["games"][0]["markets"]["full_spread"]["companies"] = [
+        {"company_id": cid, "source": "DATED_007_COMPANY_ID",
+         "source_capture_utc": "2026-10-31T10:01:00Z",
+         "current": {"line": line, "first_side_water": .90, "second_side_water": .95}}
+        for cid, line in zip(VALIDATED_COMPANY_IDS, modal_lines)]
     modal_stats = build(joined, modal)["games"][0]["markets"]["full_spread"]
     assert modal_stats["median_line"] == -6.25
-    assert modal_stats["consensus_line"] == -6.5
-    assert modal_stats["main_line_company_count"] == 4
-    assert modal_stats["same_line_price_consensus"]["reference_line"] == -6.5
+    assert modal_stats["consensus_line"] == -6.0
+    assert modal_stats["main_line_company_count"] == 5
+    assert modal_stats["same_line_price_consensus"]["reference_line"] == -6.0
+    assert modal_stats["same_line_price_consensus"]["company_count"] == 5
     ml = selection_context("JINGCAI_WIN", None, "AWAY_WIN", -2, 225, 12, 18, g)
     assert ml["proxy_type"] == "SPREAD_FAVORITE_NOT_MONEYLINE_ODDS"
     assert ml["moneyline_consensus_probability"] is None
