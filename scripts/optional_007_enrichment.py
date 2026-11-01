@@ -273,8 +273,9 @@ def run_collect(args: argparse.Namespace) -> int:
 def run_consensus(args: argparse.Namespace) -> int:
     started = time.monotonic()
     board = read_json(args.joined)
-    # Validate the auxiliary input before launching the consensus builder.
-    read_json(args.top10)
+    # The top-ten artifact is auxiliary too: if it is missing or malformed,
+    # let the builder fail inside the guarded block and emit an unavailable
+    # consensus artifact rather than interrupting the production chain.
     command = [
         sys.executable, str(ROOT / "analysis" / "nba_market_consensus.py"),
         "--joined", str(Path(args.joined).resolve()),
