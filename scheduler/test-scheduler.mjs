@@ -18,7 +18,7 @@ assert.deepEqual(kinds("2026-10-30T13:55:00Z", CRONS.FIXED), ["health"]);
 
 assert.deepEqual(kinds("2026-10-30T22:20:00Z", CRONS.PREGAME), ["priority_0630"]);
 assert.deepEqual(kinds("2026-10-31T05:50:00Z", CRONS.PREGAME), ["priority_0630"]);
-assert.deepEqual(kinds("2026-10-31T05:55:00Z", CRONS.PREGAME), []);
+assert.deepEqual(kinds("2026-10-31T05:55:00Z", CRONS.PREGAME), ["injury_watch"]);
 assert.deepEqual(kinds("2026-10-30T22:35:00Z", CRONS.PREGAME), ["injury_watch", "health"]);
 assert.deepEqual(kinds("2026-10-30T22:40:00Z", CRONS.PREGAME), ["priority_0630", "injury_watch", "health"]);
 assert.deepEqual(kinds("2026-10-30T13:30:00Z", CRONS.PREGAME), ["injury_watch"]);
@@ -67,7 +67,7 @@ const activeInjury = {
     if (url.includes("/runs?")) return {
       ok: true,
       json: async () => ({ workflow_runs: [{
-        created_at: "2026-10-31T04:05:10Z",
+        created_at: "2026-10-31T04:04:50Z",
         event: "workflow_dispatch",
         status: "in_progress",
         conclusion: null
