@@ -282,7 +282,7 @@ def self_test():
         for cid in ("3","1","2","8","9") for kind in ("full_spread","full_total")]
     consensus=build_consensus_for_test(joined,companies,top)
     out=make(joined,model,jc,top,consensus)
-    assert out["market_consensus_status"]=="nba-007-market-consensus-v1"
+    assert out["market_consensus_status"]=="nba-007-market-consensus-v2-same-line-price-shadow"
     assert m_consensus_present(out,"JINGCAI_HANDICAP")
     assert out["games"][0]["markets"]["JINGCAI_WIN"]["market_consensus"]["proxy_type"]=="SPREAD_FAVORITE_NOT_MONEYLINE_ODDS"
     m=out["games"][0]["markets"]
