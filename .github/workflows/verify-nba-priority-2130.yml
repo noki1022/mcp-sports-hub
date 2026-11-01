@@ -6,6 +6,7 @@ on:
       - '.github/workflows/nba-priority-2130.yml'
       - '.github/workflows/titan007-final-hourly.yml'
       - 'scripts/nba_2130_priority_gate.py'
+      - 'scripts/validate_nba_schedules.py'
       - '.github/workflows/verify-nba-priority-2130.yml'
 permissions:
   contents: read
@@ -36,6 +37,13 @@ jobs:
           assert s.index('--phase presend')<s.index('pushplus_mobile.py --mode three')
           assert s.index('pushplus_mobile.py --mode three')<s.index('Archive snapshot, complete analysis')
           assert '--require-token' in s
+          assert 'steps.gate.outputs.skip != \'true\'' in s
+          assert 'id: presend' in s
+          assert 'steps.presend.outputs.skip != \'true\'' in s
+          gate=Path('scripts/nba_2130_priority_gate.py').read_text()
+          assert 'PRIORITY_2130_SKIPPED_OUTSIDE_SAFE_WINDOW_NO_STALE_PUSH' in gate
+          assert 'PRIORITY_REPORT_MISSED_CUTOFF_NO_LATE_PUSH' not in gate
+          assert 'def write_outputs(result)' in gate
           preflight=s.split('      - name: Preflight Beijing cutoff; check prior accepted push',1)[1].split('      - if:',1)[0]
           assert 'export TARGET_DATE="$target"' in preflight
           assert preflight.index('export TARGET_DATE="$target"')<preflight.index('nba_fixed_slot_gate.py')
