@@ -34,7 +34,7 @@ jobs:
           evening=Path('.github/workflows/nba-priority-2130.yml').read_text()
           hourly=Path('.github/workflows/titan007-final-hourly.yml').read_text()
           watchdog=Path('.github/workflows/nba-delivery-health-watchdog.yml').read_text()
-          assert 'cron: "*/10 22-23,0-3 * * *"' in morning
+          assert 'cron: "*/10 22-23,0-5 * * *"' in morning
           assert '20 13 * * *' in evening and '40 13 * * *' in evening
           assert '50 22 * * *' in watchdog and '50 13 * * *' in watchdog
           assert '40 16-21 * * *' in hourly and '49 16-21 * * *' in hourly
