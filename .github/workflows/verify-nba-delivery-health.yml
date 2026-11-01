@@ -53,7 +53,7 @@ jobs:
           assert 'infer_slot(os.environ.get("GH_HEALTH_SCHEDULE",""),datetime.now(BJ))' in health
           assert 'except (OSError,ValueError)' in health
           assert '--alert-marker-out' in health
-          assert '55 14-21 * * *' not in health_workflow
+          assert '55 14-21 * * *' not in health
           assert 'schedule:' not in hourly.split('permissions:',1)[0]
           assert 'workflow_dispatch:' in hourly
           assert '55 14-21 * * *' in health_logic  # legacy parser retained only for manual diagnostics
