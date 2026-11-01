@@ -1,5 +1,9 @@
 name: Titan007 daily three analysis before lottery cutoff
 on:
+  # Temporary path-scoped one-time production acceptance trigger.
+  push:
+    paths:
+      - '.github/one-time-full-chain-trigger'
   workflow_dispatch:
     inputs:
       report_slot:
