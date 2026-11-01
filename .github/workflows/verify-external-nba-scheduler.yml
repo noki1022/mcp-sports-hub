@@ -47,9 +47,13 @@ jobs:
           ]
           assert crons==expected,(crons,expected)
           # UTC 14:30–21:30 is Beijing 22:30–05:30: no cron is scheduled there.
-          assert all(not any(14 <= h <= 21 for h in
-              (range(int(expr.split()[1].split('-')[0]),int(expr.split()[1].split('-')[-1])+1)
-               if '-' in expr.split()[1] else [int(x) for x in expr.split()[1].split(',')]))
-              for expr in crons if expr.split()[1] not in ('4,6,7,10','13','14','22'))
+          for expr in crons:
+              minute_field,hour_field,*_=expr.split()
+              minutes=[int(x) for x in minute_field.split(',')]
+              hours=[int(x) for x in hour_field.split(',')]
+              for hour in hours:
+                  for minute in minutes:
+                      utc_minute=hour*60+minute
+                      assert not (14*60+30 <= utc_minute <= 21*60+30),(expr,hour,minute)
           print('CLOUDFLARE_NO_OVERNIGHT_CRON_WAKEUPS_PASS')
           PY
