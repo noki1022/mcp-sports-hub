@@ -4,8 +4,11 @@
 This isolated research experiment does not alter production probabilities, reports, schedules, GitHub Actions production workflows, or PushPlus. It intentionally excludes the previously inspected 2025-26 holdout and 2026-27 monitor.
 
 ## Pre-registered folds
-- 2023-24 late-season: fit 2022-23, calibrate 2023-24 through 2024-01-15, evaluate 2024-02-01 through 2024-04-14.
+- 2023-24 forward 1: fit through 2023-04-10, calibrate 2023-10-24 through 2023-12-01, evaluate 2023-12-09 through 2024-01-15.
+- 2023-24 forward 2: fit through 2023-12-01, calibrate 2023-12-02 through 2024-01-15, evaluate 2024-01-23 through 2024-02-29.
+- 2023-24 forward 3: fit through 2024-01-15, calibrate 2024-01-16 through 2024-02-29, evaluate 2024-03-08 through 2024-04-14.
 - 2024-25 late-season: fit through 2024-12-15, calibrate 2024-12-16 through 2025-01-31, evaluate 2025-02-08 through 2025-04-13.
+- Evaluation windows are disjoint; each fold is a separate rolling-origin deployment simulation.
 - A seven-day embargo separates calibration and evaluation in each fold. Every split is by complete calendar date.
 - Ridge alpha is frozen at 100; no tuning on evaluation labels.
 
