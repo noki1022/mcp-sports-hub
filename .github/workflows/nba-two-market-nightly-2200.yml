@@ -33,6 +33,14 @@ jobs:
           python3 analysis/nba_five_market_settlement.py --self-test
           python3 analysis/nba_five_market_settlement.py --forecast "$FROZEN_FORECAST" --day "$REVIEW_DAY" \
             --scores nba_final_review_scores.json --out "reports/five-market-settled/$REVIEW_DAY/settlement.json"
+      - name: Score multi-company consensus against exact frozen pretip captures
+        if: env.RUN_REPORT == 'true'
+        run: |
+          python3 analysis/nba_market_consensus_backtest.py --self-test
+          python3 analysis/nba_market_consensus_backtest.py \
+            --intraday-root reports/five-market-intraday \
+            --settled-root reports/five-market-settled \
+            --out "reports/five-market-settled/$REVIEW_DAY/market_consensus_scorecard.json"
       - name: Score frozen independent model probabilities against official Final (read-only)
         if: env.RUN_REPORT == 'true'
         run: |
