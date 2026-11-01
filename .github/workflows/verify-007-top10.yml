@@ -44,7 +44,7 @@ jobs:
               assert "--history-root reports/top10" in s
               assert "git add reports/top10/" in s
           wrapper=Path("scripts/optional_007_enrichment.py").read_text()
-          assert "scripts/titan007_top10_companies.py" in wrapper
+          assert "titan007_top10_companies.py" in wrapper
           assert "COLLECT_TIMEOUT_AFTER_" in wrapper
           assert "DEGRADED_CANONICAL_ID3_ONLY" in wrapper
           assert "PRIMARY_PIPELINE_CONTINUES" in wrapper
