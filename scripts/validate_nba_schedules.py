@@ -15,7 +15,7 @@ workflows={
  "titan007-three-analysis.yml": ["0 4 * * *","15 4 * * *","30 4 * * *",
  "0 6 * * *","15 6 * * *","30 6 * * *",
  "0 7 * * *","15 7 * * *","30 7 * * *",
- "0 10 * * *","15 10 * * *","30 10 * * *","0 13 * * *"],
+ "0 10 * * *","15 10 * * *","30 10 * * *","0 13 * * *","45 12 * * *"],
  "nba-priority-2130.yml":["20 13 * * *","30 13 * * *","40 13 * * *"],
  "titan007-final-hourly.yml":[],
  "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
@@ -92,6 +92,7 @@ def main():
     assert ("nba-priority-0630.yml","06:30") in all_times
     assert ("titan007-three-analysis.yml","15:00") in all_times
     assert ("titan007-three-analysis.yml","18:00") in all_times
+    assert ("titan007-three-analysis.yml","20:45") in all_times
     assert ("titan007-three-analysis.yml","06:00") not in all_times
     # No automatic 22:00 auxiliary odds scan after the 21:30 final report.
     assert ("titan007-daily-free.yml","22:00") not in all_times
@@ -133,6 +134,7 @@ def main():
         "0,7,16,20,30,40 13 * * *",
         "0,10,20 14 * * *",
         "20,30,40 22 * * *",
+        "48 12 * * *",
     ]
     assert cloud_crons==expected_cloud,(cloud_crons,expected_cloud)
     for expr in cloud_crons:
