@@ -80,11 +80,13 @@ export function plannedJobs(timestamp, cron = null) {
         ));
       }
     }
-    if (h === 16 && [0, 5, 10].includes(m)) {
-      jobs.push(job("odds-results-settlement.yml", "odds_settlement", "1600", x.day, x, 16, 0));
+    if (h === 16 && [1, 6, 11].includes(m)) {
+      jobs.push(job("odds-results-settlement.yml", "odds_settlement", "1600", x.day, x, 16, 0,
+        { blockAnyActive: true, activeWindowMs: 20 * MINUTE_MS }));
     }
-    if (h === 4 && [0, 5, 10].includes(m)) {
-      jobs.push(job("nba-full-chain-e2e.yml", "offline_regression", "0400", x.day, x, 4, 0));
+    if (h === 4 && [1, 6, 11].includes(m)) {
+      jobs.push(job("nba-full-chain-e2e.yml", "offline_regression", "0400", x.day, x, 4, 0,
+        { blockAnyActive: true, activeWindowMs: 20 * MINUTE_MS }));
     }
   }
 
