@@ -8,6 +8,7 @@ from pathlib import Path
 from datetime import datetime,timedelta,timezone
 from zoneinfo import ZoneInfo
 import yaml
+import tomllib
 
 ROOT=Path(__file__).resolve().parents[1]
 workflows={
@@ -18,7 +19,7 @@ workflows={
  "nba-priority-2130.yml":["20 13 * * *","30 13 * * *","40 13 * * *"],
  "titan007-final-hourly.yml":[],
  "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
- "titan007-daily-free.yml":["0 14 * * *"],
+ "titan007-daily-free.yml":[],
  "odds-results-settlement.yml":["0 8 * * *"]
 }
 def load(path):
@@ -44,10 +45,17 @@ def main():
         for expr in crons:
             mm,hh,day,month,weekday=expr.split()
             assert (day,month,weekday)==("*","*","*"),expr
-            if mm.startswith("*/"):
-                step=int(mm[2:])
+            if "/" in mm:
+                base,step_text=mm.split("/",1)
+                step=int(step_text)
                 assert 1<=step<=60,expr
-                mins=list(range(0,60,step))
+                if base=="*":start,stop=0,60
+                else:
+                    start,end=map(int,base.split("-",1))
+                    stop=end+1
+                mins=list(range(start,stop,step))
+            elif mm=="*":
+                mins=list(range(60))
             else:
                 mins=[int(x) for x in mm.split(",")]
             hrs=[]
@@ -63,6 +71,41 @@ def main():
     assert ("titan007-three-analysis.yml","15:00") in all_times
     assert ("titan007-three-analysis.yml","18:00") in all_times
     assert ("titan007-three-analysis.yml","06:00") not in all_times
+    # No automatic 22:00 auxiliary odds scan after the 21:30 final report.
+    assert ("titan007-daily-free.yml","22:00") not in all_times
+    injury=load(ROOT/".github/workflows/nba-injury-change-watch.yml")
+    injury_on=injury.get("on",injury.get(True,{}))
+    injury_crons=[x["cron"] for x in injury_on.get("schedule",[])]
+    assert injury_crons==["30-59/5 22,23 * * *","*/5 0-12 * * *","0-30/5 13 * * *"],injury_crons
+    # Verify every injury cron minute maps only to 06:30–21:30 Beijing.
+    for expr in injury_crons:
+        mm,hh,_,_,_=expr.split()
+        mins=(list(range(30,60,5)) if mm=="30-59/5" else
+              list(range(0,60,5)) if mm=="*/5" else list(range(0,31,5)))
+        hrs=([22,23] if hh=="22,23" else
+             list(range(0,13)) if hh=="0-12" else [13])
+        for hour in hrs:
+            for minute in mins:
+                local=datetime(2026,10,30,hour,minute,tzinfo=timezone.utc).astimezone(bj)
+                assert 6*60+30<=local.hour*60+local.minute<=21*60+30,(expr,local)
+    # The external Cloudflare trigger must sleep through Beijing 22:30–05:30.
+    cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
+    cloud_crons=cloud["triggers"]["crons"]
+    expected_cloud=[
+        "0,8,18,28 4,6,7,10 * * *",
+        "0,7,16,20,30,40 13 * * *",
+        "0,10,20 14 * * *",
+        "20,30,40 22 * * *",
+    ]
+    assert cloud_crons==expected_cloud,(cloud_crons,expected_cloud)
+    for expr in cloud_crons:
+        mm,hh,_,_,_=expr.split()
+        for hour in (int(x) for x in hh.split(",")):
+            for minute in (int(x) for x in mm.split(",")):
+                utc_minute=hour*60+minute
+                assert not (14*60+30<=utc_minute<=21*60+30),(expr,hour,minute)
+    worker=(ROOT/"scheduler/worker.mjs").read_text()
+    assert 'if((h>=22 || h<=5) && [30,40,49].includes(m))' not in worker
     print("NBA_SCHEDULE_YAML_ALL_STRUCTURES_VALIDATED",len(all_times),"scheduled UTC triggers")
     print("NOTE_GITHUB_CRON_BEST_EFFORT_NOT_EXACT_TIME_GUARANTEE")
 if __name__=="__main__":main()
