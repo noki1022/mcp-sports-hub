@@ -285,64 +285,7 @@ jobs:
             nba_jingcai_three_market.json
             nba_two_market_forecast.json
             nba_five_market_forecast.json
-            nba_priority_focus.json
-            nba_capture_audit.json
-            reports/overnight-cohorts/**/*.json
-            nba_priority_dynamic.json
-            nba_priority_injury_context.json
-            nba_injury_prospective_2130.json
-            nba_priority_bc.json
-            nba_priority_iphone.html
-            nba_priority_pushplus_status.json
-          if-no-files-found: warn
-          retention-days: 14
-      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true' && steps.presend.outputs.skip != 'true'
-        name: Push full-board priority analysis to iPhone before 22:00
-        env:
-          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
-        run: |
-          python3 scripts/pushplus_mobile.py --mode three --joined titan007_priority_joined.json --movement titan007_priority_movement.json --dynamic nba_priority_dynamic.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --model nba_priority_model.json --sop nba_analysis_sop.json --five nba_five_market_forecast.json --priority-focus nba_priority_focus.json --preview nba_priority_iphone.html --status nba_priority_pushplus_status.json --send --require-token
-          python3 - <<'PY'
-          import json
-          s=json.load(open('nba_priority_pushplus_status.json'))
-          if s.get('state')!='API_ACCEPTED_NOT_DEVICE_CONFIRMED':raise RuntimeError('PRIORITY_PUSH_NOT_ACCEPTED')
-          print('PRIORITY_PUSHPLUS_API_ACCEPTED',s.get('games_considered'))
-          PY
-      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true' && steps.presend.outputs.skip != 'true'
-        name: Archive snapshot, complete analysis and successful PushPlus marker
-        run: |
-          mkdir -p "reports/daily/$TARGET_DATE/2130" "reports/pushplus-sent/$TARGET_DATE"
-          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_market_consensus.json nba_five_market_forecast.json nba_priority_focus.json nba_priority_iphone.html nba_injury_prospective_2130.json "reports/daily/$TARGET_DATE/2130/"
-          python3 - <<'PY'
-          import os,json
-          from pathlib import Path
-          Path('reports/pushplus-sent',os.environ['TARGET_DATE'],'2130.json').write_text(json.dumps({'state':'API_ACCEPTED_NOT_DEVICE_CONFIRMED','slot':'2130','run_id':os.environ['GITHUB_RUN_ID']})+'\n')
-          PY
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add reports/hourly/ "reports/daily/$TARGET_DATE/2130" "reports/pushplus-sent/$TARGET_DATE/2130.json"
-          git commit -m "Priority pre-cutoff NBA report $TARGET_DATE"
-          for i in 1 2 3; do
-            if git push origin HEAD:main; then exit 0; fi
-            git pull --rebase origin main
-          done
-          exit 1
-      - if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: nba-priority-2130-${{ env.TARGET_DATE }}
-          path: |
-            titan007_priority_joined.json
-            titan007_priority_movement.json
-            nba_priority_model.json
-            nba_top10_companies.json
-            nba_top10_comparison.json
-            nba_top10_capture_status.json
-            nba_market_consensus_status.json
-            nba_market_consensus.json
-            nba_jingcai_three_market.json
-            nba_two_market_forecast.json
-            nba_five_market_forecast.json
+            nba_dynamic_five_market_shadow.json
             nba_priority_focus.json
             nba_capture_audit.json
             reports/overnight-cohorts/**/*.json
