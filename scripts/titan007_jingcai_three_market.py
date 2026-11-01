@@ -45,24 +45,21 @@ def inspect_sources(board, *, get=None):
        "status":"AWAITING_CANONICAL_007_XML_AUDIT"}
 
 def test():
-    class Response:
-        def __init__(self,txt):self.txt=txt
-        def __enter__(self):return self
-        def __exit__(self,*a):return False
-        def read(self,*a):return self.txt.encode()
+    calls=[]
     def fake(req,timeout=8):
-        assert req.full_url.endswith("/robots.txt")
-        return Response("User-agent: *\nDisallow: /\n")
+        calls.append(req.full_url)
+        raise AssertionError("ALTERNATE_CP_PAGE_MUST_NOT_BE_REQUESTED")
     board={"requested_display_date":"2026-10-31","captured_at_utc":"2026-10-30T10:00:00+00:00",
         "nba_cba_games":[{"league":"NBA","game_id":"728165","nba_game_id":"401909277",
                           "home_team":"奇才","away_team":"黄蜂"}]}
     x=inspect_sources(board,get=fake)
     assert set(x["source_status"])==set(SOURCE_MAP)
-    assert all(v["status"]=="ACCESS_DISALLOWED" for v in x["source_status"].values())
+    assert all(v["status"]=="AWAITING_CANONICAL_XML_AUDIT" for v in x["source_status"].values())
     assert x["verified_games_with_all_three"]==0
-    assert all(v["home_odds"] is None for v in x["games"][0]["markets"].values())
-    assert not x["model_fusion_enabled"]
-    print("JINGCAI_ALL_THREE_MARKETS_FAIL_CLOSED_TEST_PASS")
+    assert all(v["status"]=="AWAITING_CANONICAL_XML_AUDIT"
+               for v in x["games"][0]["markets"].values())
+    assert not x["model_fusion_enabled"] and not calls
+    print("JINGCAI_CANONICAL_XML_AUDIT_STATE_TEST_PASS")
 
 if __name__=="__main__":
     p=argparse.ArgumentParser()
