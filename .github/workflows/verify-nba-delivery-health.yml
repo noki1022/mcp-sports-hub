@@ -37,6 +37,7 @@ jobs:
           import yaml
           hourly=Path('.github/workflows/titan007-final-hourly.yml').read_text()
           health=Path('.github/workflows/nba-delivery-health-watchdog.yml').read_text()
+          health_workflow=health
           assert '--require-delivery' in hourly
           assert 'HOURLY_REPORT_SLOT' in hourly and 'HOURLY_DELIVERY_MARKED' in hourly
           hourly_gate=hourly.split('      - name: Resolve canonical hourly slot; skip if API already accepted',1)[1].split('      - name: Join Beijing NBA fixtures',1)[0]
