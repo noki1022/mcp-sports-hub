@@ -43,12 +43,12 @@ def resolve_slot(schedule: str, supplied: str, now: datetime, event_name: str = 
         raise ValueError("UNKNOWN_FIXED_SLOT_SCHEDULE")
     if schedule and supplied:
         raise ValueError("MIXED_SCHEDULE_AND_DISPATCH_SLOT")
-    if supplied == "ONCE":
+    if supplied == "ONCE" or re.fullmatch(r"ONCE-[A-Z0-9-]{1,40}", supplied):
         manual_dispatch = event_name == "workflow_dispatch"
         explicitly_authorized_push = event_name == "push" and allow_once_push
         if not (manual_dispatch or explicitly_authorized_push):
             raise ValueError("ONE_TIME_SLOT_ONLY_MANUAL_OR_EXPLICIT_PUSH")
-        return "ONCE"
+        return supplied
     if supplied and supplied not in FIXED_SLOTS:
         raise ValueError("INVALID_FIXED_SLOT")
     if not schedule and not supplied and event_name == "workflow_dispatch":
@@ -96,6 +96,7 @@ def self_test() -> None:
     assert resolve_slot("", "", now, "workflow_dispatch") == "ONCE"
     assert resolve_slot("", "ONCE", now, "workflow_dispatch") == "ONCE"
     assert resolve_slot("", "ONCE", now, "push", True) == "ONCE"
+    assert resolve_slot("", "ONCE-20261101-REPLAY2", now, "push", True) == "ONCE-20261101-REPLAY2"
     assert resolve_slot("", "ONCE-20261101-REPLAY2", now, "push", True) == "ONCE-20261101-REPLAY2"
     for event, allow in (("push", False), ("schedule", True)):
         try:
