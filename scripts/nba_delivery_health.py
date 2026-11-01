@@ -232,7 +232,7 @@ def self_test():
         path.write_text(json.dumps({"slot":"2130","state":ACCEPTED}),encoding="utf-8")
         assert inspect(root,"2130","2026-10-31",runs=[])["status"]==ACCEPTED
         assert "未见推送成功标记" in alert_html(x)
-        silent=inspect(root,"0030","2026-10-31",runs=[])
+        silent=inspect(root,"0130","2026-10-31",runs=[])
         assert silent["status"]=="SILENT_ANALYSIS_MISSING"
         assert silent["run_hint"]=="SILENT_NO_PUSH_REQUIRED"
         assert inspect(root,"0030","2026-10-31",runs=[])["status"]=="MISSING_API_ACCEPTANCE"
