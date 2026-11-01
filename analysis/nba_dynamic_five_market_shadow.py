@@ -103,7 +103,13 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
 
     board_capture=stamp(joined.get("captured_at_utc"))
     frozen_board_capture=stamp(five.get("board_capture_utc"))
-    model_capture=stamp(model.get("generated_at_utc",model.get("analysis_generated_at_utc")))
+    model_capture=stamp(model.get("generated_at_utc") or model.get("analysis_generated_at_utc"))
+    model_capture_source="MODEL_REPORT_GENERATED_AT_UTC"
+    if not model_capture:
+        # Five-market forecast is generated only after the model artifact has
+        # been produced and consumed; use its time as a conservative upper bound.
+        model_capture=stamp(five.get("analysis_generated_at_utc"))
+        model_capture_source="FIVE_MARKET_BUILD_UPPER_BOUND_MODEL_EXISTED_BY_THIS_TIME"
     if not board_capture or not frozen_board_capture or board_capture!=frozen_board_capture:
         raise ValueError("BOARD_CAPTURE_TIMESTAMP_MISMATCH")
     if not model_capture: raise ValueError("MODEL_GENERATION_TIMESTAMP_MISSING")
@@ -252,6 +258,7 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
             "home_team":game.get("home_team"),"away_team":game.get("away_team"),
             "tipoff_beijing":game.get("start_time_beijing"),
             "board_capture_utc":iso(board_capture),"model_capture_utc":iso(model_capture),
+            "model_capture_time_source":model_capture_source,
             "decision_asof_utc":iso(max([x for x in [board_capture,model_capture]+[
                 stamp(v.get("quote_capture_utc")) for v in current.values() if v.get("quote_capture_utc")]+[
                 stamp(v.get("consensus_capture_utc")) for v in current.values() if v.get("consensus_capture_utc")]])),
@@ -272,6 +279,7 @@ def evaluate(joined, model, five, jingcai=None, consensus=None, injury=None, pre
         "schema_version":"nba-dynamic-five-market-shadow-v2",
         "target_date":day,"slot":slot,
         "captured_at_utc":iso(board_capture),"model_capture_utc":iso(model_capture),
+        "model_capture_time_source":model_capture_source,
         "jingcai_feed_capture_utc":iso(stamp(jc_feed.get("captured_at_utc"))),
         "game_count":len(rows),"games":rows,
         "production_model_modified":False,"pushplus_enabled":False,
