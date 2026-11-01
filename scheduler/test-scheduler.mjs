@@ -110,6 +110,6 @@ assert.equal((await dispatchAt(at("2026-10-30T07:08:00Z"),{GITHUB_TOKEN:"FAKE"},
 const unavailable={
   async fetch(){return {ok:false,status:503};}
 };
-await assert.rejects(()=>dispatchAt(at("2026-10-30T07:08:00Z"),{GITHUB_TOKEN:"FAKE"},unavailable.fetch),/GITHUB_READ_HTTP_503/);
+await assert.rejects(()=>dispatchAt(at("2026-10-30T07:08:00Z"),{GITHUB_TOKEN:"FAKE"},unavailable.fetch),/MARKER_READ_HTTP_503/);
 
 console.log("CLOUDFLARE_SCHEDULER_UTC_SLOT_AND_DISPATCH_PASS");
