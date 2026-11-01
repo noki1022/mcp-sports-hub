@@ -98,10 +98,10 @@ def self_test() -> None:
     for event, allow in (("push", False), ("schedule", True)):
         try:
             resolve_slot("", "ONCE", now, event, allow)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("SCHEDULE_EVENT_ACCEPTED_MANUAL_ONCE_SLOT")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("UNAUTHORIZED_ONCE_SLOT_ACCEPTED_" + event)
     for priority in ("2130", "0630"):
         assert priority not in FIXED_SLOTS
     for invalid in ("1640", "2199", "foobar"):
