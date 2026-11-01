@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       report_slot:
-        description: "Canonical Beijing slot: 1200, 1400, 1500, 1800, 2100"
+        description: "Canonical Beijing slot, or ONCE for a one-time manual run; blank manual input also defaults to ONCE"
         required: false
         type: string
       target_date:
@@ -101,7 +101,11 @@ jobs:
         run: |
           git pull --ff-only origin main
           mkdir -p "reports/noon-cohorts/$TARGET_DATE"
-          if [ "$EXTERNAL_REPORT_SLOT" = "1200" ] || [ "$SCHEDULE_EXPR" = "0 4 * * *" ] || [ "$SCHEDULE_EXPR" = "15 4 * * *" ] || [ "$SCHEDULE_EXPR" = "30 4 * * *" ]; then
+          if [ "$EXTERNAL_REPORT_SLOT" = "ONCE" ]; then
+            # Ad-hoc capture has its own immutable ONCE delivery ledger; never
+            # forge a 12:00 noon cohort from an arbitrary manual capture time.
+            echo "ONE_TIME_MANUAL_CAPTURE_NO_NOON_LOCK"
+          elif [ "$EXTERNAL_REPORT_SLOT" = "1200" ] || [ "$SCHEDULE_EXPR" = "0 4 * * *" ] || [ "$SCHEDULE_EXPR" = "15 4 * * *" ] || [ "$SCHEDULE_EXPR" = "30 4 * * *" ]; then
             if [ -f "reports/noon-cohorts/$TARGET_DATE/1200.json" ]; then
               echo "EXISTING_NOON_COHORT_RETAINED"
               python3 scripts/nba_noon_slate.py enforce --joined titan007_three_joined.json --lock "reports/noon-cohorts/$TARGET_DATE/1200.json" --out nba_same_slate.json
@@ -371,7 +375,7 @@ jobs:
         run: |
           FALLBACK_SLOT="${REPORT_SLOT:-}"
           case "$FALLBACK_SLOT" in
-            1200|1400|1500|1800|2100) ;;
+            1200|1400|1500|1800|2100|ONCE) ;;
             *) echo "FALLBACK_UNKNOWN_SLOT" >&2; exit 1 ;;
           esac
           git fetch --quiet origin main
