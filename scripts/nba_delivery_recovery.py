@@ -14,12 +14,12 @@ from nba_delivery_health import accepted_marker,inspect,run_hint,scheduled_start
 BJ=ZoneInfo("Asia/Shanghai")
 # Only slots whose receiver accepts report_slot and target_date and does not
 # have a strict cutoff earlier than this watchdog's first normal check.
-RECOVERABLE={"1200","1400","1500","1800","2100","2130","0630"}
+RECOVERABLE={"0030","0330","1200","1400","1500","1800","2100","2130","0630"}
 WINDOW_MINUTES=65
 # Start recovery at the first watchdog check (+5m), then let the same
 # Beijing-tipoff preflight gates used by production decide whether a complete
 # report can still be built safely. Never replay a stale pre-tip report.
-PRIORITY_RECOVERY_WINDOWS={"2130":(5,22),"0630":(5,180)}
+PRIORITY_RECOVERY_WINDOWS={"0030":(5,65),"0330":(5,65),"2130":(5,22),"0630":(5,180)}
 
 def decision(root,slot,target,now,runs,run_error=None):
     info={"slot":slot,"target_date":target,"action":"NO_DISPATCH","reason":None}
@@ -153,6 +153,12 @@ def self_test():
         assert decision(root,slot,target,datetime.fromisoformat("2026-10-31T12:50:00+08:00"),[])["reason"]=="RECOVERY_MAX_ATTEMPTS_REACHED"
         dedup.unlink()
         assert decision(root,slot,target,datetime.fromisoformat("2026-10-31T14:00:00+08:00"),[])["action"]=="NO_DISPATCH"
+        for slot,day,clock in (("0030","2026-10-31","2026-10-31T00:35:00+08:00"),
+                                ("0330","2026-10-31","2026-10-31T03:35:00+08:00")):
+            at_midnight=datetime.fromisoformat(clock)
+            assert decision(root,slot,day,at_midnight,[])["action"]=="DISPATCH"
+            assert decision(root,slot,day,at_midnight-timedelta(minutes=5),[])["action"]=="NO_DISPATCH"
+            assert decision(root,slot,day,at_midnight+timedelta(minutes=70),[])["action"]=="NO_DISPATCH"
         at21=datetime.fromisoformat("2026-10-31T21:40:00+08:00")
         assert decision(root,"2100","2026-11-01",at21,[])["action"]=="DISPATCH"
         assert decision(root,"2100","2026-11-01",datetime.fromisoformat("2026-10-31T21:20:00+08:00"),[])["action"]=="NO_DISPATCH"
