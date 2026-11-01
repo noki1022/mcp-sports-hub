@@ -23,7 +23,8 @@ from nba_chronological_backtest import (
 )
 import nba_chronological_backtest as B
 from nba_settlement_probabilities import settlement_probs
-from nba_calibration_evidence import (evidence as calibration_evidence,\n                                      select_production_probability)
+from nba_calibration_evidence import (evidence as calibration_evidence,
+                                      select_production_probability)
 from nba_pregame_context import build as build_pregame_context
 
 MODEL_VERSION = "nba-independent-v4-gaussian-active-isotonic-shadow"
@@ -302,7 +303,9 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
         calibration.get("moneyline_isotonic"), raw_p_home)
     # The isotonic result remains available for comparison but does not alter
     # the production probability until chronological OOS uplift is established.
-    p_home = select_production_probability(\n        raw_p_home, isotonic_p_home_shadow,\n        isotonic_approved=USE_ISOTONIC_PRODUCTION)
+    p_home = select_production_probability(
+        raw_p_home, isotonic_p_home_shadow,
+        isotonic_approved=USE_ISOTONIC_PRODUCTION)
     p_home_evidence = calibration_evidence(
         calibration.get("moneyline_isotonic"), raw_p_home, isotonic_p_home_shadow)
     raw_p_over_225_5 = p_greater(total_mu, total_sigma, TOTAL_LINE)
