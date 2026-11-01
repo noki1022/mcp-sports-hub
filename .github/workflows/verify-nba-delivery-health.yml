@@ -52,7 +52,10 @@ jobs:
           assert 'infer_slot(os.environ.get("GH_HEALTH_SCHEDULE",""),datetime.now(BJ))' in health
           assert 'except (OSError,ValueError)' in health
           assert '--alert-marker-out' in health
-          assert '55 14-21 * * *' in health
+          assert '55 14-21 * * *' not in health_workflow
+          assert 'schedule:' not in hourly.split('permissions:',1)[0]
+          assert 'workflow_dispatch:' in hourly
+          assert '55 14-21 * * *' in health  # legacy slot parser remains for manual diagnostics only
           for path in ('.github/workflows/titan007-final-hourly.yml',
                        '.github/workflows/nba-delivery-health-watchdog.yml'):
               obj=yaml.safe_load(Path(path).read_text())
