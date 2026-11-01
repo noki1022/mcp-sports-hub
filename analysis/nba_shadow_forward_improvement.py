@@ -23,9 +23,17 @@ SEED = 20261101
 SPREAD_LINES = (-10.5, -5.5, -0.5, 0.5, 5.5, 10.5)
 TOTAL_LINES = (210.5, 215.5, 220.5, 225.5, 230.5, 235.5, 240.5)
 FOLDS = (
-    {"name":"2023-24_late_season", "fit_start":"2022-10-01",
+    {"name":"2023-24_forward_1", "fit_start":"2022-10-01",
      "fit_end":"2023-04-10", "cal_start":"2023-10-24",
-     "cal_end":"2024-01-15", "eval_start":"2024-02-01",
+     "cal_end":"2023-12-01", "eval_start":"2023-12-09",
+     "eval_end":"2024-01-15"},
+    {"name":"2023-24_forward_2", "fit_start":"2022-10-01",
+     "fit_end":"2023-12-01", "cal_start":"2023-12-02",
+     "cal_end":"2024-01-15", "eval_start":"2024-01-23",
+     "eval_end":"2024-02-29"},
+    {"name":"2023-24_forward_3", "fit_start":"2022-10-01",
+     "fit_end":"2024-01-15", "cal_start":"2024-01-16",
+     "cal_end":"2024-02-29", "eval_start":"2024-03-08",
      "eval_end":"2024-04-14"},
     {"name":"2024-25_late_season", "fit_start":"2022-10-01",
      "fit_end":"2024-12-15", "cal_start":"2024-12-16",
