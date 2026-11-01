@@ -45,4 +45,71 @@ const already={
 };
 assert.equal((await dispatchAt(at("2026-10-30T14:00:00Z"),{GITHUB_TOKEN:"FAKE"},already.fetch)).state,"API_ALREADY_ACCEPTED");
 assert.match(markerUrl,/five-market-settled/);
+
+const extended=[
+  ["2026-10-30T04:08:00Z","1200","2026-10-31"],
+  ["2026-10-30T06:00:00Z","1400","2026-10-31"],
+  ["2026-10-30T07:18:00Z","1500","2026-10-31"],
+  ["2026-10-30T10:28:00Z","1800","2026-10-31"],
+  ["2026-10-30T13:16:00Z","2100","2026-10-31"],
+  ["2026-10-30T13:49:00Z","2130","2026-10-31"],
+  ["2026-10-30T22:49:00Z","0630","2026-10-31"],
+  ["2026-10-30T14:40:00Z","2230","2026-10-31"],
+  ["2026-10-30T15:49:00Z","2330","2026-10-31"],
+  ["2026-10-30T16:40:00Z","0030","2026-10-31"],
+  ["2026-10-30T17:49:00Z","0130","2026-10-31"],
+  ["2026-10-30T18:40:00Z","0230","2026-10-31"],
+  ["2026-10-30T19:49:00Z","0330","2026-10-31"],
+  ["2026-10-30T20:40:00Z","0430","2026-10-31"],
+  ["2026-10-30T21:49:00Z","0530","2026-10-31"]
+];
+for(const [date,slot,target] of extended){
+  const job=plannedJob(at(date));
+  assert.equal(job?.slot,slot,date);
+  assert.equal(job?.target_date,target,date);
+}
+assert.equal(plannedJob(at("2026-10-30T13:17:00Z")),null); // outside retry minute
+assert.equal(plannedJob(at("2026-10-30T22:50:00Z")),null); // no stale 06:30 retry
+// A live matching run must suppress another dispatch.
+const activeRun={
+  async fetch(url){
+    if(url.includes("/contents/"))return {status:404,ok:false};
+    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[
+      {created_at:"2026-10-30T07:00:20Z",event:"schedule",status:"in_progress",conclusion:null}
+    ]})};
+    throw Error("ACTIVE_RUN_MUST_NOT_DISPATCH");
+  }
+};
+assert.equal((await dispatchAt(at("2026-10-30T07:08:00Z"),{GITHUB_TOKEN:"FAKE"},activeRun.fetch)).state,"WORKFLOW_RUNNING");
+// A recently successful hourly run suppresses duplicate retry dispatch.
+const successfulHourly={
+  async fetch(url){
+    if(url.includes("/contents/"))return {status:404,ok:false};
+    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[
+      {created_at:"2026-10-30T14:30:10Z",updated_at:"2026-10-30T14:32:00Z",
+       event:"schedule",status:"completed",conclusion:"success"}
+    ]})};
+    throw Error("RECENT_HOURLY_SUCCESS_MUST_NOT_DISPATCH");
+  }
+};
+assert.equal((await dispatchAt(at("2026-10-30T14:40:00Z"),{GITHUB_TOKEN:"FAKE"},successfulHourly.fetch)).state,"SUCCESS_RECENTLY_OR_HOURLY_COMPLETE");
+// A failed run is eligible for a bounded retry, not treated as success.
+const failedRun={
+  async fetch(url,opts){
+    if(url.includes("/contents/"))return {status:404,ok:false};
+    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[
+      {created_at:"2026-10-30T07:00:10Z",updated_at:"2026-10-30T07:03:00Z",
+       event:"schedule",status:"completed",conclusion:"failure"}
+    ]})};
+    if(url.endsWith("/dispatches"))return {status:204};
+    throw Error(url);
+  }
+};
+assert.equal((await dispatchAt(at("2026-10-30T07:08:00Z"),{GITHUB_TOKEN:"FAKE"},failedRun.fetch)).state,"DISPATCH_ACCEPTED_NOT_COMPLETED");
+// GitHub read/API errors fail closed; they must never be interpreted as "no run".
+const unavailable={
+  async fetch(){return {ok:false,status:503};}
+};
+await assert.rejects(()=>dispatchAt(at("2026-10-30T07:08:00Z"),{GITHUB_TOKEN:"FAKE"},unavailable.fetch),/MARKER_READ_HTTP_503/);
+
 console.log("CLOUDFLARE_SCHEDULER_UTC_SLOT_AND_DISPATCH_PASS");
