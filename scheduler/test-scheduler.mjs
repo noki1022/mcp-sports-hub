@@ -32,18 +32,36 @@ assert.deepEqual(kinds("2026-10-30T08:00:00Z", CRONS.FIXED), ["odds_settlement"]
 assert.deepEqual(kinds("2026-10-30T20:00:00Z", CRONS.FIXED), ["offline_regression"]);
 assert.equal(plannedJobs(at("2026-10-30T08:05:00Z"), CRONS.FIXED)[0].kind, "odds_settlement");
 
-const acceptedReview = {
+const acceptedFixed = {
   async fetch(url) {
     if (url.includes("/contents/")) {
       return { status: 200, ok: true, json: async () => ({
-        content: btoa(JSON.stringify({ state: "API_ACCEPTED_NOT_DEVICE_CONFIRMED" }))
+        content: btoa(JSON.stringify({
+          state: "API_ACCEPTED_NOT_DEVICE_CONFIRMED", slot: "1500"
+        }))
       }) };
     }
-    throw new Error("ACCEPTED_REVIEW_MUST_NOT_QUERY_OR_DISPATCH");
+    throw new Error("ACCEPTED_FIXED_REPORT_MUST_NOT_QUERY_OR_DISPATCH");
   }
 };
-const accepted = await dispatchAt(at("2026-10-30T14:30:00Z"), { GITHUB_TOKEN: "FAKE" }, acceptedReview, CRONS.REVIEW);
+const accepted = await dispatchAt(at("2026-10-30T07:00:00Z"), { GITHUB_TOKEN: "FAKE" }, acceptedFixed, CRONS.FIXED);
 assert.equal(accepted.results[0].state, "API_ALREADY_ACCEPTED");
+
+// A prior review marker for one date must not stop polling another delayed slate.
+let reviewDispatch = false;
+const reviewWithOlderMarker = {
+  async fetch(url, options = {}) {
+    if (url.includes("/runs?")) return { ok: true, json: async () => ({ workflow_runs: [] }) };
+    if (url.endsWith("/dispatches")) {
+      reviewDispatch = true;
+      return { status: 204 };
+    }
+    throw new Error("UNEXPECTED_REVIEW_URL_" + url);
+  }
+};
+const reviewResult = await dispatchAt(at("2026-10-30T14:30:00Z"), { GITHUB_TOKEN: "FAKE" }, reviewWithOlderMarker, CRONS.REVIEW);
+assert.equal(reviewResult.results[0].state, "DISPATCH_ACCEPTED_NOT_COMPLETED");
+assert.equal(reviewDispatch, true);
 
 let posted = null;
 const fixedFake = {
