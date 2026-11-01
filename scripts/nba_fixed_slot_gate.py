@@ -36,13 +36,19 @@ SCHEDULE_SLOTS = {
 FIXED_SLOTS = frozenset(SCHEDULE_SLOTS.values())
 
 
-def resolve_slot(schedule: str, supplied: str, now: datetime) -> str:
+def resolve_slot(schedule: str, supplied: str, now: datetime, event_name: str = "") -> str:
     if schedule and schedule not in SCHEDULE_SLOTS:
         raise ValueError("UNKNOWN_FIXED_SLOT_SCHEDULE")
-    if supplied and supplied not in FIXED_SLOTS:
-        raise ValueError("INVALID_FIXED_SLOT")
     if schedule and supplied:
         raise ValueError("MIXED_SCHEDULE_AND_DISPATCH_SLOT")
+    if supplied == "ONCE":
+        if event_name != "workflow_dispatch":
+            raise ValueError("ONE_TIME_SLOT_ONLY_MANUAL_DISPATCH")
+        return "ONCE"
+    if supplied and supplied not in FIXED_SLOTS:
+        raise ValueError("INVALID_FIXED_SLOT")
+    if not schedule and not supplied and event_name == "workflow_dispatch":
+        return "ONCE"
     return SCHEDULE_SLOTS.get(schedule) or supplied or now.astimezone(BEIJING).strftime("%H%M")
 
 
@@ -83,6 +89,14 @@ def self_test() -> None:
     for slot in FIXED_SLOTS:
         assert resolve_slot("", slot, now) == slot
     assert resolve_slot("", "", now) == "1240"
+    assert resolve_slot("", "", now, "workflow_dispatch") == "ONCE"
+    assert resolve_slot("", "ONCE", now, "workflow_dispatch") == "ONCE"
+    try:
+        resolve_slot("", "ONCE", now, "schedule")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("SCHEDULE_EVENT_ACCEPTED_MANUAL_ONCE_SLOT")
     for priority in ("2130", "0630"):
         assert priority not in FIXED_SLOTS
     for invalid in ("1640", "2199", "foobar"):
@@ -132,7 +146,8 @@ def main() -> None:
     if args.phase == "preflight":
         slot = args.priority_slot or resolve_slot(
             os.environ.get("SCHEDULE_EXPR", ""),
-            os.environ.get("EXTERNAL_REPORT_SLOT", ""), datetime.now(BEIJING))
+            os.environ.get("EXTERNAL_REPORT_SLOT", ""), datetime.now(BEIJING),
+            os.environ.get("GITHUB_EVENT_NAME", ""))
         append_env("REPORT_SLOT", slot)
     else:
         slot = os.environ["REPORT_SLOT"]
