@@ -118,7 +118,7 @@ def market_row(key, obj):
     if key.startswith("CROWN_"):
         label += "（参考）"
     if obj.get("quote_freshness") == "ARCHIVED_PRIOR_NOT_LIVE":
-        label += " · 历史盘口口"
+        label += " · 历史盘口"
     return label
 
 
