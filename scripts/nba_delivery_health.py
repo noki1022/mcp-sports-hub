@@ -73,7 +73,7 @@ def infer_slot(schedule:str,now:datetime)->tuple[str,str]:
     return slot,target.isoformat()
 
 def expected_workflow(slot:str)->str:
-    if slot in FIXED:return "titan007-three-analysis.yml"
+    if slot in FIXED or slot=="ONCE" or slot.startswith("ONCE-"):return "titan007-three-analysis.yml"
     if slot=="2130":return "nba-priority-2130.yml"
     if slot=="0630":return "nba-priority-0630.yml"
     if slot=="2200":return "nba-two-market-nightly-2200.yml"
