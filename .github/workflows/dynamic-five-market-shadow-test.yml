@@ -30,7 +30,7 @@ jobs:
         run: python3 analysis/nba_dynamic_five_market_shadow.py --self-test
       - name: Chronological replay, latest pre-tip selection and scoring tests
         run: python3 analysis/nba_dynamic_five_market_replay.py --self-test
-      - name: Replay a real archived 007 pre-tip capture through the shadow engine
+      - name: Reject legacy archived 007 capture when model generation time is absent
         run: |
           d="reports/daily/2026-11-01/2130"
           if [ -f "$d/titan007_priority_joined.json" ] && [ -f "$d/nba_priority_model.json" ] && [ -f "$d/nba_five_market_forecast.json" ] && [ -f "$d/nba_jingcai_three_market.json" ]; then
@@ -39,19 +39,17 @@ jobs:
               --model "$d/nba_priority_model.json" \
               --five "$d/nba_five_market_forecast.json" \
               --jingcai "$d/nba_jingcai_three_market.json" \
-              --slot 2130 --out /tmp/real_shadow.json
+              --slot 2130 --out /tmp/legacy_shadow.json
             python3 - <<'PY'
           import json
-          x=json.load(open("/tmp/real_shadow.json"))
-          assert x["game_count"]>0, x
+          x=json.load(open("/tmp/legacy_shadow.json"))
+          assert x["status"]=="SHADOW_UNAVAILABLE", x
+          assert x["error"]=="MODEL_GENERATION_TIMESTAMP_MISSING", x
           assert x["production_model_modified"] is False
           assert x["pushplus_enabled"] is False
           assert x["market_probability_fusion"]=="DISABLED"
-          first=x["games"][0]
-          assert set(first["markets"])=={"JINGCAI_WIN","JINGCAI_HANDICAP","JINGCAI_TOTAL","CROWN_HANDICAP","CROWN_TOTAL"}
-          assert first["markets"]["JINGCAI_WIN"]["market_data_status"]=="PRETIP_VALID", first["markets"]["JINGCAI_WIN"]
-          print("REAL_007_ARCHIVE_SHADOW_PASS",x["game_count"],first["markets"]["JINGCAI_WIN"]["candidate_direction"])
+          print("LEGACY_007_ARCHIVE_FAIL_CLOSED_PASS",x["error"])
           PY
           else
-            echo "NO_REAL_ARCHIVE_FIXTURE_AVAILABLE"
+            echo "NO_LEGACY_ARCHIVE_FIXTURE_AVAILABLE"
           fi
