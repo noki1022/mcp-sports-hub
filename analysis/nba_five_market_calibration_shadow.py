@@ -7,7 +7,7 @@ multi-company price comparisons require the exact same line and a pre-tip quote
 captured no later than the frozen forecast. Nothing here changes production.
 """
 from __future__ import annotations
-import argparse, json, math, random
+import argparse, json, math, random, subprocess
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -34,6 +34,19 @@ def num(v):
         return None
 
 
+def archive_commit_time(path):
+    # Old frozen reports predate the explicit generated-at field. Their Git
+    # commit time is a conservative upper bound on when the archive existed.
+    try:
+        root=Path(__file__).resolve().parents[1]
+        result=subprocess.run(["git","log","-1","--format=%cI","--",str(path)],
+                              cwd=root,capture_output=True,text=True,timeout=5,check=False)
+        value=result.stdout.strip()
+        return value if result.returncode==0 and value else None
+    except (OSError,subprocess.TimeoutExpired):
+        return None
+
+
 def load_tree(root, pattern):
     out=[]
     base=Path(root)
@@ -41,7 +54,10 @@ def load_tree(root, pattern):
     for p in sorted(base.glob(pattern)):
         try:
             x=json.loads(p.read_text(encoding="utf-8"))
-            if isinstance(x,dict): out.append((p,x))
+            if isinstance(x,dict):
+                if not x.get("analysis_generated_at_utc"):
+                    x["_archive_commit_time_utc"]=archive_commit_time(p)
+                out.append((p,x))
         except (OSError,ValueError,TypeError):
             continue
     return out
@@ -218,7 +234,7 @@ def evaluate(intraday_root,settled_root):
             tip_candidates=[]
             for doc,game in fidx.get((day,gid),[]):
                 tip=dt(game.get("tipoff_beijing"))
-                gen=dt(doc.get("analysis_generated_at_utc"))
+                gen=dt(doc.get("analysis_generated_at_utc") or doc.get("_archive_commit_time_utc"))
                 board=dt(doc.get("board_capture_utc"))
                 if tip is None or gen is None or board is None or gen>=tip or board>=tip:
                     rejects["INVALID_FROZEN_REPORT_TIME"]+=1;continue
