@@ -1,5 +1,9 @@
 name: Titan007 daily three analysis before lottery cutoff
 on:
+  # Temporary path-scoped one-time production acceptance trigger.
+  push:
+    paths:
+      - '.github/one-time-full-chain-trigger'
   workflow_dispatch:
     inputs:
       report_slot:
@@ -40,7 +44,7 @@ jobs:
     env:
       REQUESTED_DATE: ${{ inputs.target_date || '' }}
       SCHEDULE_EXPR: ${{ github.event.schedule || '' }}
-      EXTERNAL_REPORT_SLOT: ${{ inputs.report_slot || (github.event_name == 'push' && github.event.head_commit.message == 'ONE_TIME_FULL_CHAIN_PRODUCTION_RUN' && 'ONCE') || '' }}
+      EXTERNAL_REPORT_SLOT: ${{ inputs.report_slot || (github.event_name == 'push' && github.event.head_commit.message == 'ONE_TIME_FULL_CHAIN_PRODUCTION_RUN' && 'ONCE-20261101-REPLAY2') || '' }}
       ALLOW_ONCE_PUSH: ${{ github.event_name == 'push' && github.event.head_commit.message == 'ONE_TIME_FULL_CHAIN_PRODUCTION_RUN' }}
       PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
     steps:
@@ -389,7 +393,7 @@ jobs:
         run: |
           FALLBACK_SLOT="${REPORT_SLOT:-}"
           case "$FALLBACK_SLOT" in
-            1200|1400|1500|1800|2100|ONCE) ;;
+            1200|1400|1500|1800|2100|ONCE|ONCE-*) ;;
             *) echo "FALLBACK_UNKNOWN_SLOT" >&2; exit 1 ;;
           esac
           git fetch --quiet origin main
