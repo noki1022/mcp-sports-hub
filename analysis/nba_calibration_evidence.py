@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Explain sample support of odds-blind isotonic probabilities (NO forecast rewrite).
+"""Explain isotonic support and enforce shadow-only production probability policy.
 
 Reference: scikit-learn calibration guide warns isotonic overfits on small data.
 This diagnostic ONLY measures historical calibration support. It never reads
@@ -7,6 +7,8 @@ bookmaker prices, changes a win probability, or changes focus ranking.
 """
 from __future__ import annotations
 import math
+
+POLICY_VERSION = "nba-probability-calibration-policy-v2-shadow-only"
 
 def finite(x):
     try:
