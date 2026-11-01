@@ -17,7 +17,7 @@ const ACTIVE = new Set(["queued", "in_progress", "pending", "waiting", "requeste
 export const CRONS = {
   REVIEW: "*/15 * * * *",
   PREGAME: "*/5 22-23,0-13 * * *",
-  FIXED: "0,5,7,8,10,16,18,20,28,30,35,40,45,50,55 0-8,10,13,20,22-23 * * *"
+  FIXED: "0,1,5,6,7,8,10,11,16,18,20,28,30,35,40,45,50,55 0-8,10,13,16,20,22-23 * * *"
 };
 
 const FIXED = [
