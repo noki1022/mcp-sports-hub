@@ -297,6 +297,7 @@ jobs:
             --jingcai nba_jingcai_three_market.json \
             --consensus nba_market_consensus.json \
             --injury nba_injury_context.json \
+            --slot "$REPORT_SLOT" \
             --out nba_dynamic_five_market_shadow.json \
             "${PREVIOUS_ARGS[@]}"
           python3 - <<'PY'
