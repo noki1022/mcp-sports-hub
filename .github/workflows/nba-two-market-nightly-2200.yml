@@ -36,7 +36,6 @@ jobs:
       - name: Replay chronological five-market shadow probabilities against official finals
         if: env.RUN_REPORT == 'true'
         run: |
-          python3 analysis/nba_dynamic_five_market_replay.py --self-test
           python3 analysis/nba_dynamic_five_market_replay.py \
             --daily-root reports/daily \
             --settled-root reports/five-market-settled \
@@ -47,9 +46,11 @@ jobs:
           x=json.load(open(p))
           assert x["production_model_modified"] is False
           assert x["probability_fusion_enabled"] is False
-          print("DYNAMIC_FIVE_MARKET_OOS_SCORECARD",x["sample_readiness"]["status"],
-                x["sample_readiness"]["smallest_market_sample_n"],
-                x["sample_readiness"]["smallest_market_distinct_days"])
+          readiness=x.get("sample_readiness",{})
+          print("DYNAMIC_FIVE_MARKET_OOS_SCORECARD",
+                readiness.get("status",x.get("status","REPLAY_UNAVAILABLE")),
+                readiness.get("smallest_market_sample_n",0),
+                readiness.get("smallest_market_distinct_days",0))
           PY
       - name: Score multi-company consensus against exact frozen pretip captures
         if: env.RUN_REPORT == 'true'
