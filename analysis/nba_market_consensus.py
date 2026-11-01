@@ -137,6 +137,7 @@ def build(joined, top10):
         for kind in ("full_spread", "full_total"):
             rejected = {}
             accepted = {}
+            duplicates = set()
             for quote in ((markets_in.get(kind) or {}).get("companies") or []):
                 cid = str(quote.get("company_id") or "")
                 if quote.get("source") != "DATED_007_COMPANY_ID":
@@ -146,7 +147,7 @@ def build(joined, top10):
                     rejected["UNVALIDATED_COMPANY_ID"] = rejected.get("UNVALIDATED_COMPANY_ID", 0) + 1
                     continue
                 stamp = timestamp(quote.get("source_capture_utc"))
-                if stamp is None:
+                if stamp is None or completed is None:
                     rejected["SOURCE_CAPTURE_TIME_MISSING"] = rejected.get("SOURCE_CAPTURE_TIME_MISSING", 0) + 1
                     continue
                 if tip is None or stamp >= tip:
@@ -178,12 +179,14 @@ def build(joined, top10):
                     "raw_slot1_no_vig": slots[0] if slots else None,
                     "raw_slot2_no_vig": slots[1] if slots else None,
                 }
+                if cid in duplicates:
+                    continue
                 if cid in accepted:
                     accepted.pop(cid, None)
+                    duplicates.add(cid)
                     rejected["DUPLICATE_COMPANY_ID"] = rejected.get("DUPLICATE_COMPANY_ID", 0) + 1
-                    accepted[cid] = None
-                elif cid not in accepted:
-                    accepted[cid] = row
+                    continue
+                accepted[cid] = row
             clean = [x for x in accepted.values() if x is not None]
             market_out[kind] = _market_stats(clean, kind, rejected)
             market_out[kind]["crown_id3_line"] = next(
