@@ -85,7 +85,8 @@ def evaluate(settlements, forecasts):
                     predicted=forecast_markets.get(key) or {}
                     frozen_time=dt(frozen.get("frozen_capture_utc"))
                     predicted_time=dt(predicted.get("captured_at_utc"))
-                    if frozen_time is not None and predicted_time is not None and frozen_time==predicted_time:
+                    if (frozen_time is not None and predicted_time is not None
+                            and frozen_time==predicted_time and frozen_time<tip and predicted_time<tip):
                         matched_keys.append(key)
                         p=num(predicted.get("model_direction_probability"))
                         outcome=frozen.get("outcome")
