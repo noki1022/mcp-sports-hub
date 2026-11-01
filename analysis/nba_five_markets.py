@@ -236,6 +236,24 @@ def make(joined,model,jc,top10,consensus=None):
       "jingcai_three_ready_games":sum(all(row["markets"][k]["status"]=="DIRECTION_ISSUED" for k in MARKETS[:3]) for row in rows),
       "not_betting_advice":True}
 
+def build_consensus_for_test(joined,companies,top):
+    from nba_market_consensus import build
+    markets={}
+    for kind in ("full_spread","full_total"):
+        target_line=6.5 if kind=="full_spread" else 229.5
+        markets[kind]={"companies":[
+            {"company_id":x["company_id"],"source":x["source"],
+             "source_capture_utc":x["source_capture_utc"],
+             "current":x["current"]}
+            for x in companies if x["current"]["line"]==target_line]}
+    top_doc={**top,"games":[{"game_id":"170","markets":markets}]}
+    return build(joined,top_doc)
+
+
+def m_consensus_present(forecast,key):
+    return forecast["games"][0]["markets"][key]["market_consensus"]["status"]=="CONSENSUS_AVAILABLE"
+
+
 def self_test():
     joined={"requested_display_date":"2026-10-31","captured_at_utc":"2026-10-30T14:00:00Z",
       "crown_quote_captured_at_utc":"2026-10-30T14:00:00Z","crown_source_id":"3",
