@@ -13,6 +13,7 @@ from datetime import datetime,timedelta,timezone
 from hashlib import sha256
 import json
 from pathlib import Path
+from urllib.request import Request,urlopen
 from zoneinfo import ZoneInfo
 
 import nba_official_injury as OFF
@@ -65,6 +66,52 @@ def official_snapshot(day,fetch=None):
     else:
         games,proof=fetch(day)
     return games,proof
+
+def verified_team_roster(code, normal_fetch=R.roster_fetch, fallback_fetch=None):
+    """Use original current-roster lookup; specific ESPN ID fallback is identity-gated.
+
+    The ESPN numeric ID remains a *source routing ID*, not an NBA player ID.
+    This fixes only source address aliases, never guesses roster membership.
+    """
+    try:
+        return normal_fetch(code)
+    except (OSError,ValueError,RuntimeError,TimeoutError,KeyError) as first_error:
+        fallback={"NOP":("3","New Orleans Pelicans"),
+                  "UTA":("26","Utah Jazz")}
+        if code not in fallback:
+            raise
+        espn_id,expected_name=fallback[code]
+        url=R.BASE+espn_id+"/roster"
+        if fallback_fetch is None:
+            def fallback_fetch(u):
+                req=Request(u,headers={"User-Agent":"NBA-injury-roster-evidence-research/1.0",
+                                      "Accept":"application/json"})
+                with urlopen(req,timeout=22) as result:
+                    return result.read(R.MAX_BYTES+1)
+        response_holder={}
+        def checked_numeric_route(u):
+            if u!=url:
+                raise RuntimeError("UNEXPECTED_NUMERIC_ESPN_ROSTER_URL")
+            raw=fallback_fetch(u)
+            if not 30<=len(raw)<=R.MAX_BYTES:
+                raise RuntimeError("NUMERIC_ROSTER_RESPONSE_OUT_OF_RANGE")
+            payload=json.loads(raw)
+            identity=payload.get("team") or {}
+            if (str(identity.get("id"))!=espn_id or
+                str(identity.get("displayName")).casefold()!=expected_name.casefold()):
+                raise RuntimeError("NUMERIC_ESPN_ROSTER_TEAM_IDENTITY_NOT_VERIFIED")
+            response_holder["verified"]=True
+            return raw
+        rows,proof=R.roster_fetch(espn_id,fetcher=checked_numeric_route)
+        if not response_holder.get("verified"):
+            raise RuntimeError("NUMERIC_ROSTER_SOURCE_NOT_CERTIFIED")
+        for row in rows:
+            row["team_at_capture"]=code
+        proof["team"]=code
+        proof["verified_numeric_team_id"]=espn_id
+        proof["numeric_source_identity_crosscheck"]=True
+        proof["source_fallback_reason"]=type(first_error).__name__
+        return rows,proof
 
 def freeze_game(fixture,games,proof,roster_index,roster_proof,captured):
     tip=stamp(fixture["tipoff_utc"])
@@ -176,7 +223,7 @@ def run(out):
     roster_players=[];roster_sources=[];roster_fail=[]
     for team in R.CODES:
         try:
-            players,source=R.roster_fetch(team)
+            players,source=verified_team_roster(team)
             roster_players.extend(players)
             roster_sources.append(source)
         except (OSError,ValueError,RuntimeError,TimeoutError,KeyError) as err:
@@ -274,6 +321,24 @@ def selftest():
     assert missing["status"]=="PARTIAL_OR_UNKNOWN_IDENTITY"
     late={c:{"captured_utc":"2026-11-04T00:00:00Z"} for c in sources}
     assert freeze_game(game,official,proof,roster,late,now)["status"]=="PARTIAL_OR_UNKNOWN_IDENTITY"
+    # Source fallback cannot assign a numerical team route to an unrelated club.
+    def broken_route(x):
+        raise ValueError("CANONICAL_ESPN_ALIAS_NOT_FOUND")
+    def fake_numeric(url):
+        athletes=[{"id":str(i),"displayName":"Roster Member "+str(i)}
+                  for i in range(1,11)]
+        return json.dumps({"team":{"id":"26","displayName":"Utah Jazz"},
+                           "athletes":athletes}).encode()
+    got,src=verified_team_roster("UTA",broken_route,fake_numeric)
+    assert len(got)==10 and all(p["team_at_capture"]=="UTA" for p in got)
+    assert src["url"].endswith("/teams/26/roster")
+    assert src["verified_numeric_team_id"]=="26"
+    try:
+        verified_team_roster("NOP",broken_route,fake_numeric)
+    except RuntimeError as error:
+        assert str(error)=="NUMERIC_ESPN_ROSTER_TEAM_IDENTITY_NOT_VERIFIED"
+    else:
+        raise AssertionError("WRONG_ESPN_TEAM_IDENTITY_ACCEPTED")
     print("NBA_REAL_FUTURE_INJURY_ID_ROSTER_PRIOR_MINUTES_SELFTEST_PASS")
 
 if __name__=="__main__":
