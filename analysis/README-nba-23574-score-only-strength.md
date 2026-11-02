@@ -24,3 +24,15 @@ The 23,574 accepted NBA games have date, teams and home/away final scores. The o
 The CI artifact includes model coefficients, split counts, actual errors, validation choices, paired-game-date bootstrap and provenance. Research never touches production features, 007/Crown collection, scheduled workflows, cloud scheduler, injury gates, PushPlus, or final recommendation model.
 
 No production deployment is authorized by one historical evaluation. Any prospective integration needs genuine post-2026 training-free score verification, reliable as-of data and market side tests.
+
+## Additional market-plus-strength experiment
+
+On the same historical game-date benchmark only, compare market no-vig moneyline
+to a prespecified weighted blend with independent prior-score win probability.
+Weights 0/10/20/30/40/50% strength are selected solely on 2023-24
+validation Brier, with a required >=0.0005 improvement over market-only.
+Score the chosen blend on previously examined 2024-26 evaluation, including
+date-grouped paired Brier confidence intervals. This is a retrospective test
+and **does not imply the historical price was actually available pre-tip**.
+Only if a fresh independent prospective dataset proves improvement could
+such a blending strategy be considered for existing production.
