@@ -430,8 +430,21 @@ def reconstruct(root):
                    "same_game_multi_cutoff_dependent": True}
             subset.append(res)
         frozen[minutes] = subset
+        # Strict source-FETCH freshness cohort, not a claim about when the
+        # bookmaker actually updated. A stale 12-hour-old quote must not be
+        # represented as a fresh "T-minus-30" observation.
+        fresh = [r for r in subset
+                 if r["price_observed_lead_minutes"] - minutes <= 120]
         stats[minutes] = {
             "market_rows": len(subset),
+            "fresh_120min_market_rows":len(fresh),
+            "fresh_120min_labeled_market_rows":sum(
+                r["settled_result"] is not None for r in fresh),
+            "fresh_120min_distinct_games":len({
+                (r["beijing_date"],r["game_id"]) for r in fresh}),
+            "fresh_120min_labeled_distinct_games":len({
+                (r["beijing_date"],r["game_id"]) for r in fresh
+                if r["settled_result"] is not None}),
             "distinct_games": len({(r["beijing_date"],r["game_id"]) for r in subset}),
             "labeled_market_rows": sum(r["labeled_for_line_outcome"] for r in subset),
             "labeled_distinct_games": len({(r["beijing_date"],r["game_id"])
@@ -568,6 +581,13 @@ def export(root, out):
         path = target / f"frozen_{minutes}m_007_five_markets.jsonl"
         dump(path, rows)
         paths[str(minutes)] = path
+        # Export the separately admitted fresh-source-fetch cohort for
+        # model research; older quotes remain auditable in the full as-of file.
+        fresh_path = target / f"frozen_{minutes}m_fresh_120m_007_five_markets.jsonl"
+        fresh_rows = [r for r in rows
+                      if r["price_observed_lead_minutes"] - minutes <= 120]
+        dump(fresh_path, fresh_rows)
+        paths[f"fresh_{minutes}"] = fresh_path
     checks = {name: hashlib.sha256(path.read_bytes()).hexdigest()
               for name, path in paths.items()}
     report["output_sha256"] = checks
@@ -624,6 +644,7 @@ def self_test():
         assert len(rows)==5, (len(rows),report)
         assert report["archive_fixture_ids"]==1 and report["settled_fixture_ids"]==1
         assert len(cuts[30])==5 and len(cuts[120])==2  # JC captured at T-119m; ID3 at T-120m
+        assert report["time_cutoffs"][30]["fresh_120min_market_rows"]==5
         assert cuts[30][0]["settled_result"]["home_points"]==110
         assert any(r["market"]=="CROWN_HANDICAP" and
                    r["signed_home_handicap"]==-4.5 and
