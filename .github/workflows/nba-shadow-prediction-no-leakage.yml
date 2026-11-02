@@ -1,0 +1,90 @@
+name: NBA shadow pretip no-score-leakage and permanent-seal security
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_shadow_pretip_airgap.py'
+      - 'analysis/nba_shadow_seal_ledger.py'
+      - 'analysis/nba_shadow_postmarket_runner.py'
+      - 'analysis/nba_shadow_model_integration.py'
+      - 'analysis/nba_shadow_three_play_train.py'
+      - 'analysis/nba_shadow_prospective_final_grade.py'
+      - '.github/workflows/nba-postmarket-shadow-auto.yml'
+      - '.github/workflows/nba-shadow-prospective-final-grade.yml'
+      - '.github/workflows/nba-shadow-prediction-no-leakage.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  strict-pretip-input-airgap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fail closed on score labels, overwrite, posttip prices, wrong company lines
+        run: |
+          python3 -m py_compile analysis/nba_shadow_pretip_airgap.py analysis/nba_shadow_seal_ledger.py analysis/nba_shadow_postmarket_runner.py analysis/nba_shadow_model_integration.py analysis/nba_shadow_prospective_final_grade.py
+          python3 analysis/nba_shadow_pretip_airgap.py --selftest
+          python3 analysis/nba_shadow_seal_ledger.py --selftest
+          python3 analysis/nba_shadow_postmarket_runner.py --selftest
+          python3 analysis/nba_shadow_model_integration.py --selftest
+          python3 analysis/nba_shadow_prospective_final_grade.py --selftest
+          python3 analysis/nba_postcapture_crossplay_shadow.py --selftest
+      - name: Prove runtime source does not reference a single result source on the prediction-only path
+        run: |
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          runner=Path('analysis/nba_shadow_postmarket_runner.py').read_text()
+          bridge=Path('analysis/nba_shadow_model_integration.py').read_text()
+          train=Path('analysis/nba_shadow_three_play_train.py').read_text()
+          airgap=Path('analysis/nba_shadow_pretip_airgap.py').read_text()
+          wf=Path('.github/workflows/nba-postmarket-shadow-auto.yml').read_text()
+          grader=Path('.github/workflows/nba-shadow-prospective-final-grade.yml').read_text()
+          assert 'pretip_only=True' in runner
+          assert 'if pretip_only:' in bridge and 'grade_report=grade(summary,None)' in bridge
+          assert 'import nba_historical_market_benchmark as B' in train
+          assert 'if not args.train:raise SystemExit' in train
+          assert 'nba_historical_market_benchmark.py' not in airgap
+          assert 'nba_five_market_settlement.py' not in airgap
+          assert 'docker run --rm --network none --read-only' in wf
+          assert '--cap-drop ALL' in wf
+          assert 'persist-credentials: false' in wf
+          assert 'contents: read' in wf and 'contents: write' in wf
+          assert 'git push origin HEAD:audit/shadow-pretip-ledger' in wf
+          assert 'git worktree add --detach' in grader
+          assert 'nba_shadow_prospective_final_grade.py' not in
+              '\n'.join(x for x in wf.splitlines() if 'docker run ' in x)
+          # No eager historical score imports in inference submodule.
+          t=ast.parse(train)
+          for node in t.body:
+              if isinstance(node,(ast.Import,ast.ImportFrom)):
+                  names=[x.name for x in node.names]
+                  assert not any('historical_market' in x or 'open_close_crosscheck' in x for x in names)
+          print('RESULT_FILE_AND_TRAINING_IMPORT_AIRGAP_CODE_AUDIT_PASS')
+          PY
+      - name: OS-level deny network and result files within same Docker runtime used in production
+        run: |
+          mkdir -p "$RUNNER_TEMP/shadow-whitelist/analysis"
+          cp analysis/nba_shadow_model_integration.py analysis/nba_three_play_direction_shadow.py analysis/nba_postcapture_crossplay_shadow.py analysis/nba_shadow_three_play_train.py analysis/nba_shadow_postmarket_runner.py "$RUNNER_TEMP/shadow-whitelist/analysis/"
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --user "$(id -u):$(id -g)" \
+            -v "$RUNNER_TEMP/shadow-whitelist:/workspace:ro" -w /workspace \
+            -e PYTHONDONTWRITEBYTECODE=1 python:3.12-slim python3 -B -c 'import pathlib,socket,sys;sys.path.insert(0,"analysis");import nba_shadow_postmarket_runner as R;import nba_shadow_three_play_train as T;assert not pathlib.Path("reports/five-market-settled").exists();assert not pathlib.Path("analysis/nba_historical_market_benchmark.py").exists();assert not pathlib.Path(".git").exists();assert socket.socket().connect_ex(("1.1.1.1",443))!=0;print("NBA_SHADOW_TRUE_CONTAINER_NO_NETWORK_NO_FINAL_NO_HISTORY_PASS")'
+      - name: Check main flow unchanged and grader alone sees actual settlement
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          prediction=Path('.github/workflows/nba-postmarket-shadow-auto.yml').read_text()
+          assert 'pushplus_mobile.py' not in prediction
+          assert 'titan007_join_beijing_verified.py' not in prediction
+          assert 'optional_007_enrichment.py' not in prediction
+          assert 'reports/five-market-settled' not in prediction
+          assert "ref: main" in prediction
+          assert 'audit/shadow-pretip-ledger' in prediction
+          print('MODEL_AND_SCORER_FLOW_NOT_CROSS_CONNECTED_PASS')
+          PY
