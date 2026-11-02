@@ -41,6 +41,7 @@ jobs:
           assert audit['production_promotion_allowed'] is False
           assert audit['production_changed'] is False
           assert audit['output_quote_rows']==audit['original_quote_rows']
+          assert audit['unlabeled_games_after_reasonable_final_window'] + audit['unlabeled_games_not_yet_past_final_window'] == audit['unlabeled_games_after']
           rows=[json.loads(s) for s in (p/'007_real_pretip_quotes_with_independent_final_scores.jsonl').read_text().splitlines()]
           assert len(rows)==audit['output_quote_rows']
           newly=[r for r in rows if r['new_score_label']]
@@ -58,6 +59,9 @@ jobs:
           print('NBA_007_INDEPENDENT_SCORE_BACKFILL_ACCEPTED', audit['original_labeled_games'],
                 audit['newly_labeled_games'], audit['labeled_games_after'],
                 audit['unlabeled_games_after'], audit['scoreboard_fetch_failures'])
+          print('NBA_007_UNLABELED_GAME_BREAKDOWN', audit['unlabeled_games_after_reasonable_final_window'],
+                audit['unlabeled_games_not_yet_past_final_window'],
+                audit['unlabeled_finished_game_ids'], audit['newly_labeled_game_ids'])
           PY
       - if: always()
         uses: actions/upload-artifact@v4
