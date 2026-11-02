@@ -18,7 +18,7 @@ workflows={
  "0 6 * * *","15 6 * * *","30 6 * * *",
  "0 7 * * *","15 7 * * *","30 7 * * *",
  "0 10 * * *","15 10 * * *","30 10 * * *","0 13 * * *"],
- "nba-priority-2130.yml":["20 13 * * *","30 13 * * *","40 13 * * *"],
+ "nba-priority-2130.yml":["30 13 * * *","40 13 * * *"],
  "titan007-final-hourly.yml":[],
  "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
  # Complete allowlist: every scheduled workflow must be declared here.
