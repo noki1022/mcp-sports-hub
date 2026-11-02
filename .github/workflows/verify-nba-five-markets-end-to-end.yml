@@ -38,6 +38,30 @@ jobs:
           python3 analysis/nba_final_review_gate.py --self-test
           python3 analysis/nba_five_market_review_push.py --self-test
           python3 scripts/pushplus_mobile.py --mode three --self-test
+      - name: Verify actual November 2 official four-game review hides all zero exceptions without resending
+        run: |
+          python3 analysis/nba_five_market_review_push.py \
+            --settlement reports/five-market-settled/2026-11-02/settlement.json \
+            --preview /tmp/nba-review-no-zero.html \
+            --status /tmp/nba-review-no-zero-status.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          source=json.loads(Path('reports/five-market-settled/2026-11-02/settlement.json').read_text())
+          html=Path('/tmp/nba-review-no-zero.html').read_text()
+          status=json.loads(Path('/tmp/nba-review-no-zero-status.json').read_text())
+          assert status['state']=='DRY_RUN_NOT_SENT'
+          assert len(source['games'])==4
+          for k,counts in source['summary'].items():
+              assert counts['excluded']==counts['unsettled']==counts['pushes']==0,k
+              assert f"（{counts['hits']}/{counts['graded']}）" in html,k
+          assert '竞彩胜负' in html and '75.0%' in html
+          assert '竞彩让分' in html and '25.0%' in html
+          assert '皇冠大小分' in html and '50.0%' in html
+          assert '走盘0' not in html and '未入样0' not in html
+          assert '周日313' in html and '最终比分（主:客）：97:108' in html
+          print('ACTUAL_NOV02_4_GAMES_ZERO_PUSH_AND_UNGRADED_HIDDEN_PRESERVE_FIVE_ACC_PASS')
+          PY
       - name: Enforce five market artifact in all four scheduled workflows
         run: |
           python3 - <<'PY'
