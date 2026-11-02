@@ -185,9 +185,10 @@ def score(y,p):
             "logloss":float(np.mean(-y*np.log(p)-(1-y)*np.log1p(-p))),
             "accuracy":float(np.mean((p>=.5)==(y>=.5)))}
 
-def bootstrap_lift(rows,chosen,reps=400):
+def bootstrap_lift(rows,chosen,reps=400,reference=None):
     y=np.array([r["y"] for r in rows],float)
-    market=np.array([r["market_p"] for r in rows],float)
+    market=(np.array([r["market_p"] for r in rows],float)
+            if reference is None else np.array(reference,float))
     losses=(np.array(chosen)-y)**2-(market-y)**2
     dates=defaultdict(list)
     for i,r in enumerate(rows):dates[r["date"]].append(i)
@@ -228,6 +229,11 @@ def experiment(records):
                               predict(e,name,models.get(name)))
                   for name in CORRECTION_CANDIDATES}
         selected=predict(e,chosen,models.get(chosen))
+        strength_p=predict(e,"strength_movement",models["strength_movement"])
+        movement_p=predict(e,"movement_only",models["movement_only"])
+        strength_ablation=bootstrap_lift(e,strength_p,reference=movement_p)
+        # The ablation is explanatory only. Never use evaluation labels to
+        # change the winner selected earlier on validation data.
         comparison[market]={
             "selected_using_validation_only":chosen,
             "validation_candidate_scores":validation,
@@ -235,6 +241,8 @@ def experiment(records):
             "chosen_later_score":evaluate[chosen],
             "market_later_score":evaluate["market_only"],
             "chosen_lift_vs_market":bootstrap_lift(e,selected),
+            "strength_vs_movement_only_explanatory":strength_ablation,
+            "selected_after_evaluation":False,
             "market_rows_by_split":{
                 "fit":len(a),"validation":len(v),"evaluation":len(e)},
             "coefficients_fit_before_evaluation":{
@@ -293,6 +301,7 @@ def run(out):
           "independent_strength_plus_movement_Brier":v["later_retrospective_evaluation_all"]["strength_movement"]["brier"],
           "movement_only_validation_Brier":v["validation_candidate_scores"]["movement_only"]["brier"],
           "strength_movement_validation_Brier":v["validation_candidate_scores"]["strength_movement"]["brier"],
+          "strength_component_ablation":v["strength_vs_movement_only_explanatory"],
           "lift":v["chosen_lift_vs_market"]}
           for k,v in results.items()},"production_changed":False,
     },ensure_ascii=False))
