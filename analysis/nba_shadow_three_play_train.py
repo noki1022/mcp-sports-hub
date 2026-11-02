@@ -91,6 +91,8 @@ def train_beta(rows,kind):
 
 def metrics(rows,kind,beta,weight):
     values=[]
+    direction_counts={"baseline_hits":0,"baseline_non_ties":0,
+                      "candidate_hits":0,"candidate_non_ties":0}
     for r in rows:
         x=max(-15.,min(15.,move(r,kind)))
         if kind=="ml":
@@ -108,10 +110,21 @@ def metrics(rows,kind,beta,weight):
             old=.5
             new=phi(beta*weight*x/19.47)
         values.append((float(old)-y,float(new)-y))
+        for label,p in (("baseline",old),("candidate",new)):
+            # 50/50 means no directional judgment; never award a tie as a hit.
+            if abs(p-.5)>1e-10:
+                direction_counts[label+"_non_ties"]+=1
+                direction_counts[label+"_hits"]+=int((p>.5)==bool(y))
     if not values:raise RuntimeError("NO_VALID_TRUE_SCORED_MARKET_ROWS")
     return {"n":len(values),
             "baseline_brier":sum(a*a for a,b in values)/len(values),
-            "candidate_brier":sum(b*b for a,b in values)/len(values)}
+            "candidate_brier":sum(b*b for a,b in values)/len(values),
+            "directional":{label:{
+                "graded_non_tie":direction_counts[label+"_non_ties"],
+                "correct":direction_counts[label+"_hits"],
+                "accuracy":(round(direction_counts[label+"_hits"]/direction_counts[label+"_non_ties"],6)
+                            if direction_counts[label+"_non_ties"] else None)}
+                for label in ("baseline","candidate")}}
 
 def fit(data,source_sha,score_sha):
     train,validation,evaluation=timeline(data)
@@ -137,6 +150,11 @@ def fit(data,source_sha,score_sha):
             "validation_candidate_brier":{k:round(z["candidate_brier"],8) for k,z in v.items()},
             "retrospective_later_baseline_brier":round(e["baseline_brier"],8),
             "retrospective_later_candidate_brier":round(e["candidate_brier"],8),
+            "retrospective_later_candidate_direction":e["directional"]["candidate"],
+            "retrospective_later_market_baseline_direction":e["directional"]["baseline"],
+            "baseline_kind":("OPEN_MARKET_MONEYLINE" if kind=="ml" else
+                             "UNINFORMATIVE_50_50_NOT_EXISTING_PRODUCTION_MODEL"),
+            "retrospective_later_not_independent_live_model_validation":True,
             "not_live_independent_model_uplift":True,
         }
     return {
