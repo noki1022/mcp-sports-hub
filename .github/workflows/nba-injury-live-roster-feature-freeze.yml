@@ -1,0 +1,80 @@
+name: NBA future official injury plus roster asof role evidence (research only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_injury_live_roster_feature_freeze.py'
+      - 'analysis/README-nba-injury-live-roster-feature-freeze.md'
+      - '.github/workflows/nba-injury-live-roster-feature-freeze.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prospect-only-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned existing injury research dependencies
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6 pandas==2.2.3 pyarrow==20.0.0 pdfplumber==0.11.7
+      - name: Run existing parser and research time-leak tests
+        run: |
+          python3 -m py_compile analysis/nba_injury_live_roster_feature_freeze.py
+          python3 analysis/nba_injury_live_roster_feature_freeze.py --selftest
+          python3 analysis/nba_current_roster_id_crosswalk.py --selftest
+          python3 analysis/nba_injury_person_id_asof_minutes.py --selftest
+          python3 analysis/nba_official_injury.py --self-test
+      - name: Collect actual ESPN fixtures current rosters prior player minutes and official injury PDF
+        run: |
+          python3 analysis/nba_injury_live_roster_feature_freeze.py \
+            --out /tmp/nba-live-injury-roster-frozen
+      - name: Enforce pretip provenance no numeric impact or production change
+        run: |
+          python3 - <<'PY'
+          import json, hashlib
+          from pathlib import Path
+          from datetime import datetime
+          root=Path('/tmp/nba-live-injury-roster-frozen')
+          audit=json.loads((root/'audit.json').read_text())
+          blob=(root/'prospective_official_injury_roster_minutes.jsonl').read_bytes()
+          rows=[json.loads(x) for x in blob.splitlines()]
+          assert audit['schema_version']=='nba-live-injury-roster-strict-prior-minutes-v1'
+          assert audit['frozen_jsonl_sha256']==hashlib.sha256(blob).hexdigest()
+          assert len(rows)==audit['future_games'] and len(rows)>0
+          assert audit['no_injury_effect_fitted'] is True
+          assert audit['no_retroactive_old_shadow_rewrite'] is True
+          assert audit['existing_push_and_model_untouched'] is True
+          assert audit['source_roster_captured_now_only'] is True
+          assert audit['historical_release_clock_not_verified'] is True
+          assert sum(audit['all_reported_player_identity_statuses'].values())==audit['official_player_rows']
+          assert audit['identified_player_minutes_records']<=audit['official_player_rows']
+          assert sum(audit['unresolved_reported_players_by_reason'].values())+audit['identified_player_minutes_records']==audit['official_player_rows']
+          for row in rows:
+              assert row['injury_adjusted_probability'] is None
+              assert row['candidate_coefficients'] is None
+              assert row['production_eligible'] is False
+              tip=datetime.fromisoformat(row['tipoff_utc'].replace('Z','+00:00'))
+              capture=datetime.fromisoformat(row['research_capture_utc'].replace('Z','+00:00'))
+              assert capture<tip
+              for player in row['injured_players']:
+                  assert player['numeric_player_effect'] is None
+                  if player['prior_team_minutes'] is not None:
+                      assert player['last_prior_game_date']<tip.date().isoformat()
+                      assert player['nba_log_person_id'] is not None
+                      assert player['espn_roster_athlete_id'] is not None
+          print('NBA_LIVE_INJURY_ROSTER_ASOF_RESEARCH_ACCEPTED',audit['future_games'],
+                audit['official_both_teams_published'],audit['official_player_rows'],
+                audit['fully_identified_fixtures'],audit['status'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-future-real-injury-roster-role-prospective-evidence
+          path: /tmp/nba-live-injury-roster-frozen/
+          if-no-files-found: warn
+          retention-days: 60
