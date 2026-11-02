@@ -19,6 +19,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install existing injury pipeline's pinned numerical dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
       - name: Compile / check existing injury research integrity
         run: |
           python3 -m py_compile analysis/nba_injury_shadow_evidence_audit.py
