@@ -11,7 +11,7 @@ from datetime import datetime,time,timedelta
 from zoneinfo import ZoneInfo
 
 BEIJING=ZoneInfo("Asia/Shanghai")
-SCHEDULED=(time(21,20),time(21,58))  # keep a two minute API buffer
+SCHEDULED=(time(21,30),time(21,58))  # keep a two minute API buffer
 
 def decide(now,phase):
     local=now.astimezone(BEIJING)
@@ -35,7 +35,8 @@ def write_outputs(result):
         if result["ok"]:f.write("target_date="+result["target_date"]+"\n")
 
 def self_test():
-    for ts,valid in (("2026-10-30T21:20:00+08:00",True),
+    for ts,valid in (("2026-10-30T21:20:00+08:00",False),
+                     ("2026-10-30T21:29:59+08:00",False),
                      ("2026-10-30T21:30:00+08:00",True),
                      ("2026-10-30T21:49:00+08:00",True),
                      ("2026-10-30T21:57:59+08:00",True),
