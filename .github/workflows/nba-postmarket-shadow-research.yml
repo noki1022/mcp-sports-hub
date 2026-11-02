@@ -1,0 +1,74 @@
+name: NBA post-market independent five-play shadow model research
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_shadow_three_play_train.py'
+      - 'analysis/nba_postcapture_crossplay_shadow.py'
+      - 'analysis/nba_shadow_postmarket_runner.py'
+      - 'config/nba_shadow_three_play_params.json'
+      - '.github/workflows/nba-postmarket-shadow-research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-independently-trained-and-refrozen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate strictly earlier-season three-play model training and timestamped shadow inference
+        run: |
+          python3 -m py_compile analysis/nba_shadow_three_play_train.py analysis/nba_postcapture_crossplay_shadow.py
+          python3 analysis/nba_shadow_three_play_train.py --selftest
+          python3 analysis/nba_postcapture_crossplay_shadow.py --selftest
+          python3 analysis/nba_shadow_model_integration.py --selftest
+      - name: Fit three-play market movement correction on historical genuine scored training subset
+        run: |
+          python3 analysis/nba_shadow_three_play_train.py --train --out /tmp/nba-shadow-crossplay-trained.json
+      - name: Audit 2026-11-03 true saved 007 12-to-18 companies and ORIGINAL independent model
+        run: |
+          python3 analysis/nba_shadow_model_integration.py --date 2026-11-03 --earlier-slot 1200 --later-slot 1800 --out /tmp/nba-crossplay-replay
+      - name: Generate new postmarket five-play model predictions independently from the ORIGINAL
+        run: |
+          python3 analysis/nba_postcapture_crossplay_shadow.py --bridge /tmp/nba-crossplay-replay/nba_shadow_model_bridge.json --params /tmp/nba-shadow-crossplay-trained.json --out /tmp/nba-crossplay-replay/nba_postmarket_new_shadow.json
+      - name: Verify exact original JC/Crown lines, no posttip capture and independent official score not fabricated
+        run: |
+          python3 - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          import sys
+          sys.path.insert(0,'analysis')
+          import nba_shadow_model_integration as I
+          root=Path('/tmp/nba-crossplay-replay')
+          base=json.loads((root/'nba_shadow_model_bridge.json').read_text())
+          cand=json.loads((root/'nba_postmarket_new_shadow.json').read_text())
+          params=json.loads(Path('/tmp/nba-shadow-crossplay-trained.json').read_text())
+          assert params['actual_crosschecked_independent_games']==1312
+          assert params['train_last_date']<params['validation_first_date']<params['retrospective_later_first_date']
+          assert cand['game_count']==base['game_count']==15
+          assert cand['model_type']=='INDEPENDENT_POST_MARKET_SHADOW_MODEL'
+          assert cand['zero_bets_zero_ev_zero_roi_arbitrage'] is True
+          assert cand['auto_promote_into_production'] is False
+          assert cand['pushplus_report_modified'] is False
+          assert cand['market_feature_source_sha256']==hashlib.sha256((root/'nba_shadow_model_bridge.json').read_bytes()).hexdigest()
+          assert len(cand['games'])==15
+          assert len({g['game_id'] for g in cand['games']})==15
+          assert all(len(g['markets'])==5 for g in cand['games'])
+          missing=I.compare_candidate(base,cand,None,cand['market_feature_source_sha256'])
+          assert missing['independent_games']==0 and missing['promotion_allowed'] is False
+          print('NBA_ACTUAL_NEW_POSTMARKET_FIVE_PLAY_FROZEN',cand['game_count'],cand['changed_probability_market_count'],{k:v['effective_beta'] for k,v in params['coefficients'].items()})
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-genuine-007-new-model-five-play-pretip-shadow
+          path: |
+            /tmp/nba-crossplay-replay/
+            /tmp/nba-shadow-crossplay-trained.json
+          retention-days: 90
+          if-no-files-found: warn
