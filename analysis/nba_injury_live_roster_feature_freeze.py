@@ -9,7 +9,7 @@ now is retroactive evidence for an older frozen forecast.
 from __future__ import annotations
 import argparse
 from collections import Counter,defaultdict
-from datetime import datetime,timedelta,timezone
+from datetime import date,datetime,timedelta,timezone
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -220,6 +220,12 @@ def freeze_game(fixture,games,proof,roster_index,roster_proof,captured,history_b
                 elif (m.get("last_same_team_played_date","")>=day or
                       m.get("identity_asof_date_exclusive","")>day):
                     why="FUTURE_MINUTES_OR_ROSTER"
+                elif (not m.get("last_same_team_played_date") or
+                      (date.fromisoformat(day)-date.fromisoformat(
+                           m["last_same_team_played_date"])).days>IDS.MAX_LOG_DAYS_PRIOR):
+                    # A returning player may have verified identity but old
+                    # minutes must NOT proxy their current-team rotation role.
+                    why="STALE_SAME_TEAM_MINUTES_OVER_410_DAYS"
                 else:
                     eligible=m
                     why="ID_TEAM_AND_PAST_MINUTES_VALIDATED"
