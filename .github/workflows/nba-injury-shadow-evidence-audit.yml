@@ -1,0 +1,77 @@
+name: Audit existing frozen NBA injury shadow with 007 movement and real finals (research)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_injury_shadow_evidence_audit.py'
+      - 'analysis/README-nba-injury-shadow-evidence-audit.md'
+      - '.github/workflows/nba-injury-shadow-evidence-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  existing-shadow-real-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install existing injury pipeline's pinned numerical dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Compile / check existing injury research integrity
+        run: |
+          python3 -m py_compile analysis/nba_injury_shadow_evidence_audit.py
+          python3 analysis/nba_injury_shadow_evidence_audit.py --selftest
+          python3 analysis/nba_injury_prospective_capture.py --self-test
+          python3 analysis/nba_injury_prospective_acceptance.py --self-test
+      - name: Audit existing pretip injury freezes, same-snapshot 007 movement and ESPN finals
+        run: |
+          python3 analysis/nba_injury_shadow_evidence_audit.py \
+            --root . --out /tmp/nba-existing-injury-shadow-evidence
+      - name: Verify old injury shadow is reused and no fake injury uplift claimed
+        run: |
+          python3 - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          p=Path('/tmp/nba-existing-injury-shadow-evidence')
+          a=json.loads((p/'audit.json').read_text())
+          data=(p/'existing_frozen_injury_market_evidence.jsonl').read_bytes()
+          rows=[json.loads(s) for s in data.splitlines()]
+          assert a['schema_version']=='nba-existing-injury-shadow-evidence-v1'
+          assert a['evidence_sha256']==hashlib.sha256(data).hexdigest()
+          assert a['captured_games']==len(rows)
+          assert a['distinct_event_ids']==len(rows)
+          assert a['captured_games']>=11
+          assert len(a['snapshots'])>=2
+          assert a['verified_NBA_person_id_games']<=len(rows)
+          assert a['frozen_replacement_model_paired_games']<=len(rows)
+          assert a['completed_paired_injury_games']<=a['verified_completed_games']
+          assert a['original_injury_model_not_replaced'] is True
+          assert a['cannot_estimate_injury_increment_without_paired_forecasts'] is True
+          assert a['market_price_side_orientation_unverified'] is True
+          assert a['zero_live_model_or_pushplus_change'] is True
+          if a['completed_paired_injury_games']==0:
+              assert a['completed_paired_injury_Brier_lift'] is None
+          for r in rows:
+              assert r['source_proof']['shadow_sha256']
+              assert r['official_report_quality']
+              assert r['market_captured_utc']<=r['prediction_captured_utc']<r['tipoff_utc']
+              assert r['injury_source_captured_utc']<=r['prediction_captured_utc']
+              assert set(r['market_features'])=={'full_spread','full_total'}
+              for m in r['market_features'].values():
+                  assert m['price_side_direction_unverified'] is True
+          print('NBA_INJURY_EXISTING_SHADOW_EVIDENCE_ACCEPTED',
+                a['captured_games'],a['verified_completed_games'],
+                a['frozen_replacement_model_paired_games'],
+                a['injury_report_quality_counts'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-existing-injury-shadow-evidence-and-score-audit
+          path: /tmp/nba-existing-injury-shadow-evidence/
+          if-no-files-found: warn
+          retention-days: 60
