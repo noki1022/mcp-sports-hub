@@ -48,6 +48,8 @@ jobs:
           assert d['official_player_rows']>10
           assert d['player_id_with_prior_minutes']<=d['official_player_rows']
           assert d['current_season_team_verified_reported_players']<=d['player_id_with_prior_minutes']
+          assert 0<=d['entire_game_identity_prerequisite_ready']<=d['existing_frozen_games']
+          assert d['entire_game_identity_prerequisite_ready']==sum(r['entire_game_identity_prerequisite_ready'] for r in rows)
           assert d['original_frozen_predictions_unmodified'] is True
           assert d['no_new_injury_model_coefficients_generated'] is True
           assert d['no_live_scheduler_or_pushplus_changes'] is True
