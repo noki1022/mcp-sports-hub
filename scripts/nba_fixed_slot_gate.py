@@ -219,6 +219,10 @@ def self_test() -> None:
         assert 'os.environ["HOURLY_REPORT_SLOT"]' not in gate_region
         assert content.index("Preflight canonical slot and verified acceptance") < content.index("Install locked NBA numerical dependency")
         assert content.index("Recheck verified acceptance before PushPlus") < content.index("Send complete iPhone full-board NBA analysis")
+        assert content.index("Recheck verified acceptance before PushPlus") < content.index("Final overnight pretip check immediately before PushPlus")
+        assert content.index("Final overnight pretip check immediately before PushPlus") < content.index("Send complete iPhone full-board NBA analysis")
+        assert "steps.final_pretip.outcome != 'failure'" in content
+        assert "overnight_all_games_pretip(Path(\"titan007_three_joined.json\"),target,now)" in content
         for schedule in SCHEDULE_SLOTS:
             assert '    - cron: "' + schedule + '"' in content
         region = content[content.index("      - name: Join independent UTC fixture"):
