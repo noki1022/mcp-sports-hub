@@ -384,7 +384,14 @@ jobs:
             git config user.name github-actions[bot]
             git config user.email 41898282+github-actions[bot]@users.noreply.github.com
             git add "$dir"
-            git diff --cached --quiet || { git commit -m "Archive Titan007 analysis ${TARGET_DATE} ${REPORT_SLOT}" && git push; }
+            if ! git diff --cached --quiet; then
+              git commit -m "Archive Titan007 analysis ${TARGET_DATE} ${REPORT_SLOT}"
+              for n in 1 2 3; do
+                if git push origin HEAD:main; then break; fi
+                git pull --rebase origin main
+                if [ "$n" -eq 3 ]; then exit 1; fi
+              done
+            fi
           else
             echo "NO_MATCHED_GAMES_SKIP_ARCHIVE"
           fi
@@ -444,6 +451,21 @@ jobs:
             0030|0330|1200|1400|1500|1800|2100|ONCE|ONCE-*) ;;
             *) echo "FALLBACK_UNKNOWN_SLOT" >&2; exit 1 ;;
           esac
+          # If PushPlus accepted the full report but the later Git marker write failed,
+          # never send a second schedule-only notification for the same slot.
+          if python3 - <<'PY'
+          import json
+          from pathlib import Path
+          try:
+              accepted=json.loads(Path("pushplus_status.json").read_text()).get("state")=="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
+          except (OSError,ValueError):
+              accepted=False
+          raise SystemExit(0 if accepted else 1)
+          PY
+          then
+            echo "FULL_REPORT_API_ACCEPTED_SKIP_FALLBACK"
+            exit 0
+          fi
           git fetch --quiet origin main
           python3 scripts/nba_fixed_slot_gate.py --phase recheck >> /tmp/fallback_gate_status
           if grep -q 'API_ALREADY_ACCEPTED' /tmp/fallback_gate_status; then

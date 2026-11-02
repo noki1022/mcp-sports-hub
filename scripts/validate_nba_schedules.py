@@ -149,6 +149,27 @@ def main():
                 assert not (14*60+30<=utc_minute<=21*60+30),(expr,hour,minute)
     worker=(ROOT/"scheduler/worker.mjs").read_text()
     assert 'if((h>=22 || h<=5) && [30,40,49].includes(m))' not in worker
+
+    # Guard against the duplicate PushPlus sends/artifact uploads that previously
+    # caused two accepted 21:30 notifications and a 409 artifact conflict.
+    delivery_commands={
+        "nba-priority-2130.yml":"pushplus_mobile.py --mode three",
+        "nba-priority-0630.yml":"pushplus_mobile.py --mode three",
+        "titan007-three-analysis.yml":"pushplus_mobile.py --mode three",
+        "titan007-final-hourly.yml":"pushplus_mobile.py --mode hourly",
+    }
+    for name,command in delivery_commands.items():
+        content=(ROOT/".github/workflows"/name).read_text()
+        assert content.count(command)==1,("DUPLICATE_OR_MISSING_PUSHPLUS_SEND_STEP",name,content.count(command))
+        assert content.count("uses: actions/upload-artifact@v4")==1,("DUPLICATE_OR_MISSING_ARTIFACT_STEP",name)
+    main_report=(ROOT/".github/workflows/titan007-three-analysis.yml").read_text()
+    archive=main_report.split("      - name: Archive analysis in repository",1)[1].split(
+        "      - name: Validate cross-artifact delivery contract",1)[0]
+    assert "for n in 1 2 3" in archive and "git pull --rebase origin main" in archive
+    fallback=main_report.split("      - name: Failsafe verified NBA schedule PushPlus when full report fails",1)[1].split(
+        "      - if: always()",1)[0]
+    assert "pushplus_status.json" in fallback and "FULL_REPORT_API_ACCEPTED_SKIP_FALLBACK" in fallback
+    print("NBA_SINGLE_PUSH_AND_ARTIFACT_IDEMPOTENCY_GUARD_PASS")
     print("NBA_SCHEDULE_YAML_ALL_STRUCTURES_VALIDATED",len(all_times),"scheduled UTC triggers")
     print("NOTE_GITHUB_CRON_BEST_EFFORT_NOT_EXACT_TIME_GUARANTEE")
 if __name__=="__main__":main()

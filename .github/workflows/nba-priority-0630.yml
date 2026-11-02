@@ -23,8 +23,7 @@ jobs:
         run: |
           git pull --ff-only origin main
           python3 scripts/nba_0630_priority_gate.py --phase preflight | tee /tmp/priority_gate.txt
-          run_report=$(sed -n 's/.*"run_report":\(true\|false\).*/\1/p' /tmp/priority_gate.txt | tail -1)
-          if [ "$run_report" != "true" ]; then
+          if ! grep -Eq '"run_report"[[:space:]]*:[[:space:]]*true' /tmp/priority_gate.txt; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "NO_SAFE_REMAINING_TIPOFF_SKIP_WITHOUT_FAILURE"
             exit 0
@@ -229,8 +228,7 @@ jobs:
         name: Recheck remaining games and dedup immediately before delivery
         run: |
           python3 scripts/nba_0630_priority_gate.py --phase presend | tee /tmp/priority_presend_gate.txt
-          run_report=$(sed -n 's/.*"run_report":\\(true\\|false\\).*/\\1/p' /tmp/priority_presend_gate.txt | tail -1)
-          if [ "$run_report" != "true" ]; then
+          if ! grep -Eq '"run_report"[[:space:]]*:[[:space:]]*true' /tmp/priority_presend_gate.txt; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "NO_REMAINING_SAFE_PRETIP_GAME_SKIP_WITHOUT_FAILURE"
             exit 0
