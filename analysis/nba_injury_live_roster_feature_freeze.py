@@ -199,6 +199,11 @@ def run(out):
     file=dest/"prospective_official_injury_roster_minutes.jsonl"
     file.write_text("".join(json.dumps(x,ensure_ascii=False,sort_keys=True)+"\n" for x in rows),
                     encoding="utf-8")
+    issue_counts=Counter()
+    person_statuses=Counter()
+    for record in rows:
+        issue_counts.update(record.get("unresolved") or {})
+        person_statuses.update(p["identity"] for p in record["injured_players"])
     summary={
         "schema_version":SCHEMA,
         "capture_start_utc":iso(started),"capture_end_utc":iso(now),
@@ -211,6 +216,9 @@ def run(out):
         "official_both_teams_published":sum(r["official_both_teams_published"] for r in rows),
         "official_player_rows":sum(len(r["injured_players"]) for r in rows),
         "fully_identified_fixtures":sum(r["identity_coverage_complete"] for r in rows),
+        "unresolved_reported_players_by_reason":dict(sorted(issue_counts.items())),
+        "all_reported_player_identity_statuses":dict(sorted(person_statuses.items())),
+        "identified_player_minutes_records":person_statuses["ID_TEAM_AND_PAST_MINUTES_VALIDATED"],
         "status":dict(Counter(r["status"] for r in rows)),
         "frozen_jsonl_sha256":sha256(file.read_bytes()).hexdigest(),
         "source_roster_captured_now_only":True,
@@ -227,6 +235,9 @@ def run(out):
         "full_identity_games":summary["fully_identified_fixtures"],
         "status":summary["status"],
         "roster_teams":len(roster_sources),
+        "roster_unavailable_teams":[x["team"] for x in roster_fail],
+        "id_and_prior_minutes_matches":summary["identified_player_minutes_records"],
+        "unresolved_reasons":summary["unresolved_reported_players_by_reason"],
         "production_changed":False},ensure_ascii=False))
     return summary
 
