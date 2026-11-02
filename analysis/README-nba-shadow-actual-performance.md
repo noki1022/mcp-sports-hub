@@ -42,3 +42,17 @@ Research CI: https://github.com/noki1022/mcp-sports-hub/actions/runs/41433509059
 The new research model remains **draft PR only** until automatic postreport frozen artifact delivery and later independent official score grading are proven. No actual production fusion, no revised PushPlus forecasts, no claim that historical model has outperformed the existing team's five real direct plays.
 
 Performance panel must always include: **original games / real scored games / five per-market correct/graded and Brier / baseline vs candidate on the exact same line / number of frozen before kickoff / no quote or missing injury exclusions / a truthful result if no game is yet final**. Never substitute the mere count of adjusted probabilities for hits.
+
+## D. Actual accepted 18:00 source -> newly generated postmarket forecasts
+
+On 2026-11-02 19:24 Beijing (UTC 11:24:37), the real GitHub research job independently generated a NEW complete 15 NBA games x 5 direct markets = 75 forecasts, after checking the genuine original 18:00 successful PushPlus marker from run 41425286650. Eight first-side model probabilities changed, precisely one direction flipped, and two direct official Jingcai moneyline offers remained unavailable. No scores were known and no production probability or PushPlus output was modified.
+
+Actual genuine run: https://github.com/noki1022/mcp-sports-hub/actions/runs/41436593663
+
+Upon merger of PR #231, the separate research-only workflow nba-postmarket-shadow-auto.yml is triggered by the SUCCESSFUL original full-board 007 analysis workflow completion on main. It checks actual successful 18:00 report marker and matching source run ID, no stale or posttip quotes, original file hashes, correct teams, all five JC/ID3 thresholds and signed spread. It uploads only the immutable pretip candidate and original model bridge with 90-day artifact retention; no odds fetch, no duplicate PushPlus, no main branch writing.
+
+The separately allowlisted research-only daily 23:25 Beijing workflow nba-shadow-prospective-final-grade.yml checks independent official NBA Final settlements. It downloads ONLY the EARLIEST genuine immutable main-branch pretip shadow artifact for that exact date, validates GitHub run timestamps, original source digests, full game/line identity and individual forecasts. Only then it scores each originally frozen and newly frozen direct JC and Crown ID3 prediction on the exact same game and line. It produces actual correct/graded and Brier per market with zero live fusion. A missed or incomplete final remains ungraded; there is no claim of positive prospective model lift until independently settled future games accumulate.
+
+One isolated postgame research-score-only schedule is explicitly allowlisted in scripts/validate_nba_schedules.py. Existing original live PushPlus, Cloudflare, odds collection and pretip 12:00/18:00/21:30 run times are unchanged. The previously explored historical market-stage results do not establish incremental improvement against current production.
+
+Future numeric model promotion remains blocked pending at least 100 independent completed fixtures on each of the five direct market targets, at least 24 separate Beijing dates, statistically credible same-game paired forecast-score improvement, verified original model inputs and additional truly untouched chronological prospective outcomes. No automatic promotion exists.
