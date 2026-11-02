@@ -48,35 +48,28 @@ def run():
         # Hash changes must not be silently accepted as an identical freeze.
         found=generated["input_sha256"]["joined"]
         assert len(found)==64 and found==ST.sha(p/"joined.json")
-        # Genuine OLD 21:30 board: test same captures, model independence and
-        # shape of the paired ORIGINAL source. No results used in inference.
+        # Critical: the Nov 1 archive called "2130" was actually generated
+        # at 21:21 Beijing. It must NOT be relabeled as a valid 21:30 exam.
         day2,slot2,marker2=ST.marker(ROOT,"41310772662")
         assert (day2,slot2)==("2026-11-02","2130")
-        t=asof("2026-11-01T13:25:00Z")
-        manifest2=ST.stage(ROOT,"41310772662",tmp/"stage21",t)
-        model=prediction(tmp/"stage21",t,"2130")
-        assert model["game_count"]>0
-        assert model["slot"]=="2130"
-        save=tmp/"artifact"
-        save.mkdir()
-        for n in ("input_manifest.json","joined.json","consensus.json","jingcai.json"):
-            (save/n).write_bytes((tmp/"stage21"/n).read_bytes())
-        if (tmp/"stage21/previous.json").is_file():
-            (save/"previous.json").write_bytes((tmp/"stage21/previous.json").read_bytes())
-        (save/"independent_prediction.json").write_text(
-            json.dumps(model,ensure_ascii=False,sort_keys=True)+"\n")
-        locked=SE.seal(save,ROOT,tmp/"ledger","2026-11-02","2130",
-                       "41310772662",t+timedelta(seconds=45))
-        assert locked["is_authoritative_final_exam"] is True
-        assert len(locked["sha256"])>=7
-        assert "original_2130_five_market_forecast.json" in locked["sha256"]
-        assert "original_2130_pushed_iphone.html" in locked["sha256"]
         try:
-            SE.seal(save,ROOT,tmp/"ledger","2026-11-02","2130",
-                    "41310772662",t+timedelta(seconds=46))
+            ST.stage(ROOT,"41310772662",tmp/"wrong-early-final",
+                     asof("2026-11-01T13:25:00Z"))
         except ValueError as exc:
-            assert "NEVER_OVERWRITE" in str(exc)
-        else:raise AssertionError("ARCHIVED_2130_EXAM_WAS_REWRITTEN")
+            assert "SKIP_EARLY_OR_WRONG_DAY_2130_CAPTURE" in str(exc)
+        else:
+            raise AssertionError("OLD_2121_FINAL_INCORRECTLY_PASSED_AS_2130")
+        # No prediction may retroactively be manufactured from the
+        # prior day's prematurely labeled 21:30 capture.
+        existing=tmp/"ledger/2026-11-02/2130"
+        existing.mkdir(parents=True)
+        try:
+            SE.seal(tmp,ROOT,tmp/"ledger","2026-11-02","2130",
+                    "41310772662",asof("2026-11-01T13:30:00Z"))
+        except ValueError as exc:
+            assert "FIRST_FREEZE_ALREADY_SEALED_NEVER_OVERWRITE" in str(exc)
+        else:raise AssertionError("ARCHIVED_FINAL_COULD_BE_OVERWRITTEN")
+        print("HISTORICAL_2121_MISLABELED_2130_CORRECTLY_QUARANTINED")
         # Grade from an independent synthetic locked structure, not by
         # invoking the market model with completed game scores.
         original={"target_date":"2026-11-03","games":[{"game_id":"a",
@@ -108,7 +101,7 @@ def run():
         assert result["five_market_by_market"]["JINGCAI_TOTAL"]["original_hits"]==0
         assert result["five_market_by_market"]["CROWN_HANDICAP"]["original_hits"]==0
         assert result["not_18_or_00_30_or_03_30_model_scores"] is True
-        print("REAL_007_PRIOR_18_AND_2130_SOURCE_ONLY_REPLAY_CONTRACT_PASS",
-              generated["game_count"],model["game_count"])
+        print("REAL_007_1800_SOURCE_ONLY_AND_EARLY_2130_QUARANTINE_CONTRACT_PASS",
+              generated["game_count"],4)
     print("INDEPENDENT_MODEL_AND_SINGLE_2130_EXAM_WITHOUT_SCORE_LEAK_SELFTEST_PASS")
 if __name__=="__main__":run()
