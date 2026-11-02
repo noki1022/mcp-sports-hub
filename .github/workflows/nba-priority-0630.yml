@@ -23,7 +23,10 @@ jobs:
         run: |
           git pull --ff-only origin main
           python3 scripts/nba_0630_priority_gate.py --phase preflight | tee /tmp/priority_gate.txt
-          if ! grep -Eq '"run_report"[[:space:]]*:[[:space:]]*true' /tmp/priority_gate.txt; then
+          # The gate writes a stable machine-readable Github output. Never
+          # parse the human-readable JSON text: a JSON whitespace change
+          # previously caused green 06:30 runs to skip two eligible games.
+          if ! grep -Fxq 'run_report=true' "$GITHUB_OUTPUT"; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "NO_SAFE_REMAINING_TIPOFF_SKIP_WITHOUT_FAILURE"
             exit 0
