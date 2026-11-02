@@ -230,12 +230,26 @@ def evaluate(rows, predictions=None, min_ev=DEFAULT_MIN_EV):
             raise ValueError("DIFFERING_SAME_LINE_SETTLEMENT")
         outcome = outcomes.pop()
         shared_p = statistics.median([r["_p"] for r in quotes])
+        # Immutable, strictly as-of bookmaker feature vectors. None of these
+        # fields use the final score or the eventual selected bet.
+        book_features = []
         market_choices = []
         for r in quotes:
             peers = [z["_p"] for z in quotes if z["bookmaker"] != r["bookmaker"]]
             if len(peers) < 2:
                 continue
             loo_p = statistics.median(peers)
+            book_features.append({
+                "bookmaker": r["bookmaker"],
+                "last_quote_update_utc": r["price_last_update_utc"],
+                "age_at_snapshot_minutes": round((snapshot - parse_clock(
+                    r["price_last_update_utc"])).total_seconds() / 60, 3),
+                "first_side_price_decimal": r["_odds1"],
+                "second_side_price_decimal": r["_odds2"],
+                "first_side_no_vig_probability": round(r["_p"], 8),
+                "leave_this_book_out_peer_probability": round(loo_p, 8),
+                "peer_market_disagreement_pp": round((r["_p"] - loo_p) * 100, 6),
+            })
             for direction in ("FIRST_SIDE", "SECOND_SIDE"):
                 market_choices.append(opportunity(r, loo_p, direction, "LEAVE_ONE_BOOK_OUT"))
         market_bet = choose_candidate(market_choices, min_ev)
@@ -263,8 +277,29 @@ def evaluate(rows, predictions=None, min_ev=DEFAULT_MIN_EV):
         # Group results by the game date in Beijing, not by the earlier
         # pregame quote snapshot date (often the prior Beijing day).
         d = quotes[0]["_tip"] + timedelta(hours=8)
+        earlier = sorted(
+            [c for c in cohorts[(event, market)] if c[0] < snapshot],
+            key=lambda c: (c[0].timestamp(), -len(c[2]),
+                           float(c[1]) if c[1] is not None else 0)
+        )
+        first_observed = earlier[0] if earlier else None
+        first_price_move = (
+            round(shared_p - statistics.median(z["_p"] for z in first_observed[2]), 8)
+            if first_observed and first_observed[1] == line else None
+        )
         results.append({
             "event_id": event, "market": market, "line": line,
+            "asof_bookmaker_features": sorted(book_features, key=lambda z: z["bookmaker"]),
+            "observed_market_movement": {
+                "eligible_same_line_or_mixed_line_snapshot_count": len(cohorts[(event, market)]),
+                "earliest_other_capture_utc": first_observed[0].isoformat() if first_observed else None,
+                "earliest_line": first_observed[1] if first_observed else None,
+                "latest_minus_earliest_signed_line": (
+                    line - first_observed[1] if first_observed and line is not None
+                    and first_observed[1] is not None else None),
+                "same_exact_line_consensus_probability_move": first_price_move,
+                "not_observed": first_observed is None,
+            },
             "game_date_beijing": d.date().isoformat(),
             "quote_snapshot_utc": snapshot.isoformat(),
             "tipoff_utc": quotes[0]["_tip"].isoformat(),
@@ -439,6 +474,14 @@ def self_test():
         assert str(exc) == "DUPLICATE_BOOK_EVENT_MARKET_LINE_CAPTURE"
     else:
         raise AssertionError("DUPLICATE_QUOTES_ACCEPTED")
+    # Earlier captured real-time company cohorts become an explicit movement
+    # feature, not a new independent training game and not a posttip quote.
+    earlier = [dict(r, snapshot_time_utc="2026-10-28T17:50:00Z") for r in q]
+    moved, moved_summary = report(q + earlier)
+    assert moved_summary["independent_games"] == 1
+    assert moved[0]["observed_market_movement"]["eligible_same_line_or_mixed_line_snapshot_count"] == 2
+    assert moved[0]["observed_market_movement"]["same_exact_line_consensus_probability_move"] == 0
+    assert len(moved[0]["asof_bookmaker_features"]) == 3
     # Out-of-cohort same-day late odds must not be used as earlier price.
     mixed = q + [dict(r, event_id="other", snapshot_time_utc="2026-10-29T00:01:00Z")
                  for r in q]
