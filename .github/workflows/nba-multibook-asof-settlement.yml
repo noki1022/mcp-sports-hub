@@ -1,0 +1,93 @@
+name: NBA Multi-Book Prematch Timestamp + Score Settlement (research)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_multibook_asof_settled_ledger.py'
+      - 'analysis/nba_multibook_same_line_consensus.py'
+      - 'analysis/nba_multisource_score_backfill.py'
+      - 'analysis/historical_odds_validator.py'
+      - '.github/workflows/nba-multibook-asof-settlement.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  match-scores:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and synthetic assertions for as-of odds and final-score labels
+        run: |
+          python3 -m py_compile analysis/nba_multibook_asof_settled_ledger.py
+          python3 analysis/nba_multibook_asof_settled_ledger.py --selftest
+      - name: Match repository sportsbook captures to existing and independent ESPN scores
+        run: |
+          python3 analysis/nba_multibook_asof_settled_ledger.py --repo-root . --out /tmp/nba-multibook-asof
+      - name: Evaluate exact-line 9-company historical market consensus without training
+        run: |
+          python3 -m py_compile analysis/nba_multibook_same_line_consensus.py
+          python3 analysis/nba_multibook_same_line_consensus.py --selftest
+          python3 -m py_compile analysis/nba_multisource_score_backfill.py
+          python3 analysis/nba_multisource_score_backfill.py --selftest
+          python3 analysis/nba_multibook_same_line_consensus.py --source /tmp/nba-multibook-asof/multibook_asof_settled_only.jsonl --out /tmp/nba-multibook-asof/consensus
+      - name: Build unified 007 + multi-book pretip data with all 32 verified finals
+        run: |
+          python3 analysis/nba_multi_provider_odds_asof_archive.py --repo-root . --out /tmp/nba-multi-provider-asof
+          python3 analysis/nba_multisource_score_backfill.py --prior-ledger /tmp/nba-multi-provider-asof/all_providers_pretip_odds.jsonl --new-scores /tmp/nba-multibook-asof/multibook_asof_settled_only.jsonl --out /tmp/nba-multibook-asof/unified_007_and_9books
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('/tmp/nba-multibook-asof/unified_007_and_9books')
+          d=json.loads((p/'manifest.json').read_text())
+          assert d['distinct_games_with_quotations']==36
+          assert d['total_quote_rows']==1375
+          assert d['settled_distinct_games_before']==20
+          assert d['settled_distinct_games_after']==32
+          assert d['settled_new_distinct_games']==12
+          assert d['counts']['newly_scored_quotes']==324
+          assert d['counts']['previously_scored_quotes']==81
+          print('NBA_UNIFIED_TIMED_ODDS_VERIFIED_FINAL_LABELS',d)
+          PY
+      - name: Assert against future info and all same-game duplicates
+        run: |
+          python3 - <<'PY'
+          import json
+          from datetime import datetime,timezone
+          from pathlib import Path
+          d=Path('/tmp/nba-multibook-asof')
+          q=json.loads((d/'audit.json').read_text())
+          assert q['source_captured_pretip'] is True
+          assert q['future_games_not_falsely_labeled'] is True
+          assert q['research_promotion_allowed'] is False
+          assert q['no_production_changes'] is True
+          assert q['quote_bookmaker_market_rows']>=100
+          n=0
+          unique=set()
+          for s in (d/'multibook_asof_all.jsonl').read_text().splitlines():
+            r=json.loads(s)
+            key=(r['event_id'],r['bookmaker'],r['market'],r['snapshot_time_utc'])
+            assert key not in unique
+            unique.add(key)
+            snapshot=datetime.fromisoformat(r['snapshot_time_utc'].replace('Z','+00:00'))
+            update=datetime.fromisoformat(r['price_last_update_utc'].replace('Z','+00:00'))
+            tip=datetime.fromisoformat(r['commence_time_utc'].replace('Z','+00:00'))
+            assert update<=snapshot<tip
+            if r['settlement']!='UNSETTLED_NO_VERIFIED_SCORE':
+              n+=1
+              assert r['usable_for_historical_line_settlement'] is True
+              assert r['final_home_points'] is not None
+          assert n==q['verified_settled_quote_rows']
+          print('NBA_MULTIBOOK_TIME_AND_SCORE_VERIFIED',q['independent_events_with_asof_odds'],q['verified_settled_distinct_events'],n)
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-multibook-actual-quote-times-with-settled-scores
+          path: /tmp/nba-multibook-asof/
+          if-no-files-found: warn
+          retention-days: 60
