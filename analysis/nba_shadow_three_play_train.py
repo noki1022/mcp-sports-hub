@@ -15,8 +15,8 @@ import json
 import math
 from pathlib import Path
 
-import nba_historical_market_benchmark as B
-import nba_hf_open_close_crosscheck as HF
+# Historical outcome modules are never imported by pretip inference.
+# Import them only under the explicit research TRAIN command.
 
 SCHEMA="nba-shadow-crossplay-coefficients-v1"
 RIDGE=100.0
@@ -221,6 +221,8 @@ def main():
     if args.selftest:
         selftest();return
     if not args.train:raise SystemExit("REQUIRES_EXPLICIT_RESEARCH_TRAIN_SWITCH")
+    import nba_historical_market_benchmark as B
+    import nba_hf_open_close_crosscheck as HF
     history,meta=B.transform(B.fetch())
     raw=HF.fetch()
     crosschecked,hfmeta=HF.transform(raw,history)
