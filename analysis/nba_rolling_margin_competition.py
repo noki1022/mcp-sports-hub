@@ -41,7 +41,7 @@ FOLDS = (
     {"name":"2023_24_forward_3", "fit_end":"2024-01-15",
      "cal_start":"2024-01-16", "cal_end":"2024-02-29",
      "eval_start":"2024-03-08", "eval_end":"2024-04-14"},
-    {"name":"2024_25_opening", "fit_end":"2024-04-14",
+    {"name":"2024_25_opening", "fit_end":"2024-02-20",
      "cal_start":"2024-03-01", "cal_end":"2024-04-14",
      "eval_start":"2024-10-24", "eval_end":"2024-11-15"},
     {"name":"2024_25_mid", "fit_end":"2024-04-14",
@@ -298,7 +298,6 @@ def self_test():
                      "elo_diff":float(i%13),"margin":float(i%17)})
     for variant in ("baseline","decay365","saturated365"):
         m=fit(rows,"margin",variant)
-        y=fitted_predictions(rows,maps_dummy(m,variant)) if False else None
         assert math.isfinite(float(m["intercept"]))
         assert np.isfinite(m["beta"]).all()
     assert abs(date_bootstrap([{"date":"2025-01-01"}]*4,
