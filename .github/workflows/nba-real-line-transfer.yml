@@ -1,0 +1,62 @@
+name: NBA 23574 score model vs 1312 verified real open-close lines (research)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_historical_real_line_transfer.py'
+      - '.github/workflows/nba-real-line-transfer.yml'
+      - 'analysis/README-nba-real-line-transfer.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  independent-real-lines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned numpy only
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Verify code and synthetic signed-line grading
+        run: |
+          python3 -m py_compile analysis/nba_historical_real_line_transfer.py
+          python3 analysis/nba_historical_real_line_transfer.py --selftest
+      - name: Run historical score-only margin and total against independently validated real market lines
+        run: |
+          python3 analysis/nba_historical_real_line_transfer.py --out /tmp/nba-real-line-transfer
+      - name: Enforce original source rows and no production-data leakage
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('/tmp/nba-real-line-transfer/market_line_benchmark.json').read_text())
+          assert d['historical_games']==23574
+          assert d['actual_consensus_open_close_games']>=1200
+          assert d['training_games']>20000 and d['validation_games']>1000
+          assert d['model_train_last_date']<d['model_validation_last_date']
+          assert d['actual_quote_timestamp_verified'] is False
+          assert d['2024_25_has_been_seen_in_other_project_research'] is True
+          assert d['production_promotion_allowed'] is False
+          assert d['no_live_007_crown_jingcai_or_pushplus_changes'] is True
+          required=('ml_open','ml_close','home_cover_open','home_cover_close','over_open','over_close')
+          assert set(d['actual_real_line_comparisons'])==set(required)
+          for k in required:
+            x=d['actual_real_line_comparisons'][k]
+            assert x['eligible_games']>=1100
+            assert x['score_only']['n_games']==x['eligible_games']
+          print('NBA_HISTORICAL_REAL_LINE_TRANSFER_ACCEPTED',
+                d['actual_consensus_open_close_games'],
+                {k:(v['score_only']['brier'],v.get('market',{}).get('brier'))
+                 for k,v in d['actual_real_line_comparisons'].items()})
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-23574-score-model-vs-real-opening-closing-lines
+          path: /tmp/nba-real-line-transfer/
+          if-no-files-found: warn
+          retention-days: 60
