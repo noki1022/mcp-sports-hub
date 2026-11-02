@@ -75,6 +75,17 @@ def regrade(old,new):
                 or not close(r.get("signed_home_handicap"),rec.get("home_handicap_point"))
                 or not close(r.get("total_line"),rec.get("total_point"))):
             raise RuntimeError("SOURCE_PRICE_TEAM_TIME_OR_MARKET_MISMATCH")
+        from datetime import datetime,timezone
+        score_seen=rec.get("score_observed_at_utc")
+        if not isinstance(score_seen,str) or not score_seen:
+            raise RuntimeError("NO_INDEPENDENT_FINAL_SCORE_OBSERVATION_TIME")
+        try:
+            seen=datetime.fromisoformat(score_seen.replace("Z","+00:00"))
+            tip=datetime.fromisoformat(rec["commence_time_utc"].replace("Z","+00:00"))
+        except (TypeError,ValueError) as exc:
+            raise RuntimeError("INVALID_FINAL_SCORE_OBSERVATION_TIME") from exc
+        if seen.tzinfo is None or tip.tzinfo is None or seen.astimezone(timezone.utc)<tip.astimezone(timezone.utc):
+            raise RuntimeError("FINAL_SCORE_OBSERVED_BEFORE_GAME_TIP")
         newoutcome=rec["settlement"]
         if newoutcome not in ("FIRST_SIDE","SECOND_SIDE","PUSH"):
             raise RuntimeError("INVALID_INDEPENDENT_SETTLEMENT")
@@ -95,7 +106,7 @@ def regrade(old,new):
           "away_points":rec["final_away_points"],
           "score_source_provenance":rec["score_final_provenance"],
           "score_source_url":rec.get("score_source_url"),
-          "score_snapshot_time_utc":rec["snapshot_time_utc"],
+          "score_observed_at_utc":rec["score_observed_at_utc"],
         })
         audit["joined_bookmaker_quotes"]+=1
         fresh.append(r)
@@ -162,12 +173,20 @@ def self_test():
         "settlement":"FIRST_SIDE","usable_for_historical_line_settlement":True,
         "final_home_points":110,"final_away_points":100,
         "score_final_provenance":"ESPN_COMPLETED_GAME_SCOREBOARD",
-        "score_source_url":"https://example.invalid/mock"}
+        "score_source_url":"https://example.invalid/mock",
+        "score_observed_at_utc":"2026-10-30T14:00:00Z"}
     unchanged={"provider":"007","game_key":"007:1",
                "training_score_label_available":True}
     rows,report=regrade([base,unchanged],[verified])
     assert report["settled_new_distinct_games"]==1 and report["counts"]["newly_scored_quotes"]==1
     assert rows[1]==unchanged and rows[0]["settled_first_side"]=="FIRST_SIDE"
+    assert rows[0]["score_observed_at_utc"]=="2026-10-30T14:00:00Z"
+    assert "score_snapshot_time_utc" not in rows[0]
+    missing=dict(verified)
+    del missing["score_observed_at_utc"]
+    try:regrade([base],[missing])
+    except RuntimeError as exc:assert str(exc)=="NO_INDEPENDENT_FINAL_SCORE_OBSERVATION_TIME"
+    else:raise AssertionError("EXPECTED_SCORE_TIME_REFUSAL")
     contradiction=dict(verified,first_price_decimal=2.05)
     try:regrade([base],[contradiction])
     except RuntimeError as exc:assert str(exc)=="SOURCE_PRICE_TEAM_TIME_OR_MARKET_MISMATCH"
