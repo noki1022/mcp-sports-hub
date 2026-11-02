@@ -55,11 +55,11 @@ export function plannedJob(timestamp) {
   }
   if(h===21 && [20,30,40].includes(m)){
     return {workflow:"nba-priority-2130.yml",slot:"2130",target_date:x.tomorrow,
-      start_hour:21,start_minute:25,date:x.day,kind:"priority",attempt:m};
+      start_hour:21,start_minute:20,date:x.day,kind:"priority",attempt:m};
   }
   if(h===6 && [20,30,40].includes(m)){
     return {workflow:"nba-priority-0630.yml",slot:"0630",target_date:x.day,
-      start_hour:6,start_minute:25,date:x.day,kind:"priority",attempt:m};
+      start_hour:6,start_minute:20,date:x.day,kind:"priority",attempt:m};
   }
   // Automatic 22:30–05:30 Beijing HOURLY MARKET monitoring is disabled.
   // 00:30 and 03:30 are explicit full-board report exceptions only.
