@@ -61,6 +61,31 @@ def run():
                    or set(x["research_model_candidates"]["ROBUST_MULTIBOOK"]).issubset(
                        set(x["markets"]))) for x in generated["games"])
         assert generated["multibook_paired_sources_used"]>=1
+        # Actual, independently completed ORIGINAL 21:30 source, replayed
+        # strictly as of the clock before Nov3 games. This is a deterministic
+        # archival CONTRACT test, not a newly frozen prospective result.
+        real_2130=asof("2026-11-02T13:42:00Z")
+        manifest21=ST.stage(ROOT,"41453596277",tmp/"real-valid-2130",real_2130)
+        shadow21=prediction(tmp/"real-valid-2130",real_2130,"2130")
+        assert manifest21["archive_slot_is_21:30_final"] is True
+        assert shadow21["game_count"]==15
+        assert shadow21["multibook_paired_sources_used"]>=2
+        assert all(len(g["markets"])==5 for g in shadow21["games"])
+        assert all(len(g["research_model_candidates"]["ROBUST_MULTIBOOK"])>=3
+                   for g in shadow21["games"])
+        assert all(g["research_multibook_features"]["full_spread"]["historical_capture_count"]>=1
+                   for g in shadow21["games"])
+        assert all(g["research_model_candidates"]["ROBUST_MULTIBOOK"][key]["market"]==key
+                   for g in shadow21["games"]
+                   for key in g["research_model_candidates"]["ROBUST_MULTIBOOK"])
+        first=next(g for g in shadow21["games"] if g["game_id"]=="728298")
+        assert first["research_multibook_features"]["full_spread"]["independent_books"]>=8
+        assert first["research_multibook_features"]["full_spread"]["latest_capture_utc"]==(
+            "2026-11-02T13:31:56.225645+00:00")
+        print("REAL_NOV3_15_GAME_2130_MULTIBOOK_FIVE_MARKET_CONTRACT_ONLY_PASS",
+              shadow21["multibook_paired_sources_used"],
+              sum(len(g["research_model_candidates"]["ROBUST_MULTIBOOK"])
+                  for g in shadow21["games"]))
         assert "source" not in generated or generated.get("postgame_data_read") is False
         # Hash changes must not be silently accepted as an identical freeze.
         found=generated["input_sha256"]["joined"]
