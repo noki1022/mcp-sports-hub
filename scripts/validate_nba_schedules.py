@@ -131,7 +131,8 @@ def main():
     assert "nba_final_review_gate.py" in postgame
     assert "nba_five_market_settlement.py" in postgame
     assert "titan007_join_beijing_verified.py" not in postgame
-    # The external Cloudflare trigger must sleep through Beijing 22:30–05:30.
+    # Only TWO deliberate full-report exceptions to the otherwise silent
+    # Beijing 22:30–05:30 market-monitor period: 00:30 and 03:30.
     cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
     cloud_crons=cloud["triggers"]["crons"]
     expected_cloud=[
@@ -139,14 +140,19 @@ def main():
         "0,7,16,20,30,40 13 * * *",
         "0,10,20 14 * * *",
         "20,30,40 22 * * *",
+        "30,40,50 16,19 * * *",
     ]
     assert cloud_crons==expected_cloud,(cloud_crons,expected_cloud)
+    midnight_ticks=set()
     for expr in cloud_crons:
         mm,hh,_,_,_=expr.split()
         for hour in (int(x) for x in hh.split(",")):
             for minute in (int(x) for x in mm.split(",")):
                 utc_minute=hour*60+minute
-                assert not (14*60+30<=utc_minute<=21*60+30),(expr,hour,minute)
+                if 14*60+30<=utc_minute<=21*60+30:
+                    assert (hour in (16,19) and minute in (30,40,50)),(expr,hour,minute)
+                    midnight_ticks.add(((hour+8)%24,minute))
+    assert midnight_ticks=={(h,m) for h in (0,3) for m in (30,40,50)}
     worker=(ROOT/"scheduler/worker.mjs").read_text()
     assert 'if((h>=22 || h<=5) && [30,40,49].includes(m))' not in worker
 
