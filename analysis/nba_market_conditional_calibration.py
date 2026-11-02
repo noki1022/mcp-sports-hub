@@ -288,6 +288,11 @@ def run(out):
           "selected_brier":v["chosen_later_score"]["brier"],
           "market_accuracy":v["market_later_score"]["accuracy"],
           "selected_accuracy":v["chosen_later_score"]["accuracy"],
+          "independent_strength_only_Brier":v["later_retrospective_evaluation_all"]["strength_residual"]["brier"],
+          "market_movement_only_Brier":v["later_retrospective_evaluation_all"]["movement_only"]["brier"],
+          "independent_strength_plus_movement_Brier":v["later_retrospective_evaluation_all"]["strength_movement"]["brier"],
+          "movement_only_validation_Brier":v["validation_candidate_scores"]["movement_only"]["brier"],
+          "strength_movement_validation_Brier":v["validation_candidate_scores"]["strength_movement"]["brier"],
           "lift":v["chosen_lift_vs_market"]}
           for k,v in results.items()},"production_changed":False,
     },ensure_ascii=False))
