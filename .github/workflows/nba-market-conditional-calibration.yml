@@ -1,0 +1,73 @@
+name: NBA market anchored calibration vs real closing lines (research)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_market_conditional_calibration.py'
+      - 'analysis/README-nba-market-conditional-calibration.md'
+      - '.github/workflows/nba-market-conditional-calibration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  historical-three-market-calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 26
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install frozen numerical dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Compile and unit test market anchored probabilities
+        run: |
+          python3 -m py_compile analysis/nba_market_conditional_calibration.py
+          python3 analysis/nba_market_conditional_calibration.py --selftest
+      - name: Train older season model and calibrate early 2024/25 before later real-market score
+        run: |
+          python3 analysis/nba_market_conditional_calibration.py --out /tmp/nba-market-conditional-calibration.json
+      - name: Enforce original market baseline and no holdout leakage or production update
+        run: |
+          python3 - <<'PY'
+          import json,math
+          d=json.load(open('/tmp/nba-market-conditional-calibration.json'))
+          assert d['original_historical_unique_games']==23574
+          assert d['real_crosschecked_open_close_games']==1312
+          assert d['score_training_games']>20000
+          assert d['market_corrector_train_only_earlier_2024_25_games'] is True
+          assert d['market_corrector_later_evaluation_not_untouched'] is True
+          assert d['future_outcomes_used_in_earlier_features'] is False
+          assert d['historical_quote_update_UTC_proven'] is False
+          assert d['markets_are_crossbook_consensus_not_007'] is True
+          assert d['production_model_promotion_allowed'] is False
+          assert d['zero_production_pipeline_changes'] is True
+          seg=d['splits']
+          assert seg['calibration_fit']['distinct_games']>=450
+          assert seg['candidate_validation']['distinct_games']>=220
+          assert seg['retrospective_later_evaluation']['distinct_games']>=300
+          assert seg['calibration_fit']['end']<seg['candidate_validation']['start']
+          assert seg['candidate_validation']['end']<seg['retrospective_later_evaluation']['start']
+          for market in ('moneyline','home_spread','total_over'):
+              m=d['model_comparisons'][market]
+              assert m['selected_using_validation_only'] in (
+                  'market_only','bias_only','temperature_bias',
+                  'strength_residual','strength_movement')
+              assert m['market_rows_by_split']['fit']>=400
+              assert m['market_rows_by_split']['evaluation']>=280
+              assert math.isfinite(m['chosen_later_score']['brier'])
+              assert len(m['chosen_lift_vs_market']['calendar_day_bootstrap_95pct'])==2
+          print('NBA_MARKET_PROBABILITY_CHRONOLOGICAL_RESEARCH_ACCEPTED',
+                {k:(v['selected_using_validation_only'],
+                    v['market_later_score']['brier'],
+                    v['chosen_later_score']['brier'])
+                 for k,v in d['model_comparisons'].items()})
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-real-lines-market-anchored-three-market-calibration
+          path: /tmp/nba-market-conditional-calibration.json
+          if-no-files-found: warn
+          retention-days: 60
