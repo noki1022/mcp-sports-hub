@@ -278,8 +278,11 @@ def main():
             row["jc_007_price_shadow"]=shadow_rows.get(str(row.get("game_id")))
             row["jingcai_source_status"]=jingcai.get("status")
             identity=jc_identity.get(str(row.get("game_id"))) or {}
-            row["jc_match_label"]=identity.get("label") if identity.get("status")=="VERIFIED_JC_NUMBER" else None
-            row["jc_match_no"]=identity.get("match_no") if identity.get("status")=="VERIFIED_JC_NUMBER" else None
+            # A verified source label or explicit, strictly game-locked user
+            # number can be DISPLAYED. Neither modifies market orientation.
+            number_ok=identity.get("status") in ("VERIFIED_JC_NUMBER","USER_CONFIRMED_JC_NUMBER")
+            row["jc_match_label"]=identity.get("label") if number_ok else None
+            row["jc_match_no"]=identity.get("match_no") if number_ok else None
             row["jc_match_identity_status"]=identity.get("status","UNVERIFIED")
         focus=read(args.priority_focus) if args.priority_focus else None
         if focus is not None and (args.mode!="three" or focus.get("slot") not in ("2130","0630")):

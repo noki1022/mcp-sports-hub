@@ -58,16 +58,19 @@ def percent(value):
 def match_label(game, target):
     forecast = game.get("five_market_forecast") or {}
     value = forecast.get("jingcai_number")
-    if (forecast.get("jingcai_number_status") == "VERIFIED"
+    state=forecast.get("jingcai_number_status")
+    if (state in ("VERIFIED","USER_CONFIRMED")
             and isinstance(value, str)
             and re.fullmatch(r"周[一二三四五六日天]\d{3}", value)):
-        return value, ""
-    # Existing identity pipeline is optional for fallback, but must be VERIFIED.
+        return value, "用户确认" if state=="USER_CONFIRMED" else ""
+    # A manually confirmed *number* may be displayed without claiming
+    # that the 007 source's home/away or bookmaker odds were verified.
     value = game.get("jc_match_label")
-    if (game.get("jc_match_identity_status") == "VERIFIED_JC_NUMBER"
+    state=game.get("jc_match_identity_status")
+    if (state in ("VERIFIED_JC_NUMBER","USER_CONFIRMED_JC_NUMBER")
             and isinstance(value, str)
             and re.fullmatch(r"周[一二三四五六日天]\d{3}", value)):
-        return value, ""
+        return value, "用户确认" if state=="USER_CONFIRMED_JC_NUMBER" else ""
     key = (str(target), str(game.get("game_id")),
            game.get("home_team"), game.get("away_team"))
     if key in MANUAL_NUMBER:
