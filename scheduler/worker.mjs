@@ -18,6 +18,12 @@ const FIXED=[
   {hour:18, slot:"1800", attempts:[0,8,18,28], maxDelay:34},
   {hour:21, slot:"2100", attempts:[0,7,16], maxDelay:19}
 ];
+// Explicit full reports only. The disabled 22:30–05:30 *hourly market
+// monitoring* remains disabled. Cloudflare is a backup trigger, not a model.
+const MIDNIGHT_REPORTS=[
+  {hour:0,slot:"0030",attempts:[30,40,50]},
+  {hour:3,slot:"0330",attempts:[30,40,50]}
+];
 
 export function beijingClock(timestamp) {
   const shifted=new Date(timestamp+8*3600000);
@@ -35,6 +41,13 @@ export function plannedJob(timestamp) {
         date:x.day,kind:"full",attempt:m};
     }
   }
+  for(const f of MIDNIGHT_REPORTS){
+    if(h===f.hour && f.attempts.includes(m)){
+      return {workflow:"titan007-three-analysis.yml",slot:f.slot,
+        target_date:x.day,start_hour:h,start_minute:30,
+        date:x.day,kind:"full",attempt:m};
+    }
+  }
   if(h===22 && [0,10,20].includes(m)){
     return {workflow:"nba-two-market-nightly-2200.yml",slot:"2200",
       target_date:x.day,start_hour:22,start_minute:0,
@@ -48,8 +61,8 @@ export function plannedJob(timestamp) {
     return {workflow:"nba-priority-0630.yml",slot:"0630",target_date:x.day,
       start_hour:6,start_minute:25,date:x.day,kind:"priority",attempt:m};
   }
-  // Automatic 22:30–05:30 Beijing hourly market monitoring is disabled.
-  // Keep 21:30 final analysis, 22:00 official-final review and 06:30 morning report.
+  // Automatic 22:30–05:30 Beijing HOURLY MARKET monitoring is disabled.
+  // 00:30 and 03:30 are explicit full-board report exceptions only.
   return null;
 }
 
