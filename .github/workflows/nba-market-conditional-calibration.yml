@@ -53,7 +53,7 @@ jobs:
               m=d['model_comparisons'][market]
               assert m['selected_using_validation_only'] in (
                   'market_only','bias_only','temperature_bias',
-                  'strength_residual','strength_movement')
+                  'strength_residual','movement_only','strength_movement')
               assert m['market_rows_by_split']['fit']>=400
               assert m['market_rows_by_split']['evaluation']>=280
               assert math.isfinite(m['chosen_later_score']['brier'])
