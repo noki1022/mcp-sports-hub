@@ -46,6 +46,11 @@ jobs:
           for f in path.glob('*.jsonl'):
             for ln in f.read_text().splitlines():
               v=json.loads(ln)
+              if f.name=='observed_line_movements_asof_30m.jsonl':
+                assert v['schema_version']=='nba-007-market-movement-asof-v1'
+                assert v['market_probability_calibration_eligible'] is False
+                assert v['valid_for_research_line_movement'] is True
+                continue
               assert v['schema_version']=='nba-007-historical-asof-v1'
               assert v['price_side_probability_verified'] is False
               assert v['production_fusion_eligible'] is False
