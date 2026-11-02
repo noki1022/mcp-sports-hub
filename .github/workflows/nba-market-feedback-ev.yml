@@ -1,0 +1,66 @@
+name: Genuine asof NBA multibook EV and sealed model feedback (research only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_market_feedback_ev.py'
+      - 'analysis/README-nba-market-feedback-ev.md'
+      - '.github/workflows/nba-market-feedback-ev.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  evaluate-archived-genuine-quotes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify conservative admission and strict ROI mathematics
+        run: |
+          python3 -m py_compile analysis/nba_market_feedback_ev.py
+          python3 analysis/nba_market_feedback_ev.py --selftest
+          python3 analysis/nba_multibook_asof_settled_ledger.py --selftest
+      - name: Reconstruct original source-timestamped bookmaker odds and independent real finals
+        run: |
+          python3 analysis/nba_multibook_asof_settled_ledger.py --repo-root . --out /tmp/nba-multibook-asof
+      - name: Score genuine market-only same-line leave-one-book-out EV (no false model pair)
+        run: |
+          python3 analysis/nba_market_feedback_ev.py --source /tmp/nba-multibook-asof/multibook_asof_settled_only.jsonl --out /tmp/nba-market-feedback
+      - name: Require actual counted games and unmodified model boundary
+        run: |
+          python3 - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          root=Path('/tmp/nba-market-feedback')
+          d=json.loads((root/'market_feedback_scorecard.json').read_text())
+          rows=[json.loads(s) for s in (root/'asof_feedback_opportunities.jsonl').read_text().splitlines() if s.strip()]
+          assert d['schema_version']=='nba-asof-bookmaker-feedback-v1'
+          assert d['independent_games']>0 and len(rows)>0
+          assert d['paired_same_line_game_markets']==len(rows)
+          assert d['actual_frozen_independent_model_paired']==0
+          assert d['model_signal_status']=='NO_VALID_FROZEN_INDEPENDENT_MODEL_PAIRED'
+          assert d['no_production_probability_or_delivery_change'] is True
+          assert d['no_retroactive_model_training_or_weight_selection'] is True
+          assert d['no_auto_promotion'] is True
+          assert d['not_an_actual_bet_or_verified_roi'] is True
+          assert d['specific_jingcai_crown_five_markets_not_price_certified_here'] is True
+          assert d['input_file_sha256']==hashlib.sha256(Path('/tmp/nba-multibook-asof/multibook_asof_settled_only.jsonl').read_bytes()).hexdigest()
+          assert len({x['event_id'] for x in rows})==d['independent_games']
+          assert len({(x['event_id'],x['market']) for x in rows})==len(rows)
+          assert all(x['bookmaker_count']>=3 and x['model_status']=='NO_GENUINE_FROZEN_MODEL_PAIRED' for x in rows)
+          assert all(v['further_oos_sample_gate']['status']!='READY_FOR_PRODUCTION' for v in [d])
+          print('NBA_REAL_MULTIBOOK_EV_RESEARCH_ACCEPTED',d['independent_games'],d['paired_same_line_game_markets'],d['by_market'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-real-timestamped-bookmaker-profit-feedback-research
+          path: |
+            /tmp/nba-multibook-asof/
+            /tmp/nba-market-feedback/
+          if-no-files-found: warn
+          retention-days: 60
