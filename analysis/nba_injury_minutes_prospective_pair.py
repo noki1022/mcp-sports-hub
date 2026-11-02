@@ -177,6 +177,113 @@ def predict_pair(team,injury,base_model,injured_model):
             "compared_on_same_exact_pregame_fixture":True,
             "not_the_existing_production_probability":True}
 
+# Hypothetical role sensitivity, NOT a mathematically guaranteed bound:
+# an NBA game can include overtime, and "minutes in future team role" unknown.
+SCENARIO_MAX_UNKNOWN_MINUTES=48.
+
+def partial_injury_sensitivity(row,manifest,now,past,baseline,injury_model,selected):
+    """Expose honest uncertainty on partial injury identity matching.
+
+    A COMPLETE official two-team matchup is necessary. For unmatched players,
+    use a labeled hypothetical [0,48] *prior role minutes* scenario rather
+    than inventing their identity, zero contribution or injury probability.
+    No single injury point probability is returned for partial fixtures.
+    """
+    if row.get("identity_coverage_complete") or not row.get("official_both_teams_published"):
+        return None
+    if (row.get("injury_adjusted_probability") is not None or
+        row.get("candidate_coefficients") is not None):
+        return None
+    tip=stamp(row["tipoff_utc"])
+    try:
+        frozen=stamp(row["research_capture_utc"])
+        official=stamp(row["official_pdf_capture_utc"])
+        if not (frozen<=now<tip-timedelta(minutes=10) and official<=frozen
+                and official<tip and stamp(manifest["capture_end_utc"])<=now
+                and row["official_pdf_sha256"]==manifest["official_report"]["sha256"]):
+            return None
+    except (ValueError,TypeError,KeyError):
+        return None
+    day=tip.astimezone(S.ET).date().isoformat()
+    if row["official_report_et_date"]!=day or row["home"]==row["away"]:
+        return None
+    proofs={p["team"]:p for p in manifest["roster_sources"]}
+    for side in ("home","away"):
+        p=proofs.get(row[side])
+        if not p or stamp(p["captured_utc"])>frozen or stamp(p["captured_utc"])>=tip:
+            return None
+    if not row.get("injured_players"):
+        return None
+    known=[];missing=[]
+    seen=set()
+    for p in row["injured_players"]:
+        side=p.get("side")
+        if side not in ("home","away") or p.get("team")!=row[side]:
+            return None
+        if p.get("status") not in H.STATUS or not p.get("name"):
+            return None
+        unique=(side,str(p["name"]).casefold().strip())
+        if unique in seen:
+            return None
+        seen.add(unique)
+        if p.get("identity")=="ID_TEAM_AND_PAST_MINUTES_VALIDATED":
+            known.append(p)
+        else:
+            if p.get("prior_team_minutes") is not None:
+                # Reject an apparently numeric minute value with no certified ID.
+                return None
+            missing.append(p)
+    if not missing:
+        return None
+    if known:
+        subset={**row,"identity_coverage_complete":True,"injured_players":known}
+        if capture_constraints(subset,manifest,now) is not None:
+            return None
+    lo=hi=0.
+    for p in known:
+        sign=1. if p["side"]=="home" else -1.
+        value=sign*(.90-H.STATUS[p["status"]])*float(p["prior_team_minutes"])/40.
+        lo+=value;hi+=value
+    for p in missing:
+        sign=1. if p["side"]=="home" else -1.
+        possible=sign*(.90-H.STATUS[p["status"]])*SCENARIO_MAX_UNKNOWN_MINUTES/40.
+        lo+=min(0.,possible)
+        hi+=max(0.,possible)
+    if lo>hi+1e-10:
+        raise RuntimeError("INVALID_INJURY_MISSINGNESS_SENSITIVITY_ORDER")
+    artifact={
+        "type":"PARTIAL_IDENTITY_HYPOTHETICAL_MINUTE_SENSITIVITY_NOT_PAIR",
+        "known_verified_prior_same_team_player_rows":len(known),
+        "unverified_player_rows":len(missing),
+        "all_injury_rows_with_official_status":len(row["injured_players"]),
+        "unknown_players":[{"name":p["name"],"side":p["side"],
+                            "status":p["status"],"identity":p["identity"],
+                            "cross_team_history_not_used":True}
+                           for p in missing],
+        "unknown_current_team_prior_minutes_assumption":[0,SCENARIO_MAX_UNKNOWN_MINUTES],
+        "assumption_is_not_empirical_or_mathematically_guaranteed":True,
+        "overtime_can_exceed_assumed_minutes":True,
+        "feature_interval_home_minus_away":[round(lo,8),round(hi,8)],
+        "historical_minutes_validation_selected":bool(selected),
+        "no_missing_athlete_assumed_to_have_zero_actual_impact":True,
+        "not_a_point_forecast":True,
+        "not_a_calibrated_confidence_interval":True,
+        "not_eligible_for_production_or_paired_scoring":True,
+    }
+    if selected:
+        team=prior_team_form(past,row["home"],row["away"],day)
+        if team is not None:
+            p_lo=predict_pair(team,lo,baseline,injury_model)
+            p_hi=predict_pair(team,hi,baseline,injury_model)
+            artifact["team_form_baseline_probability"]=p_lo["team_form_only_home_probability"]
+            artifact["conditional_home_probability_sensitivity_range"]=sorted([
+                p_lo["injury_minutes_home_probability"],
+                p_hi["injury_minutes_home_probability"]])
+            artifact["sensitivity_scenario_margin_range"]=sorted([
+                p_lo["injury_minutes_margin_mean"],
+                p_hi["injury_minutes_margin_mean"]])
+    return artifact
+
 def seal(features,manifest,past,baseline,injury_model,historical,now):
     if not features:
         raise RuntimeError("EMPTY_OFFICIAL_PREGAME_RESEARCH_INPUT")
@@ -220,6 +327,12 @@ def seal(features,manifest,past,baseline,injury_model,historical,now):
             result["status"]="PAIRED_RESEARCH_FORECAST_FROZEN"
         else:
             result["block_reason"]=reason
+            if reason=="NOT_ALL_OFFICIAL_PLAYER_IDS_AND_SAME_TEAM_MINUTES_VERIFIED":
+                sensitivity=partial_injury_sensitivity(
+                    row,manifest,now,past,baseline,injury_model,
+                    historical["minutes_candidate_selected_on_validation_only"])
+                if sensitivity is not None:
+                    result["partial_injury_sensitivity"]=sensitivity
         frozen.append(result)
         counts[result["status"] if result["status"]!="BLOCKED" else result["block_reason"]]+=1
     return frozen,dict(sorted(counts.items()))
@@ -258,6 +371,12 @@ def run(features_path,audit_path,out):
         "score_source":score_source,
         "future_games":len(eligible),
         "research_pairs":sum(x["status"]=="PAIRED_RESEARCH_FORECAST_FROZEN" for x in eligible),
+        "partial_role_sensitivity_games":sum("partial_injury_sensitivity" in x for x in eligible),
+        "partial_probability_sensitivity_games":sum(
+            "conditional_home_probability_sensitivity_range" in x.get("partial_injury_sensitivity",{})
+            for x in eligible),
+        "partial_sensitivity_is_not_paired_prediction":True,
+        "unknown_role_minutes_assumption_is_hypothetical":True,
         "blocked_reasons":counts,
         "no_generation_of_production_player_catalog":True,
         "no_edits_to_existing_production_injury_shadow":True,
@@ -270,7 +389,10 @@ def run(features_path,audit_path,out):
                                         indent=2,ensure_ascii=False,allow_nan=False)+"\n")
     print("NBA_GENUINELY_FROZEN_INJURY_MINUTES_RESEARCH_PAIR",json.dumps({
         "future_games":details["future_games"],
-        "pairs":details["research_pairs"],"blocked":counts,
+        "pairs":details["research_pairs"],
+        "partial_role_sensitivity":details["partial_role_sensitivity_games"],
+        "partial_probability_sensitivity":details["partial_probability_sensitivity_games"],
+        "blocked":counts,
         "historical_training_games":historical["fit_games"],
         "historical_validation":historical["historical_validation_injury_minutes"],
         "production_changed":False,
@@ -312,6 +434,23 @@ def selftest():
     )=="NOT_ALL_OFFICIAL_PLAYER_IDS_AND_SAME_TEAM_MINUTES_VERIFIED"
     assert capture_constraints({**template,"official_both_teams_published":False},manifest,now
     )=="BOTH_OFFICIAL_TEAM_REPORTS_NOT_PUBLISHED"
+    # An unknown away player must widen the interval instead of being zero.
+    partial={**template,"identity_coverage_complete":False,
+             "injured_players":template["injured_players"]+[{
+                 "name":"Unknown, Example","side":"away","team":"LAL",
+                 "identity":"ROSTER_NOT_MATCHED","status":"Out",
+                 "prior_team_minutes":None}]}
+    role=partial_injury_sensitivity(partial,manifest,now,[],None,None,False)
+    assert role["known_verified_prior_same_team_player_rows"]==1
+    assert role["unverified_player_rows"]==1
+    assert role["feature_interval_home_minus_away"]==[-.405,.675]
+    assert role["not_a_point_forecast"] is True
+    assert "conditional_home_probability_sensitivity_range" not in role
+    assert partial_injury_sensitivity({**partial,"official_both_teams_published":False},
+                                      manifest,now,[],None,None,False) is None
+    bad={**partial,"injured_players":[partial["injured_players"][0],
+       {**partial["injured_players"][1],"prior_team_minutes":20.}]}
+    assert partial_injury_sensitivity(bad,manifest,now,[],None,None,False) is None
     past=[]
     for n in range(4):
         day=f"2026-10-{n+11:02d}"
