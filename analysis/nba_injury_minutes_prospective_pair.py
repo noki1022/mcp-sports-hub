@@ -414,7 +414,7 @@ def selftest():
         "identity_coverage_complete":True,
         "candidate_coefficients":None,"injury_adjusted_probability":None,
         "injured_players":[{
-            "team":"BOS","side":"home",
+            "name":"Verified, Test","team":"BOS","side":"home",
             "status":"Out","identity":"ID_TEAM_AND_PAST_MINUTES_VALIDATED",
             "espn_roster_athlete_id":"1","nba_log_person_id":"2",
             "prior_team_minutes":30.,
