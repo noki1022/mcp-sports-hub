@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'analysis/nba_007_historical_odds_backfill.py'
+      - 'analysis/nba_007_retrospective_date_probe.py'
       - '.github/workflows/nba-007-historical-backfill.yml'
   workflow_dispatch:
 permissions:
@@ -10,7 +11,7 @@ permissions:
 jobs:
   historical-007:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,6 +26,10 @@ jobs:
       - name: Materialize real archived 007 Jingcai and Crown observations
         run: |
           python3 analysis/nba_007_historical_odds_backfill.py --repo-root . --out /tmp/nba-007-historical-archive
+      - name: Audit prior-year 007 date endpoints without importing time-ineligible quotes
+        run: |
+          python3 analysis/nba_007_retrospective_date_probe.py --self-test
+          python3 analysis/nba_007_retrospective_date_probe.py --out /tmp/nba-007-historical-archive/retrospective_date_probe.json
       - name: Validate every historical row without silent timezone or quote substitution
         run: |
           python3 - <<'PY'
