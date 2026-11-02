@@ -1,0 +1,69 @@
+name: NBA actual historical injury-feature cross-season coefficient ablation (research)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_injury_cross_season_effect_coefficients.py'
+      - 'analysis/README-nba-injury-cross-season-coefficients.md'
+      - '.github/workflows/nba-injury-cross-season-effect.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolate-injury-signal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned dependencies for existing historic player-game archives
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6 pandas==2.3.3 pyarrow==21.0.0
+      - name: Compile and regression-test no promotion and score mechanics
+        run: |
+          python3 -m py_compile analysis/nba_injury_cross_season_effect_coefficients.py
+          python3 analysis/nba_injury_cross_season_effect_coefficients.py --selftest
+      - name: Run actual independent earlier-season to later-season injury research
+        run: |
+          python3 analysis/nba_injury_cross_season_effect_coefficients.py \
+            --out /tmp/nba-historical-injury-cross-season.json
+      - name: Verify source and no hallucinated injury effects or auto promotion
+        run: |
+          python3 - <<'PY'
+          import json,math
+          from pathlib import Path
+          f=Path('/tmp/nba-historical-injury-cross-season.json')
+          d=json.loads(f.read_text())
+          assert d['historical_paired_unique_fixtures']>100
+          assert d['historical_report_original_publication_utc_verified'] is False
+          assert d['evaluated_season_previously_explored_by_other_models'] is True
+          assert d['individual_player_effect_identified'] is False
+          assert d['uses_actual_007_market_lines'] is False
+          assert d['live_production_model_changed'] is False
+          assert d['shadow_candidate_trained_for_live_schema'] is False
+          assert d['production_promotion_allowed'] is False
+          if d['status']=='RESEARCH_COMPLETE_NO_PRODUCTION_PROMOTION':
+              assert d['seasons']['fit']['last']<d['seasons']['validation']['first']
+              assert d['seasons']['validation']['last']<d['seasons']['previously_explored_evaluation']['first']
+              assert d['candidate_selected_using_validation_only'] in (
+                  'no_injury_team_form','injury_prior_minutes',
+                  'injury_prior_minutes_points_replacement')
+              for value in d['selected_bootstrap'].values():
+                  assert math.isfinite(value['selected_minus_baseline'])
+                  assert len(value['day_cluster_bootstrap_95pct'])==2
+          else:
+              assert d['status'].startswith('INSUFFICIENT_PAIRED_GAMES')
+          print('NBA_INJURY_REAL_CROSS_SEASON_ACCEPTED',d['status'],d['seasons'],
+                d.get('candidate_selected_using_validation_only'))
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-original-player-injury-season-split-research
+          path: |
+            /tmp/nba-historical-injury-cross-season.json
+            /tmp/nba-historical-injury-cross-season.source.json
+          if-no-files-found: warn
+          retention-days: 60
