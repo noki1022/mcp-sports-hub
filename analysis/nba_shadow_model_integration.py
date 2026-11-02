@@ -491,7 +491,7 @@ def compare_candidate(bridge,candidate,settlement,source_bridge_sha):
     }
 
 
-def run(root,date,earlier,later,out):
+def run(root,date,earlier,later,out,*,pretip_only=False):
     base=Path(root)/date
     paths={"earlier_consensus":base/earlier/"nba_market_consensus.json",
            "later_consensus":base/later/"nba_market_consensus.json",
@@ -505,8 +505,13 @@ def run(root,date,earlier,later,out):
     result.write_text(json.dumps(summary,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8")
     sidecar=root/"nba_five_market_shadow_preintegration.json"
     sidecar.write_text(json.dumps(copy,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8")
-    settlement=Path("reports/five-market-settled")/date/"settlement.json"
-    grade_report=grade(summary,load(settlement) if settlement.is_file() else None)
+    # PREDICTION AIRGAP: not even a stat()/exists() of any completed score
+    # file, let alone a read/import, is allowed in the model generation path.
+    if pretip_only:
+        grade_report=grade(summary,None)
+    else:
+        settlement=Path("reports/five-market-settled")/date/"settlement.json"
+        grade_report=grade(summary,load(settlement) if settlement.is_file() else None)
     (root/"nba_shadow_direction_scorecard.json").write_text(json.dumps(grade_report,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8")
     print("NBA_SHADOW_FIVE_PLAY_MODEL_BRIDGE",json.dumps({
         "target_date":date,"games":summary["game_count"],
