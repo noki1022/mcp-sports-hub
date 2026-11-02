@@ -403,6 +403,15 @@ def self_test():
         rows = frozen_forecast_audit(root / "intraday", root / "settled")
         assert rows["per_market"]["CROWN_TOTAL"]["as_of_board_source_locked"] == 1
         assert rows["per_market"]["CROWN_TOTAL"]["generation_time_requires_git_commit_proof"] == 1
+        # Directional report is still settlement-traceable when no probability
+        # was recorded, but it must never enter probabilistic calibration.
+        del game["markets"]["CROWN_TOTAL"]["model_direction_probability"]
+        (intraday / "old.json").write_text(json.dumps({
+            "schema_version": "nba-five-markets-v1", "target_date": "2026-10-31",
+            "board_capture_utc": "2026-10-30T12:01:00Z", "games": [game]}))
+        direction_only = frozen_forecast_audit(root / "intraday", root / "settled")
+        assert direction_only["per_market"]["CROWN_TOTAL"]["locked_direction_only_without_probability"] == 1
+        assert direction_only["per_market"]["CROWN_TOTAL"].get("as_of_board_source_locked", 0) == 0
     print("NBA_STAGE3_EVIDENCE_AUDIT_SELF_TEST_PASS")
 
 
