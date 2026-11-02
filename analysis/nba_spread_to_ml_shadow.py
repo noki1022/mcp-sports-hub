@@ -13,6 +13,7 @@ from collections import Counter
 import hashlib
 import json
 import math
+import random
 from pathlib import Path
 import statistics
 
@@ -151,6 +152,37 @@ def add_predictions(rows, response, beta, weight):
     } for r in rows]
 
 
+def paired_day_bootstrap(rows, repetitions=800):
+    """Later-period paired Brier correction minus plain closing market.
+
+    Sample whole dates (not games), keep the prior-selected correction frozen,
+    and never tune on this interval. The CI is exploratory and does not
+    establish a blind prospective market advantage.
+    """
+    day_map={}
+    for r in rows:
+        day_map.setdefault(r["day"],[]).append(r)
+    dates=sorted(day_map)
+    if len(dates)<12:
+        return {"date_clusters":len(dates),"delta_brier":None,"ci95":None,
+                "proof_of_stable_lift":False}
+    delta=sum(((r["close_plus_spread_residual_p"]-r["y"])**2 -
+               (r["close_p"]-r["y"])**2) for r in rows)/len(rows)
+    rng=random.Random(20261102)
+    draws=[]
+    for _ in range(repetitions):
+        sampled=[rng.choice(dates) for _ in dates]
+        game_rows=[r for day in sampled for r in day_map[day]]
+        draws.append(sum(((r["close_plus_spread_residual_p"]-r["y"])**2 -
+                          (r["close_p"]-r["y"])**2) for r in game_rows)/len(game_rows))
+    draws.sort()
+    bounds=[round(draws[int((len(draws)-1)*.025)],8),
+            round(draws[int((len(draws)-1)*.975)],8)]
+    return {"date_clusters":len(dates),"delta_brier":round(delta,8),
+            "ci95":bounds,"proof_of_stable_lift":bool(bounds[1]<0),
+            "research_previous_season_evaluation_not_new_holdout":True}
+
+
 def summary(rows):
     assert rows
     moved=[r for r in rows if abs(r["x"])>1e-9]
@@ -229,6 +261,7 @@ def experiment(original):
             "example_is_research_stage_price_bridge_not_live_certified_win_probability":True,
         },
         "later_evaluation":summary(later_pred),
+        "later_paired_brier_delta_bootstrap":paired_day_bootstrap(later_pred),
         "later_evaluation_current_results_not_blind":True,
         "closing_ml_already_includes_market_information":True,
         "no_authorized_live_ml_probability_adjustment":True,
@@ -283,6 +316,7 @@ def run(out):
         "beta_residual_per_2pts":result["model_parameters"]["close_ml_residual_logit_per_2pts"],
         "selected_weight":result["model_parameters"]["residual_weight_selected_on_prior_validation"],
         "later_evaluation":s,
+        "later_delta_ci":result["later_paired_brier_delta_bootstrap"],
         "no_live_adjustment":True
     },ensure_ascii=False))
 
