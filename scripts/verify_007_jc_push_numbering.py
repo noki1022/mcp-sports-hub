@@ -90,7 +90,25 @@ def verify(board,raw,overrides=None):
         src=feed.get(gid)
         if src is None:result["reason"]="GAME_ID_NOT_IN_JC_FEED"
         elif not comparable(g.get("home_team",""),src.get("home_aliases",[])) or not comparable(g.get("away_team",""),src.get("away_aliases",[])):
+            # Root cause must be self-diagnosing in every saved report; the
+            # old boolean lost the raw source identities and concealed the
+            # >5-char Thunder city-name suffix boundary for days.
+            home_ok=comparable(g.get("home_team",""),src.get("home_aliases",[]))
+            away_ok=comparable(g.get("away_team",""),src.get("away_aliases",[]))
             result["reason"]="HOME_AWAY_MISMATCH"
+            result["identity_diagnostic"]={
+                "board_home_team":g.get("home_team"),
+                "board_away_team":g.get("away_team"),
+                "source_home_aliases":list(src.get("home_aliases",[])),
+                "source_away_aliases":list(src.get("away_aliases",[])),
+                "source_match_label_unverified":src.get("match_label"),
+                "home_matches_source_home":home_ok,
+                "away_matches_source_away":away_ok,
+                "both_sides_reversed":(
+                    comparable(g.get("home_team",""),src.get("away_aliases",[]))
+                    and comparable(g.get("away_team",""),src.get("home_aliases",[]))),
+                "verified_market_team_orientation":False,
+            }
         else:
             code=CODE.fullmatch(src.get("match_label",""))
             if not code:result["reason"]="INVALID_JC_SALE_NUMBER"
@@ -141,6 +159,26 @@ def self_test():
          "!728166^2026,9,31,07,30,00^0^^周五311^7^13^波士顿凯尔特人,凯尔特人^14^芝加哥公牛,公牛").encode()
     result=verify(board,raw)
     assert result["verified"]==2
+    # Live public 007 source for 728298 2026-11-03: 騎士 / 雷霆.
+    # This used to fail every capture only because prefix "俄克拉荷马城"
+    # has six characters (> legacy <=5-char suffix rule).
+    real_alias_feed=(
+        "1^meta$728298^2026,10,3,08,00,00^0^^周一302^7^11^"
+        "骑士,騎士,骑士^12^雷霆,雷霆,雷霆").encode()
+    real_board={"requested_display_date":"2026-11-03","nba_cba_games":[
+        {"league":"NBA","game_id":"728298","nba_game_id":"401909907",
+         "home_team":"克里夫兰骑士","away_team":"俄克拉荷马城雷霆",
+         "start_time_beijing":"2026-11-03T08:00+08:00"}]}
+    verified_thunder=verify(real_board,real_alias_feed,overrides=[])
+    assert verified_thunder["verified"]==1
+    assert verified_thunder["games"]["728298"]["label"]=="周一302"
+    assert verified_thunder["games"]["728298"]["status"]=="VERIFIED_JC_NUMBER"
+    reversed_alias_feed=(
+        "1^meta$728298^2026,10,3,08,00,00^0^^周一302^7^11^"
+        "雷霆,雷霆^12^骑士,騎士").encode()
+    reversed_row=verify(real_board,reversed_alias_feed,overrides=[])
+    assert reversed_row["games"]["728298"]["reason"]=="HOME_AWAY_MISMATCH"
+    assert reversed_row["games"]["728298"]["identity_diagnostic"]["both_sides_reversed"] is True
     assert result["games"]["728165"]["label"]=="周五309"
     swapped=raw.replace("夏洛特黄蜂,黄蜂".encode(),"芝加哥公牛,公牛".encode(),1)
     assert verify(board,swapped)["games"]["728165"]["status"]=="UNVERIFIED"

@@ -37,14 +37,25 @@ def records(raw):
           "raw_field_count":len(f)}
     return found
 
+# Public 007 JC fixture records may use nickname only; the canonical NBA
+# board uses city+nickname. Thunder's six-Hanzi city prefix is longer than
+# the legacy five-Hanzi suffix allowance. Permit strictly evidenced exact
+# name->nickname mappings, NEVER unconstrained long suffixes.
+# Evidence: actual public 007 JC 728298 on Nov3 source ["雷霆","雷霆","雷霆"].
+VERIFIED_LONG_PREFIX_TEAM_ALIASES = {
+    "俄克拉荷马城雷霆": frozenset(("雷霆",)),
+}
+
 def comparable(name,aliases):
-    # Require a full alias equality or a clear, nontrivial short team-name suffix;
-    # never accept generic substrings, and never swap home/away silently.
+    # Full equality, bounded suffix, or explicit source-evidenced team name.
+    # NEVER swap home and away for any alias.
     def norm(s):return re.sub(r"[\s\[\]()（）]+","",s.strip().lower())
     name=norm(name)
+    explicit=VERIFIED_LONG_PREFIX_TEAM_ALIASES.get(name,frozenset())
     for alias in aliases:
         alias=norm(alias)
         if not alias:continue
+        if alias in explicit:return True
         if name==alias:return True
         if len(alias)>=2 and name.endswith(alias) and len(name)-len(alias)<=5:return True
         if len(name)>=2 and alias.endswith(name) and len(alias)-len(name)<=5:return True
@@ -142,6 +153,13 @@ def self_test():
     assert bad["confirmed_id_and_home_away"]==1
     assert bad["games"][0]["status"]=="TEAM_IDENTITY_NOT_VERIFIED"
     assert not good["model_fusion_enabled"] and good["betting_prices_verified"]==0
+    assert comparable("俄克拉荷马城雷霆",["雷霆"]) is True
+    assert comparable("俄克拉荷马城雷霆",["骑士"]) is False
+    assert comparable("新加坡市中心长城雷霆",["雷霆"]) is False
+    assert comparable("长名字未经核验之雷霆",["雷霆"]) is False
+    assert not comparable("俄克拉荷马城雷霆",["火箭"])
+    assert not (comparable("俄克拉荷马城雷霆",["骑士"])
+                and comparable("克里夫兰骑士",["雷霆"]))
     screenshot={"source":"USER_SUPPLIED_007_SCREENSHOT","source_is_official":False,
       "display_window":"2026-10-30 12:00 through 2026-10-31 12:00",
       "rows":[{"match_no":"309","home":"奇才","away":"黄蜂"},
