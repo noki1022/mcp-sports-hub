@@ -5,7 +5,7 @@ const checks=[
 ["2026-10-30T04:00:00Z","1200","2026-10-31"],
 ["2026-10-30T07:00:00Z","1500","2026-10-31"],
 ["2026-10-30T10:00:00Z","1800","2026-10-31"],
-["2026-10-30T13:20:00Z","2130","2026-10-31"],
+["2026-10-30T13:30:00Z","2130","2026-10-31"],
 ["2026-10-30T22:20:00Z","0630","2026-10-31"],
 ["2026-10-30T22:40:00Z","0630","2026-10-31"],
 ["2026-10-30T16:30:00Z","0030","2026-10-31"],
@@ -20,6 +20,7 @@ for(const [date,slot,target] of checks){
   assert.equal(job?.slot,slot,date);assert.equal(job?.target_date,target,date);
 }
 assert.equal(plannedJob(at("2026-10-30T22:00:00Z")),null); // old 06:00
+assert.equal(plannedJob(at("2026-10-30T13:20:00Z")),null); // NEVER deliver a 21:30 final at 21:20
 assert.equal(plannedJob(at("2026-10-30T09:00:00Z")),null); // expired one-off
 const fake={
   async fetch(url,opts){
@@ -108,9 +109,8 @@ assert.equal((await dispatchAt(at("2026-10-30T13:40:00Z"),{GITHUB_TOKEN:"FAKE"},
 const noOvernightCalls=async()=>{throw Error("OVERNIGHT_MONITOR_MUST_NOT_CALL_GITHUB");};
 assert.equal((await dispatchAt(at("2026-10-30T14:40:00Z"),{GITHUB_TOKEN:"FAKE"},noOvernightCalls)).state,"NO_SLOT");
 assert.equal((await dispatchAt(at("2026-10-30T21:49:00Z"),{GITHUB_TOKEN:"FAKE"},noOvernightCalls)).state,"NO_SLOT");
-// Dedup MUST include 21:20 / 06:20 early priority triggers.
+// 21:30 has no early 21:20 trigger; 06:30 retains early 06:20 recovery.
 for(const [checkTime,previousTime] of [
-  ["2026-10-30T13:30:00Z","2026-10-30T13:20:10Z"],
   ["2026-10-30T22:30:00Z","2026-10-30T22:20:10Z"]
 ]){
   const earlyRun=async url=>{

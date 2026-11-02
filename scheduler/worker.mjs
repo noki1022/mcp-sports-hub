@@ -53,9 +53,9 @@ export function plannedJob(timestamp) {
       target_date:x.day,start_hour:22,start_minute:0,
       date:x.day,kind:"night_review",attempt:m};
   }
-  if(h===21 && [20,30,40].includes(m)){
+  if(h===21 && [30,40].includes(m)){
     return {workflow:"nba-priority-2130.yml",slot:"2130",target_date:x.tomorrow,
-      start_hour:21,start_minute:20,date:x.day,kind:"priority",attempt:m};
+      start_hour:21,start_minute:30,date:x.day,kind:"priority",attempt:m};
   }
   if(h===6 && [20,30,40].includes(m)){
     return {workflow:"nba-priority-0630.yml",slot:"0630",target_date:x.day,
