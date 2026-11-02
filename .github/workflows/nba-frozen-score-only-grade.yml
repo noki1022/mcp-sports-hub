@@ -1,0 +1,71 @@
+name: NBA score actual frozen pretip shadow vs official finals (research only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_frozen_score_only_grade.py'
+      - '.github/workflows/nba-frozen-score-only-grade.yml'
+      - 'analysis/README-nba-frozen-score-only-grade.md'
+  workflow_dispatch:
+    inputs:
+      forecast_run_id:
+        description: 'GitHub Actions run ID holding immutable original pretip forecast'
+        required: true
+        type: string
+        default: '41391157150'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  settle-frozen-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and test immutable forecast scorecard
+        run: |
+          python3 -m py_compile analysis/nba_frozen_score_only_grade.py
+          python3 analysis/nba_frozen_score_only_grade.py --selftest
+      - name: Retrieve original sealed forecast by fixed source run
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@v4
+        with:
+          name: nba-frozen-genuine-pregame-score-only-forecast
+          run-id: ${{ inputs.forecast_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: /tmp/old-pretip-nba-forecast
+      - name: Compare unchanged pretip probabilities to newly verified ESPN official-style finals
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python3 analysis/nba_frozen_score_only_grade.py \
+            --input /tmp/old-pretip-nba-forecast/frozen_pregame_score_only.jsonl \
+            --manifest /tmp/old-pretip-nba-forecast/manifest.json \
+            --out /tmp/graded-original-nba-forecast
+      - name: Validate frozen original model forecast was not edited
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('/tmp/graded-original-nba-forecast/frozen_forecast_graded.json').read_text())
+          summary=d['summary']
+          assert summary['preserved_original_probabilities'] is True
+          assert summary['no_auto_model_promotion'] is True
+          assert summary['no_live_007_market_or_push_change'] is True
+          assert sum(summary['status_counts'].values())==summary['frozen_games']
+          assert summary['completed_safely_scored']<=summary['frozen_games']
+          assert all(r['status']=='SCORED' or r.get('home_win_actual') is None for r in d['per_game'])
+          print('NBA_IMMUTABLE_PRETIP_SCORECARD_ACCEPTED',
+                summary['completed_safely_scored'],summary['status_counts'])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: nba-frozen-actual-prospective-final-scorecard
+          path: /tmp/graded-original-nba-forecast/
+          if-no-files-found: warn
+          retention-days: 60
