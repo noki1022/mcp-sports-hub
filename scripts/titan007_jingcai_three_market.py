@@ -116,6 +116,14 @@ if __name__=="__main__":
             x["jc_007_match_numbers"]=read_jc_labels(board)
             print("JC_007_LOTTERY_MATCH_NUMBERS",x["jc_007_match_numbers"]["verified"],
                   x["jc_007_match_numbers"]["total_games"])
+            # A full-board push must never silently hide a systematic team
+            # alias mismatch. Keep all raw failed source aliases in the
+            # archived JC audit; emit explicit run log with source/side proof.
+            unverified={gid:row for gid,row in x["jc_007_match_numbers"]["games"].items()
+                if row["status"] not in ("VERIFIED_JC_NUMBER","USER_CONFIRMED_JC_NUMBER")}
+            if unverified:
+                print("JC_007_UNVERIFIED_IDS_WITH_RAW_HOME_AWAY_DIAGNOSTICS",
+                      json.dumps(unverified,ensure_ascii=False,sort_keys=True))
         except (OSError,ValueError,RuntimeError,ImportError,KeyError) as exc:
             x["jc_007_match_numbers"]={"status":"UNAVAILABLE","verified":0,
                 "total_games":len([g for g in board.get("nba_cba_games",[]) if g.get("league")=="NBA"]),
