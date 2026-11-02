@@ -75,9 +75,9 @@ def seal(source,main,root,day,slot,run_id,now):
     if accepted.get("state")!="API_ACCEPTED_NOT_DEVICE_CONFIRMED" or (
             str(accepted.get("run_id"))!=str(run_id)):
         raise ValueError("WRONG_OR_UNACCEPTED_ORIGINAL_PUSH_RUN")
-    target.mkdir(parents=True)
-    hashes={name:copy(src/name,target/name) for name in required}
-    hashes["original_pushplus_marker.json"]=copy(marker,target/"original_pushplus_marker.json")
+    # Prevalidate all permanent 21:30 original evidence BEFORE creating the
+    # append-once directory, so a recoverable missing input cannot poison
+    # the first sealed slot path.
     if slot=="2130":
         base=main/"reports/daily"/day/"2130"
         five=base/"nba_five_market_forecast.json"
@@ -96,6 +96,10 @@ def seal(source,main,root,day,slot,run_id,now):
                 raise ValueError("ORIGINAL_AND_SHADOW_2130_HOME_AWAY_MISMATCH")
             if set(g.get("markets",{}))!=set(x["markets"]):
                 raise ValueError("ORIGINAL_AND_SHADOW_FIVE_PLAYS_MISSING")
+    target.mkdir(parents=True)
+    hashes={name:copy(src/name,target/name) for name in required}
+    hashes["original_pushplus_marker.json"]=copy(marker,target/"original_pushplus_marker.json")
+    if slot=="2130":
         hashes["original_2130_five_market_forecast.json"]=copy(
             five,target/"original_2130_five_market_forecast.json")
         hashes["original_2130_pushed_iphone.html"]=copy(
