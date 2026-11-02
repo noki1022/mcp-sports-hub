@@ -1,0 +1,66 @@
+name: NBA three-play direction from multi-company 007 (research only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_three_play_direction_shadow.py'
+      - 'analysis/README-nba-three-play-direction-shadow.md'
+      - '.github/workflows/nba-three-play-direction-shadow.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-two-slot-three-play-direction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Unit test signed 007 HOME-GIVES direction and fail-closed five markets
+        run: |
+          python3 -m py_compile analysis/nba_three_play_direction_shadow.py
+          python3 analysis/nba_three_play_direction_shadow.py --selftest
+      - name: Run real saved 12:00 to 18:00 007 same-company movement
+        run: |
+          python3 analysis/nba_three_play_direction_shadow.py --target-date 2026-11-03 --earlier-slot 1200 --later-slot 1800 --out /tmp/nba-three-play-direction.json
+      - name: Assert no simulated EV selection, false probabilities or live model mutation
+        run: |
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/nba-three-play-direction.json'))
+          assert d['schema_version']=='nba-007-three-play-crossmarket-direction-v1'
+          assert d['game_count']==len(d['games']) and d['game_count']>=5
+          assert d['only_same_company_line_changes_counted'] is True
+          assert d['source_times_pre_tip_verified'] is True
+          assert d['no_ev_roi_bookmaker_arbitrage'] is True
+          assert d['no_added_model_probability_from_unvalidated_market'] is True
+          assert d['production_model_or_push_changed'] is False
+          assert d['research_only_no_live_confidence_boost'] is True
+          assert d['five_target_market_judgments']==['JINGCAI_WIN','JINGCAI_HANDICAP','JINGCAI_TOTAL','CROWN_HANDICAP','CROWN_TOTAL']
+          assert len(d['original_source_sha256'])==3
+          assert len({r['game_id'] for r in d['games']})==len(d['games'])
+          for r in d['games']:
+            assert len(r['independent_five_market_judgments'])==5
+            for k,v in r['independent_five_market_judgments'].items():
+              assert v['confidence_adjustment_pp']==0.0
+              assert v['market_not_substituted_for_model_probability'] is True
+              if k.endswith('HANDICAP') and v['model_status']=='PRETIP_FROZEN_INDEPENDENT_MODEL':
+                assert v['directional_evidence']=='DIRECTIONAL_CONTEXT_ONLY_NOT_COVER_SIGNAL'
+            for kind in ('full_spread','full_total'):
+              t=r['observed_institution_line_directions'][kind]
+              assert t['direction'] in ('UNKNOWN','STABLE','MIXED_OR_UNCERTAIN','RISING','FALLING')
+              if t['direction'] in ('RISING','FALLING'):
+                assert t['paired_companies']>=3
+                assert t['agreement_fraction']>=0.6
+          print('NBA_DIRECTION_FIRST_REAL_007_ARCHIVE_ACCEPTED',d['game_count'],d['audit'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-direction-first-genuine-007-two-slot-five-markets
+          path: /tmp/nba-three-play-direction.json
+          if-no-files-found: warn
+          retention-days: 60
