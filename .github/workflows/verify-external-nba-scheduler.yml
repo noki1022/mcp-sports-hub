@@ -4,7 +4,6 @@ on:
     branches: [main]
     paths:
       - 'scheduler/**'
-      - '.github/workflows/deploy-cloudflare-secondary-scheduler.yml'
       - '.github/workflows/titan007-three-analysis.yml'
       - '.github/workflows/nba-priority-0630.yml'
       - '.github/workflows/nba-priority-2130.yml'
@@ -64,19 +63,19 @@ jobs:
           assert overnight=={(h,m) for h in (0,3) for m in (30,40,50)}
           print('CLOUDFLARE_TWO_FULL_REPORTS_NO_HOURLY_OVERNIGHT_PASS')
           PY
-      - name: Ensure deployment is explicit and credential-gated
+      - name: Confirm existing Worker identity and GitHub build integration
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          s=Path('.github/workflows/deploy-cloudflare-secondary-scheduler.yml').read_text()
-          assert 'workflow_dispatch:' in s and '  push:' not in s
-          for secret in ('CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID',
-                         'CLOUDFLARE_SCHEDULER_GITHUB_TOKEN'):
-              assert secret in s,secret
-          assert 'exit 1' in s and 'CLOUDFLARE_CREDENTIALS_PRESENT_NO_VALUES_LOGGED' in s
-          assert 'wrangler@4 deploy --config scheduler/wrangler.toml' in s
-          assert 'wrangler@4 secret put GITHUB_TOKEN' in s
-          assert 'CLOUDFLARE_SCHEDULES_CONFIRMED' in s
-          assert '/workers/scripts/{script}/schedules' in s
-          print('CLOUDFLARE_DEPLOYMENT_NOT_FAKE_GREEN_AND_REMOTE_CRON_CHECK_PASS')
+          import tomllib
+          worker=Path("scheduler/worker.mjs").read_text()
+          config=tomllib.loads(Path("scheduler/wrangler.toml").read_text())
+          assert config["name"]=="nba-external-schedule-watchdog"
+          assert 'const OWNER="noki1022";' in worker
+          assert 'const REPO="mcp-sports-hub";' in worker
+          assert 'const MIDNIGHT_REPORTS=[' in worker
+          assert '"titan007-three-analysis.yml"' in worker
+          assert 'slot:f.slot' in worker
+          assert not Path(".github/workflows/deploy-cloudflare-secondary-scheduler.yml").exists()
+          print("EXISTING_CLOUDFLARE_WORKERS_BUILDS_INTEGRATION_PRESERVED")
           PY
