@@ -32,7 +32,7 @@ jobs:
               assert 'workflow_dispatch:' in p
           print('EXTERNAL_NOON_AND_PRIORITY_DISPATCH_INPUT_PASS')
           PY
-      - name: Ensure Cloudflare cron has no overnight monitoring wakeups
+      - name: Allow Cloudflare 00:30 and 03:30 full reports but no hourly overnight monitoring
         run: |
           python3 - <<'PY'
           import tomllib
@@ -44,9 +44,12 @@ jobs:
               '0,7,16,20,30,40 13 * * *',
               '0,10,20 14 * * *',
               '20,30,40 22 * * *',
+              '30,40,50 16,19 * * *',
           ]
           assert crons==expected,(crons,expected)
-          # UTC 14:30–21:30 is Beijing 22:30–05:30: no cron is scheduled there.
+          # Only the 00:30/03:30 full-board analysis exceptions may execute
+          # in the normally disabled Beijing 22:30–05:30 hourly-monitor window.
+          overnight=set()
           for expr in crons:
               minute_field,hour_field,*_=expr.split()
               minutes=[int(x) for x in minute_field.split(',')]
@@ -54,6 +57,25 @@ jobs:
               for hour in hours:
                   for minute in minutes:
                       utc_minute=hour*60+minute
-                      assert not (14*60+30 <= utc_minute <= 21*60+30),(expr,hour,minute)
-          print('CLOUDFLARE_NO_OVERNIGHT_CRON_WAKEUPS_PASS')
+                      if 14*60+30 <= utc_minute <= 21*60+30:
+                          assert hour in (16,19) and minute in (30,40,50),(expr,hour,minute)
+                          overnight.add(((hour+8)%24,minute))
+          assert overnight=={(h,m) for h in (0,3) for m in (30,40,50)}
+          print('CLOUDFLARE_TWO_FULL_REPORTS_NO_HOURLY_OVERNIGHT_PASS')
+          PY
+      - name: Confirm existing Worker identity and GitHub build integration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import tomllib
+          worker=Path("scheduler/worker.mjs").read_text()
+          config=tomllib.loads(Path("scheduler/wrangler.toml").read_text())
+          assert config["name"]=="nba-external-schedule-watchdog"
+          assert 'const OWNER="noki1022";' in worker
+          assert 'const REPO="mcp-sports-hub";' in worker
+          assert 'const MIDNIGHT_REPORTS=[' in worker
+          assert '"titan007-three-analysis.yml"' in worker
+          assert 'slot:f.slot' in worker
+          assert not Path(".github/workflows/deploy-cloudflare-secondary-scheduler.yml").exists()
+          print("EXISTING_CLOUDFLARE_WORKERS_BUILDS_INTEGRATION_PRESERVED")
           PY

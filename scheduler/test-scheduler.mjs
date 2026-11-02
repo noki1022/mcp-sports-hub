@@ -7,7 +7,13 @@ const checks=[
 ["2026-10-30T10:00:00Z","1800","2026-10-31"],
 ["2026-10-30T13:20:00Z","2130","2026-10-31"],
 ["2026-10-30T22:20:00Z","0630","2026-10-31"],
-["2026-10-30T22:40:00Z","0630","2026-10-31"]
+["2026-10-30T22:40:00Z","0630","2026-10-31"],
+["2026-10-30T16:30:00Z","0030","2026-10-31"],
+["2026-10-30T16:40:00Z","0030","2026-10-31"],
+["2026-10-30T16:50:00Z","0030","2026-10-31"],
+["2026-10-30T19:30:00Z","0330","2026-10-31"],
+["2026-10-30T19:40:00Z","0330","2026-10-31"],
+["2026-10-30T19:50:00Z","0330","2026-10-31"]
 ];
 for(const [date,slot,target] of checks){
   const job=plannedJob(at(date));
@@ -56,7 +62,7 @@ const extended=[
   ["2026-10-30T14:30:00Z",null], // 22:30 Beijing: overnight monitoring disabled
   ["2026-10-30T14:40:00Z",null],
   ["2026-10-30T15:49:00Z",null],
-  ["2026-10-30T16:40:00Z",null],
+  ["2026-10-30T16:40:00Z","0030","2026-10-31"],
   ["2026-10-30T17:49:00Z",null],
   ["2026-10-30T18:40:00Z",null],
   ["2026-10-30T19:49:00Z",null],
@@ -102,6 +108,78 @@ assert.equal((await dispatchAt(at("2026-10-30T13:40:00Z"),{GITHUB_TOKEN:"FAKE"},
 const noOvernightCalls=async()=>{throw Error("OVERNIGHT_MONITOR_MUST_NOT_CALL_GITHUB");};
 assert.equal((await dispatchAt(at("2026-10-30T14:40:00Z"),{GITHUB_TOKEN:"FAKE"},noOvernightCalls)).state,"NO_SLOT");
 assert.equal((await dispatchAt(at("2026-10-30T21:49:00Z"),{GITHUB_TOKEN:"FAKE"},noOvernightCalls)).state,"NO_SLOT");
+// Dedup MUST include 21:20 / 06:20 early priority triggers.
+for(const [checkTime,previousTime] of [
+  ["2026-10-30T13:30:00Z","2026-10-30T13:20:10Z"],
+  ["2026-10-30T22:30:00Z","2026-10-30T22:20:10Z"]
+]){
+  const earlyRun=async url=>{
+    if(url.includes("/contents/"))return {status:404,ok:false};
+    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[{
+      created_at:previousTime,event:"workflow_dispatch",
+      status:"in_progress",conclusion:null
+    }]})};
+    throw new Error("DUPLICATE_PRIORITY_DISPATCH_BLOCKED_"+url);
+  };
+  assert.equal((await dispatchAt(at(checkTime),{GITHUB_TOKEN:"FAKE"},earlyRun)).state,
+    "WORKFLOW_RUNNING");
+  const greenRun=async url=>{
+    if(url.includes("/contents/"))return {status:404,ok:false};
+    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[{
+      created_at:previousTime,event:"workflow_dispatch",
+      status:"completed",conclusion:"success"
+    }]})};
+    throw new Error("GREEN_PRIORITY_MUST_NOT_REDISPATCH_"+url);
+  };
+  assert.equal((await dispatchAt(at(checkTime),{GITHUB_TOKEN:"FAKE"},greenRun)).state,
+    "WORKFLOW_SUCCESS_WITHOUT_ACCEPTED_MARKER");
+}
+
+// Midnight backup dispatch is canonical full-board analysis for the SAME Beijing day.
+const midnightCalls=[];
+const midnightFake=async (url,opts)=>{
+  midnightCalls.push({url,opts});
+  if(url.includes("/contents/"))return {status:404,ok:false};
+  if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[]})};
+  if(url.endsWith("/dispatches"))return {status:204};
+  throw new Error("UNEXPECTED_MIDNIGHT_URL_"+url);
+};
+for(const [timestamp,slot,date] of [
+  ["2026-10-30T16:30:00Z","0030","2026-10-31"],
+  ["2026-10-30T19:30:00Z","0330","2026-10-31"]
+]){
+  midnightCalls.length=0;
+  const result=await dispatchAt(at(timestamp),{GITHUB_TOKEN:"FAKE"},midnightFake);
+  assert.equal(result.state,"DISPATCH_ACCEPTED_NOT_COMPLETED");
+  assert.equal(result.slot,slot);
+  assert.equal(result.target_date,date);
+  const sent=midnightCalls.find(call=>call.url.endsWith("/dispatches"));
+  assert.ok(sent);
+  assert.ok(sent.url.includes("titan007-three-analysis.yml"));
+  assert.deepEqual(JSON.parse(sent.opts.body),{
+    ref:"main",inputs:{target_date:date,report_slot:slot}
+  });
+}
+// A live matching native GH run must suppress the Cloudflare retry.
+const activeMidnight=async url=>{
+  if(url.includes("/contents/"))return {status:404,ok:false};
+  if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[{
+    created_at:"2026-10-30T16:30:07Z",event:"schedule",
+    status:"in_progress",conclusion:null
+  }]})};
+  throw new Error("ACTIVE_MIDNIGHT_MUST_NOT_REDISPATCH");
+};
+assert.equal((await dispatchAt(at("2026-10-30T16:40:00Z"),
+  {GITHUB_TOKEN:"FAKE"},activeMidnight)).state,"WORKFLOW_RUNNING");
+const acceptedMidnight=async url=>{
+  if(url.includes("/contents/"))return {status:200,ok:true,json:async()=>({
+    content:btoa(JSON.stringify({slot:"0030",state:"API_ACCEPTED_NOT_DEVICE_CONFIRMED"}))
+  })};
+  throw new Error("ALREADY_ACCEPTED_MIDNIGHT_MUST_NOT_DISPATCH");
+};
+assert.equal((await dispatchAt(at("2026-10-30T16:50:00Z"),
+  {GITHUB_TOKEN:"FAKE"},acceptedMidnight)).state,"API_ALREADY_ACCEPTED");
+
 // A failed run is eligible for a bounded retry, not treated as success.
 const failedRun={
   async fetch(url,opts){
