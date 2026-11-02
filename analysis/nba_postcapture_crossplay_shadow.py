@@ -275,10 +275,17 @@ def main():
     candidate["trained_parameters_sha256"]=hashlib.sha256(
         Path(args.params).read_bytes()).hexdigest()
     Path(args.out).write_text(json.dumps(candidate,ensure_ascii=False,sort_keys=True,indent=2)+"\n")
+    changed=[{"game_id":g["game_id"],"home":g["home_team"],"away":g["away_team"],
+              "market":k,"before_first_side_p":round(m["baseline_independent_first_side_probability"],6),
+              "after_first_side_p":round(m["probability_first_side"],6),
+              "new_direction":m["direction"]}
+             for g in candidate["games"] for k,m in g["markets"].items()
+             if m["adjusted_from_current_model"]]
     print("NBA_POST_CAPTURE_NEW_MODEL_FROZEN",json.dumps({
         "games":candidate["game_count"],"modified_five_market_probability_count":
         candidate["changed_probability_market_count"],"missing_direct_market":
         candidate["uncertified_direct_institution_quote_count"],
+        "all_modified_market_directions":changed,
         "model_promotion":False},ensure_ascii=False))
 
 if __name__=="__main__":main()
