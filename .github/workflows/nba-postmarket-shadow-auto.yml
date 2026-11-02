@@ -1,68 +1,10 @@
-name: NBA original-first postmarket five-play shadow (no production writes)
+name: DEPRECATED shadow after 18:00 (disabled; use independent every-capture model)
 on:
-  workflow_run:
-    workflows:
-      - 'Titan007 scheduled full-board NBA analysis and PushPlus delivery'
-    types: [completed]
-    branches: [main]
-  # One-time activation on the PR merge, only if the real 18:00 archive is
-  # still fresh; later changes to this research workflow are equally gated.
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/nba-postmarket-shadow-auto.yml'
   workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: nba-postmarket-independent-shadow-${{ github.event.workflow_run.id || github.run_id }}
-  cancel-in-progress: false
 jobs:
-  new-shadow-after-original-push:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+  archived-legacy-disabled:
     runs-on: ubuntu-latest
-    timeout-minutes: 7
     steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          ref: main
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Confirm checkout and research-only safety gates
-        run: |
-          test -f config/nba_shadow_three_play_params.json
-          python3 -m py_compile analysis/nba_shadow_postmarket_runner.py analysis/nba_shadow_model_integration.py analysis/nba_postcapture_crossplay_shadow.py
-          python3 analysis/nba_shadow_postmarket_runner.py --selftest
-          python3 analysis/nba_postcapture_crossplay_shadow.py --selftest
-      - name: Make a NEW five-play model prediction after successful original 18:00 delivery
-        env:
-          ORIGINAL_WORKFLOW_RUN: ${{ github.event.workflow_run.id || '' }}
-        run: |
-          python3 analysis/nba_shadow_postmarket_runner.py --trigger-run "$ORIGINAL_WORKFLOW_RUN" --out /tmp/nba-postmarket-prospective
-          python3 - <<'PY'
-          import json,os
-          from pathlib import Path
-          x=json.loads(Path('/tmp/nba-postmarket-prospective/auto_run_status.json').read_text())
-          print('POSTMARKET_SHADOW_STATUS',x['status'])
-          if x['status']=='NEW_INDEPENDENT_SHADOW_FROZEN_PRETIP':
-              with open(os.environ['GITHUB_ENV'],'a') as f:
-                  f.write('SHADOW_TARGET_DATE='+x['target_date']+'\n')
-              assert x['integrity']['games']>0
-              assert x['integrity']['markets']==5*x['integrity']['games']
-              assert x['no_original_forecast_or_push_mutation'] is True
-              assert x['no_five_market_probability_promotion'] is True
-          elif x['status'].startswith('SKIPPED_'):
-              assert x.get('no_original_forecast_or_push_mutation') is True
-          else:
-              raise RuntimeError('SHADOW_UNEXPECTED_STATUS')
-          PY
-      - name: Upload only immutable independent forecast evidence; never push Git commits or PushPlus
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: nba-new-prospective-five-play-shadow-${{ env.SHADOW_TARGET_DATE || github.run_id }}
-          path: /tmp/nba-postmarket-prospective/
-          retention-days: 90
-          if-no-files-found: warn
+      - run: echo 'LEGACY_18_ONLY_SHADOW_DISABLED_TO_PROTECT_TWO_MODEL_INDEPENDENCE_USE_2130_FINAL'
