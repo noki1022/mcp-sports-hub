@@ -53,23 +53,57 @@ def missed_actual(g, market):
         return f" · {score}（主队净胜{hp-ap:+d}分；{actual_cover}）"
     return f" · {score}"
 
+def market_exceptions(d, key):
+    """Only display nonzero exceptions; summarize directly from frozen
+    settlement rows so never silently call a missing result a push."""
+    v = d["summary"][key]
+    push = int(v.get("pushes") or 0)
+    excluded = int(v.get("excluded") or 0)
+    unsettled = int(v.get("unsettled") or 0)
+    if min(push, excluded, unsettled) < 0:
+        raise ValueError("NEGATIVE_FIVE_MARKET_SETTLEMENT_COUNT")
+    extra = []
+    if push:
+        extra.append(f"走盘{push}")
+    omitted = excluded + unsettled
+    if omitted:
+        reasons = [
+            ("EXCLUDED_NOT_ON_SALE", "未开售"),
+            ("EXCLUDED_NO_DIRECTION", "赛前判断缺失"),
+            ("EXCLUDED_INVALID_PRETIP_LOCK", "赛前锁定失效"),
+            ("UNSETTLED", "官方赛果待确认"),
+        ]
+        counts = {name: sum(
+            (g.get("markets") or {}).get(key, {}).get("outcome") == name
+            for g in d.get("games", [])
+        ) for name, _ in reasons}
+        details = [f"{label}{counts[name]}" for name, label in reasons if counts[name]]
+        remainder = omitted - sum(counts.values())
+        if remainder < 0:
+            raise ValueError("REVIEW_EXCLUDED_COUNTS_DO_NOT_MATCH_GAME_ROWS")
+        if remainder:
+            details.append(f"其他未入样{remainder}")
+        extra.append(f"未入样{omitted}（{'、'.join(details)}）")
+    return "　" + "　".join(extra) if extra else ""
+
+
 def html_report(d):
     out = [
         "<div style='max-width:540px;margin:auto;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;"
         "font-size:14px;line-height:1.5;color:#20354d'>",
         "<h2 style='margin:0 0 8px'>NBA 五玩法复盘｜" + e(d["beijing_date"]) + "</h2>",
         "<p style='margin:0 0 14px;color:#64748b;font-size:12px'>"
-        "仅统计赛前锁定判断；未开售、缺数据、走盘、未完赛分别处理。主队在左，客队在右。</p>",
+        "仅统计赛前锁定、有效结算的判断；主队在左，客队在右。</p>",
         "<h3 style='margin:12px 0 6px'>五玩法命中率</h3>"
     ]
     for k in MARKETS:
         v = d["summary"][k]
         pct = f"{v['hit_rate']*100:.1f}%" if v["hit_rate"] is not None else "暂无有效样本"
+        count = f"（{v['hits']}/{v['graded']}）" if v["graded"] else ""
         out.append(
             "<div style='padding:6px 2px;border-bottom:1px solid #dfe6ef'>"
-            f"<b>{e(LABELS[k])}</b>　<b>{e(pct)}</b>　"
-            f"命中{v['hits']}/{v['graded']}　走盘{v['pushes']}　"
-            f"未入样{v['excluded']+v['unsettled']}</div>"
+            f"<b>{e(LABELS[k])}</b>　<b>{e(pct)}</b>{e(count)}"
+            f"{e(market_exceptions(d, k))}</div>"
         )
 
     out.append("<h3 style='margin:16px 0 8px'>逐场结果</h3>")
@@ -104,8 +138,8 @@ def html_report(d):
         out.append("</div>")
     out.append(
         "<p style='font-size:11px;color:#63758b;margin-top:12px'>"
-        "命中率=命中÷(命中+未中)，走盘单独统计；未入样不计入命中率。"
-        "所有未中项均附官方主:客比分及对应实际赛果。</p></div>"
+        "命中率=命中÷(命中+未中)；走盘及未入样不计入命中率。"
+        "仅在发生异常时显示数量与原因；所有未中项均附官方主:客比分及赛果。</p></div>"
     )
     return "".join(out)
 
@@ -120,6 +154,32 @@ def self_test():
     assert "五玩法命中率" in output and "周五314" in output
     assert "主：主" in output and "客：客" in output
     assert all(LABELS[k] in output for k in MARKETS)
+    assert "竞彩胜负" in output and "100.0%" in output and "（1/1）" in output
+    assert "走盘0" not in output and "未入样0" not in output
+    # All true exceptional cases must be counted without inflating accuracy.
+    s["summary"]["JINGCAI_HANDICAP"].update(
+        {"pushes":1,"excluded":2,"unsettled":1})
+    s["games"][0]["markets"]["JINGCAI_HANDICAP"]["outcome"]="PUSH"
+    s["games"].extend([
+        {"jingcai_number":"周五315","markets":{"JINGCAI_HANDICAP":{
+            "outcome":"EXCLUDED_NOT_ON_SALE"}}},
+        {"jingcai_number":"周五316","markets":{"JINGCAI_HANDICAP":{
+            "outcome":"EXCLUDED_NO_DIRECTION"}}},
+        {"jingcai_number":"周五317","markets":{"JINGCAI_HANDICAP":{
+            "outcome":"UNSETTLED"}}},
+    ])
+    exceptional = html_report(s)
+    assert "走盘1" in exceptional and "未入样3" in exceptional
+    assert "未开售1" in exceptional and "赛前判断缺失1" in exceptional
+    assert "官方赛果待确认1" in exceptional
+    assert "走盘0" not in exceptional and "未入样0" not in exceptional
+    assert "竞彩胜负" in exceptional and "（1/1）" in exceptional
+    assert market_exceptions({"summary":{"JINGCAI_WIN":{
+        "pushes":0,"excluded":0,"unsettled":0}},"games":[]}, "JINGCAI_WIN") == ""
+    s["summary"]["JINGCAI_TOTAL"].update({"excluded":1})
+    s["games"][2]["markets"]["JINGCAI_TOTAL"] = {
+        "outcome":"EXCLUDED_INVALID_PRETIP_LOCK"}
+    assert "赛前锁定失效1" in html_report(s)
     assert missed_actual({"home_points":115,"away_points":115},{"outcome":"MISS","direction":"OVER","line":232})==" · 实际比分115:115（实际总分230，小分）"
     assert missed_actual({"home_points":115,"away_points":115},{"outcome":"HIT","direction":"UNDER"})==""
     assert "大小盘线待核" in missed_actual({"home_points":115,"away_points":115},{"outcome":"MISS","direction":"OVER"})
