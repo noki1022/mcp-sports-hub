@@ -96,15 +96,14 @@ def compute(bridge,params,now,source_sha):
         delta_t=bounded(delta_total,MAX_TOTAL_MOVEMENT)*total_slope if total_eligible else 0.
         base=game["three_play_five_target_judgments"]
         if set(base)!=set(I.KEYS):raise ValueError("ORIGINAL_FIVE_TARGETS_NOT_COMPLETE")
-        # Derive ORIGINAL numerical strength central values from consistent
-        # Gaussian inverse only when possible; avoid creating arbitrary means
-        # by simply shifting every existing first-side model p with an
-        # independent trained logit shift, preserving exactly the JC/ID3 line.
-        # sigma is not archived in the bridge, so a research-only conservative
-        # calibration transfer is used for ATS/Totals; no claim it is accurate
-        # until paired true OOS scoring.
-        sig_margin=15.55
-        sig_total=19.47
+        # Transform the ORIGINAL real frozen model's probability into its
+        # normal-score using its own captured margin/total residual sigma,
+        # then apply the earlier-trained market-movement point correction.
+        # This has never been validated prospectively against production.
+        sig_margin=I.finite(f.get("original_independent_model_margin_sigma"))
+        sig_total=I.finite(f.get("original_independent_model_total_sigma"))
+        if sig_margin is None or sig_total is None or sig_margin<=0 or sig_total<=0:
+            raise ValueError("ORIGINAL_FROZEN_MODEL_SIGMA_MISSING_OR_INVALID")
         markets={}
         for key in I.KEYS:
             record=base[key]
@@ -232,7 +231,9 @@ def selftest():
                 "spread_home_strength_direction_code":1,
                 "spread_home_strength_median_line_change_points":2,
                 "total_expected_scoring_direction_code":1,
-                "total_expected_scoring_line_change_points":3},
+                "total_expected_scoring_line_change_points":3,
+                "original_independent_model_margin_sigma":15.55,
+                "original_independent_model_total_sigma":19.47},
             "three_play_five_target_judgments":{
                 k:{"independent_first_side_probability":.6,
                    "original_independent_model_moneyline_home_probability":.6,
