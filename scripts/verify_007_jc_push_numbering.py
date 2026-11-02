@@ -6,15 +6,74 @@ rows, or a guessed 300+ offset. An unmatched match is numbered 待核, never #01
 """
 from __future__ import annotations
 import json,re
+from pathlib import Path
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from probe_007_jc_scripts import ORIGIN,UA,get_bytes,robots_policy
 from verify_007_jc_fixture_identity import TARGET,MAX_BYTES,records,comparable
 
 BJ=ZoneInfo("Asia/Shanghai")
-CODE=re.compile(r"^(周[一二三四五六日天])(\d{3})$")
+CODE=re.compile(r"^(周[一二三四五六日天])(\\d{3})$")
 
-def verify(board,raw):
+MANUAL_FILE=Path(__file__).resolve().parents[1]/"config"/"nba_jc_user_confirmed_numbers.json"
+
+def manual_confirmations(path=MANUAL_FILE):
+    """Human-confirmed DISPLAY-ONLY match labels. Never assert feed team
+    identity, fixture reliability, market direction, or official odds."""
+    if not path.is_file():return []
+    doc=json.loads(path.read_text(encoding="utf-8"))
+    if doc.get("schema_version")!="nba-jc-user-confirmed-number-display-v1":
+        raise ValueError("UNRECOGNIZED_MANUAL_JC_NUMBER_SCHEMA")
+    entries=doc.get("entries")
+    if not isinstance(entries,list):raise ValueError("INVALID_USER_CONFIRMED_NUMBERS")
+    seen=set()
+    for item in entries:
+        key=(str(item.get("target_date")),str(item.get("game_id")))
+        if key in seen:raise ValueError("DUPLICATE_MANUAL_JC_GAME")
+        seen.add(key)
+        if (not CODE.fullmatch(str(item.get("label") or ""))
+                or item.get("scope")!="MATCH_NUMBER_DISPLAY_ONLY"
+                or item.get("price_side_identity_unaltered") is not True
+                or not str(item.get("source") or "").startswith("USER_MANUAL_CONFIRMATION_")):
+            raise ValueError("INVALID_MANUAL_JC_DISPLAY_ENTRY")
+    return entries
+
+def apply_manual_labels(board,output,labels,entries):
+    day=str(board["requested_display_date"])
+    games={str(g["game_id"]):g for g in board.get("nba_cba_games",[]) if g.get("league")=="NBA"}
+    accepted=0
+    for item in entries:
+        if item["target_date"]!=day:continue
+        gid=str(item["game_id"])
+        g=games.get(gid)
+        if g is None:raise ValueError("MANUAL_JC_GAME_ID_NOT_IN_EXACT_DAY_BOARD")
+        # Full game identity INCLUDING start time must match. Never use a
+        # number from similar names / guessed board position / another day.
+        for key in ("nba_game_id","home_team","away_team","start_time_beijing"):
+            v=item.get("tipoff_beijing") if key=="start_time_beijing" else item.get(key)
+            if str(g.get(key))!=str(v):
+                raise ValueError("MANUAL_JC_ID_HOME_AWAY_OR_TIPOFF_MISMATCH_"+key)
+        row=output[gid]
+        label=item["label"]
+        if row["status"]=="VERIFIED_JC_NUMBER":
+            if row["label"]!=label:raise ValueError("007_AND_USER_CONFIRMED_NUMBER_CONFLICT")
+            continue
+        if row.get("reason")!="HOME_AWAY_MISMATCH":
+            raise ValueError("MANUAL_JC_NUMBER_NOT_AN_IDENTITY_MISMATCH_CASE")
+        if label in labels:raise ValueError("DUPLICATE_USER_AND_007_JC_NUMBER_"+label)
+        labels.add(label)
+        match=CODE.fullmatch(label)
+        row.update({"status":"USER_CONFIRMED_JC_NUMBER","label":label,
+                    "match_no":match.group(2),
+                    "reason":"HOME_AWAY_MISMATCH_NUMBER_MANUALLY_CONFIRMED",
+                    "original_007_identity_status":"HOME_AWAY_MISMATCH",
+                    "number_source":item["source"],"number_only":True,
+                    "fixture_home_away_verified":False,
+                    "market_orientation_verified_by_manual_number":False})
+        accepted+=1
+    return accepted
+
+def verify(board,raw,overrides=None):
     feed=records(raw)
     games=[g for g in board.get("nba_cba_games",[]) if g.get("league")=="NBA"]
     day=str(board.get("requested_display_date") or "")
@@ -53,8 +112,13 @@ def verify(board,raw):
                         result.update({"status":"VERIFIED_JC_NUMBER","label":label,
                                        "match_no":code.group(2),"reason":None})
         output[gid]=result
+    user_confirmed=apply_manual_labels(board,output,labels,
+        manual_confirmations() if overrides is None else overrides)
+    verified=sum(x["status"]=="VERIFIED_JC_NUMBER" for x in output.values())
     return {"source":ORIGIN+TARGET,"target_date_beijing":day,
-      "status":"JC_MATCH_NUMBER_AUDIT","verified":sum(x["status"]=="VERIFIED_JC_NUMBER" for x in output.values()),
+      "status":"JC_MATCH_NUMBER_AUDIT",
+      "verified":verified,"user_confirmed":user_confirmed,
+      "numbered_total":verified+user_confirmed,
       "total_games":len(games),"games":output}
 
 def live(board):
@@ -80,6 +144,39 @@ def self_test():
     assert verify(board,badtime)["games"]["728165"]["reason"]=="JC_FIXTURE_TIME_MISMATCH"
     missing=verify(board,raw.split(b"!")[0])
     assert missing["games"]["728166"]["label"] is None
+    # A user may explicitly resolve a single missing display number, but
+    # a HOME_AWAY_MISMATCH must stay untrusted for market direction.
+    user_board={"requested_display_date":"2026-11-03","nba_cba_games":[
+      {"game_id":"728298","nba_game_id":"401909907","league":"NBA",
+       "home_team":"克里夫兰骑士","away_team":"俄克拉荷马城雷霆",
+       "start_time_beijing":"2026-11-03T08:00+08:00"}]}
+    wrong=("1^meta$728298^2026,10,3,08,00,00^0^^周一302^7^11^"
+           "俄克拉荷马城雷霆,雷霆^12^克里夫兰骑士,骑士").encode()
+    unverified=verify(user_board,wrong,overrides=[])
+    assert unverified["games"]["728298"]["reason"]=="HOME_AWAY_MISMATCH"
+    item={"target_date":"2026-11-03","game_id":"728298",
+          "nba_game_id":"401909907","home_team":"克里夫兰骑士",
+          "away_team":"俄克拉荷马城雷霆",
+          "tipoff_beijing":"2026-11-03T08:00+08:00",
+          "label":"周一302","source":"USER_MANUAL_CONFIRMATION_2026_11_02",
+          "scope":"MATCH_NUMBER_DISPLAY_ONLY","price_side_identity_unaltered":True}
+    user=verify(user_board,wrong,overrides=[item])
+    x=user["games"]["728298"]
+    assert x["status"]=="USER_CONFIRMED_JC_NUMBER" and x["label"]=="周一302"
+    assert user["verified"]==0 and user["user_confirmed"]==1
+    assert x["fixture_home_away_verified"] is False
+    try:
+        verify(user_board,wrong,overrides=[dict(item,home_team="其他球队")])
+    except ValueError as e:assert "MISMATCH" in str(e)
+    else:raise AssertionError("FORGED_MANUAL_TEAM_IDENTITY_ACCEPTED")
+    # Also test that a legitimately verified but conflicting number cannot
+    # be silently overwritten by a manual entry.
+    correct=wrong.replace("俄克拉荷马城雷霆,雷霆^12^克里夫兰骑士,骑士",
+        "克里夫兰骑士,骑士^12^俄克拉荷马城雷霆,雷霆")
+    try:verify(user_board,correct,overrides=[dict(item,label="周一303")])
+    except ValueError as e:assert "CONFLICT" in str(e)
+    else:raise AssertionError("SOURCE_VS_MANUAL_LABEL_CONFLICT_SILENCED")
+    print("JC_MANUAL_302_ONLY_NUMBER_NOT_MARKET_IDENTITY_SELFTEST_PASS")
     print("JC_MATCH_NUMBERS_309_318_SELFTEST_PASS")
 if __name__=="__main__":
     self_test()
