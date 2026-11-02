@@ -431,8 +431,93 @@ def reconstruct(root):
     return observations, frozen, report
 
 
+
+def movements_asof_30m(frozen):
+    """Compute only changes between independently captured pre-tip quotes.
+
+    Differences in these frozen source fetches are research features, not
+    proofs of actual bookmaker tick time. Same fetch cannot be treated as
+    two independent market changes. Handicap signed home perspective is
+    retained explicitly and different JC/Crown raw sign conventions respected.
+    """
+    indexed={cutoff:{(r["beijing_date"],r["game_id"],r["market"]):r
+                     for r in frozen[cutoff]} for cutoff in CUT_OFF_MINUTES}
+    output=[]
+    stats=Counter()
+    for key, last in sorted(indexed[30].items()):
+        if last["market"] not in MARKETS:
+            continue
+        snapshots={n:indexed[n].get(key) for n in CUT_OFF_MINUTES}
+        available={str(n):{
+            "source_capture_utc":r["quote_capture_utc"],
+            "lead_minutes":r["price_observed_lead_minutes"],
+            "asof_capture_age_minutes":round(
+                r["price_observed_lead_minutes"]-n,3),
+            "line":r["line"],
+            "signed_home_handicap":r["signed_home_handicap"],
+            "raw_slot1_price":r["raw_slot1_price"],
+            "raw_slot2_price":r["raw_slot2_price"],
+            "captured_within_120_minutes_before_cutoff":(
+                r["price_observed_lead_minutes"]-n<=120),
+        } for n,r in snapshots.items() if r}
+        changes={}
+        for early,late in ((720,120),(120,30),(720,30)):
+            a,b=snapshots[early],snapshots[late]
+            name=f"{early}_to_{late}"
+            if not a or not b:
+                changes[name]={"status":"MISSING_EARLIER_OR_LATER_ASOF"}
+                continue
+            if a["quote_capture_utc"]==b["quote_capture_utc"]:
+                changes[name]={"status":"SAME_SOURCE_CAPTURE_NO_NEW_OBSERVATION"}
+                continue
+            if a["quote_capture_utc"]>b["quote_capture_utc"]:
+                raise AssertionError("BACKWARD_QUOTE_CAPTURE_CHANGE")
+            delta_line=None if a["line"] is None else round(b["line"]-a["line"],3)
+            delta_home_handicap=(
+                round(b["signed_home_handicap"]-a["signed_home_handicap"],3)
+                if a["signed_home_handicap"] is not None else None)
+            changes[name]={
+                "status":"OBSERVED_DISTINCT_PRETIP_CAPTURES",
+                "line_change":delta_line,
+                "signed_home_handicap_change":delta_home_handicap,
+                "raw_slot1_price_change":round(b["raw_slot1_price"]-a["raw_slot1_price"],5),
+                "raw_slot2_price_change":round(b["raw_slot2_price"]-a["raw_slot2_price"],5),
+                "line_changed":delta_line is not None and abs(delta_line)>1e-9,
+                "old_capture_utc":a["quote_capture_utc"],
+                "new_capture_utc":b["quote_capture_utc"],
+            }
+            stats[f"{name}_independent_capture_pairs"]+=1
+            if delta_line is not None and abs(delta_line)>1e-9:
+                stats[f"{name}_changed_line_pairs"]+=1
+        output.append({
+            "schema_version":"nba-007-market-movement-asof-v1",
+            "beijing_date":last["beijing_date"],
+            "game_id":last["game_id"],
+            "nba_game_id":last["nba_game_id"],
+            "home_team":last["home_team"],"away_team":last["away_team"],
+            "tipoff_utc":last["tipoff_utc"],
+            "market":last["market"],
+            "bookmaker":last["bookmaker"],
+            "source_capture_count_across_cutoffs":len({
+                r["quote_capture_utc"] for r in snapshots.values() if r}),
+            "cutoffs":available, "changes":changes,
+            "settled_result":last["settled_result"],
+            "first_side_line_outcome":last["observed_first_side_result"],
+            "has_outcome":last["settled_result"] is not None,
+            "market_probability_calibration_eligible":False,
+            "valid_for_research_line_movement":True,
+            "warning":"Quoted source fetch times, NOT bookmaker update times",
+        })
+    stats["rows"]=len(output)
+    stats["settled_rows"]=sum(x["has_outcome"] for x in output)
+    stats["distinct_games"]=len({(x["beijing_date"],x["game_id"]) for x in output})
+    return output,dict(sorted(stats.items()))
+
+
 def export(root, out):
     observations, frozen, report = reconstruct(root)
+    movement_rows, movement_stats = movements_asof_30m(frozen)
+    report["line_movement_30m"] = movement_stats
     target = Path(out)
     target.mkdir(parents=True, exist_ok=True)
     paths = {"observations": target / "all_archived_pretip_007_quotes.jsonl"}
@@ -441,6 +526,8 @@ def export(root, out):
                                            allow_nan=False)+"\n" for r in rows),
                         encoding="utf-8")
     dump(paths["observations"], observations)
+    paths["line_movement"] = target / "observed_line_movements_asof_30m.jsonl"
+    dump(paths["line_movement"], movement_rows)
     for minutes, rows in frozen.items():
         path = target / f"frozen_{minutes}m_007_five_markets.jsonl"
         dump(path, rows)
@@ -456,6 +543,7 @@ def export(root, out):
         "settled_fixture_ids": report["settled_fixture_ids"],
         "cutoffs": report["time_cutoffs"],
         "rejections": report["rejections"],
+        "movement": report["line_movement_30m"],
         "production_changed": False},ensure_ascii=False,sort_keys=True))
     return report
 
@@ -507,6 +595,13 @@ def self_test():
         assert any(r["market"]=="JINGCAI_HANDICAP" and
                    r["signed_home_handicap"]==-5.5 for r in rows)
         assert cuts[30][0]["price_side_probability_verified"] is False
+        movements, mstats = movements_asof_30m(cuts)
+        assert len(movements)==5 and mstats["rows"]==5
+        assert all(not x["market_probability_calibration_eligible"] for x in movements)
+        assert all(x["changes"]["120_to_30"]["status"] ==
+                   "SAME_SOURCE_CAPTURE_NO_NEW_OBSERVATION" for x in movements)
+        assert all(x["cutoffs"]["30"]["captured_within_120_minutes_before_cutoff"]
+                   for x in movements)
         # A retroactively fetched past-date market is never backfilled with
         # a guessed pre-game timestamp; reject quotes recorded after the tip.
         joined["captured_at_utc"]="2026-11-01T00:01:00Z"
