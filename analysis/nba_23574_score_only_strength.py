@@ -323,10 +323,14 @@ def main():
         "splits":result["splits"],
         "margin":{k:result["targets"]["margin"][k] for k in
                    ("selected_on_validation","selected_evaluation",
-                    "selected_vs_baseline_paired_date_ci")},
+                    "selected_vs_baseline_paired_date_ci",
+                    "validation_metrics","previously_exposed_evaluation_metrics",
+                    "probabilistic_evaluation")},
         "total":{k:result["targets"]["total"][k] for k in
                   ("selected_on_validation","selected_evaluation",
-                   "selected_vs_baseline_paired_date_ci")},
+                   "selected_vs_baseline_paired_date_ci",
+                   "validation_metrics","previously_exposed_evaluation_metrics",
+                   "probabilistic_evaluation")},
         "production_promotion_allowed":False,
     },ensure_ascii=False))
 if __name__=="__main__":
