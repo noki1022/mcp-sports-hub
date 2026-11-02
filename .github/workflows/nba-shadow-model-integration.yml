@@ -48,6 +48,8 @@ jobs:
           assert out['no_production_model_scheduler_pushplus_cloudflare_changes'] is True
           assert out['no_ev_no_roi_no_price_arbitrage'] is True
           assert out['model_probability_fusion_ready'] is False
+          assert out['model_features_originally_used_in_frozen_model'] is False
+          assert out['model_feature_availability_requires_NEW_prediction_after_market_capture'] is True
           assert graded['graded_game_markets']==0
           assert graded['production_promotion_allowed'] is False
           byid={str(g['game_id']):g for g in orig['games']}
@@ -62,6 +64,10 @@ jobs:
           for g in out['games']:
               assert len(g['three_play_five_target_judgments'])==5
               assert all(k in g['three_play_five_target_judgments'] for k in keys)
+              features=g['preintegration_model_input_features']
+              assert features['historical_model_originally_saw_these_features'] is False
+              assert features['no_prediction_probability_numerically_changed'] is True
+              assert datetime.fromisoformat(features['market_features_effective_asof_utc'])>=datetime.fromisoformat(g['original_model_capture_utc']) or features['features_available_for_original_model_time'] is True
               for k,m in g['three_play_five_target_judgments'].items():
                   assert m['confidence_delta_pp']==0
                   assert m['model_direction_unchanged'] is True
