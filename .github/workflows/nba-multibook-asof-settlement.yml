@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'analysis/nba_multibook_asof_settled_ledger.py'
+      - 'analysis/nba_multibook_same_line_consensus.py'
       - 'analysis/historical_odds_validator.py'
       - '.github/workflows/nba-multibook-asof-settlement.yml'
   workflow_dispatch:
@@ -26,6 +27,11 @@ jobs:
       - name: Match repository sportsbook captures to existing and independent ESPN scores
         run: |
           python3 analysis/nba_multibook_asof_settled_ledger.py --repo-root . --out /tmp/nba-multibook-asof
+      - name: Evaluate exact-line 9-company historical market consensus without training
+        run: |
+          python3 -m py_compile analysis/nba_multibook_same_line_consensus.py
+          python3 analysis/nba_multibook_same_line_consensus.py --selftest
+          python3 analysis/nba_multibook_same_line_consensus.py --source /tmp/nba-multibook-asof/multibook_asof_settled_only.jsonl --out /tmp/nba-multibook-asof/consensus
       - name: Assert against future info and all same-game duplicates
         run: |
           python3 - <<'PY'
