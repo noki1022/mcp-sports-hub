@@ -62,7 +62,7 @@ def decode_zip(blob):
             files[name]=z.read(members[0])
         return files
 
-def verify(meta,files,run,repo,day,daily,sent,now):
+def verify(meta,files,run,repo,day,ledger_root,now):
     status=json.loads(files["auto_run_status.json"])
     bridge=json.loads(files["nba_shadow_model_bridge.json"])
     candidate=json.loads(files["nba_postmarket_independent_candidate.json"])
@@ -93,26 +93,56 @@ def verify(meta,files,run,repo,day,daily,sent,now):
         raise ValueError("ORIGINAL_IMMUTABLE_ARTIFACT_HASH_MISMATCH")
     if candidate.get("model_probabilities_are_frozen") is not True:
         raise ValueError("UNFROZEN_PROSPECTIVE_CANDIDATE")
-    source_base=Path(daily)/day
+    # Never grade an artifact unless its original EXACT source inputs and
+    # output were sealed in the independent append-only research Git branch.
+    # This is a second, distinct proof of pretip existence (independent of
+    # short-lived 90-day GitHub Action artifacts).
+    root=Path(ledger_root)/day
+    proof_path=root/".seal.json"
+    if not proof_path.is_file():
+        raise ValueError("NO_PERMANENT_PRETIP_GIT_LEDGER_SEAL_FOR_DAY")
+    proof=json.loads(proof_path.read_text())
+    if (proof.get("schema_version")!="nba-shadow-pretip-append-only-seal-v1"
+            or proof.get("date_beijing")!=day
+            or str(proof.get("new_shadow_github_run_id"))!=str(run["id"])):
+        raise ValueError("LEDGER_SEAL_IS_NOT_FOR_THIS_FIRST_GITHUB_RUN")
+    hashes=proof.get("frozen_blobs_sha256",{})
+    for name,payload in files.items():
+        if hashlib.sha256(payload).hexdigest()!=hashes.get(name):
+            raise ValueError("LEDGER_OUTPUT_SHA256_DIFFERS_FROM_ARCHIVED_ARTIFACT:"+name)
+        if not (root/name).is_file() or hashlib.sha256((root/name).read_bytes()).hexdigest()!=hashes[name]:
+            raise ValueError("PERMANENT_FROZEN_FORECAST_FILE_TAMPERED:"+name)
+    source_base=root/"input_snapshots/reports/daily"/day
     original_paths={
         "earlier_consensus":source_base/"1200"/"nba_market_consensus.json",
         "later_consensus":source_base/"1800"/"nba_market_consensus.json",
         "original_dynamic_five_market":source_base/"1800"/"nba_dynamic_five_market_shadow.json",
         "original_five_market_forecast":source_base/"1800"/"nba_five_market_forecast.json",
     }
-    if any(not p.is_file() for p in original_paths.values()):
-        raise ValueError("ORIGINAL_TIME_FROZEN_REPOSITORY_SOURCES_NOT_FOUND")
     for key,path in original_paths.items():
-        digest=hashlib.sha256(path.read_bytes()).hexdigest()
-        if bridge.get("source_sha256",{}).get(key)!=digest:
-            raise ValueError("ORIGINAL_FIVE_MARKET_SOURCE_DIGEST_CHANGED:"+key)
-    marker_path=Path(sent)/day/"1800.json"
-    if not marker_path.is_file():
-        raise ValueError("ORIGINAL_COMPLETED_1800_DELIVERY_MARKER_NOT_FOUND")
+        relative=str(path.relative_to(root))
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest()!=hashes.get(relative):
+            raise ValueError("SEALED_SOURCE_SNAPSHOT_TAMPERED:"+key)
+        if bridge.get("source_sha256",{}).get(key)!=hashes[relative]:
+            raise ValueError("SEALED_SOURCE_DIFFERS_FROM_MODEL_FEATURES:"+key)
+    marker_path=root/"input_snapshots/reports/pushplus-sent"/day/"1800.json"
+    marker_hash=hashes.get(str(marker_path.relative_to(root)))
+    if not marker_path.is_file() or hashlib.sha256(marker_path.read_bytes()).hexdigest()!=marker_hash:
+        raise ValueError("ARCHIVED_REAL_PRODUCTION_ACCEPTANCE_MARKER_TAMPERED")
     marker=json.loads(marker_path.read_text())
     if (str(marker.get("run_id"))!=str(status.get("original_delivery_marker_run"))
+            or str(marker.get("run_id"))!=str(proof.get("original_production_run_id"))
             or marker.get("state")!="API_ACCEPTED_NOT_DEVICE_CONFIRMED"):
         raise ValueError("INCORRECT_SUCCESSFUL_MAIN_CHAIN_SOURCE_RUN")
+    sealed=I.D.clock(proof.get("sealed_at_utc"))
+    earliest_tip=min((I.D.clock(g.get("tipoff_beijing")) for g in candidate.get("games",[])),
+                    default=None)
+    if not sealed or not earliest_tip or not sealed<earliest_tip:
+        raise ValueError("GIT_LEDGER_WAS_WRITTEN_AFTER_NBA_GAME_START")
+    if (proof.get("prediction_generated_at_utc")!=predicted.isoformat()
+            or proof.get("original_model_forecast_sha256")!=bridge[
+                "source_sha256"]["original_five_market_forecast"]):
+        raise ValueError("SEALED_SOURCE_OR_MODEL_CLOCK_IDENTITY_CONFLICT")
     # Original frozen target board and newly calculated next model are checked
     # again in the grade path after scores are independently available.
     return bridge,candidate,{"github_run_id":run["id"],
@@ -123,7 +153,7 @@ def verify(meta,files,run,repo,day,daily,sent,now):
                               "candidate_sha256":candidate_hash,
                               "bridge_sha256":bridge_hash}
 
-def grade_day(repo,token,day,daily,sent,settled,now):
+def grade_day(repo,token,day,ledger_root,settled,now):
     settlement=Path(settled)/day/"settlement.json"
     if not settlement.is_file():
         return {"status":"SKIPPED_NO_OFFICIAL_COMPLETED_SETTLEMENT"}
@@ -142,7 +172,7 @@ def grade_day(repo,token,day,daily,sent,settled,now):
     files=decode_zip(api(
         "https://api.github.com/repos/"+repo+"/actions/artifacts/"+str(artifact["id"])+"/zip",
         token,as_json=False))
-    bridge,candidate,source=verify(artifact,files,run,repo,day,daily,sent,now)
+    bridge,candidate,source=verify(artifact,files,run,repo,day,ledger_root,now)
     report=I.compare_candidate(
         bridge,candidate,truth,
         hashlib.sha256(files["nba_shadow_model_bridge.json"]).hexdigest())
@@ -176,6 +206,7 @@ def main():
     p.add_argument("--date",help="Beijing date of the actual NBA games; default: today Beijing")
     p.add_argument("--daily-root",default="reports/daily")
     p.add_argument("--sent-root",default="reports/pushplus-sent")
+    p.add_argument("--ledger-root",default="reports/shadow-pretip-ledger")
     p.add_argument("--settled-root",default="reports/five-market-settled")
     p.add_argument("--out",default="/tmp/nba-shadow-prospective-postgame-scorecard.json")
     p.add_argument("--selftest",action="store_true")
@@ -184,7 +215,7 @@ def main():
     if not args.token:raise SystemExit("GH_TOKEN_WITH_ACTIONS_READ_REQUIRED")
     from zoneinfo import ZoneInfo
     target=args.date or datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
-    output=grade_day(args.repo,args.token,target,args.daily_root,args.sent_root,args.settled_root,
+    output=grade_day(args.repo,args.token,target,args.ledger_root,args.settled_root,
                      datetime.now(timezone.utc))
     Path(args.out).parent.mkdir(parents=True,exist_ok=True)
     Path(args.out).write_text(json.dumps(output,ensure_ascii=False,sort_keys=True,indent=2)+"\n")
