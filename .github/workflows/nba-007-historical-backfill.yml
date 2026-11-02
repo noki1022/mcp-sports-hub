@@ -1,0 +1,70 @@
+name: NBA 007 Historical Pregame Odds Backfill (research only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_007_historical_odds_backfill.py'
+      - 'analysis/nba_007_retrospective_date_probe.py'
+      - '.github/workflows/nba-007-historical-backfill.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  historical-007:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and self-test historical point-in-time reconstruction
+        run: |
+          python3 -m py_compile analysis/nba_007_historical_odds_backfill.py
+          python3 analysis/nba_007_historical_odds_backfill.py --self-test
+      - name: Materialize real archived 007 Jingcai and Crown observations
+        run: |
+          python3 analysis/nba_007_historical_odds_backfill.py --repo-root . --out /tmp/nba-007-historical-archive
+      - name: Audit prior-year 007 date endpoints without importing time-ineligible quotes
+        run: |
+          python3 analysis/nba_007_retrospective_date_probe.py --self-test
+          python3 analysis/nba_007_retrospective_date_probe.py --out /tmp/nba-007-historical-archive/retrospective_date_probe.json
+      - name: Validate every historical row without silent timezone or quote substitution
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          from collections import defaultdict
+          from datetime import datetime
+          path=pathlib.Path('/tmp/nba-007-historical-archive')
+          meta=json.loads((path/'report.json').read_text())
+          assert meta['no_historical_timestamps_invented'] is True
+          assert meta['production_model_changed'] is False
+          assert meta['crown_company_id']=='3'
+          assert meta['opening_prices_without_opening_timestamp']=='EXCLUDED'
+          seen=set()
+          for f in path.glob('*.jsonl'):
+            for ln in f.read_text().splitlines():
+              v=json.loads(ln)
+              assert v['schema_version']=='nba-007-historical-asof-v1'
+              assert v['price_side_probability_verified'] is False
+              assert v['production_fusion_eligible'] is False
+              assert v['opening_line_imported'] is False
+              assert datetime.fromisoformat(v['quote_capture_utc'].replace('Z','+00:00'))<datetime.fromisoformat(v['tipoff_utc'].replace('Z','+00:00'))
+              if v['market'].startswith('CROWN'):
+                assert v['company_id']=='3'
+              if f.name.startswith('frozen_'):
+                key=(f.name,v['beijing_date'],v['game_id'],v['market'])
+                assert key not in seen
+                seen.add(key)
+          assert meta['observed_quote_rows']>0
+          assert meta['time_cutoffs']['30']['distinct_games']>0
+          print('NBA_007_HISTORICAL_BACKFILL_REAL_DATA_VALIDATED')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-007-historical-archived-asof-training
+          path: /tmp/nba-007-historical-archive/
+          if-no-files-found: warn
+          retention-days: 60
