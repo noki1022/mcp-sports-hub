@@ -180,7 +180,7 @@ def selftest():
         artifact.write_text(json.dumps(audit))
         saved,meta=original(originalpath,artifact)
         assert len(saved)==1
-        originalpath.write_text(raw.replace('"home":"UTA"','"home":"BOS"'))
+        originalpath.write_text(raw + " ")
         try:original(originalpath,artifact)
         except RuntimeError as err:
             assert str(err)=="IMMUTABLE_PRETIP_ARTIFACT_CHECKSUM_MISMATCH"
