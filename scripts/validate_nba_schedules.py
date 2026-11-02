@@ -37,7 +37,6 @@ workflows={
  "titan007-daily-free.yml":[],
  "odds-results-settlement.yml":["0 8 * * *"],
  # One QUIET research-only scorecard, no 007 collection and no PushPlus.
- "nba-shadow-prospective-final-grade.yml":[],
  "nba-dual-final-2130-score.yml":["25 14 * * *"]
 }
 def load(path):
