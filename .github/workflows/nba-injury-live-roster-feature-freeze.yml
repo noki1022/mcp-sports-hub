@@ -51,6 +51,9 @@ jobs:
           assert audit['existing_push_and_model_untouched'] is True
           assert audit['source_roster_captured_now_only'] is True
           assert audit['historical_release_clock_not_verified'] is True
+          assert sum(audit['all_reported_player_identity_statuses'].values())==audit['official_player_rows']
+          assert audit['identified_player_minutes_records']<=audit['official_player_rows']
+          assert sum(audit['unresolved_reported_players_by_reason'].values())+audit['identified_player_minutes_records']==audit['official_player_rows']
           for row in rows:
               assert row['injury_adjusted_probability'] is None
               assert row['candidate_coefficients'] is None
