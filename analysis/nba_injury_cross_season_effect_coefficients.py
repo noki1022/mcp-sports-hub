@@ -107,6 +107,38 @@ def metrics(rows,model):
         "ML_direction_accuracy":float(np.mean((probability>=.5)==(actual>.5))),
     }
 
+def shuffled_injury_training_placebo(fit_rows,eval_rows,variant,baseline_brier,draws=24):
+    """Negative control: keep authentic team form/outcomes, scramble injury
+    columns ONLY in historical fit data. No additional model selected using
+    later evaluation labels; this is a descriptive placebo distribution.
+    """
+    rng=np.random.default_rng(SEED)
+    team=[np.array(row[2],dtype=float) for row in fit_rows]
+    injury=[np.array(row[3][2:],dtype=float) for row in fit_rows]
+    y0=[row[1] for row in fit_rows]
+    outputs=[]
+    for _ in range(draws):
+        order=rng.permutation(len(fit_rows))
+        placebo=[]
+        for i,row in enumerate(fit_rows):
+            xx=list(team[i])+list(injury[order[i]])
+            placebo.append((row[0],y0[i],list(team[i]),xx))
+        m=fit(placebo,variant)
+        outputs.append(metrics(eval_rows,m)["Brier_ML"])
+    return {
+        "n_independent_training_permutations":draws,
+        "training_injury_signal_scrambled":True,
+        "historic_game_outcomes_unchanged":True,
+        "evaluation_feature_rows_unchanged":True,
+        "later_evaluation_used_for_model_selection":False,
+        "placebo_brier_mean":float(np.mean(outputs)),
+        "placebo_brier_5th_95th":[float(np.quantile(outputs,.05)),
+                                  float(np.quantile(outputs,.95))],
+        "baseline_Brier":baseline_brier,
+        "placebo_mean_minus_baseline":float(np.mean(outputs)-baseline_brier),
+        "not_a_prospective_causal_test":True,
+    }
+
 def paired_bootstrap(rows,selected,baseline,measure,reps=450):
     actual=np.asarray([r[1] for r in rows],float)
     p0=predict(rows,baseline);p1=predict(rows,selected)
@@ -209,6 +241,11 @@ def execute(path):
                name:paired_bootstrap(parts["previously_explored_evaluation"],
                         mods[selected],mods["no_injury_team_form"],name)
                         for name in ("moneyline_Brier","margin_MAE")},
+           "training_permutation_placebo":{
+               k:shuffled_injury_training_placebo(
+                   parts["fit"],parts["previously_explored_evaluation"],k,
+                   subsequent["no_injury_team_form"]["Brier_ML"])
+               for k in candidates},
            "candidate_coefficients_research_only":{
                 k:{"coefficients":[float(v) for v in m["beta"]],
                    "means":[float(v) for v in m["mean"]],
@@ -227,6 +264,7 @@ def execute(path):
        "validation":report.get("validation_metrics"),
        "evaluation":report.get("evaluation_metrics_previously_explored"),
        "bootstrap":report.get("selected_bootstrap"),
+       "placebo":report.get("training_permutation_placebo"),
        "production_changed":False},ensure_ascii=False))
     return report
 
@@ -241,6 +279,9 @@ def selftest():
     assert 0<probs([5.0],12)[0]<1
     assert set(STUDIES)=={"no_injury_team_form","injury_prior_minutes","injury_prior_minutes_points_replacement"}
     assert paired_bootstrap(fake,m,m,"moneyline_Brier",25)["selected_minus_baseline"]==0.
+    sham=shuffled_injury_training_placebo(fake,fake,"injury_prior_minutes",.2,3)
+    assert sham["n_independent_training_permutations"]==3
+    assert sham["training_injury_signal_scrambled"]
     print("NBA_INJURY_REAL_CROSS_SEASON_COEFFICIENT_SELFTEST_PASS")
 
 if __name__=="__main__":
