@@ -28,11 +28,41 @@ jobs:
         run: |
           python3 scripts/audit_007_jc_identity_root_cause.py --board reports/daily/2026-11-03/2100/titan007_three_joined.json --out /tmp/jc-20261103-thunder-case.json
           python3 scripts/audit_007_jc_identity_root_cause.py --board reports/daily/2026-11-01/2130/titan007_priority_joined.json --out /tmp/jc-20261101-thunder-case.json
+      - name: Prove all 15 ORIGINAL 007 JC numbers now auto-verify without any manual 302 exception
+        run: |
+          python3 - <<'PY'
+          import sys,json
+          sys.path.insert(0,"scripts")
+          from verify_007_jc_push_numbering import verify
+          from probe_007_jc_scripts import ORIGIN,UA,get_bytes,robots_policy
+          from verify_007_jc_fixture_identity import TARGET,MAX_BYTES
+          board=json.load(open("reports/daily/2026-11-03/2100/titan007_three_joined.json"))
+          policy,state=robots_policy()
+          assert policy is not False, "JC_SOURCE_ACCESS_NOT_PERMITTED"
+          assert policy is None or policy.can_fetch(UA,ORIGIN+TARGET), "JC_SOURCE_ROBOTS_BLOCKED"
+          source=get_bytes(ORIGIN+TARGET,MAX_BYTES)
+          result=verify(board,source,overrides=[])
+          print("ACTUAL_FULL_15_JC_NUMBER_AUTOMATCH",json.dumps({
+            "date":result["target_date_beijing"],
+            "verified_from_007":result["verified"],
+            "user_confirmed":result["user_confirmed"],
+            "total":result["total_games"],
+            "thunder":result["games"]["728298"],
+            "still_unmatched":{k:v for k,v in result["games"].items()
+                if v["status"]!="VERIFIED_JC_NUMBER"}
+          },ensure_ascii=False))
+          assert result["verified"]==result["total_games"]==15
+          assert result["user_confirmed"]==0
+          assert result["games"]["728298"]["label"]=="周一302"
+          open("/tmp/jc-all-15-source-only.json","w").write(json.dumps(result,ensure_ascii=False,indent=2)+"\n")
+          PY
       - name: Persist source-defined forensic record in a separate reviewable CI artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: jc-007-thunder-two-incidents-raw-home-away-evidence
-          path: /tmp/jc-2026110*-thunder-case.json
+          path: |
+            /tmp/jc-2026110*-thunder-case.json
+            /tmp/jc-all-15-source-only.json
           retention-days: 30
           if-no-files-found: warn
