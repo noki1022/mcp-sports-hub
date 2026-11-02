@@ -13,7 +13,7 @@ from probe_007_jc_scripts import ORIGIN,UA,get_bytes,robots_policy
 from verify_007_jc_fixture_identity import TARGET,MAX_BYTES,records,comparable
 
 BJ=ZoneInfo("Asia/Shanghai")
-CODE=re.compile(r"^(周[一二三四五六日天])(\\d{3})$")
+CODE=re.compile(r"^(周[一二三四五六日天])(\d{3})$")
 
 MANUAL_FILE=Path(__file__).resolve().parents[1]/"config"/"nba_jc_user_confirmed_numbers.json"
 
