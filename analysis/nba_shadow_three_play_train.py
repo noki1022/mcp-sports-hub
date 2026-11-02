@@ -92,7 +92,9 @@ def train_beta(rows,kind):
 def metrics(rows,kind,beta,weight):
     values=[]
     direction_counts={"baseline_hits":0,"baseline_non_ties":0,
-                      "candidate_hits":0,"candidate_non_ties":0}
+                      "candidate_hits":0,"candidate_non_ties":0,
+                      "paired_non_ties":0,"paired_baseline_hits":0,
+                      "paired_candidate_hits":0}
     for r in rows:
         x=max(-15.,min(15.,move(r,kind)))
         if kind=="ml":
@@ -110,6 +112,10 @@ def metrics(rows,kind,beta,weight):
             old=.5
             new=phi(beta*weight*x/19.47)
         values.append((float(old)-y,float(new)-y))
+        if abs(old-.5)>1e-10 and abs(new-.5)>1e-10:
+            direction_counts["paired_non_ties"]+=1
+            direction_counts["paired_baseline_hits"]+=int((old>.5)==bool(y))
+            direction_counts["paired_candidate_hits"]+=int((new>.5)==bool(y))
         for label,p in (("baseline",old),("candidate",new)):
             # 50/50 means no directional judgment; never award a tie as a hit.
             if abs(p-.5)>1e-10:
@@ -124,7 +130,17 @@ def metrics(rows,kind,beta,weight):
                 "correct":direction_counts[label+"_hits"],
                 "accuracy":(round(direction_counts[label+"_hits"]/direction_counts[label+"_non_ties"],6)
                             if direction_counts[label+"_non_ties"] else None)}
-                for label in ("baseline","candidate")}}
+                for label in ("baseline","candidate")},
+            "paired_directions":{
+                "n":direction_counts["paired_non_ties"],
+                "baseline_hits":direction_counts["paired_baseline_hits"],
+                "candidate_hits":direction_counts["paired_candidate_hits"],
+                "baseline_accuracy":(
+                    round(direction_counts["paired_baseline_hits"]/direction_counts["paired_non_ties"],6)
+                    if direction_counts["paired_non_ties"] else None),
+                "candidate_accuracy":(
+                    round(direction_counts["paired_candidate_hits"]/direction_counts["paired_non_ties"],6)
+                    if direction_counts["paired_non_ties"] else None)}}
 
 def fit(data,source_sha,score_sha):
     train,validation,evaluation=timeline(data)
@@ -152,6 +168,7 @@ def fit(data,source_sha,score_sha):
             "retrospective_later_candidate_brier":round(e["candidate_brier"],8),
             "retrospective_later_candidate_direction":e["directional"]["candidate"],
             "retrospective_later_market_baseline_direction":e["directional"]["baseline"],
+            "retrospective_later_strictly_paired_direction":e["paired_directions"],
             "baseline_kind":("OPEN_MARKET_MONEYLINE" if kind=="ml" else
                              "UNINFORMATIVE_50_50_NOT_EXISTING_PRODUCTION_MODEL"),
             "retrospective_later_not_independent_live_model_validation":True,
