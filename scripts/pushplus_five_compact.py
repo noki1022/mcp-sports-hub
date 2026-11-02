@@ -102,10 +102,14 @@ def market_row(key, obj):
         signed_home = number(obj.get("signed_home_handicap"))
         if signed_home is None:
             return "让分正负号待核"
+        # Display the EXACT Jingcai official choice (让分主胜/让分客胜)
+        # followed by the HOME signed handicap. Never re-sign it to the
+        # selected away side; this was mathematically equivalent but easy
+        # to confuse with the official home -6.5 button.
         if direction == "HOME_COVER":
-            label = "主" + fmt(signed_home, signed=True) + " 赢盘"
+            label = "让分主胜（主" + fmt(signed_home, signed=True) + "）"
         elif direction == "AWAY_COVER":
-            label = "客" + fmt(-signed_home, signed=True) + " 赢盘"
+            label = "让分客胜（主" + fmt(signed_home, signed=True) + "）"
         else:
             label = None
     else:
@@ -332,7 +336,7 @@ def self_test():
     assert match_label(game, "2026-11-02")[0] == "编号待核"
     game["five_market_forecast"]["tipoff_beijing"]="2026-11-01T08:30:00+08:00"
     h = render_compact([game], {}, "赛前", "2026-11-01", "three")
-    for v in ("北京时间 08:30 开赛", "周六316", "用户确认", "客+4.5 赢盘", "大221.5", "55.5%"):
+    for v in ("北京时间 08:30 开赛", "周六316", "用户确认", "让分客胜（主-4.5）", "大221.5", "55.5%"):
         assert v in h, v
     for hidden in ("同线市场", "模型-市场", "多机构共识", "共识总分线", "共识主队盘口", "5家"):
         assert hidden not in h, hidden
@@ -354,7 +358,22 @@ def self_test():
     h=render_compact([game],{},"赛前","2026-11-01","three",official_fixtures=early)
     assert "最早开赛：北京时间 03:00" in h and "北京时间 08:30 开赛" in h
     sample = mk("AWAY_COVER", signed_home_handicap=6.5, model_direction_probability=.549)
-    assert market_row("JINGCAI_HANDICAP", sample).startswith("客-6.5 赢盘")
+    assert market_row("JINGCAI_HANDICAP", sample).startswith("让分客胜（主+6.5）")
+    # Match the real 2026-11-02 user screenshot, but ONLY change text.
+    # Official JC home Cavalier -6.5: choose 让分客胜, NOT a made-up
+    # "客-6.5" or a re-signed source line. Crown's own -4.5 stays distinct.
+    cle_jc = mk("AWAY_COVER",signed_home_handicap=-6.5,
+                model_direction_probability=.661)
+    cle_crown = mk("AWAY_COVER",signed_home_handicap=-4.5,
+                   model_direction_probability=.613)
+    assert market_row("JINGCAI_HANDICAP",cle_jc)=="让分客胜（主-6.5） · 66.1%"
+    assert market_row("CROWN_HANDICAP",cle_crown)=="让分客胜（主-4.5） · 61.3%（参考）"
+    assert market_row("JINGCAI_HANDICAP",mk("HOME_COVER",
+        signed_home_handicap=-6.5,model_direction_probability=.571)).startswith(
+        "让分主胜（主-6.5）")
+    assert market_row("JINGCAI_HANDICAP",mk("HOME_COVER",
+        signed_home_handicap=6.5,model_direction_probability=.581)).startswith(
+        "让分主胜（主+6.5）")
     assert market_row("CROWN_HANDICAP", {"status": "CROWN_QUOTE_NOT_VERIFIED"}) == "盘口未核实"
     assert "61.0%（参考）" in market_row("CROWN_TOTAL",mk("OVER",line=230.5,model_direction_probability=.61))
     crown = market_row("CROWN_HANDICAP",fcast["markets"]["CROWN_HANDICAP"])
