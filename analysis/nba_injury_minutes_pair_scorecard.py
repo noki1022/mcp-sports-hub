@@ -16,7 +16,13 @@ from pathlib import Path
 import numpy as np
 
 import nba_multibook_asof_settled_ledger as E
-from nba_injury_live_roster_feature_freeze import stamp
+
+def stamp(value):
+    """Parse strict explicit-offset timestamps without importing data collectors."""
+    d=datetime.fromisoformat(str(value).replace("Z","+00:00"))
+    if d.tzinfo is None:
+        raise ValueError("UNZONED_FORECAST_CAPTURE")
+    return d.astimezone(timezone.utc)
 
 SCHEMA="nba-frozen-injury-minutes-pair-independent-settlement-v1"
 PRETIP_SCHEMA="nba-frozen-research-injury-minutes-paired-v1"
@@ -74,7 +80,6 @@ def read(original,manifest):
 def grade(rows,now=None,fetch=E.fetch_espn_day):
     now=now or datetime.now(timezone.utc)
     paired=[r for r in rows if r["status"]=="PAIRED_RESEARCH_FORECAST_FROZEN"]
-    days=sorted({stamp(r["tipoff_utc"]).date() for r in paired})
     # ESPN scoreboard takes American Eastern game dates, not UTC:
     from zoneinfo import ZoneInfo
     eastern=ZoneInfo("America/New_York")
