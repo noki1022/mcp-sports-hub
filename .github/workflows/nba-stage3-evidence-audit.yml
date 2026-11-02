@@ -1,0 +1,47 @@
+name: NBA stage 3 independent evidence audit (research only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'analysis/nba_stage3_evidence_audit.py'
+      - '.github/workflows/nba-stage3-evidence-audit.yml'
+      - 'analysis/README-nba-stage3-evidence.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  stage3-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and self-test research audit
+        run: |
+          python3 -m py_compile analysis/nba_stage3_evidence_audit.py
+          python3 analysis/nba_stage3_evidence_audit.py --self-test
+      - name: Audit committed pretip 007 and five-market settlement archives
+        run: |
+          python3 analysis/nba_stage3_evidence_audit.py --out /tmp/nba-stage3-evidence.json > /tmp/nba-stage3-summary.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/nba-stage3-evidence.json'))
+          assert d['research_eligibility']['production_promotion_allowed'] is False
+          assert d['research_eligibility']['independent_model_uplift_proven'] is False
+          assert set(d['settlement']['market_checks']) == {'JINGCAI_WIN', 'JINGCAI_HANDICAP', 'JINGCAI_TOTAL', 'CROWN_HANDICAP', 'CROWN_TOTAL'}
+          assert d['multi_company_007']['crown_policy'] == '007_COMPANY_ID_3_IS_CROWN_FIXED'
+          print('NBA_STAGE3_SOURCE_EVIDENCE_CHECK',d['settlement']['settled_games'],
+                d['settlement']['settled_beijing_days'],
+                d['multi_company_007']['valid_raw_quotes'],
+                d['multi_company_007']['raw_orientation_unverified'],
+                d['research_eligibility']['status'],d['research_eligibility']['failures'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-stage3-independent-evidence
+          path: /tmp/nba-stage3-evidence.json
+          if-no-files-found: warn
+          retention-days: 30
