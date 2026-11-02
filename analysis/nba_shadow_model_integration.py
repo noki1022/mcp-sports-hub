@@ -197,6 +197,8 @@ def build(early,late,dynamic,five,hashes):
             "market_features_effective_asof_utc":late_end.isoformat(),
             "new_model_prediction_must_be_generated_not_before_utc":late_end.isoformat(),
             "existing_independent_model_generated_utc":original_model_time.isoformat(),
+            "original_independent_model_margin_sigma":(d.get("independent_model") or {}).get("margin_sigma"),
+            "original_independent_model_total_sigma":(d.get("independent_model") or {}).get("total_sigma"),
             "historical_model_originally_saw_these_features":False,
             "features_available_for_original_model_time":late_end<=original_model_time,
             "spread_home_strength_direction_code":encode(spread["direction"]),
@@ -472,6 +474,7 @@ def compare_candidate(bridge,candidate,settlement,source_bridge_sha):
     return {
         "status":"RESEARCH_ONLY_CHRONOLOGICAL_PAIRED_GRADE",
         "paired_by_market":summary,
+        "paired_rows_by_market":result,
         "independent_games":len(games),
         "distinct_beijing_days":1 if games else 0,
         "rejected":dict(sorted(refused.items())),

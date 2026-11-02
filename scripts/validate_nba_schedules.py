@@ -35,7 +35,9 @@ workflows={
  "nba-injury-change-watch.yml":["30-59/5 22,23 * * *","*/5 0-12 * * *","0-30/5 13 * * *"],
  "nba-two-market-nightly-2200.yml":["*/15 0-15 * * *","*/15 16-23 * * *"],
  "titan007-daily-free.yml":[],
- "odds-results-settlement.yml":["0 8 * * *"]
+ "odds-results-settlement.yml":["0 8 * * *"],
+ # One QUIET research-only scorecard, no 007 collection and no PushPlus.
+ "nba-shadow-prospective-final-grade.yml":["25 15 * * *"]
 }
 def load(path):
     obj=yaml.safe_load(path.read_text())
@@ -131,6 +133,14 @@ def main():
     assert "nba_final_review_gate.py" in postgame
     assert "nba_five_market_settlement.py" in postgame
     assert "titan007_join_beijing_verified.py" not in postgame
+    # Research scorer checks pretip frozen artifacts and actual official final,
+    # without additional bookmaker collection, notification or production model.
+    scorecard=(ROOT/".github/workflows/nba-shadow-prospective-final-grade.yml").read_text()
+    assert "nba_shadow_prospective_final_grade.py" in scorecard
+    assert "pushplus_mobile.py" not in scorecard
+    assert "optional_007_enrichment.py" not in scorecard
+    assert "titan007_join_beijing_verified.py" not in scorecard
+    assert "contents: read" in scorecard
     # Only TWO deliberate full-report exceptions to the otherwise silent
     # Beijing 22:30–05:30 market-monitor period: 00:30 and 03:30.
     cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
