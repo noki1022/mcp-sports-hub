@@ -635,7 +635,11 @@ def self_test():
         assert len(movements)==5 and mstats["rows"]==5
         assert all(not x["market_probability_calibration_eligible"] for x in movements)
         assert all(x["changes"]["120_to_30"]["status"] ==
-                   "SAME_SOURCE_CAPTURE_NO_NEW_OBSERVATION" for x in movements)
+                   "SAME_SOURCE_CAPTURE_NO_NEW_OBSERVATION"
+                   for x in movements if x["market"].startswith("CROWN"))
+        assert all(x["changes"]["120_to_30"]["status"] ==
+                   "MISSING_EARLIER_OR_LATER_ASOF"
+                   for x in movements if x["market"].startswith("JINGCAI"))
         assert all(x["cutoffs"]["30"]["captured_within_120_minutes_before_cutoff"]
                    for x in movements)
         # A retroactively fetched past-date market is never backfilled with
