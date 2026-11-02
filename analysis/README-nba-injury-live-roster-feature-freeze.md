@@ -25,3 +25,9 @@ Outputs: `prospective_official_injury_roster_minutes.jsonl` and `audit.json` wit
 **Cannot claim improved prediction accuracy** until the already-running injury shadow has a real frozen compatible candidate model and sufficient new paired games. No modified original models, no new active injury model, no writes to 007/ID3 Crown/Jingcai, no Cloudflare/GitHub schedule changes, and no PushPlus changes.
 
 The source PDF release time is not independently verified; collection time is the only independently observed as-of proof. Genuine opening/closing market timestamps and ROI are not inferred.
+
+## Source route reliability / safe fallback
+
+The original ESPN abbreviation roster lookup failed for New Orleans (NOP) and Utah (UTA) in the first real CI run (28/30 successful team rosters). The research-only collector now tries their known numeric ESPN **team routing IDs** 3 and 26 only after the original request fails, and only accepts the fallback when the response identifies **both exact team ID and displayed team name**. It preserves the actual numeric URL, SHA256 and UTC fetch clock. A missing or mismatching team identity is rejected, never silently attributed. These ESPN *team IDs* are not player IDs, and cannot substitute for unique current roster / NBA log-person ID matching.
+
+The initial research pass observed 44 official injury-listed player rows across six two-team-published games; 21 had independently linked roster ID + earlier same-team minutes, 13 lacked unambiguous current roster names, six lacked three earlier same-team appearances and four lacked historical player logs. None were permitted to generate a replacement injury probability. Subsequent runs recompute the real counts and may differ.
