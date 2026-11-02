@@ -499,7 +499,7 @@ def self_test():
         rows, cuts, report = reconstruct(root)
         assert len(rows)==5, (len(rows),report)
         assert report["archive_fixture_ids"]==1 and report["settled_fixture_ids"]==1
-        assert len(cuts[30])==5 and len(cuts[120])==5
+        assert len(cuts[30])==5 and len(cuts[120])==2  # JC captured at T-119m; ID3 at T-120m
         assert cuts[30][0]["settled_result"]["home_points"]==110
         assert any(r["market"]=="CROWN_HANDICAP" and
                    r["signed_home_handicap"]==-4.5 and
