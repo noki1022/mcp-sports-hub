@@ -155,7 +155,7 @@ def self_test():
     assert not good["model_fusion_enabled"] and good["betting_prices_verified"]==0
     assert comparable("俄克拉荷马城雷霆",["雷霆"]) is True
     assert comparable("俄克拉荷马城雷霆",["骑士"]) is False
-    assert comparable("新加坡城雷霆",["雷霆"]) is False
+    assert comparable("新加坡市中心长城雷霆",["雷霆"]) is False
     assert comparable("长名字未经核验之雷霆",["雷霆"]) is False
     assert not comparable("俄克拉荷马城雷霆",["火箭"])
     assert not (comparable("俄克拉荷马城雷霆",["骑士"])
