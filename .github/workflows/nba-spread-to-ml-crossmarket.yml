@@ -56,6 +56,11 @@ jobs:
           assert z['earlier_fit']['n_games']>=450
           assert z['validation']['n_games']>=220
           assert z['previously_explored_evaluation']['n_games']>=280
+          ci=d['later_paired_brier_delta_bootstrap']
+          assert ci['date_clusters']>=60
+          assert len(ci['ci95'])==2 and ci['ci95'][0]<=ci['ci95'][1]
+          assert math.isfinite(ci['delta_brier'])
+          assert ci['research_previous_season_evaluation_not_new_holdout'] is True
           ev=d['later_evaluation']['brier']
           assert all(math.isfinite(ev[k]) for k in
               ('opening_market','closing_market','opening_plus_spread_bridge','closing_plus_residual'))
