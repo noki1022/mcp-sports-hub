@@ -196,7 +196,7 @@ def quote_audit(root):
     }
 
 
-def frozen_forecast_audit(intraday_root, settled_root):
+def frozen_forecast_audit(intraday_root, settled_root, daily_root=None):
     """Find actual settlement-locked market forecasts, not merely latest board.
 
     A later pre-tip snapshot can lose its 007 quotes even though an earlier
@@ -206,7 +206,11 @@ def frozen_forecast_audit(intraday_root, settled_root):
     frozen = defaultdict(list)
     settlement = {}
     counts = Counter()
-    for path, doc in documents(intraday_root, "*/*.json"):
+    archive_files = list(documents(intraday_root, "*/*.json"))
+    if daily_root is not None:
+        archive_files.extend(documents(daily_root, "*/*/nba_five_market_forecast.json"))
+    counts["candidate_archive_documents"] = len(archive_files)
+    for path, doc in archive_files:
         if doc.get("schema_version") != "nba-five-markets-v1":
             continue
         day = str(doc.get("target_date") or "")
@@ -250,12 +254,13 @@ def frozen_forecast_audit(intraday_root, settled_root):
                 matched[market]["settlement_missing_source_lock"] += 1
                 continue
             eligible = []
+            direction_only = 0
             for board, generation, game, tip in candidates:
                 pred = (game.get("markets") or {}).get(market) or {}
                 pc = instant(pred.get("captured_at_utc"))
                 p = number(pred.get("model_direction_probability"))
-                if (pc is None or pc != source_lock or pc >= tip or p is None
-                        or not 0 <= p <= 1 or pred.get("direction") != grade.get("direction")):
+                if (pc is None or pc != source_lock or pc >= tip
+                        or pred.get("direction") != grade.get("direction")):
                     continue
                 if market.endswith("HANDICAP"):
                     x, y = number(pred.get("signed_home_handicap")), number(grade.get("signed_home_handicap"))
@@ -270,9 +275,15 @@ def frozen_forecast_audit(intraday_root, settled_root):
                 # later is fine only if independently confirmed before tip.
                 if generation is not None and (generation < pc or generation >= tip):
                     continue
+                if p is None or not 0 <= p <= 1:
+                    direction_only += 1
+                    continue
                 eligible.append((board, generation))
             if not eligible:
-                matched[market]["no_exact_source_direction_line_locked_forecast"] += 1
+                if direction_only:
+                    matched[market]["locked_direction_only_without_probability"] += 1
+                else:
+                    matched[market]["no_exact_source_direction_line_locked_forecast"] += 1
                 continue
             _, generation = max(eligible, key=lambda c: c[1] or c[0])
             matched[market]["as_of_board_source_locked"] += 1
@@ -290,7 +301,8 @@ def audit(root):
     settlements = settlement_audit(root / "reports/five-market-settled")
     quotes = quote_audit(root / "reports/top10")
     locks = frozen_forecast_audit(root / "reports/five-market-intraday",
-                                  root / "reports/five-market-settled")
+                                  root / "reports/five-market-settled",
+                                  root / "reports/daily")
     enough = settlements["settled_games"] >= MIN_GAMES and settlements["settled_beijing_days"] >= MIN_DAYS
     integrity = settlements["mismatch_count"] == 0
     orientation = quotes["claimed_verified_orientation"] > 0 and quotes["raw_orientation_unverified"] == 0
