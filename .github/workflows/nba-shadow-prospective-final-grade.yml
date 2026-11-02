@@ -33,6 +33,11 @@ jobs:
           python3 -m py_compile analysis/nba_shadow_prospective_final_grade.py
           python3 analysis/nba_shadow_prospective_final_grade.py --selftest
           python3 analysis/nba_shadow_model_integration.py --selftest
+      - name: Mount permanent pretip Git evidence separately from current production files
+        run: |
+          git fetch --quiet origin audit/shadow-pretip-ledger
+          git worktree add --detach "$RUNNER_TEMP/shadow-ledger" origin/audit/shadow-pretip-ledger
+          test -d "$RUNNER_TEMP/shadow-ledger"
       - name: Grade earliest authenticated frozen post-market model versus original five target outcomes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -45,7 +50,7 @@ jobs:
               *) echo INVALID_BEIJING_DATE; exit 1 ;;
             esac
           fi
-          python3 analysis/nba_shadow_prospective_final_grade.py "${ARGS[@]}" --out /tmp/nba-shadow-prospective-postgame-scorecard.json
+          python3 analysis/nba_shadow_prospective_final_grade.py "${ARGS[@]}" --ledger-root "$RUNNER_TEMP/shadow-ledger/reports/shadow-pretip-ledger" --out /tmp/nba-shadow-prospective-postgame-scorecard.json
       - if: always()
         uses: actions/upload-artifact@v4
         with:
