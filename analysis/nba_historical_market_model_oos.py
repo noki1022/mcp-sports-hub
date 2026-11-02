@@ -250,9 +250,7 @@ def experiment(rows):
     return result
 
 def run(out):
-    source,hash_val=B.source_rows(B.fetch())
-    # Re-fetch for deterministic parser with exact source SHA;
-    # local code performs network only for the research job.
+    # One bounded fetch; same pinned SHA and parsed source as the benchmark.
     rows,provenance=B.transform(B.fetch())
     rows=rolling_features(rows)
     result=experiment(rows)
