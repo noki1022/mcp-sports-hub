@@ -34,8 +34,8 @@ jobs:
           assert g['markets']['CROWN_HANDICAP']['signed_home_handicap']==-4.5
           assert abs(g['markets']['JINGCAI_HANDICAP']['model_direction_probability']-.6608036267816939)<1e-12
           assert abs(g['markets']['CROWN_HANDICAP']['model_direction_probability']-.6125875171611127)<1e-12
-          assert '周一302' in s and '让分客胜（主-6.5） · 66.1%' in s
-          assert '让分客胜（主-4.5） · 61.3%（参考）' in s
+          assert '周一302' in s and '客胜（主-6.5） · 66.1%' in s
+          assert '客胜（主-4.5） · 61.3%（参考）' in s
           assert '客+6.5 赢盘' not in s
           assert s.count('>竞彩</div>')==15 and s.count('>皇冠</div>')==15
           assert '玩法' not in s and 'ID3' not in s
