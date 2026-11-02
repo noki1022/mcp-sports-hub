@@ -112,8 +112,32 @@ def run():
         truth={"schema_version":"nba-five-market-settlement-v1","beijing_date":"2026-11-03",
                "games":[{"game_id":"a","home_team":"H","away_team":"A",
                          "home_points":120,"away_points":110}]}
+        candidate["games"][0]["research_model_candidates"] = {
+            "ROBUST_MULTIBOOK": {
+                key:{"market":key,"line":row.get("line"),
+                     "signed_home_handicap":row.get("signed_home_handicap"),
+                     "direction":("HOME_WIN" if key=="JINGCAI_WIN" else
+                                  "HOME_COVER" if key.endswith("HANDICAP") else "OVER"),
+                     "first_side_probability":.65}
+                for key,row in original["games"][0]["markets"].items()
+            }}
         result=GR.score(original,candidate,{},truth)
         assert all(v["paired_graded"]==1 for v in result["five_market_by_market"].values())
+        assert all(v["same_game_line_paired_n"]==1
+                   for v in result["multibook_research_candidate_paired_vs_original_and_shadow"].values())
+        assert result["candidate_is_not_official_second_model_answer"] is True
+        assert result["multibook_research_candidate_paired_vs_original_and_shadow"][
+            "JINGCAI_WIN"]["multibook_candidate_hits"] == 1
+        # Research variant must never be graded against another JC/Crown
+        # handicap line, however small the difference looks.
+        candidate["games"][0]["research_model_candidates"]["ROBUST_MULTIBOOK"][
+            "CROWN_HANDICAP"]["signed_home_handicap"]=-4.5
+        try:
+            GR.score(original,candidate,{},truth)
+        except ValueError as ex:
+            assert "RESEARCH_MULTIBOOK_SCORE_LINE_OR_SIDE_CHANGED" in str(ex)
+        else:
+            raise AssertionError("RESEARCH_MULTIBOOK_USED_CHANGED_DIRECT_MARKET_LINE")
         assert result["five_market_by_market"]["JINGCAI_WIN"]["original_hits"]==1
         assert result["five_market_by_market"]["JINGCAI_TOTAL"]["original_hits"]==0
         assert result["five_market_by_market"]["CROWN_HANDICAP"]["original_hits"]==0
