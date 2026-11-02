@@ -239,6 +239,10 @@ def evaluate(rows, predictions=None, min_ev=DEFAULT_MIN_EV):
             for direction in ("FIRST_SIDE", "SECOND_SIDE"):
                 market_choices.append(opportunity(r, loo_p, direction, "LEAVE_ONE_BOOK_OUT"))
         market_bet = choose_candidate(market_choices, min_ev)
+        best_peer_offer = sorted(
+            market_choices,
+            key=lambda x: (-x["estimated_ev_per_unit"], x["bookmaker"], x["direction"])
+        )[0]
         key = (event, market, line)
         candidate = pred.get(key)
         model_bet = None
@@ -267,7 +271,14 @@ def evaluate(rows, predictions=None, min_ev=DEFAULT_MIN_EV):
             "consensus_first_side_probability": round(shared_p, 8),
             "consensus_brier": (None if outcome == "PUSH"
                                 else round((shared_p - int(outcome == "FIRST_SIDE")) ** 2, 8)),
-            "settlement": outcome, "market_only_research_opportunity": market_bet,
+            "settlement": outcome,
+            "max_leave_one_book_out_ev": best_peer_offer["estimated_ev_per_unit"],
+            "best_peer_bookmaker": best_peer_offer["bookmaker"],
+            "best_peer_price_side": best_peer_offer["direction"],
+            "best_peer_decimal_odds": best_peer_offer["odds"],
+            "bookmaker_no_vig_probability_range": round(
+                max(r["_p"] for r in quotes) - min(r["_p"] for r in quotes), 8),
+            "market_only_research_opportunity": market_bet,
             "frozen_model_research_opportunity": model_bet,
             "model_status": model_status, "not_a_claim_of_bet_execution": True,
         })
@@ -298,8 +309,26 @@ def summarize(rows):
                                       if bets else None),
                 "research_only_simulated": True,
             }
+        # Diagnostics are PRECOMMITTED descriptive counts, not backtested
+        # alternative strategy thresholds or a license to optimize on results.
+        max_evs = [r["max_leave_one_book_out_ev"] for r in cohort]
+        threshold_diagnostics = {
+            "any_positive_ev": sum(v > 0 for v in max_evs),
+            "at_least_1_percent": sum(v >= 0.01 for v in max_evs),
+            "at_least_2_percent": sum(v >= 0.02 for v in max_evs),
+            "at_least_3_percent": sum(v >= 0.03 for v in max_evs),
+            "not_evaluated_as_separately_optimized_betting_strategies": True,
+        }
         result[market] = {
             "independent_games": len(cohort),
+            "price_disagreement": {
+                "largest_bookmaker_no_vig_p_range": (
+                    round(max(r["bookmaker_no_vig_probability_range"] for r in cohort), 7)
+                    if cohort else None),
+                "highest_peer_quoted_ev": round(max(max_evs), 7) if max_evs else None,
+                "median_best_peer_quoted_ev": round(statistics.median(max_evs), 7) if max_evs else None,
+                "prespecified_descriptive_ev_counts": threshold_diagnostics,
+            },
             "scored_non_push": len(scored),
             "distinct_beijing_dates": len({x["game_date_beijing"] for x in cohort}),
             "same_line_consensus_brier": (round(statistics.mean(x["consensus_brier"] for x in scored), 7)
@@ -377,6 +406,8 @@ def self_test():
     assert signals[0]["market_only_research_opportunity"]["bookmaker"] == "a"
     assert signals[0]["market_only_research_opportunity"]["profit_per_unit"] == 1.1
     assert meta["actual_frozen_independent_model_paired"] == 0
+    assert meta["by_market"]["spreads"]["price_disagreement"]["prespecified_descriptive_ev_counts"]["at_least_3_percent"] == 1
+    assert signals[0]["max_leave_one_book_out_ev"] >= DEFAULT_MIN_EV
     model = [{"source_type": "INDEPENDENT_PRETIP_MODEL", "event_id": "example",
               "market": "spreads", "line": -3.5,
               "home": "ATL", "away": "MIA",
