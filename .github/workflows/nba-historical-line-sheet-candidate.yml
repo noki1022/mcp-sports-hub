@@ -1,0 +1,44 @@
+name: NBA historical market data candidate inventory (research only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_line_sheet_candidate_inventory.py'
+      - '.github/workflows/nba-historical-line-sheet-candidate.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify bounded read-only source inventory
+        run: |
+          python3 -m py_compile analysis/nba_line_sheet_candidate_inventory.py
+          python3 analysis/nba_line_sheet_candidate_inventory.py --self-test
+      - name: Inspect real license-claimed historical NBA market CSV
+        run: python3 analysis/nba_line_sheet_candidate_inventory.py --out /tmp/nba-line-sheet-inventory.json
+      - name: Prove production segregation
+        run: |
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/nba-line-sheet-inventory.json'))
+          assert d['rows'] >= 10000
+          assert d['not_007_jingcai_or_crown'] is True
+          assert d['eligible_for_007_point_in_time_training'] is False
+          assert d['independent_quote_time_verified'] is False
+          print('LINE_SHEET_REAL_ROWS_AUDITED',d['rows'],d['sha256'],d['columns'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-line-sheet-independent-historical-market-inventory
+          path: /tmp/nba-line-sheet-inventory.json
+          retention-days: 60
+          if-no-files-found: warn
