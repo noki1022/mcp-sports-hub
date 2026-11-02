@@ -33,6 +33,7 @@ CORRECTION_CANDIDATES = (
     "bias_only",
     "temperature_bias",
     "strength_residual",
+    "movement_only",
     "strength_movement",
 )
 
@@ -144,6 +145,10 @@ def correction_features(rows,variant):
         x=np.column_stack((ones,market_logits,
                             independent_logits-market_logits))
         penalty=np.array([75.,240.,260.])
+    elif variant=="movement_only":
+        movement=np.clip(np.array([r["movement"] for r in rows],float),-5,5)
+        x=np.column_stack((ones,market_logits,movement))
+        penalty=np.array([75.,240.,450.])
     elif variant=="strength_movement":
         movement=np.clip(np.array([r["movement"] for r in rows],float),-5,5)
         x=np.column_stack((ones,market_logits,
