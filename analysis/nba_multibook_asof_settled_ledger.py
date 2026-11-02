@@ -112,7 +112,7 @@ def fetch_espn_day(d):
     return url,json.loads(data),sha(data)
 
 
-def parse_espn(doc,source_url):
+def parse_espn(doc,source_url,retrieved_utc):
     outcomes=[];rejected=Counter()
     for event in doc.get("events",[]):
         try:
@@ -136,6 +136,7 @@ def parse_espn(doc,source_url):
                 "home_points":int(hp),"away_points":int(ap),
                 "score_source":"ESPN_COMPLETED_GAME_SCOREBOARD",
                 "score_source_url":source_url,
+                "score_collected_utc":retrieved_utc,
                 "espn_event_id":str(event.get("id") or ""),
             })
         except (KeyError,ValueError,TypeError,IndexError):
@@ -211,9 +212,11 @@ def normalize(repo,espn_provider=None):
         for day in dates:
             try:
                 url,doc,digest=espn_provider(day)
-                candidates,rej=parse_espn(doc,url)
+                retrieved_utc=iso(datetime.now(timezone.utc))
+                candidates,rej=parse_espn(doc,url,retrieved_utc)
                 independent_espn.extend(candidates)
                 score_notes.append({"source":url,"sha256":digest,
+                                    "score_retrieved_utc":retrieved_utc,
                                     "completed_event_rows":len(candidates),
                                     "parse_rejections":dict(rej)})
             except (OSError,ValueError,TimeoutError,TypeError) as exc:
@@ -265,6 +268,7 @@ def normalize(repo,espn_provider=None):
             "explicit_signed_home_handicap":row["home_handicap_point"],
             "score_final_provenance":score.get("score_source") if score else None,
             "score_source_url":score.get("score_source_url") if score else None,
+            "score_observed_at_utc":score.get("score_collected_utc") if score else None,
             "final_home_points":score["home_points"] if score else None,
             "final_away_points":score["away_points"] if score else None,
             "settlement":label_market(row,score) if score else "UNSETTLED_NO_VERIFIED_SCORE",
@@ -273,6 +277,10 @@ def normalize(repo,espn_provider=None):
         }
         ledger.append(entry)
     graded=[r for r in ledger if r["usable_for_historical_line_settlement"]]
+    for row in graded:
+        observed=row["score_observed_at_utc"]
+        if observed is None or utc(observed)<utc(row["commence_time_utc"]):
+            raise RuntimeError("FINAL_SCORE_MISLABELED_WITH_ODDS_SNAPSHOT_TIMESTAMP")
     books={r["bookmaker"] for r in ledger}
     graded_events={r["event_id"] for r in graded}
     complete_market_events={
@@ -353,6 +361,8 @@ def selftest():
         led,s=normalize(root)
         assert s["verified_settled_distinct_events"]==1
         assert s["verified_settled_quote_rows"]==3
+        assert all(r["score_observed_at_utc"]=="2026-10-30T15:00:00Z" for r in led)
+        assert all(utc(r["score_observed_at_utc"])>utc(r["commence_time_utc"]) for r in led)
         assert {r["settlement"] for r in led if r["market"]=="h2h"}=={"FIRST_SIDE"}
         assert {r["settlement"] for r in led if r["market"]=="spreads"}=={"FIRST_SIDE"}
         assert {r["settlement"] for r in led if r["market"]=="totals"}=={"SECOND_SIDE"}
