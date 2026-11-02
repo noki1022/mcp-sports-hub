@@ -1,0 +1,99 @@
+{
+  "schema_version": "nba-priority-focus-v1",
+  "slot": "2130",
+  "target_beijing_date": "2026-11-03",
+  "selection_method": "ODDS_BLIND_RELATIVE_MODEL_PROBABILITY_RANK_AFTER_MODEL_SAFETY_CHECKS",
+  "confidence_threshold": null,
+  "max_displayed": 3,
+  "focus_games": [
+    {
+      "game_id": "728890",
+      "jingcai_number": "周一311",
+      "home_team": "圣安东尼奥马刺",
+      "away_team": "犹他爵士",
+      "tipoff_beijing": "2026-11-03T09:30+08:00",
+      "model_direction": "主胜",
+      "model_direction_probability": 0.906816,
+      "model_home_probability": 0.906816,
+      "model_margin_home_minus_away": 20.55,
+      "model_total": 232.14,
+      "model_quality": "PASS",
+      "market_no_vig_home": null,
+      "model_minus_market_home_pp": null,
+      "contrarian_market_signal": false,
+      "injury_quality": "PUBLISHED_AFFECTED",
+      "cautions": [
+        "已记录伤停；球员影响未量化",
+        "竞彩胜负价格未同步核验，不推断价值"
+      ],
+      "explanation": "独立模型对主胜的相对倾向较明确；按同批比赛的概率偏离50%幅度排序",
+      "focus_rank": 1
+    },
+    {
+      "game_id": "728302",
+      "jingcai_number": "周一307",
+      "home_team": "纽约尼克斯",
+      "away_team": "布鲁克林篮网",
+      "tipoff_beijing": "2026-11-03T08:30+08:00",
+      "model_direction": "主胜",
+      "model_direction_probability": 0.844378,
+      "model_home_probability": 0.844378,
+      "model_margin_home_minus_away": 15.75,
+      "model_total": 222.44,
+      "model_quality": "PASS",
+      "market_no_vig_home": null,
+      "model_minus_market_home_pp": null,
+      "contrarian_market_signal": false,
+      "injury_quality": "UNKNOWN_OR_UNSUBMITTED",
+      "cautions": [
+        "伤停资料不完整",
+        "竞彩胜负价格未同步核验，不推断价值"
+      ],
+      "explanation": "独立模型对主胜的相对倾向较明确；按同批比赛的概率偏离50%幅度排序",
+      "focus_rank": 2
+    },
+    {
+      "game_id": "728887",
+      "jingcai_number": "周一308",
+      "home_team": "明尼苏达森林狼",
+      "away_team": "密尔沃基雄鹿",
+      "tipoff_beijing": "2026-11-03T09:00+08:00",
+      "model_direction": "主胜",
+      "model_direction_probability": 0.839335,
+      "model_home_probability": 0.839335,
+      "model_margin_home_minus_away": 15.42,
+      "model_total": 232.33,
+      "model_quality": "PASS",
+      "market_no_vig_home": 0.815603,
+      "model_minus_market_home_pp": 2.37,
+      "contrarian_market_signal": false,
+      "injury_quality": "UNKNOWN_OR_UNSUBMITTED",
+      "cautions": [
+        "伤停资料不完整"
+      ],
+      "explanation": "独立模型对主胜的相对倾向较明确；按同批比赛的概率偏离50%幅度排序",
+      "focus_rank": 3
+    }
+  ],
+  "focus_count": 3,
+  "market_divergences": [
+    {
+      "game_id": "728301",
+      "jingcai_number": "周一306",
+      "home_team": "奥兰多魔术",
+      "away_team": "华盛顿奇才",
+      "model_direction": "主胜",
+      "model_home_probability": 0.758752,
+      "market_no_vig_home": 0.485294,
+      "model_minus_market_home_pp": 27.35
+    }
+  ],
+  "odds_independent_focus": true,
+  "eligible_count": 15,
+  "total_nba_games": 15,
+  "contrarian_signal_count": 1,
+  "excluded_count": 0,
+  "excluded": [],
+  "statement": "赔率高低不决定模型胜率；重点关注独立排序，逆向分歧单独观察；五玩法仍逐场展示",
+  "research_only": true
+}
