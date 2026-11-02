@@ -108,6 +108,33 @@ assert.equal((await dispatchAt(at("2026-10-30T13:40:00Z"),{GITHUB_TOKEN:"FAKE"},
 const noOvernightCalls=async()=>{throw Error("OVERNIGHT_MONITOR_MUST_NOT_CALL_GITHUB");};
 assert.equal((await dispatchAt(at("2026-10-30T14:40:00Z"),{GITHUB_TOKEN:"FAKE"},noOvernightCalls)).state,"NO_SLOT");
 assert.equal((await dispatchAt(at("2026-10-30T21:49:00Z"),{GITHUB_TOKEN:"FAKE"},noOvernightCalls)).state,"NO_SLOT");
+// Dedup MUST include 21:20 / 06:20 early priority triggers.
+for(const [checkTime,previousTime] of [
+  ["2026-10-30T13:30:00Z","2026-10-30T13:20:10Z"],
+  ["2026-10-30T22:30:00Z","2026-10-30T22:20:10Z"]
+]){
+  const earlyRun=async url=>{
+    if(url.includes("/contents/"))return {status:404,ok:false};
+    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[{
+      created_at:previousTime,event:"workflow_dispatch",
+      status:"in_progress",conclusion:null
+    }]})};
+    throw new Error("DUPLICATE_PRIORITY_DISPATCH_BLOCKED_"+url);
+  };
+  assert.equal((await dispatchAt(at(checkTime),{GITHUB_TOKEN:"FAKE"},earlyRun)).state,
+    "WORKFLOW_RUNNING");
+  const greenRun=async url=>{
+    if(url.includes("/contents/"))return {status:404,ok:false};
+    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[{
+      created_at:previousTime,event:"workflow_dispatch",
+      status:"completed",conclusion:"success"
+    }]})};
+    throw new Error("GREEN_PRIORITY_MUST_NOT_REDISPATCH_"+url);
+  };
+  assert.equal((await dispatchAt(at(checkTime),{GITHUB_TOKEN:"FAKE"},greenRun)).state,
+    "WORKFLOW_SUCCESS_WITHOUT_ACCEPTED_MARKER");
+}
+
 // Midnight backup dispatch is canonical full-board analysis for the SAME Beijing day.
 const midnightCalls=[];
 const midnightFake=async (url,opts)=>{
