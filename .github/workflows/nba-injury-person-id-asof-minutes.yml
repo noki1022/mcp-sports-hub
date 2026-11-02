@@ -1,0 +1,76 @@
+name: NBA existing injury shadow player identity + strict asof minutes research
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_injury_person_id_asof_minutes.py'
+      - 'analysis/README-nba-injury-person-id-asof-minutes.md'
+      - '.github/workflows/nba-injury-person-id-asof-minutes.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  strict-player-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned research readers and existing production shadow maths
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6 pandas==2.2.3 pyarrow==20.0.0
+      - name: Unit tests for identity, trades, same-day leakages
+        run: |
+          python3 -m py_compile analysis/nba_injury_person_id_asof_minutes.py
+          python3 analysis/nba_injury_person_id_asof_minutes.py --selftest
+          python3 analysis/nba_injury_prospective_capture.py --self-test
+      - name: Match existing 11 immutable archived injury records against actual player logs
+        run: |
+          python3 analysis/nba_injury_person_id_asof_minutes.py --root . \
+            --out /tmp/nba-injury-stable-identity-asof-minutes
+      - name: Fail closed on source and future-data leakage; do not deploy coefficients
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          p=Path('/tmp/nba-injury-stable-identity-asof-minutes')
+          d=json.loads((p/'audit.json').read_text())
+          evidence=(p/'injury_existing_shadow_player_asof_evidence.jsonl').read_bytes()
+          rows=[json.loads(s) for s in evidence.splitlines()]
+          assert hashlib.sha256(evidence).hexdigest()==d['evidence_file_sha256']
+          assert d['schema_version']=='nba-existing-injury-person-id-prior-minutes-v1'
+          assert d['existing_frozen_games']>=11
+          assert len(rows)==d['existing_frozen_games']
+          assert d['historical_log_unique_person_ids']>350
+          assert d['official_player_rows']>10
+          assert d['player_id_with_prior_minutes']<=d['official_player_rows']
+          assert d['current_season_team_verified_reported_players']<=d['player_id_with_prior_minutes']
+          assert d['original_frozen_predictions_unmodified'] is True
+          assert d['no_new_injury_model_coefficients_generated'] is True
+          assert d['no_live_scheduler_or_pushplus_changes'] is True
+          assert d['future_result_or_minutes_as_features'] is False
+          assert d['no_historical_quote_update_time_inferred'] is True
+          for game in rows:
+              assert game['candidate_feature_vector'] is None
+              assert game['current_production_injury_probability_modified'] is False
+              assert game['official_report_captured_utc']<=game['pregame_prediction_utc']<game['tipoff_utc']
+              for injury in game['reported_players']:
+                  if injury['prior_minutes'] is not None:
+                      assert injury['last_prior_game_date']<game['tipoff_utc'][:10]
+                      assert int(injury['player_id'])>0
+                      assert injury['ready_for_live_replacement_model'] is False
+          print('NBA_EXISTING_SHADOW_STABLE_PLAYER_ID_ASOF_ACCEPTED',
+                d['existing_frozen_games'],d['official_player_rows'],
+                d['player_id_with_prior_minutes'],
+                d['current_season_team_verified_reported_players'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-existing-injury-shadow-stable-player-id-asof-minute-evidence
+          path: /tmp/nba-injury-stable-identity-asof-minutes/
+          if-no-files-found: warn
+          retention-days: 60
