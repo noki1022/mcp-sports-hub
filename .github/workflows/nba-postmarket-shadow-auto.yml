@@ -1,16 +1,10 @@
-name: NBA original-first postmarket five-play shadow (no production writes)
+name: NBA original-first postmarket five-play shadow (airtight research-only)
 on:
   workflow_run:
     workflows:
       - 'Titan007 scheduled full-board NBA analysis and PushPlus delivery'
     types: [completed]
     branches: [main]
-  # One-time activation on the PR merge, only if the real 18:00 archive is
-  # still fresh; later changes to this research workflow are equally gated.
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/nba-postmarket-shadow-auto.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,10 +12,15 @@ concurrency:
   group: nba-postmarket-independent-shadow-${{ github.event.workflow_run.id || github.run_id }}
   cancel-in-progress: false
 jobs:
-  new-shadow-after-original-push:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+  isolated-pretip-prediction:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 9
+    permissions:
+      contents: read
+    outputs:
+      frozen: ${{ steps.infer.outputs.frozen }}
+      game_day: ${{ steps.infer.outputs.game_day }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,39 +29,119 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Confirm checkout and research-only safety gates
-        run: |
-          test -f config/nba_shadow_three_play_params.json
-          python3 -m py_compile analysis/nba_shadow_postmarket_runner.py analysis/nba_shadow_model_integration.py analysis/nba_postcapture_crossplay_shadow.py
-          python3 analysis/nba_shadow_postmarket_runner.py --selftest
-          python3 analysis/nba_postcapture_crossplay_shadow.py --selftest
-      - name: Make a NEW five-play model prediction after successful original 18:00 delivery
+      - name: Gate genuine production run; stage only prediction code and original pretip files
+        id: prepare
         env:
           ORIGINAL_WORKFLOW_RUN: ${{ github.event.workflow_run.id || '' }}
         run: |
-          python3 analysis/nba_shadow_postmarket_runner.py --trigger-run "$ORIGINAL_WORKFLOW_RUN" --out /tmp/nba-postmarket-prospective
+          python3 analysis/nba_shadow_pretip_airgap.py --selftest
+          python3 analysis/nba_shadow_seal_ledger.py --selftest
+          python3 analysis/nba_shadow_pretip_airgap.py --stage "$RUNNER_TEMP/airgap-stage" --status-out "$RUNNER_TEMP/airgap-control" --trigger-run "$ORIGINAL_WORKFLOW_RUN"
           python3 - <<'PY'
           import json,os
           from pathlib import Path
-          x=json.loads(Path('/tmp/nba-postmarket-prospective/auto_run_status.json').read_text())
-          print('POSTMARKET_SHADOW_STATUS',x['status'])
-          if x['status']=='NEW_INDEPENDENT_SHADOW_FROZEN_PRETIP':
-              with open(os.environ['GITHUB_ENV'],'a') as f:
-                  f.write('SHADOW_TARGET_DATE='+x['target_date']+'\n')
-              assert x['integrity']['games']>0
-              assert x['integrity']['markets']==5*x['integrity']['games']
-              assert x['no_original_forecast_or_push_mutation'] is True
-              assert x['no_five_market_probability_promotion'] is True
-          elif x['status'].startswith('SKIPPED_'):
-              assert x.get('no_original_forecast_or_push_mutation') is True
+          s=json.loads((Path(os.environ['RUNNER_TEMP'])/'airgap-control/stage_status.json').read_text())
+          if s['status']=='READY':
+              with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('ready=true\n')
+              print('PRETIP_ONLY_ISOLATION_READY',s['target_date'])
           else:
-              raise RuntimeError('SHADOW_UNEXPECTED_STATUS')
+              print('PRETIP_AIRGAP_SAFETY_SKIP',s['status'])
           PY
-      - name: Upload only immutable independent forecast evidence; never push Git commits or PushPlus
-        if: always()
+      - name: Run NEW predictions in isolated network-disabled read-only Docker
+        id: infer
+        if: steps.prepare.outputs.ready == 'true'
+        env:
+          ORIGINAL_WORKFLOW_RUN: ${{ github.event.workflow_run.id || '' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/airgap-output"
+          chmod 0777 "$RUNNER_TEMP/airgap-output"
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --memory 512m --cpus 1 \
+            --user "$(id -u):$(id -g)" \
+            -v "$RUNNER_TEMP/airgap-stage:/workspace:ro" \
+            -v "$RUNNER_TEMP/airgap-output:/output:rw" \
+            -w /workspace -e PYTHONDONTWRITEBYTECODE=1 python:3.12-slim \
+            python3 -B analysis/nba_shadow_postmarket_runner.py \
+              --daily-root reports/daily --sent-root reports/pushplus-sent \
+              --params config/nba_shadow_three_play_params.json \
+              --trigger-run "$ORIGINAL_WORKFLOW_RUN" --out /output
+          python3 - <<'PY'
+          import json,os,shutil
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])
+          x=json.loads((root/'airgap-output/auto_run_status.json').read_text())
+          if x['status']!='NEW_INDEPENDENT_SHADOW_FROZEN_PRETIP':
+              raise RuntimeError('PREPARED_VALID_INPUT_BUT_NO_FROZEN_PREDICTION:'+x['status'])
+          day=x['target_date']
+          if not x.get('no_original_forecast_or_push_mutation') or not x.get('no_five_market_probability_promotion'):
+              raise RuntimeError('UNEXPECTED_PRODUCTION_SIDE_EFFECT')
+          stage=root/'airgap-stage'
+          dest=root/'airgap-output'
+          shutil.copy2(stage/'pretip_input_manifest.json',dest/'pretip_input_manifest.json')
+          # Proof contains the exact original source snapshots used by this
+          # inference, NOT a pointer to potentially mutable future main data.
+          for rel in (
+              'reports/daily/'+day+'/1200/nba_market_consensus.json',
+              'reports/daily/'+day+'/1800/nba_market_consensus.json',
+              'reports/daily/'+day+'/1800/nba_dynamic_five_market_shadow.json',
+              'reports/daily/'+day+'/1800/nba_five_market_forecast.json',
+              'reports/pushplus-sent/'+day+'/1800.json',
+              'config/nba_shadow_three_play_params.json',
+          ):
+              out=dest/'input_snapshots'/rel
+              out.parent.mkdir(parents=True,exist_ok=True)
+              shutil.copy2(stage/rel,out)
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:
+              f.write('frozen=true\n')
+              f.write('game_day='+day+'\n')
+          print('MODEL_PRETIP_FROZEN_IN_RESULT_FREE_NO_NETWORK_DOCKER',day,x['candidate_sha256'])
+          PY
+      - name: Upload frozen independent prediction and exact original input proof
+        if: steps.infer.outputs.frozen == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: nba-new-prospective-five-play-shadow-${{ env.SHADOW_TARGET_DATE || github.run_id }}
-          path: /tmp/nba-postmarket-prospective/
+          name: nba-new-prospective-five-play-shadow-${{ steps.infer.outputs.game_day }}
+          path: ${{ runner.temp }}/airgap-output/
           retention-days: 90
-          if-no-files-found: warn
+          include-hidden-files: false
+          if-no-files-found: error
+  append-only-evidence-seal:
+    needs: isolated-pretip-prediction
+    if: needs.isolated-pretip-prediction.outputs.frozen == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Obtain signed-by-workflow input and immutable candidate from separate read-only prediction job
+        uses: actions/download-artifact@v4
+        with:
+          name: nba-new-prospective-five-play-shadow-${{ needs.isolated-pretip-prediction.outputs.game_day }}
+          path: ${{ runner.temp }}/original-prediction
+      - name: Append exactly once to independently versioned prediction-only Git ledger
+        env:
+          SHADOW_DAY: ${{ needs.isolated-pretip-prediction.outputs.game_day }}
+          SOURCE_GIT_SHA: ${{ github.sha }}
+        run: |
+          cp analysis/nba_shadow_seal_ledger.py "$RUNNER_TEMP/archive_seal.py"
+          git fetch --quiet origin audit/shadow-pretip-ledger
+          git checkout -B audit/shadow-pretip-ledger origin/audit/shadow-pretip-ledger
+          python3 "$RUNNER_TEMP/archive_seal.py" \
+            --source "$RUNNER_TEMP/original-prediction" \
+            --day "$SHADOW_DAY" \
+            --github-run "$GITHUB_RUN_ID" \
+            --source-commit "$SOURCE_GIT_SHA" \
+            --ledger-root reports/shadow-pretip-ledger
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "reports/shadow-pretip-ledger/$SHADOW_DAY"
+          git commit -m "Freeze pretip five-play shadow $SHADOW_DAY source-run $GITHUB_RUN_ID"
+          git push origin HEAD:audit/shadow-pretip-ledger
+          echo 'PRETIP_AUDIT_LEDGER_PERSISTED_COMMIT' "$(git rev-parse HEAD)"
