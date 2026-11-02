@@ -23,3 +23,15 @@ CI on PR/manual only, retains source SHA provenance and machine-readable analysi
 
 ## Promotion requirements
 Independent true pretip freeze and source-ready player IDs for both teams, original report clock before tip, separately trained/cross-season prior score prediction, confidence intervals on genuinely new prospective paired original-versus-injury probability Brier and proper scores, and market-line-specific five-play results. Research-only coefficients here can only identify study directions, not approved player value.
+
+## Critical ablation: 24 shuffled-injury training controls
+
+Even when the real candidate improves on previously examined later games, more
+regression dimensions can accidentally exploit unrelated data structure. The
+research now repeats candidate fitting 24 times, preserving historical team
+form and final outcomes but independently shuffling the injury proxy columns
+**within the prior training partition only**. The original later evaluation
+is unchanged. Compare actual candidate Brier with the distribution of sham
+model Brier (5th/95th percentiles). This is an additional falsification
+check, not prospective confirmation, and historical report publication times
+remain unverified. No variant is selected based on those later scores.
