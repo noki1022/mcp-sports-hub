@@ -8,6 +8,7 @@ import json,sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 import nba_dual_independent_stage as ST
 import nba_independent_market_shadow as MO
+import nba_multibook_crossplay_signals as BOOK
 import nba_dual_model_slot_seal as SE
 import nba_dual_model_final_2130_grade as GR
 
@@ -17,9 +18,13 @@ def prediction(stage_folder,now,slot):
     p=Path(stage_folder)
     data={n:json.loads((p/(n+".json")).read_text()) for n in ("joined","consensus","jingcai")}
     prev=json.loads((p/"previous.json").read_text()) if (p/"previous.json").is_file() else None
-    result=MO.compute(data["joined"],data["consensus"],data["jingcai"],prev,now,slot)
+    history=json.loads((p/"history.json").read_text()) if (p/"history.json").is_file() else None
+    result=MO.compute(data["joined"],data["consensus"],data["jingcai"],
+                      prev,now,slot,history=history)
     result["input_sha256"]={n:ST.sha(p/(n+".json")) for n in data}
     if prev:result["input_sha256"]["previous"]=ST.sha(p/"previous.json")
+    if (p/"history.json").is_file():
+        result["input_sha256"]["history"]=ST.sha(p/"history.json")
     assert result["original_model_inputs_read"] is False
     assert result["postgame_data_read"] is False
     assert all(len(g["markets"])==5 for g in result["games"])
@@ -44,6 +49,18 @@ def run():
         generated=prediction(p,simulated,slot)
         assert generated["game_count"]==15
         assert len(generated["games"][0]["markets"])==5
+        assert generated["multibook_candidate_numerically_separate_not_promoted"] is True
+        assert (p/"history.json").is_file()
+        assert not (p/"analysis/nba_dual_model_final_2130_grade.py").exists()
+        assert not (p/"analysis/nba_shadow_three_play_train.py").exists()
+        assert (p/"analysis/nba_multibook_crossplay_signals.py").exists()
+        assert all(x["research_multibook_features"]["not_yet_a_validated_forecast_uplift"]
+                   for x in generated["games"])
+        assert any(x["research_model_candidates"]["ROBUST_MULTIBOOK"] for x in generated["games"])
+        assert all((not x["research_model_candidates"]["ROBUST_MULTIBOOK"]
+                   or set(x["research_model_candidates"]["ROBUST_MULTIBOOK"]).issubset(
+                       set(x["markets"]))) for x in generated["games"])
+        assert generated["multibook_paired_sources_used"]>=1
         assert "source" not in generated or generated.get("postgame_data_read") is False
         # Hash changes must not be silently accepted as an identical freeze.
         found=generated["input_sha256"]["joined"]
