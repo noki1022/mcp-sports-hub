@@ -97,12 +97,19 @@ def split_by_game_date(records):
     games=sorted(set((r["date"],r["game_id"]) for r in records))
     unique_dates=sorted({g[0] for g in games})
     total=len(games)
-    train_cut_index=int(len(unique_dates)*.46)
-    val_cut_index=int(len(unique_dates)*.71)
-    if train_cut_index<=1 or val_cut_index<=train_cut_index+1:
+    # NBA games per calendar day vary considerably across regular season.
+    # Choose split dates by cumulative GAME count, but never split a date.
+    game_counts=Counter(g[0] for g in games)
+    cumulative=0
+    a=b=None
+    for day in unique_dates:
+        if a is None and cumulative>=int(total*.46):
+            a=day
+        if b is None and cumulative>=int(total*.71):
+            b=day
+        cumulative+=game_counts[day]
+    if not a or not b or a==b:
         raise RuntimeError("TOO_FEW_DISTINCT_MARKET_DATES")
-    a=unique_dates[train_cut_index]
-    b=unique_dates[val_cut_index]
     segments={
         "calibration_fit":[r for r in records if r["date"]<a],
         "candidate_validation":[r for r in records if a<=r["date"]<b],
