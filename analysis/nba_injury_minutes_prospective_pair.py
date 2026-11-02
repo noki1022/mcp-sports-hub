@@ -343,6 +343,35 @@ def seal(features,manifest,past,baseline,injury_model,historical,now):
         counts[result["status"] if result["status"]!="BLOCKED" else result["block_reason"]]+=1
     return frozen,dict(sorted(counts.items()))
 
+def unresolved_role_targets(eligible):
+    """Sort exact official listed missing rows by hypothetical scenario width.
+
+    This is a DATA COLLECTION priority, not an impact rank or prediction.
+    No identities are invented and duplicate provisional names are not merged.
+    """
+    missing=[]
+    for row in eligible:
+        uncertain=row.get("partial_injury_sensitivity")
+        if not uncertain:
+            continue
+        for p in uncertain["unknown_players"]:
+            weight=abs(.90-H.STATUS[p["status"]])*SCENARIO_MAX_UNKNOWN_MINUTES/40.
+            missing.append({
+                "nba_game_id":row["nba_game_id"],
+                "official_name_without_verified_person_id":p["name"],
+                "team":row[p["side"]],
+                "side":p["side"],
+                "official_status":p["status"],
+                "identity_block_reason":p["identity"],
+                "tipoff_utc":row["tipoff_utc"],
+                "hypothetical_feature_interval_width_if_this_player_unknown":round(weight,6),
+                "priority_is_source_reconciliation_not_prediction_impact":True,
+                "must_verify_unique_player_id_and_fresh_same_team_minutes":True,
+            })
+    missing.sort(key=lambda r:(-r["hypothetical_feature_interval_width_if_this_player_unknown"],
+                               r["tipoff_utc"],r["nba_game_id"],r["team"],r["official_name_without_verified_person_id"]))
+    return missing
+
 def run(features_path,audit_path,out):
     now=datetime.now(timezone.utc)
     raw=Path(features_path).read_bytes()
@@ -365,6 +394,16 @@ def run(features_path,audit_path,out):
     fp=target/"frozen_independent_injury_pair.jsonl"
     fp.write_text("".join(json.dumps(row,sort_keys=True,ensure_ascii=False)+"\n" for row in eligible),
                   encoding="utf-8")
+    backfill=unresolved_role_targets(eligible)
+    triage=target/"priority_unverified_official_injury_roles.json"
+    triage.write_text(json.dumps({
+        "schema_version":"nba-injury-official-unmatched-roles-priority-v1",
+        "not_a_player_impact_or_betting_priority":True,
+        "hypothetical_48_minute_assumption_not_empirical":True,
+        "source_research_pairs_unchanged":True,
+        "unverified_player_rows":len(backfill),
+        "targets":backfill,
+    },indent=2,ensure_ascii=False,allow_nan=False)+"\\n",encoding="utf-8")
     details={
         "schema_version":SCHEMA,
         "source_live_injury_snapshot_sha256":sha256(raw).hexdigest(),
@@ -383,6 +422,8 @@ def run(features_path,audit_path,out):
             for x in eligible),
         "partial_sensitivity_is_not_paired_prediction":True,
         "unknown_role_minutes_assumption_is_hypothetical":True,
+        "unverified_official_roles_for_source_backfill":len(backfill),
+        "role_backfill_triage_sha256":sha256(triage.read_bytes()).hexdigest(),
         "blocked_reasons":counts,
         "no_generation_of_production_player_catalog":True,
         "no_edits_to_existing_production_injury_shadow":True,
@@ -398,6 +439,7 @@ def run(features_path,audit_path,out):
         "pairs":details["research_pairs"],
         "partial_role_sensitivity":details["partial_role_sensitivity_games"],
         "partial_probability_sensitivity":details["partial_probability_sensitivity_games"],
+        "source_backfill_target_rows":details["unverified_official_roles_for_source_backfill"],
         "blocked":counts,
         "historical_training_games":historical["fit_games"],
         "historical_validation":historical["historical_validation_injury_minutes"],
@@ -461,6 +503,12 @@ def selftest():
     bad={**partial,"injured_players":[partial["injured_players"][0],
        {**partial["injured_players"][1],"prior_team_minutes":20.}]}
     assert partial_injury_sensitivity(bad,manifest,now,[],None,None,False) is None
+    targets=unresolved_role_targets([{
+        "nba_game_id":"401777777","tipoff_utc":partial["tipoff_utc"],
+        "home":"BOS","away":"LAL","partial_injury_sensitivity":role}])
+    assert len(targets)==1
+    assert targets[0]["identity_block_reason"]=="ROSTER_NOT_MATCHED"
+    assert targets[0]["hypothetical_feature_interval_width_if_this_player_unknown"]==1.08
     past=[]
     for n in range(4):
         day=f"2026-10-{n+11:02d}"
