@@ -1,0 +1,65 @@
+name: NBA current-season score bridge and model retrospective monitor (research)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_current_season_score_bridge.py'
+      - '.github/workflows/nba-current-season-score-bridge.yml'
+      - 'analysis/README-nba-current-season-score-bridge.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bridge-and-monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned numerical dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Compile and test score source integrity / ESPN final conflicts
+        run: |
+          python3 -m py_compile analysis/nba_current_season_score_bridge.py
+          python3 analysis/nba_current_season_score_bridge.py --selftest
+      - name: Backfill real completed seasons and compare 2026-27 without fitting on evaluation labels
+        run: |
+          python3 analysis/nba_current_season_score_bridge.py \
+            --out /tmp/nba-current-season-score-bridge
+      - name: Enforce strict source verification and zero live changes
+        run: |
+          python3 - <<'PY'
+          import json, math
+          from pathlib import Path
+          a=json.loads(Path('/tmp/nba-current-season-score-bridge/audit.json').read_text())
+          assert a['historical_games']==23574
+          assert a['cross_source_exact_game_matches']>=150
+          assert a['model_train_games_before_2026_27']>=23574
+          assert a['2026_27_espn_verified']['verified_games']>=15
+          assert a['2026_27_espn_verified']['scoreboard_used_as_pregame_feature'] is False
+          assert a['not_007_live_quote_or_injury_data'] is True
+          assert a['production_promotion_allowed'] is False
+          assert a['no_current_season_evaluation_labels_in_fit'] is True
+          assert a['existing_scheduler_and_pushplus_untouched'] is True
+          for target in ('margin','total'):
+              result=a['retrospective_2026_27_monitor'][target]
+              assert result['n_games']>=15
+              for k in ('baseline','opponent'):
+                  assert math.isfinite(result[k]['mae'])
+                  assert math.isfinite(result[k]['brier'])
+          print('NBA_CURRENT_SEASON_SCORE_BRIDGE_ACCEPTED',
+                a['cross_source_exact_game_matches'],
+                a['after_2026_jan7_added_games'],
+                a['2026_27_espn_verified']['verified_games'],
+                a['retrospective_2026_27_monitor'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-current-season-independent-score-bridge
+          path: /tmp/nba-current-season-score-bridge/
+          if-no-files-found: warn
+          retention-days: 60
