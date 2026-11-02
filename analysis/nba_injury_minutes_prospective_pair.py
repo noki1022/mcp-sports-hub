@@ -13,7 +13,7 @@ edge, or approved causal player impact.
 from __future__ import annotations
 import argparse
 from collections import defaultdict,Counter
-from datetime import datetime,timedelta,timezone
+from datetime import date,datetime,timedelta,timezone
 from hashlib import sha256
 import json,math
 from pathlib import Path
@@ -77,6 +77,12 @@ def capture_constraints(row,evidence,now):
             return "INVALID_PRIOR_MINUTES"
         if not player.get("last_prior_game_date") or player["last_prior_game_date"]>=day:
             return "FUTURE_PLAYER_GAME_MINUTES"
+        try:
+            age=(date.fromisoformat(day)-date.fromisoformat(player["last_prior_game_date"])).days
+        except (ValueError,TypeError):
+            return "INVALID_PRIOR_PLAYER_GAME_DATE"
+        if age>410:
+            return "STALE_PRIOR_SAME_TEAM_ROLE_OVER_410_DAYS"
         if (player["side"],str(pid)) in unique:
             return "DUPLICATE_PLAYER"
         unique.add((player["side"],str(pid)))
@@ -432,6 +438,10 @@ def selftest():
     )=="FUTURE_PLAYER_GAME_MINUTES"
     assert capture_constraints({**template,"identity_coverage_complete":False},manifest,now
     )=="NOT_ALL_OFFICIAL_PLAYER_IDS_AND_SAME_TEAM_MINUTES_VERIFIED"
+    stale_original={**template,"injured_players":[{
+        **template["injured_players"][0],"last_prior_game_date":"2024-10-01"}]}
+    assert capture_constraints(stale_original,manifest,now
+    )=="STALE_PRIOR_SAME_TEAM_ROLE_OVER_410_DAYS"
     assert capture_constraints({**template,"official_both_teams_published":False},manifest,now
     )=="BOTH_OFFICIAL_TEAM_REPORTS_NOT_PUBLISHED"
     # An unknown away player must widen the interval instead of being zero.
