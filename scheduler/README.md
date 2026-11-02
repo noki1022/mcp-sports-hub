@@ -1,53 +1,66 @@
-# Cloudflare secondary NBA scheduler (independent GitHub trigger)
+# Cloudflare Workers Builds — NBA secondary scheduler
 
-GitHub Actions remains the production model and PushPlus executor. The
-Cloudflare Worker only checks accepted-report markers and GitHub run state,
-then triggers the existing GitHub Action when necessary. A Cloudflare 204
-dispatch proves **queued**, not that the model ran or PushPlus reached a phone.
+The existing Cloudflare Worker **nba-external-schedule-watchdog** is already
+linked to this GitHub repository through **Cloudflare Workers Builds**. GitHub
+commit checks dated Nov 1–2, 2026 show successful Cloudflare production builds,
+including the Nov 2 merge of PR #202 (Cloudflare production version ID
+`191d4403-54a8-44c2-aafa-3ba5f42cf65a`). This is evidence of the
+existing production build integration, NOT a live Cron execution log.
 
-**A committed Worker is not an active deployment.** The 2026-11-01 GitHub
-deployment log explicitly said `CLOUDFLARE_DEPLOY_PENDING` because credentials
-were absent; the deploy steps were skipped. A manual Cloudflare installation,
-if any, must be verified separately in that Cloudflare account.
+The older one-off GitHub Actions workflow called "Deploy Cloudflare primary NBA
+scheduler" reported missing credentials and skipped its own Wrangler steps.
+That does **not** mean the independent Cloudflare Workers Builds integration
+failed or that the existing Worker needs redeployment through a second system.
+Do not create or request another Worker or GitHub Actions deployment route.
 
-## Safe activation
+## Architecture
 
-1. Create a fine-grained GitHub token scoped only to
-   `noki1022/mcp-sports-hub` with Actions: Read and Write and Contents: Read.
-2. In **GitHub repository Settings > Secrets and variables > Actions**, add
-   `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and
-   `CLOUDFLARE_SCHEDULER_GITHUB_TOKEN`. The first token needs Cloudflare
-   Workers Scripts write permission. Never paste any token into a chat,
-   commit, action input, or repository file.
-3. On the repository Actions page, choose
-   **Deploy Cloudflare secondary NBA scheduler (manual, verified)**,
-   then **Run workflow**. A missing secret causes an explicit failed run,
-   never a green "deployment succeeded" without deploying.
-4. The workflow runs local Worker regression tests, deploys Wrangler Cron
-   triggers, stores the fine-grained GitHub token as the Worker `GITHUB_TOKEN`
-   secret, then compares the live Cloudflare API's Cron set against
-   `scheduler/wrangler.toml`. A match is verified configuration, not yet
-   evidence of a real scheduled invocation.
-5. Check Cloudflare Worker Cron invocation logs and GitHub workflow_dispatch
-   events for one full 00:30 and 03:30 Beijing cycle. Check matching
-   `reports/pushplus-sent/YYYY-MM-DD/0030.json` and `0330.json` API-accepted
-   markers, and ensure that there are no duplicate accepted sends.
+- **Cloudflare Cron**: independent, best-effort trigger, backed by
+  `scheduler/worker.mjs` and `scheduler/wrangler.toml`.
+- **GitHub Actions**: only executor of 007 collection, model analysis,
+  report creation and PushPlus API sending.
+- **Shared accepted marker**: both trigger paths check the GitHub
+  `reports/pushplus-sent/YYYY-MM-DD/<slot>.json` ledger. The Worker also
+  checks running/completed GitHub workflow state to avoid duplicate dispatch.
+- **No direct Cloudflare PushPlus**: dispatch HTTP 204 means GitHub accepted
+  a workflow request, not that the analysis ran or an iPhone received a push.
 
-The only **overnight analysis** Cloudflare attempts are Beijing 00:30 and
-03:30, each with 00/10/20-minute backup checks from its slot.
-The old 22:30–05:30 **hourly odds monitoring** remains disabled.
-Daytime slots 12:00/14:00/15:00/18:00/21:00, priority
-21:20/21:30/21:40 and 06:20/06:30/06:40, and 22:00
-official-Final review retain their existing scheduling.
+The Cloudflare schedule includes the normal daytime fixed slots, priority
+21:30/06:30, the 22:00 official-final review recovery, and precisely two
+overnight full-report exceptions: **00:30** and **03:30 Beijing time**.
+Each new slot has Cloudflare backup checks at :30, :40 and :50. The old
+Beijing 22:30–05:30 *hourly odds-monitoring* chain remains disabled.
 
-The Worker does **not** recalculate odds or injury probabilities, alter
-home/away mappings, or send a second PushPlus directly. If GitHub is already
-running, or its accepted marker exists, it does not dispatch. If a GitHub
-workflow is green but no accepted marker exists, it does not blindly retry;
-the separate GitHub health/recovery logic verifies whether sending was
-actually skipped.
+## Verify production synchronization after a merge
 
-Cloudflare Cron and GitHub Actions workflow_dispatch are both best-effort,
-not a guarantee of an exactly timed phone notification. When Worker code or
-Cron configuration changes, manually rerun the deployment workflow; passing
-repository CI does **not** update the deployed Cloudflare account.
+1. Open Cloudflare dashboard > Workers & Pages >
+   `nba-external-schedule-watchdog` > Deployments/Builds. Confirm the new
+   `main` commit was built **and deployed to production**. This repository
+   already has the Cloudflare Workers Builds GitHub integration; a separate
+   GitHub Actions deployment workflow is neither needed nor wanted.
+2. In the same Worker, inspect **Triggers > Cron Triggers**. Confirm exact
+   expression `30,40,50 16,19 * * *` exists alongside existing triggers.
+   Merely seeing it in Git does not prove Cloudflare applied it.
+3. Inspect Cloudflare Worker **Logs/Observability** for actual Cron
+   invocations at Beijing 00:30/00:40/00:50, 03:30/03:40/03:50.
+   Look for `NBA_EXTERNAL_SCHEDULE`, `WORKFLOW_RUNNING`,
+   `API_ALREADY_ACCEPTED`, or `DISPATCH_ACCEPTED_NOT_COMPLETED`,
+   and investigate `NBA_EXTERNAL_SCHEDULE_FAILED`.
+4. Correlate with GitHub Actions full-board run records for the same
+   Beijing slot. A `workflow_dispatch` event alone does not prove Cloudflare
+   originated it; the Cloudflare Worker invocation log is the independent
+   origin evidence.
+5. Validate API-accepted PushPlus markers for both slots and confirm that
+   only one per-slot full report was sent. An accepted marker proves PushPlus
+   server acceptance, not handset receipt.
+
+If the live Cloudflare Cron set differs from `wrangler.toml`, investigate
+the existing Workers Builds build/deploy configuration and its active root/
+config. **Do not** silently build a second Worker or replace the existing
+integration. There is no known Cloudflare API connector in this session,
+so live Worker Cron and logs must not be claimed verified from GitHub alone.
+
+This secondary scheduler cannot guarantee exact-second timing: even after
+Cloudflare Cron fires promptly, the triggered GitHub Actions job may queue.
+All Beijing dates are Asia/Shanghai; a started game or expired analysis
+window must not receive a stale pre-tip full-board prediction.
