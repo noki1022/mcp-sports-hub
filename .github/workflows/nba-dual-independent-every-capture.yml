@@ -65,7 +65,7 @@ jobs:
             -e PYTHONDONTWRITEBYTECODE=1 python:3.12-slim \
             python3 -B analysis/nba_independent_market_shadow.py \
             --joined joined.json --consensus consensus.json --jingcai jingcai.json \
-            --slot "${{ steps.stage.outputs.slot }}" --out /output/independent_prediction.json "${EXTRA[@]}"
+            --slot "${{ steps.stage.outputs.slot }}" --out /output/independent_prediction.json --history history.json "${EXTRA[@]}"
           cp "$RUNNER_TEMP/solo-market-stage"/*.json "$RUNNER_TEMP/independent-output/"
           python3 - <<'PY'
           import json,os
@@ -77,6 +77,11 @@ jobs:
           assert p['postgame_data_read'] is False
           assert p['may_send_pushplus'] is False
           assert all(len(x['markets'])==5 for x in p['games'])
+          assert p['multibook_candidate_numerically_separate_not_promoted'] is True
+          assert all(x['research_multibook_features']['not_yet_a_validated_forecast_uplift'] is True
+                     for x in p['games'])
+          assert all(x['research_model_candidates'].get('ROBUST_MULTIBOOK') is not None
+                     for x in p['games'])
           print('INDEPENDENT_SOURCE_ONLY_FIVE_PLAY_PREDICTIONS',p['target_date'],p['slot'],p['game_count'])
           PY
       - name: Upload original-free and outcome-free source/forecast evidence

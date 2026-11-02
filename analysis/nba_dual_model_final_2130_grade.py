@@ -100,7 +100,9 @@ def score(orig,cand,proof,settlement):
         raise ValueError("FINAL_SCORE_NOT_FROM_INDEPENDENT_OFFICIAL_SETTLEMENT")
     original=index(orig["games"]);shadow=index(cand["games"])
     scores=index(settlement["games"])
-    by={k:[] for k in KEYS};rejected={}
+    by={k:[] for k in KEYS}
+    candidate_pairs={k:[] for k in KEYS}
+    rejected={}
     for gid,g in original.items():
         s=shadow[gid];finished=scores.get(gid)
         if finished is None:
@@ -152,6 +154,28 @@ def score(orig,cand,proof,settlement):
                 "shadow_first_side_probability":p,
                 "original_brier":(po-y)**2,
                 "shadow_brier":(p-y)**2})
+            research=((s.get("research_model_candidates") or {}).get(
+                "ROBUST_MULTIBOOK") or {}).get(key)
+            if research is not None:
+                if research.get("market")!=key or (
+                    research.get("line")!=b.get("line") or
+                    research.get("signed_home_handicap")!=b.get("signed_home_handicap")):
+                    raise ValueError("RESEARCH_MULTIBOOK_SCORE_LINE_OR_SIDE_CHANGED")
+                q=finite(research.get("first_side_probability"))
+                if q is not None and 0<q<1:
+                    expected=SIDES[key][0] if q>.5 else SIDES[key][1] if q<.5 else "TIE"
+                    if expected!=research.get("direction"):
+                        raise ValueError("RESEARCH_MULTIBOOK_PROBABILITY_DIRECTION_CONFLICT")
+                    if expected!="TIE":
+                        candidate_pairs[key].append({
+                            "game_id":gid,"same_line_as_original_and_shadow":True,
+                            "original_hit":int(olddir==SIDES[key][1-y]),
+                            "shadow_baseline_hit":int(newdir==SIDES[key][1-y]),
+                            "multibook_candidate_hit":int(expected==SIDES[key][1-y]),
+                            "original_brier":(po-y)**2,
+                            "shadow_baseline_brier":(p-y)**2,
+                            "multibook_candidate_brier":(q-y)**2,
+                        })
     final={}
     for k,v in by.items():
         count=len(v)
@@ -168,10 +192,28 @@ def score(orig,cand,proof,settlement):
                       round(avg("shadow_brier")-avg("original_brier"),7)
                       if count else None),
                   "game_score_pairs":v}
+    trial={}
+    for key,v in candidate_pairs.items():
+        count=len(v)
+        def avg(name):
+            return round(sum(r[name] for r in v)/count,8) if count else None
+        trial[key]={
+            "same_game_line_paired_n":count,
+            "original_hits":sum(r["original_hit"] for r in v),
+            "independent_shadow_baseline_hits":sum(r["shadow_baseline_hit"] for r in v),
+            "multibook_candidate_hits":sum(r["multibook_candidate_hit"] for r in v),
+            "original_brier":avg("original_brier"),
+            "independent_shadow_baseline_brier":avg("shadow_baseline_brier"),
+            "multibook_candidate_brier":avg("multibook_candidate_brier"),
+            "precommitted_research_variant_not_live_promoted":True,
+            "per_game_evidence":v,
+        }
     return {"schema_version":"nba-exact-2130-two-model-scorecard-v1",
         "target_date":orig["target_date"],
         "source_final":"ORIGINAL_PUSHED_2130_AND_INDEPENDENT_SHADOW_2130_ONLY",
         "five_market_by_market":final,
+        "multibook_research_candidate_paired_vs_original_and_shadow":trial,
+        "candidate_is_not_official_second_model_answer":True,
         "independent_games_with_any_pair":len(set(
             x["game_id"] for market in by.values() for x in market)),
         "unscored_games":rejected,

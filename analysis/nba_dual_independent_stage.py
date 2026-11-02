@@ -130,19 +130,27 @@ def select(repo,day,slot,now):
           if g.get("league")=="NBA"]
     if not tips or any(t is None or t<=now for t in tips):
         raise ValueError("ONE_OR_MORE_NBA_GAMES_ALREADY_STARTED")
-    prev=None;previous_path=None
+    available=[]
     root=Path(repo)/"reports/daily"/day
     for path in root.glob("*/nba_market_consensus.json"):
-        if path==sources["consensus"]:continue
+        if path==sources["consensus"] or path.is_symlink():continue
         try: cand=load(path);t=dt(cand.get("collection_completed_at_utc"))
         except (OSError,ValueError):continue
-        if t is not None and t<cap and (prev is None or t>prev[0]):
-            prev=(t,cand);previous_path=path
-    return sources,raw,previous_path,prev[1] if prev else None
+        if (t is not None and t<cap and cand.get("target_date")==day
+                and t<=now):
+            available.append((t,path,cand))
+    available.sort(key=lambda x:(x[0],str(x[1])))
+    if len({x[0] for x in available})!=len(available):
+        raise ValueError("DUPLICATE_ARCHIVED_007_SNAPSHOT_CAPTURE_CLOCK")
+    # Bounded chronological window; keep the same original capture-by-capture
+    # paired company IDs, NOT a synthetic open/close price reconstruction.
+    available=available[-18:]
+    prev=available[-1] if available else None
+    return sources,raw,prev[1] if prev else None,prev[2] if prev else None,available
 
 def stage(repo,run_id,dest,now):
     day,slot,accepted=marker(repo,run_id)
-    sources,raw,previous_path,older=select(repo,day,slot,now)
+    sources,raw,previous_path,older,available=select(repo,day,slot,now)
     target=Path(dest).resolve()
     base=Path(repo).resolve()
     if target==base or base in target.parents or (target.exists() and list(target.iterdir())):
@@ -152,18 +160,25 @@ def stage(repo,run_id,dest,now):
           "consensus":strip_consensus(raw["consensus"]),
           "jingcai":strip_jc(raw["jingcai"])}
     if older:safe["previous"]=strip_consensus(older)
+    safe["history"]=[strip_consensus(item) for _,_,item in available]
     for key,val in safe.items():
         deny(val)
         (target/(key+".json")).write_text(json.dumps(val,ensure_ascii=False,sort_keys=True)+"\n")
     src=base/"analysis/nba_independent_market_shadow.py"
     (target/"analysis").mkdir()
     (target/"analysis/nba_independent_market_shadow.py").write_bytes(src.read_bytes())
+    signal_code=base/"analysis/nba_multibook_crossplay_signals.py"
+    (target/"analysis/nba_multibook_crossplay_signals.py").write_bytes(signal_code.read_bytes())
     manifest={"schema_version":SCHEMA,"target_date":day,"slot":slot,
         "original_completed_workflow_id":str(run_id),
         "original_accepted_push_marker_sha256":sha(accepted),
         "source_captured_utc":raw["consensus"]["collection_completed_at_utc"],
         "original_sources_sha256":{k:sha(v) for k,v in sources.items()},
         "earlier_source_sha256":sha(previous_path) if previous_path else None,
+        "independent_chronological_snapshots":[
+            {"capture_utc":t.isoformat(),"sha256":sha(path)}
+            for t,path,_ in available],
+        "multibook_candidate_code_sha256":sha(signal_code),
         "sanitized_inputs_sha256":{k:sha(target/(k+".json")) for k in safe},
         "prediction_code_sha256":sha(src),
         "original_model_output_never_mounted":True,

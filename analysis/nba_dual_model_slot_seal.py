@@ -59,6 +59,22 @@ def seal(source,main,root,day,slot,run_id,now):
                 time(21,30)<=sg.time()<time(22,0)):
             raise ValueError("NOT_ACTUAL_BEIJING_2130_FINAL_MODEL_AND_SNAPSHOT")
     if not candidate.get("games"):raise ValueError("EMPTY_PREDICTION_BOARD")
+    if candidate.get("multibook_candidate_version"):
+        if candidate.get("multibook_candidate_numerically_separate_not_promoted") is not True:
+            raise ValueError("MULTIBOOK_VARIANT_ATTEMPTED_PRODUCTION_PROMOTION")
+        if "history.json" not in original.get("sanitized_inputs_sha256",{}):
+            raise ValueError("UNSEALED_MULTIBOOK_HISTORY_OR_SNAPSHOT")
+        for g in candidate["games"]:
+            data=g.get("research_model_candidates") or {}
+            variants=data.get("ROBUST_MULTIBOOK") or {}
+            for key,side in variants.items():
+                main=(g.get("markets") or {}).get(key)
+                if not main or side.get("market")!=key or (
+                    side.get("signed_home_handicap")!=main.get("signed_home_handicap") or
+                    side.get("line")!=main.get("line")):
+                    raise ValueError("MULTIBOOK_CANDIDATE_CHANGED_DIRECT_JC_OR_ID3_LINE")
+                if side.get("not_trained_or_promoted") is not True:
+                    raise ValueError("MULTIBOOK_CANDIDATE_HAS_FALSE_TRAINED_STATUS")
     for g in candidate["games"]:
         tip=dt(g.get("tipoff_beijing"))
         if not tip or not now<tip:
@@ -71,6 +87,8 @@ def seal(source,main,root,day,slot,run_id,now):
         if not (src/name).is_file():raise ValueError("MISSING_SOURCE_ONLY_FROZEN_DOCUMENT:"+name)
     if (src/"previous.json").is_file():
         required+=("previous.json",)
+    if (src/"history.json").is_file():
+        required+=("history.json",)
     for key,expected in original.get("sanitized_inputs_sha256",{}).items():
         if sha((src/(key+".json")).read_bytes())!=expected:
             raise ValueError("SANITIZED_INPUT_HASH_CHANGED_AFTER_GENERATION")

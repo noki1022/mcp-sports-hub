@@ -13,6 +13,7 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 import hashlib,json,math
+import nba_multibook_crossplay_signals as BOOK
 
 SCHEMA="nba-independent-market-only-fiveplay-v1"
 KEYS=("JINGCAI_WIN","JINGCAI_HANDICAP","JINGCAI_TOTAL","CROWN_HANDICAP","CROWN_TOTAL")
@@ -73,7 +74,7 @@ def quote_movement(previous,now,kind):
             "up":up,"down":down,"median_points_change":round(meanchange,3),
             "not_a_cover_probability":True}
 
-def compute(joined,consensus,jc,previous,now,slot):
+def compute(joined,consensus,jc,previous,now,slot,history=None):
     # The scoring state and any other model output are absent from this API.
     day=str(joined.get("requested_display_date") or "")
     board=clock(joined.get("captured_at_utc"))
@@ -92,6 +93,23 @@ def compute(joined,consensus,jc,previous,now,slot):
     if previous and (previous.get("target_date")!=day
                      or not clock(previous.get("collection_completed_at_utc"))<market_clock):
         raise ValueError("PAST_SOURCE_SNAPSHOT_NOT_BEFORE_CURRENT")
+    snapshots = (history if history is not None else ([previous] if previous else []))
+    if not isinstance(snapshots,list) or len(snapshots)>BOOK.MAX_PAST_SNAPSHOTS:
+        raise ValueError("MULTIBOOK_CAPTURE_HISTORY_INVALID_OR_UNBOUNDED")
+    # Both models are isolated: candidate reads ONLY validated shared 007
+    # odds history, never any original prediction or settled result.
+    verified_times=[]
+    for item in snapshots:
+        if not isinstance(item,dict) or item.get("target_date")!=day:
+            raise ValueError("MULTIBOOK_HISTORY_DATE_MISMATCH")
+        ts=clock(item.get("collection_completed_at_utc"))
+        if ts is None or not ts<market_clock or ts>now:
+            raise ValueError("POSTTIP_OR_NONCHRONOLOGICAL_MULTIBOOK_SOURCE")
+        verified_times.append(ts)
+    if len(set(verified_times))!=len(verified_times):
+        raise ValueError("DUPLICATE_CAPTURE_HISTORY_CLOCK")
+    if verified_times!=sorted(verified_times):
+        raise ValueError("UNSORTED_MULTIBOOK_CAPTURE_HISTORY")
     rows=[]
     for gid,g in sorted(games.items(),key=lambda p:(p[1].get("start_time_beijing",""),p[0])):
         m=market[gid];j=jc_rows.get(gid,{})
@@ -160,10 +178,17 @@ def compute(joined,consensus,jc,previous,now,slot):
         trends={
             "home_strength":quote_movement(oldmarkets.get("full_spread"),sm,"full_spread"),
             "expected_points":quote_movement(oldmarkets.get("full_total"),tm,"full_total")}
+        multibook,provisional=BOOK.candidates_for_game(
+            gid,m,snapshots,market_clock,predictions,predictions)
+        # Independent baseline remains authoritative until *strictly*
+        # future-frozen 21:30 results establish that this research variant
+        # actually improves SAME-GAME/SAME-LINE directional decisions.
         rows.append({"game_id":gid,"nba_game_id":g.get("nba_game_id"),
            "jingcai_number":(j.get("jingcai_number") or None),
            "home_team":g.get("home_team"),"away_team":g.get("away_team"),
            "tipoff_beijing":tip.isoformat(),"markets":predictions,
+           "research_multibook_features":multibook,
+           "research_model_candidates":{"ROBUST_MULTIBOOK":provisional},
            "market_strength_features":{"expected_home_margin":mu_m,
              "expected_total_points":mu_t,"paired_book_trends":trends,
              "independence_note":"MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT"}})
@@ -172,6 +197,9 @@ def compute(joined,consensus,jc,previous,now,slot):
             "last_shared_quote_capture_utc":market_clock.isoformat(),
             "games":rows,"game_count":len(rows),
             "three_plays":["moneyline","handicap","totals"],
+            "multibook_candidate_version":BOOK.SCHEMA,
+            "multibook_candidate_numerically_separate_not_promoted":True,
+            "multibook_paired_sources_used":len(snapshots),
             "five_target_markets":list(KEYS),
             "model_provenance":"SELF_CONTAINED_MARKET_PRIOR_NOT_VALIDATED_TEAM_MODEL_UPLIFT",
             "assumed_margin_sigma":SIGMA_MARGIN,
@@ -187,15 +215,19 @@ def main():
     for k in ("joined","consensus","jingcai","out"):
         p.add_argument("--"+k,required=True)
     p.add_argument("--previous")
+    p.add_argument("--history")
     p.add_argument("--slot",required=True)
     a=p.parse_args()
     args={k:Path(getattr(a,k)) for k in ("joined","consensus","jingcai")}
     prev=Path(a.previous) if a.previous else None
     source_hash={k:sha_bytes(path.read_bytes()) for k,path in args.items()}
     if prev:source_hash["previous"]=sha_bytes(prev.read_bytes())
+    history_file=Path(a.history) if a.history else None
+    if history_file:source_hash["history"]=sha_bytes(history_file.read_bytes())
+    history=json.loads(history_file.read_text()) if history_file else None
     obj=compute(*(json.loads(path.read_text()) for path in args.values()),
                 json.loads(prev.read_text()) if prev else None,
-                datetime.now(timezone.utc),a.slot)
+                datetime.now(timezone.utc),a.slot,history=history)
     obj["input_sha256"]=source_hash
     Path(a.out).write_text(json.dumps(obj,ensure_ascii=False,indent=2,sort_keys=True)+"\n")
     print("INDEPENDENT_SHADOW_NEW_PREDICTION_FROZEN",obj["target_date"],obj["slot"],obj["game_count"])
