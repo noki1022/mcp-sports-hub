@@ -95,7 +95,8 @@ def make(joined,model,jc,top10,consensus=None):
     for gid,g in board.items():
         tip=when(g.get("start_time_beijing"))
         label=(identity.get(gid) or {}).get("label")
-        verified=((identity.get(gid) or {}).get("status")=="VERIFIED_JC_NUMBER"
+        number_status=(identity.get(gid) or {}).get("status")
+        verified=(number_status in ("VERIFIED_JC_NUMBER","USER_CONFIRMED_JC_NUMBER")
                   and re.fullmatch(r"周[一二三四五六日天]\d{3}",str(label or "")) is not None)
         p=preds.get(gid,{})
         margin=n(p.get("margin_mean_home_minus_away")) if p.get("model_status") in ("OK","PARTIAL") else None
@@ -215,7 +216,8 @@ def make(joined,model,jc,top10,consensus=None):
         assert set(selected)==set(MARKETS)
         rows.append({"game_id":gid,"nba_game_id":g.get("nba_game_id"),
           "jingcai_number":label if verified else None,
-          "jingcai_number_status":"VERIFIED" if verified else "UNVERIFIED_JC_LABEL",
+          "jingcai_number_status":("USER_CONFIRMED" if number_status=="USER_CONFIRMED_JC_NUMBER" else
+                                   "VERIFIED" if verified else "UNVERIFIED_JC_LABEL"),
           "home_team":g.get("home_team"),"away_team":g.get("away_team"),
           "tipoff_beijing":g.get("start_time_beijing"),
           "model_margin_home_minus_away":margin,"model_total":total,
