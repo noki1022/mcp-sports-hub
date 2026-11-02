@@ -1,0 +1,79 @@
+name: NBA shadow model five-play integration contract (research only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_shadow_model_integration.py'
+      - 'analysis/README-nba-shadow-model-integration.md'
+      - '.github/workflows/nba-shadow-model-integration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-model-interface-using-original-007-snapshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify independent model sidecar's no-op contract
+        run: |
+          python3 -m py_compile analysis/nba_shadow_model_integration.py
+          python3 analysis/nba_shadow_model_integration.py --selftest
+          python3 analysis/nba_three_play_direction_shadow.py --selftest
+          python3 analysis/nba_dynamic_five_market_shadow.py --self-test
+      - name: Build five-market model integration-ready audit from actual two-slot 007 archives
+        run: |
+          python3 analysis/nba_shadow_model_integration.py --date 2026-11-03 --earlier-slot 1200 --later-slot 1800 --out /tmp/nba-shadow-model-bridge
+      - name: Enforce original forecasts unchanged, total five-market audit and no fictitious grade
+        run: |
+          python3 - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          from datetime import datetime
+          original=Path('reports/daily/2026-11-03/1800/nba_five_market_forecast.json')
+          orig=json.loads(original.read_text())
+          root=Path('/tmp/nba-shadow-model-bridge')
+          out=json.loads((root/'nba_shadow_model_bridge.json').read_text())
+          copy=json.loads((root/'nba_five_market_shadow_preintegration.json').read_text())
+          graded=json.loads((root/'nba_shadow_direction_scorecard.json').read_text())
+          keys=('JINGCAI_WIN','JINGCAI_HANDICAP','JINGCAI_TOTAL','CROWN_HANDICAP','CROWN_TOTAL')
+          assert out['schema_version']=='nba-shadow-five-play-model-bridge-v1'
+          assert out['game_count']==len(orig['games'])==len(copy['games'])==15
+          assert out['source_sha256']['original_five_market_forecast']==hashlib.sha256(original.read_bytes()).hexdigest()
+          assert out['original_five_market_independent_probabilities_changed'] is False
+          assert out['no_production_model_scheduler_pushplus_cloudflare_changes'] is True
+          assert out['no_ev_no_roi_no_price_arbitrage'] is True
+          assert out['model_probability_fusion_ready'] is False
+          assert graded['graded_game_markets']==0
+          assert graded['production_promotion_allowed'] is False
+          byid={str(g['game_id']):g for g in orig['games']}
+          for annotated in copy['games']:
+              original=byid[str(annotated['game_id'])]
+              for k in keys:
+                  market=dict(annotated['markets'][k])
+                  context=market.pop('shadow_direction_context_v1')
+                  assert market==original['markets'][k],(annotated['game_id'],k)
+                  assert context['delta_pp']==0.0
+                  assert context['production_fusion_allowed'] is False
+          for g in out['games']:
+              assert len(g['three_play_five_target_judgments'])==5
+              assert all(k in g['three_play_five_target_judgments'] for k in keys)
+              for k,m in g['three_play_five_target_judgments'].items():
+                  assert m['confidence_delta_pp']==0
+                  assert m['model_direction_unchanged'] is True
+                  assert m['market_probability_not_mislabeled_as_model_probability'] is True
+                  if k.startswith('CROWN') and m['original_direction'] is not None:
+                      assert m['source_id']=='3'
+          print('NBA_SHADOW_FIVE_MARKET_PRODUCTION_CONTRACT_ACCEPTED',out['game_count'],out['quality_counts'],graded['status'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-five-play-shadow-integration-noop-real-asof
+          path: /tmp/nba-shadow-model-bridge/
+          if-no-files-found: warn
+          retention-days: 60
