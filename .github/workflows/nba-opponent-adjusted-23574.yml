@@ -1,0 +1,58 @@
+name: NBA opponent-adjusted historical strength + real market transfer (research)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_opponent_adjusted_23574.py'
+      - 'analysis/README-nba-opponent-adjusted-23574.md'
+      - '.github/workflows/nba-opponent-adjusted-23574.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare-opponent-ratings:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned mathematical dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Verify module and same-date outcome leakage assertions
+        run: |
+          python3 -m py_compile analysis/nba_opponent_adjusted_23574.py
+          python3 analysis/nba_opponent_adjusted_23574.py --selftest
+      - name: Benchmark 23,574 historical scores and 1,312 externally crosschecked real lines
+        run: |
+          python3 analysis/nba_opponent_adjusted_23574.py --out /tmp/nba-opponent-adjusted-23574.json
+      - name: Validate selection is development only and production untouched
+        run: |
+          python3 - <<'PY'
+          import json,math
+          d=json.load(open('/tmp/nba-opponent-adjusted-23574.json'))
+          assert d['source_games']==23574
+          assert d['feature_games']==23574
+          assert d['train_games']==20444 and d['validation_games']==1255
+          assert d['previously_exposed_evaluation_games']==1875
+          assert d['opponent_adjusted_uses_only_prior_day_scores'] is True
+          assert d['historical_bettable_quote_timestamp_verified'] is False
+          assert d['evaluation_is_not_untouched_holdout'] is True
+          assert d['automatic_model_promotion'] is False and d['production_changed'] is False
+          assert d['actual_closing_market_line_evaluation']['matched_real_games']>=1200
+          for part in ('margin','total'):
+            assert d['selection'][part] in ('baseline','opponent')
+            scores=d['model'][part]
+            assert math.isfinite(scores['evaluation_MAE_delta_by_date']['delta_MAE_new_minus_existing'])
+          print('NBA_OPPONENT_ADJUSTED_REAL_GAME_RESEARCH_ACCEPTED',d['selection'],
+                d['actual_closing_market_line_evaluation'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-23574-opponent-adjusted-real-line-study
+          path: /tmp/nba-opponent-adjusted-23574.json
+          if-no-files-found: warn
+          retention-days: 60
