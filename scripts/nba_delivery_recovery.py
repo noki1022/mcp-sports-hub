@@ -6,7 +6,7 @@ This is NOT a second market data source or an automatic betting decision.
 """
 from __future__ import annotations
 import argparse,json,os,urllib.request,urllib.error
-from datetime import datetime,timedelta
+from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from nba_delivery_health import accepted_marker,inspect,run_hint,scheduled_start,expected_workflow,get_runs,ACCEPTED
@@ -20,8 +20,67 @@ WINDOW_MINUTES=65
 # Beijing-tipoff preflight gates used by production decide whether a complete
 # report can still be built safely. Never replay a stale pre-tip report.
 PRIORITY_RECOVERY_WINDOWS={"0030":(5,65),"0330":(5,65),"2130":(5,22),"0630":(5,180)}
+MORNING_PUSH_STEP="Push full-board priority analysis to iPhone before morning NBA tipoffs"
 
-def decision(root,slot,target,now,runs,run_error=None):
+def verified_morning_send_never_started(repo,token,target,runs,opener=None):
+    """Rescue only when EVERY relevant green 06:30 job explicitly skipped Send.
+
+    A green workflow is NOT PushPlus acceptance. But a successful send step
+    with a missing Git commit marker could mean the API accepted already:
+    never retry in that case. API failures/partial jobs fail closed.
+    """
+    if not token or not isinstance(runs,list) or not runs:
+        return False
+    opener=opener or urllib.request.urlopen
+    start=scheduled_start("0630",target).astimezone(timezone.utc)-timedelta(minutes=8)
+    end=start+timedelta(minutes=110)
+    relevant=[]
+    for run in runs:
+        if run.get("event") not in ("schedule","workflow_dispatch"):
+            continue
+        try:
+            timestamp=datetime.fromisoformat(run["created_at"].replace("Z","+00:00"))
+        except (ValueError,KeyError,TypeError,AttributeError):
+            continue
+        if start<=timestamp<=end:
+            relevant.append(run)
+    if not relevant or len(relevant)>12 or any(
+        r.get("status")!="completed" or r.get("conclusion")!="success" for r in relevant
+    ):
+        return False
+    headers={"Authorization":"Bearer "+token,"Accept":"application/vnd.github+json",
+             "X-GitHub-Api-Version":"2022-11-28","User-Agent":"nba-recovery-watchdog"}
+    for run in relevant:
+        run_id=run.get("id")
+        if type(run_id) is not int or run_id<=0:
+            return False
+        uri=f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"
+        req=urllib.request.Request(uri,headers=headers)
+        try:
+            with opener(req,timeout=12) as response:
+                body=json.load(response)
+        except (OSError,ValueError,TypeError,urllib.error.HTTPError):
+            return False
+        jobs=body.get("jobs") if isinstance(body,dict) else None
+        if not isinstance(jobs,list) or not jobs or body.get("total_count")!=len(jobs):
+            return False
+        found=False
+        for job in jobs:
+            if job.get("status")!="completed" or job.get("conclusion")!="success":
+                return False
+            steps=job.get("steps")
+            if not isinstance(steps,list):
+                return False
+            for step in steps:
+                if step.get("name")==MORNING_PUSH_STEP:
+                    if step.get("conclusion")!="skipped":
+                        return False
+                    found=True
+        if not found:
+            return False
+    return True
+
+def decision(root,slot,target,now,runs,run_error=None,verified_skip=False):
     info={"slot":slot,"target_date":target,"action":"NO_DISPATCH","reason":None}
     if slot not in RECOVERABLE:
         info["reason"]="NOT_A_SAFE_FIXED_RECOVERY_SLOT";return info
@@ -86,12 +145,16 @@ def decision(root,slot,target,now,runs,run_error=None):
     info["existing_run_count"]=count
     # An already-failed run is not a success. Allow a bounded initial rescue
     # and at most one retry if an accepted dispatch never becomes a visible run.
-    # Active jobs and successful runs remain non-retriable.
-    if hint not in ("NO_RECORDED_WORKFLOW_TRIGGER","WORKFLOW_FAILED"):
+    # Ordinary successful runs remain non-retriable. The narrow exception:
+    # 06:30 jobs can be green despite a preflight parser silently skipping Send.
+    # Only independently verified "all Send steps skipped" jobs may retry.
+    green_skipped=(slot=="0630" and hint=="WORKFLOW_SUCCESS_WITHOUT_DELIVERY_MARKER" and verified_skip is True)
+    if hint not in ("NO_RECORDED_WORKFLOW_TRIGGER","WORKFLOW_FAILED") and not green_skipped:
         info["reason"]=hint;return info
     info["action"]="DISPATCH"
     info["dispatch_attempt"]=(int(previous.get("attempt_count",1))+1) if previous else 1
-    info["reason"]=("SECOND_DISPATCH_NO_RUN_VISIBLE" if previous and hint=="NO_RECORDED_WORKFLOW_TRIGGER"
+    info["reason"]=("VERIFIED_GREEN_NO_SEND_STEP_EXECUTED" if green_skipped
+                    else "SECOND_DISPATCH_NO_RUN_VISIBLE" if previous and hint=="NO_RECORDED_WORKFLOW_TRIGGER"
                     else "SECOND_DISPATCH_AFTER_FAILED_RUN" if previous
                     else "ALL_RUNS_FAILED_WITHIN_WINDOW" if hint=="WORKFLOW_FAILED"
                     else "NO_TRIGGER_AND_WITHIN_WINDOW")
@@ -140,6 +203,35 @@ def self_test():
         assert decision(root,slot,target,at,running_and_failed)["action"]=="NO_DISPATCH"
         successful=[{**active[0],"status":"completed","conclusion":"success"}]
         assert decision(root,slot,target,at,successful)["action"]=="NO_DISPATCH"
+        # Only verifiably SKIPPED morning PushPlus jobs permit a safe retry.
+        morning=datetime.fromisoformat("2026-11-01T06:35:00+08:00")
+        morning_run={"id":41250000001,"event":"schedule","status":"completed",
+                     "conclusion":"success","created_at":"2026-10-31T22:30:05Z"}
+        class JobsResponse:
+            def __init__(self,conclusion):self.conclusion=conclusion
+            def __enter__(self):return self
+            def __exit__(self,*_):return False
+            def read(self,*_):return json.dumps({"total_count":1,"jobs":[{
+                "status":"completed","conclusion":"success",
+                "steps":[{"name":MORNING_PUSH_STEP,"conclusion":self.conclusion}]
+            }]}).encode()
+        def green_skip_opener(req,timeout):
+            assert "/actions/runs/41250000001/jobs?per_page=100" in req.full_url
+            return JobsResponse("skipped")
+        assert verified_morning_send_never_started("noki1022/mcp-sports-hub","fake",
+            "2026-11-01",[morning_run],green_skip_opener)
+        assert not verified_morning_send_never_started("noki1022/mcp-sports-hub","fake",
+            "2026-11-01",[morning_run],lambda req,timeout:JobsResponse("success"))
+        assert not verified_morning_send_never_started("noki1022/mcp-sports-hub","",
+            "2026-11-01",[morning_run],green_skip_opener)
+        assert not verified_morning_send_never_started("noki1022/mcp-sports-hub","fake",
+            "2026-11-01",[{**morning_run,"status":"in_progress"}],green_skip_opener)
+        assert not verified_morning_send_never_started("noki1022/mcp-sports-hub","fake",
+            "2026-11-01",[{**morning_run,"id":None}],green_skip_opener)
+        assert not verified_morning_send_never_started("noki1022/mcp-sports-hub","fake",
+            "2026-11-01",[morning_run],lambda req,timeout:(_ for _ in ()).throw(OSError()))
+        assert decision(root,"0630","2026-11-01",morning,[morning_run],
+                        verified_skip=False)["action"]=="NO_DISPATCH"
         dedup=root/"reports/delivery-recovery-dispatched"/target/(slot+".json")
         dedup.parent.mkdir(parents=True,exist_ok=True)
         dedup.write_text(json.dumps({"state":"DISPATCH_HTTP_204_ACCEPTED_NOT_REPORT_DELIVERED",
@@ -176,6 +268,10 @@ def self_test():
         morn_early=datetime.fromisoformat("2026-11-01T06:35:00+08:00")
         early=decision(root,"0630","2026-11-01",morn_early,[])
         assert early["action"]=="DISPATCH" and early["eligible_games_by_time"]==1
+        green=decision(root,"0630","2026-11-01",morn_early,[morning_run],verified_skip=True)
+        assert green["action"]=="DISPATCH" and green["reason"]=="VERIFIED_GREEN_NO_SEND_STEP_EXECUTED"
+        assert decision(root,"0630","2026-11-01",morn_early,[morning_run],
+                        verified_skip=False)["action"]=="NO_DISPATCH"
         # A 07:00 game is too close at 06:45; do not replay stale prices.
         cohort.write_text(json.dumps({"target_date":"2026-11-01","source_slot":"2130",
             "official_games":{"early":{"tip":"2026-11-01T07:00:00+08:00"}},
@@ -226,7 +322,17 @@ def main():
     repo=os.environ.get("GITHUB_REPOSITORY","noki1022/mcp-sports-hub")
     token=os.environ.get("GITHUB_TOKEN","")
     runs,error=get_runs(repo,expected_workflow(args.slot),token)
-    report=decision(Path("."),args.slot,args.target_date,datetime.now(BJ),runs,error)
+    verified_skip=False
+    if args.slot=="0630" and runs is not None:
+        hint,_=run_hint(runs,args.slot,args.target_date)
+        if hint=="WORKFLOW_SUCCESS_WITHOUT_DELIVERY_MARKER" and not accepted_marker(
+            Path("."),args.slot,args.target_date
+        ):
+            verified_skip=verified_morning_send_never_started(
+                repo,token,args.target_date,runs
+            )
+    report=decision(Path("."),args.slot,args.target_date,datetime.now(BJ),runs,error,
+                    verified_skip=verified_skip)
     if report["action"]=="DISPATCH":
         try:
             report["workflow_dispatched"]=dispatch(repo,token,args.slot,args.target_date)
