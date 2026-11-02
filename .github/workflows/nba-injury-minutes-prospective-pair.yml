@@ -60,6 +60,14 @@ jobs:
           assert d['historical_candidate']['fit_games']>=1000
           assert d['historical_candidate']['validation_games']>=600
           assert d['research_pairs']==sum(x['status']=='PAIRED_RESEARCH_FORECAST_FROZEN' for x in rows)
+          assert d['partial_sensitivity_is_not_paired_prediction'] is True
+          assert d['unknown_role_minutes_assumption_is_hypothetical'] is True
+          assert d['partial_role_sensitivity_games']==sum(
+              'partial_injury_sensitivity' in x for x in rows)
+          assert d['partial_probability_sensitivity_games']==sum(
+              'conditional_home_probability_sensitivity_range' in x.get('partial_injury_sensitivity',{})
+              for x in rows)
+          assert d['research_pairs']+d['partial_role_sensitivity_games']<=len(rows)
           for r in rows:
               assert r['research_only'] is True and r['own_team_form_vs_injury_model_only'] is True
               assert r['existing_production_model_changed'] is False
@@ -74,6 +82,18 @@ jobs:
               else:
                   assert 'block_reason' in r
                   assert 'injury_minutes_home_probability' not in r
+                  if 'partial_injury_sensitivity' in r:
+                      q=r['partial_injury_sensitivity']
+                      assert q['not_a_point_forecast'] is True
+                      assert q['not_a_calibrated_confidence_interval'] is True
+                      assert q['not_eligible_for_production_or_paired_scoring'] is True
+                      assert q['unverified_player_rows']>0
+                      assert q['unknown_current_team_prior_minutes_assumption']==[0,48]
+                      lo,hi=q['feature_interval_home_minus_away']
+                      assert lo<=hi
+                      if 'conditional_home_probability_sensitivity_range' in q:
+                          p0,p1=q['conditional_home_probability_sensitivity_range']
+                          assert 0<p0<=p1<1
           print('NBA_LIVE_INJURY_MINUTES_PAIRED_RESEARCH_ACCEPTED',d['future_games'],
                 d['research_pairs'],d['blocked_reasons'],
                 d['historical_candidate']['historical_validation_injury_minutes']['Brier_ML'])
