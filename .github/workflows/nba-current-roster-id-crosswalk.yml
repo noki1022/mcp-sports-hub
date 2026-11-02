@@ -1,0 +1,71 @@
+name: NBA prospective current roster and cross-provider stable player ID research
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_current_roster_id_crosswalk.py'
+      - 'analysis/README-nba-current-roster-id-crosswalk.md'
+      - '.github/workflows/nba-current-roster-id-crosswalk.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  freeze-independent-roster-now:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated research dependencies
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6 pandas==2.2.3 pyarrow==20.0.0
+      - name: Test stable external athlete ID mapping and future-game leakage exclusion
+        run: |
+          python3 -m py_compile analysis/nba_current_roster_id_crosswalk.py
+          python3 analysis/nba_current_roster_id_crosswalk.py --selftest
+          python3 analysis/nba_injury_person_id_asof_minutes.py --selftest
+      - name: Timestamp and freeze real current team rosters and prior-only player minutes
+        run: |
+          python3 analysis/nba_current_roster_id_crosswalk.py --out /tmp/nba-current-roster-crosswalk-research
+      - name: Validate capture clocks and no retroactive use
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          from datetime import datetime
+          out=Path('/tmp/nba-current-roster-crosswalk-research')
+          d=json.loads((out/'audit.json').read_text())
+          blob=(out/'prospective_current_roster_player_id_crosswalk.jsonl').read_bytes()
+          rows=[json.loads(s) for s in blob.splitlines()]
+          assert hashlib.sha256(blob).hexdigest()==d['crosswalk_sha256']
+          assert d['only_valid_for_appointments_after_capture'] is True
+          assert d['cannot_backfill_old_injury_shadow_with_later_roster'] is True
+          assert d['original_injury_shadow_11_prior_games_modified'] is False
+          assert d['NBA_log_player_ID_and_ESPN_athlete_ID_not_equivalent'] is True
+          assert d['current_roster_is_not_official_injury_status'] is True
+          assert d['production_prediction_modified'] is False
+          assert d['production_injury_candidate_coefficient_generated'] is False
+          assert d['price_and_007_market_untouched'] is True
+          assert d['research_only'] is True
+          assert d['completed_roster_teams']>=24
+          assert len(rows)==d['roster_players'] and len(rows)>=280
+          assert d['captured_begin_utc']<d['captured_end_utc']
+          for row in rows:
+              assert row['ready_for_live_injury_adjustment'] is False
+              assert row['current_roster_confirmed_before_future_tipoff'] is False
+              if row['recent_same_team_prior_minutes'] is not None:
+                  assert row['last_same_team_played_date']<d['player_logs_prior_game_date_exclusive']
+                  assert row['nba_log_person_id'] is not None
+          print('NBA_PROSPECTIVE_ROSTER_CROSSWALK_ACCEPTED',
+                d['completed_roster_teams'],d['roster_players'],
+                d['crosswalk_result'],d['captured_end_utc'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-prospective-frozen-espn-roster-player-crosswalk
+          path: /tmp/nba-current-roster-crosswalk-research/
+          if-no-files-found: warn
+          retention-days: 60
