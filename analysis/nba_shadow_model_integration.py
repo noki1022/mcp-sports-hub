@@ -474,6 +474,7 @@ def compare_candidate(bridge,candidate,settlement,source_bridge_sha):
     return {
         "status":"RESEARCH_ONLY_CHRONOLOGICAL_PAIRED_GRADE",
         "paired_by_market":summary,
+        "paired_rows_by_market":result,
         "independent_games":len(games),
         "distinct_beijing_days":1 if games else 0,
         "rejected":dict(sorted(refused.items())),
