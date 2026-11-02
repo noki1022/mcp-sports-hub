@@ -1,0 +1,62 @@
+name: Validate independent two NBA models and single authoritative 21:30 exam
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_independent_market_shadow.py'
+      - 'analysis/nba_dual_independent_stage.py'
+      - 'analysis/nba_dual_model_slot_seal.py'
+      - 'analysis/nba_dual_model_final_2130_grade.py'
+      - 'analysis/nba_dual_model_contract_selftest.py'
+      - '.github/workflows/nba-dual-independent-every-capture.yml'
+      - '.github/workflows/nba-dual-final-2130-score.yml'
+      - '.github/workflows/nba-shadow-prospective-final-grade.yml'
+      - '.github/workflows/nba-postmarket-shadow-auto.yml'
+      - 'scripts/validate_nba_schedules.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  actual-source-no-leakage-and-snapshot-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and test actual previous 007 18 and final 21:30 no-results inputs
+        run: |
+          python3 -m py_compile analysis/nba_independent_market_shadow.py analysis/nba_dual_independent_stage.py analysis/nba_dual_model_slot_seal.py analysis/nba_dual_model_final_2130_grade.py analysis/nba_dual_model_contract_selftest.py
+          python3 analysis/nba_dual_model_contract_selftest.py
+      - name: Verify a physically isolated source-only Docker cannot see either original model or any scores
+        run: |
+          mkdir -p "$RUNNER_TEMP/standalone-src/analysis"
+          cp analysis/nba_independent_market_shadow.py "$RUNNER_TEMP/standalone-src/analysis/"
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --user "$(id -u):$(id -g)" \
+            -v "$RUNNER_TEMP/standalone-src:/workspace:ro" -w /workspace \
+            -e PYTHONDONTWRITEBYTECODE=1 python:3.12-slim \
+            python3 -B -c 'from pathlib import Path;import socket;assert not Path("reports").exists();assert not Path("nba_priority_model.json").exists();assert not Path("nba_five_market_forecast.json").exists();assert not Path(".git").exists();assert socket.socket().connect_ex(("1.1.1.1",443))!=0;print("INDEPENDENT_NBA_SHADOW_PHYSICAL_NO_RESULTS_NO_ORIGINAL_MODEL_NO_NETWORK_PASS")'
+      - name: Disallow 18:00 as official final exam, late future data and any shadow PushPlus
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          f=Path('.github/workflows/nba-dual-independent-every-capture.yml').read_text()
+          score=Path('.github/workflows/nba-dual-final-2130-score.yml').read_text()
+          assert 'nba_priority_iphone.html' not in f
+          assert 'original_main' not in f
+          assert 'nba_dual_independent_stage.py' in f
+          assert '--network none --read-only' in f
+          assert 'contents: write' in f and 'contents: read' in f
+          assert 'actions/download-artifact@v4' in f
+          assert 'titan007_join_beijing_verified.py' not in f
+          assert 'pushplus_mobile.py' not in f
+          assert 'nba_dual_model_final_2130_grade.py' in score
+          assert 'nba_independent_market_shadow.py' not in score
+          old=Path('.github/workflows/nba-shadow-prospective-final-grade.yml').read_text()
+          assert 'schedule:' not in old and 'nba_shadow_prospective_final_grade.py' not in old
+          assert 'schedule:' not in Path('.github/workflows/nba-postmarket-shadow-auto.yml').read_text()
+          print('EXCLUSIVE_ORIGINAL_AND_SHADOW_2130_FINAL_EXAM_CONTRACT_PASS')
+          PY
