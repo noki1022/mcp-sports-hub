@@ -1,0 +1,49 @@
+name: Investigate recurring 007 JC number identity mismatches from actual fixture records
+on:
+  pull_request:
+    paths:
+      - 'scripts/audit_007_jc_identity_root_cause.py'
+      - '.github/workflows/audit-jc-team-identity-root-cause.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  compare-both-known-missing-number-cases:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Inspect permitted public JC fixture feed ONCE and save source audit
+        run: |
+          python3 -m py_compile scripts/audit_007_jc_identity_root_cause.py
+          python3 - <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0,'scripts')
+          from probe_007_jc_scripts import ORIGIN,UA,robots_policy,get_bytes
+          from verify_007_jc_fixture_identity import TARGET,MAX_BYTES
+          p,status=robots_policy()
+          if p is False or (p is not None and not p.can_fetch(UA,ORIGIN+TARGET)):
+              raise RuntimeError('PUBLIC_SOURCE_NOT_PERMITTED_'+status)
+          data=get_bytes(ORIGIN+TARGET,MAX_BYTES)
+          assert len(data)>100
+          Path('/tmp/real-jc-fixtures.txt').write_bytes(data)
+          print('ACTUAL_RAW_007_JC_FIXTURE_BYTES',len(data))
+          PY
+          python3 scripts/audit_007_jc_identity_root_cause.py \
+            --board reports/daily/2026-11-03/2100/titan007_three_joined.json \
+            --fixture-bytes /tmp/real-jc-fixtures.txt --out /tmp/real-nov3-id-audit.json
+          python3 scripts/audit_007_jc_identity_root_cause.py \
+            --board reports/daily/2026-11-01/2130/titan007_priority_joined.json \
+            --fixture-bytes /tmp/real-jc-fixtures.txt --out /tmp/historic-nov1-id-audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-007-jc-identity-forensics
+          path: |
+            /tmp/real-nov3-id-audit.json
+            /tmp/historic-nov1-id-audit.json
+          retention-days: 30
+          if-no-files-found: warn
