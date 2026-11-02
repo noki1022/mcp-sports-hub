@@ -157,7 +157,7 @@ def run(daily,sent,params,out,trigger_run=None,now=None):
         print("NBA_INDEPENDENT_POSTMARKET_SHADOW_SAFE_SKIP",state["status"])
         return state
     day=state["target_date"]
-    bridge,out_copy,grade=I.run(daily,day,"1200",SLOT,root)
+    bridge,out_copy,grade=I.run(daily,day,"1200",SLOT,root,pretip_only=True)
     bridge_path=root/"nba_shadow_model_bridge.json"
     param_path=Path(params)
     pinned=load(param_path)
