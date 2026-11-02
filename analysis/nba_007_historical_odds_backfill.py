@@ -343,6 +343,42 @@ def reconstruct(root):
                                             current, ff, source="FROZEN_JC_QUOTE",
                                             settled=settled, out_rejected=rejected))
 
+    # Earlier P0 hourly snapshots are durable normalized copies produced from
+    # the same ID3 joined 007 board. They may contain actual intermediate
+    # observations that do not appear in the daily report directory.
+    # Confirm exact date, ID, home, away, and display clock against a
+    # separately verified ESPN+007 join; no fuzzy matching or new game IDs.
+    for path in sorted(root.glob("reports/hourly/*/*.json")):
+        doc = read_json(path)
+        if (not doc or doc.get("schema_version") != "titan007-market-snapshot-v1"
+                or "bf.titan007.com/nba_Oddsdata.aspx" not in str(doc.get("source_url") or "")):
+            continue
+        target = str(doc.get("target_date") or "")
+        capture = when(doc.get("captured_at_utc"))
+        if capture is None:
+            rejected["HOURLY_SOURCE_TIMESTAMP_MISSING"] += 1
+            continue
+        for game in doc.get("games",[]):
+            key = (target,str(game.get("game_id") or ""))
+            if game.get("league") != "NBA" or key not in boards:
+                continue
+            b = boards[key][0]
+            b["base"] = root
+            known = b["game"]
+            if (game.get("display_date") != target or
+                game.get("home_team") != known.get("home_team") or
+                game.get("away_team") != known.get("away_team") or
+                game.get("display_clock") != known.get("display_clock")):
+                rejected["HOURLY_SOURCE_IDENTITY_MISMATCH"] += 1
+                continue
+            for source_key,market in CROWN_MAP.items():
+                current=(((game.get("markets") or {}).get(source_key) or {}).get("current") or {})
+                if current:
+                    ingest(build_record(
+                        b,market,capture,current,path,
+                        source="HOURLY_NORMALIZED_FROM_VERIFIED_007_ID3_BOARD",
+                        settled=results.get(key),out_rejected=rejected))
+
     # ID3 pretip source archive may contain additional observation slots.
     for path in sorted(root.glob("reports/top10/*/*.json")):
         doc = read_json(path)
