@@ -335,7 +335,7 @@ def lottery_label(game):
     """Validated 007 lottery issue code; never manufacture it from report order."""
     import re
     v=game.get("jc_match_label")
-    if game.get("jc_match_identity_status")=="VERIFIED_JC_NUMBER" and isinstance(v,str) and re.fullmatch(r"周[一二三四五六日天][0-9]{3}",v):
+    if game.get("jc_match_identity_status") in ("VERIFIED_JC_NUMBER","USER_CONFIRMED_JC_NUMBER") and isinstance(v,str) and re.fullmatch(r"周[一二三四五六日天][0-9]{3}",v):
         return v
     return "竞彩编号待核"
 
