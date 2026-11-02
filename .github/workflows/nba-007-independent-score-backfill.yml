@@ -1,0 +1,72 @@
+name: NBA 007 archived pretip independent final-score backfill (research)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_007_independent_score_backfill.py'
+      - '.github/workflows/nba-007-independent-score-backfill.yml'
+      - 'analysis/README-nba-007-independent-score-backfill.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  score-only-label-backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and run offline as-of / score-only regression checks
+        run: |
+          python3 -m py_compile analysis/nba_007_independent_score_backfill.py
+          python3 analysis/nba_007_independent_score_backfill.py --selftest
+      - name: Reconstruct original saved 007 quotes and backfill independent finals
+        run: |
+          python3 analysis/nba_007_independent_score_backfill.py \
+            --repo-root . --out /tmp/nba-007-independent-score-backfill
+      - name: Enforce zero invented quote timestamps and research-only gate
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('/tmp/nba-007-independent-score-backfill')
+          audit=json.loads((p/'audit.json').read_text())
+          assert audit['source_capture_timestamps_unchanged'] is True
+          assert audit['original_bookmaker_update_time_not_inferred'] is True
+          assert audit['007_crown_id3_preserved'] is True
+          assert audit['007_raw_price_side_unverified'] is True
+          assert audit['production_promotion_allowed'] is False
+          assert audit['production_changed'] is False
+          assert audit['output_quote_rows']==audit['original_quote_rows']
+          assert audit['unlabeled_games_after_reasonable_final_window'] + audit['unlabeled_games_not_yet_past_final_window'] == audit['unlabeled_games_after']
+          rows=[json.loads(s) for s in (p/'007_real_pretip_quotes_with_independent_final_scores.jsonl').read_text().splitlines()]
+          assert len(rows)==audit['output_quote_rows']
+          newly=[r for r in rows if r['new_score_label']]
+          assert len(newly)==audit['newly_labeled_quote_rows']
+          for r in rows:
+              assert not r['price_side_probability_verified']
+              assert not r['production_fusion_eligible']
+              if r['market'].startswith('CROWN'):
+                  assert r['company_id']=='3'
+              if r['new_score_label']:
+                  assert r['postgame_score_source']['source']=='ESPN_COMPLETED_GAME_SCOREBOARD'
+                  assert r['training_score_label_available']
+                  assert r['quote_capture_utc'] < r['tipoff_utc']
+                  assert r['observed_first_side_result'] in ('FIRST_SIDE','SECOND_SIDE','PUSH')
+          print('NBA_007_INDEPENDENT_SCORE_BACKFILL_ACCEPTED', audit['original_labeled_games'],
+                audit['newly_labeled_games'], audit['labeled_games_after'],
+                audit['unlabeled_games_after'], audit['scoreboard_fetch_failures'])
+          print('NBA_007_UNLABELED_GAME_BREAKDOWN', audit['unlabeled_games_after_reasonable_final_window'],
+                audit['unlabeled_games_not_yet_past_final_window'],
+                audit['unlabeled_finished_game_ids'], audit['newly_labeled_game_ids'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-007-real-pregame-odds-independent-final-score-backfill
+          path: /tmp/nba-007-independent-score-backfill/
+          if-no-files-found: warn
+          retention-days: 60
