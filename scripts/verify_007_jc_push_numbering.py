@@ -58,15 +58,19 @@ def apply_manual_labels(board,output,labels,entries):
         if row["status"]=="VERIFIED_JC_NUMBER":
             if row["label"]!=label:raise ValueError("007_AND_USER_CONFIRMED_NUMBER_CONFLICT")
             continue
-        if row.get("reason")!="HOME_AWAY_MISMATCH":
-            raise ValueError("MANUAL_JC_NUMBER_NOT_AN_IDENTITY_MISMATCH_CASE")
+        # A later source outage must not erase the user's explicit display
+        # correction or 14 independently verified labels. The source's
+        # existing failure reason is retained, not upgraded to verified.
+        original_reason=row.get("reason")
+        if row["status"]!="UNVERIFIED" or not original_reason:
+            raise ValueError("MANUAL_JC_NUMBER_NOT_AN_UNVERIFIED_NUMBER")
         if label in labels:raise ValueError("DUPLICATE_USER_AND_007_JC_NUMBER_"+label)
         labels.add(label)
         match=CODE.fullmatch(label)
         row.update({"status":"USER_CONFIRMED_JC_NUMBER","label":label,
                     "match_no":match.group(2),
-                    "reason":"HOME_AWAY_MISMATCH_NUMBER_MANUALLY_CONFIRMED",
-                    "original_007_identity_status":"HOME_AWAY_MISMATCH",
+                    "reason":"JC_SOURCE_UNVERIFIED_NUMBER_MANUALLY_CONFIRMED",
+                    "original_007_identity_status":original_reason,
                     "number_source":item["source"],"number_only":True,
                     "fixture_home_away_verified":False,
                     "market_orientation_verified_by_manual_number":False})
@@ -165,6 +169,11 @@ def self_test():
     assert x["status"]=="USER_CONFIRMED_JC_NUMBER" and x["label"]=="周一302"
     assert user["verified"]==0 and user["user_confirmed"]==1
     assert x["fixture_home_away_verified"] is False
+    assert x["original_007_identity_status"]=="HOME_AWAY_MISMATCH"
+    unavailable=verify(user_board,b"1^meta$999999^2026,10,3,08,00,00^0^^周一320^7^11^X^12^Y",
+                       overrides=[item])
+    assert unavailable["games"]["728298"]["label"]=="周一302"
+    assert unavailable["games"]["728298"]["original_007_identity_status"]=="GAME_ID_NOT_IN_JC_FEED"
     try:
         verify(user_board,wrong,overrides=[dict(item,home_team="其他球队")])
     except ValueError as e:assert "MISMATCH" in str(e)
