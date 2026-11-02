@@ -236,6 +236,8 @@ def run(features_path,audit_path,out):
     feature_rows=[json.loads(line) for line in raw.decode().splitlines() if line]
     if len(feature_rows)!=manifest["future_games"]:
         raise RuntimeError("LIVE_SNAPSHOT_ROW_COUNT_CHANGED")
+    # The source study saves an upstream audit file in this directory.
+    Path(out).mkdir(parents=True,exist_ok=True)
     b,i,historical=historical_candidate(Path(out)/"historic_injury_study.json")
     past,score_source=S.load_verified_asof(now)
     eligible,counts=seal(feature_rows,manifest,past,b,i,historical,datetime.now(timezone.utc))
