@@ -170,7 +170,7 @@ def self_test():
     assert user["verified"]==0 and user["user_confirmed"]==1
     assert x["fixture_home_away_verified"] is False
     assert x["original_007_identity_status"]=="HOME_AWAY_MISMATCH"
-    unavailable=verify(user_board,b"1^meta$999999^2026,10,3,08,00,00^0^^周一320^7^11^X^12^Y",
+    unavailable=verify(user_board,"1^meta$999999^2026,10,3,08,00,00^0^^周一320^7^11^X^12^Y".encode(),
                        overrides=[item])
     assert unavailable["games"]["728298"]["label"]=="周一302"
     assert unavailable["games"]["728298"]["original_007_identity_status"]=="GAME_ID_NOT_IN_JC_FEED"
