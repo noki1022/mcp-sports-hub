@@ -27,7 +27,7 @@ from nba_injury_prospective_capture import instant
 from titan007_ev_analysis import NAMES
 
 BASE="https://huggingface.co/datasets/cbratkovics/nba-game-logs/resolve/main/game_logs/"
-SEASONS=("2025-26","2026-27")
+SEASONS=("2024-25","2025-26","2026-27")
 MAX_SOURCE_BYTES=3_000_000
 MAX_LOG_DAYS_PRIOR=410
 CURRENT_SEASON="2026-27"
