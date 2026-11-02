@@ -1,0 +1,67 @@
+name: NBA genuinely pretip frozen score-only shadow (research)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_prospective_score_shadow.py'
+      - 'analysis/nba_opponent_adjusted_23574.py'
+      - '.github/workflows/nba-prospective-score-shadow.yml'
+      - 'analysis/README-nba-prospective-score-shadow.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pretip-model-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned numerical package
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Test scoreless fixture features and reject same-day outcome leakage
+        run: |
+          python3 -m py_compile analysis/nba_prospective_score_shadow.py analysis/nba_opponent_adjusted_23574.py
+          python3 analysis/nba_prospective_score_shadow.py --selftest
+          python3 analysis/nba_opponent_adjusted_23574.py --selftest
+      - name: Seal actual future pretip NBA model forecasts before games
+        run: |
+          python3 analysis/nba_prospective_score_shadow.py --out /tmp/nba-prospective-score-shadow
+      - name: Verify no synthetic futures and sealed timestamp at execution
+        run: |
+          python3 - <<'PY'
+          import json,hashlib
+          from datetime import datetime,timezone
+          from pathlib import Path
+          r=Path('/tmp/nba-prospective-score-shadow')
+          d=json.loads((r/'manifest.json').read_text())
+          rows=[json.loads(s) for s in (r/'frozen_pregame_score_only.jsonl').read_text().splitlines()]
+          assert d['predictions_sha256']==hashlib.sha256((r/'frozen_pregame_score_only.jsonl').read_bytes()).hexdigest()
+          assert rows and len(rows)==d['valid_future_games']
+          assert d['future_game_outcomes_used_to_train'] is False
+          assert d['historical_007_quote_time_fabricated'] is False
+          assert d['production_push_model_changed'] is False
+          assert d['auto_promotion'] is False
+          asof=datetime.fromisoformat(d['captured_at_utc'].replace('Z','+00:00'))
+          seen=set()
+          for x in rows:
+              tip=datetime.fromisoformat(x['tipoff_utc'].replace('Z','+00:00'))
+              assert asof<tip and x['last_completed_input_date_et']<x['date_et']
+              assert x['nba_game_id'] not in seen
+              assert 0<x['predicted_home_win_probability']<1
+              assert x['training_game_count']>=24249
+              seen.add(x['nba_game_id'])
+          print('NBA_PRETIP_FROZEN_FORECASTS_ACCEPTED',
+                d['valid_future_games'],rows[0]['tipoff_beijing'],
+                d['predictions_sha256'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-frozen-genuine-pregame-score-only-forecast
+          path: /tmp/nba-prospective-score-shadow/
+          if-no-files-found: warn
+          retention-days: 60
