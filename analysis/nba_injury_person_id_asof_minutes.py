@@ -267,6 +267,13 @@ def audit(history,games,snapshots,source):
             "official_player_report_rows":len(players),
             "research_unique_id_with_past_minutes":len(matched),
             "research_current_season_team_verified_players":len(membership),
+            # Whole-fixture injury model may only be considered with full
+            # both-team published reports AND all named players identified
+            # on this season's actual playing roster. This is deliberately
+            # conservative: no unsupported season-opening roster inference.
+            "entire_game_identity_prerequisite_ready":(
+                g["quality"] in ("PUBLISHED_AFFECTED","PUBLISHED_LISTED")
+                and len(players)>0 and len(membership)==len(players)),
             "reported_players":players,
             "original_archive_sha256":g["source_snapshot_sha256"],
             "candidate_feature_schema":"nba-id-current-team-prior-minutes-v1",
@@ -286,6 +293,7 @@ def audit(history,games,snapshots,source):
         "current_season_team_verified_reported_players":sum(r["research_current_season_team_verified_players"] for r in result),
         "identity_resolution_status_counts":dict(sorted(counts.items())),
         "original_injury_paired_probability_games":sum(r["frozen_original_injury_probability"] is not None for r in result),
+        "entire_game_identity_prerequisite_ready":sum(r["entire_game_identity_prerequisite_ready"] for r in result),
         "no_historical_quote_update_time_inferred":True,
         "future_result_or_minutes_as_features":False,
         "name_only_current_roster_membership_assumed":False,
@@ -315,6 +323,7 @@ def run(root,out):
         "player_report_rows":report["official_player_rows"],
         "identified_prior_minutes":report["player_id_with_prior_minutes"],
         "current_season_team_verified":report["current_season_team_verified_reported_players"],
+        "full_fixture_identity_ready":report["entire_game_identity_prerequisite_ready"],
         "identity_status":report["identity_resolution_status_counts"],
         "log_player_count":report["historical_log_unique_person_ids"],
         "new_probabilities":0,
