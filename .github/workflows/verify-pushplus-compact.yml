@@ -18,6 +18,29 @@ jobs:
           python-version: '3.12'
       - run: python3 scripts/pushplus_five_compact.py --self-test
       - run: python3 scripts/pushplus_five_compact.py --five reports/daily/2026-11-01/1400/nba_five_market_forecast.json --preview /tmp/compact.html
+      - name: Real Nov 3 21:30 fifteen-game official-source 302 unchanged prediction regression
+        run: |
+          python3 scripts/pushplus_five_compact.py --five reports/daily/2026-11-03/2130/nba_five_market_forecast.json --preview /tmp/jc-official-handicap-2130.html
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          s=Path('/tmp/jc-official-handicap-2130.html').read_text(encoding='utf-8')
+          doc=json.loads(Path('reports/daily/2026-11-03/2130/nba_five_market_forecast.json').read_text())
+          g=next(x for x in doc['games'] if x['game_id']=='728298')
+          assert len(doc['games'])==doc['game_count']==15
+          assert g['jingcai_number']=='周一302'
+          assert g['markets']['JINGCAI_HANDICAP']['direction']=='AWAY_COVER'
+          assert g['markets']['JINGCAI_HANDICAP']['signed_home_handicap']==-6.5
+          assert g['markets']['CROWN_HANDICAP']['signed_home_handicap']==-4.5
+          assert abs(g['markets']['JINGCAI_HANDICAP']['model_direction_probability']-.6608036267816939)<1e-12
+          assert abs(g['markets']['CROWN_HANDICAP']['model_direction_probability']-.6125875171611127)<1e-12
+          assert '周一302' in s and '客胜（主-6.5） · 66.1%' in s
+          assert '客胜（主-4.5） · 61.3%（参考）' in s
+          assert '客+6.5 赢盘' not in s
+          assert s.count('>竞彩</div>')==15 and s.count('>皇冠</div>')==15
+          assert '玩法' not in s and 'ID3' not in s
+          print('REAL_FROZEN_2130_JC302_OFFICIAL_CHOICE_AND_CROWN_SEPARATE_LINES_15_GAMES_PASS')
+          PY
       - run: |
           python3 - <<'PY'
           from pathlib import Path

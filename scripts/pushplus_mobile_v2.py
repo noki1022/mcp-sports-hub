@@ -246,7 +246,9 @@ def five_market_panel(x):
         if market=="JINGCAI_WIN":
             return "主胜 · "+home if val=="HOME_WIN" else "客胜 · "+away if val=="AWAY_WIN" else None
         if market.endswith("HANDICAP"):
-            return "主队赢盘 · "+home if val=="HOME_COVER" else "客队赢盘 · "+away if val=="AWAY_COVER" else None
+            # Use the site's official choice, with the signed handicap kept
+            # exclusively on the HOME side in the separate qualifier.
+            return "主胜" if val=="HOME_COVER" else "客胜" if val=="AWAY_COVER" else None
         return "大分" if val=="OVER" else "小分" if val=="UNDER" else None
     lines=[]
     for key,name in all_keys:
@@ -634,6 +636,8 @@ def self_test():
     assert "007机构盘口研究" not in five_html
     assert all(i in five_html for i in ("① 竞彩胜负","② 竞彩让分胜负","③ 竞彩大小分","④ 皇冠让分","⑤ 皇冠大小分"))
     assert "主队盘口 +7.5" in five_html and "主队盘口 -6.5" in five_html
+    assert "主胜" in five_html and "客胜" in five_html
+    assert "客队赢盘" not in five_html and "主队赢盘" not in five_html
     exact["five_market_forecast"]["markets"]["JINGCAI_WIN"]={"status":"NOT_ON_SALE_USER_CONFIRMED"}
     no_sale=render_v2([exact],m,"赛前模型","2026-10-31","three")
     assert "未开售，不计入该玩法命中率" in no_sale
