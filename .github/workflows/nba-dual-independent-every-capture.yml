@@ -36,7 +36,7 @@ jobs:
           ORIGINAL_RUN: ${{ github.event.workflow_run.id }}
         run: |
           git fetch --quiet origin main
-          python3 analysis/nba_dual_independent_stage.py --run-id "$ORIGINAL_RUN" --stage "$RUNNER_TEMP/solo-market-stage" || echo SAFE_NO_MATCHED_ORIGINAL_CAPTURE_NO_SHADOW
+          python3 analysis/nba_dual_independent_stage.py --run-id "$ORIGINAL_RUN" --stage "$RUNNER_TEMP/solo-market-stage"
           if [ -f "$RUNNER_TEMP/solo-market-stage/input_manifest.json" ]; then
             python3 - <<'PY'
           import json,os
