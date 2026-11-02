@@ -71,6 +71,13 @@ def get_future_fixtures(now,fetcher=None):
                 identifier=str(event["id"])
                 k=(day,h,a)
                 if k in fixtures or identifier in seen:
+                    old=fixtures.get(k)
+                    # ESPN often serves the very same event in adjacent-date
+                    # requests. Identical ID+time is a duplicate, not conflict.
+                    if (old and old["nba_game_id"]==identifier and
+                        old["tipoff_utc"]==iso(tip)):
+                        rejects["DUPLICATE_IDENTICAL_EVENT"]+=1
+                        continue
                     rejects["DUPLICATE_OR_COLLIDING_EVENT"]+=1
                     fixtures.pop(k,None)
                     continue
