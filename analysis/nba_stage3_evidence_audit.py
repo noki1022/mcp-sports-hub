@@ -197,6 +197,12 @@ def quote_audit(root):
 
 
 def frozen_forecast_audit(intraday_root, settled_root):
+    """Find actual settlement-locked market forecasts, not merely latest board.
+
+    A later pre-tip snapshot can lose its 007 quotes even though an earlier
+    independently archived report still carried the settled market. Selecting
+    the latest *board* first would falsely invalidate that earlier evidence.
+    """
     frozen = defaultdict(list)
     settlement = {}
     counts = Counter()
@@ -217,7 +223,7 @@ def frozen_forecast_audit(intraday_root, settled_root):
             elif generation < board or generation >= tip:
                 counts["invalid_generation_time"] += 1
                 continue
-            frozen[(day, gid)].append((board, doc, g, tip))
+            frozen[(day, gid)].append((board, generation, g, tip))
     for _, doc in documents(settled_root, "*/settlement.json"):
         day = str(doc.get("beijing_date") or doc.get("target_date") or "")
         for g in doc.get("games", []):
@@ -233,21 +239,44 @@ def frozen_forecast_audit(intraday_root, settled_root):
         if not candidates:
             counts["no_pretip_frozen_forecast"] += 1
             continue
-        _, doc, g, tip = max(candidates, key=lambda c: c[0])
         game_days.add(key[0])
         for market in MARKETS:
-            prediction = (g.get("markets") or {}).get(market) or {}
             grade = (settled.get("markets") or {}).get(market) or {}
             if grade.get("outcome") not in ("HIT", "MISS"):
                 matched[market]["not_graded"] += 1
                 continue
-            pc, sc = instant(prediction.get("captured_at_utc")), instant(grade.get("frozen_capture_utc"))
-            p = number(prediction.get("model_direction_probability"))
-            if pc is None or sc is None or pc != sc or pc >= tip or p is None or not 0 <= p <= 1:
-                matched[market]["invalid_source_lock_or_probability"] += 1
+            source_lock = instant(grade.get("frozen_capture_utc"))
+            if source_lock is None:
+                matched[market]["settlement_missing_source_lock"] += 1
                 continue
+            eligible = []
+            for board, generation, game, tip in candidates:
+                pred = (game.get("markets") or {}).get(market) or {}
+                pc = instant(pred.get("captured_at_utc"))
+                p = number(pred.get("model_direction_probability"))
+                if (pc is None or pc != source_lock or pc >= tip or p is None
+                        or not 0 <= p <= 1 or pred.get("direction") != grade.get("direction")):
+                    continue
+                if market.endswith("HANDICAP"):
+                    x, y = number(pred.get("signed_home_handicap")), number(grade.get("signed_home_handicap"))
+                    if x is None or y is None or abs(x - y) > 1e-6:
+                        continue
+                if market.endswith("TOTAL"):
+                    x, y = number(pred.get("line")), number(grade.get("line"))
+                    if x is None or y is None or abs(x - y) > 1e-6:
+                        continue
+                # Board timestamp is the beginning of a multi-page collection,
+                # not the timestamp of completed analysis. A source captured
+                # later is fine only if independently confirmed before tip.
+                if generation is not None and (generation < pc or generation >= tip):
+                    continue
+                eligible.append((board, generation))
+            if not eligible:
+                matched[market]["no_exact_source_direction_line_locked_forecast"] += 1
+                continue
+            _, generation = max(eligible, key=lambda c: c[1] or c[0])
             matched[market]["as_of_board_source_locked"] += 1
-            if instant(doc.get("analysis_generated_at_utc")) is not None:
+            if generation is not None:
                 matched[market]["independent_generation_timestamp"] += 1
             else:
                 matched[market]["generation_time_requires_git_commit_proof"] += 1
@@ -337,6 +366,31 @@ def self_test():
         assert result["multi_company_007"]["valid_raw_quotes"] == 1
         assert result["multi_company_007"]["raw_orientation_unverified"] == 1
         assert "RAW_SLOT_ORIENTATION_NOT_INDEPENDENTLY_VERIFIED" in result["research_eligibility"]["failures"]
+    # Latest pretip board is not always the settlement-locked market forecast.
+    # The earlier exact source, direction and line must remain discoverable.
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        settle = root / "settled/2026-10-31"
+        intraday = root / "intraday/2026-10-31"
+        settle.mkdir(parents=True); intraday.mkdir(parents=True)
+        (settle / "settlement.json").write_text(json.dumps({
+            "beijing_date": "2026-10-31", "games": [{"game_id": "7",
+            "markets": {"CROWN_TOTAL": {"outcome": "HIT", "direction": "OVER",
+                "line": 215.5, "frozen_capture_utc": "2026-10-30T12:00:00Z"}}}]}))
+        game = {"game_id": "7", "tipoff_beijing": "2026-10-31T08:00+08:00",
+                "markets": {"CROWN_TOTAL": {"direction": "OVER", "line": 215.5,
+                    "captured_at_utc": "2026-10-30T12:00:00Z",
+                    "model_direction_probability": .54}}}
+        (intraday / "old.json").write_text(json.dumps({
+            "schema_version": "nba-five-markets-v1", "target_date": "2026-10-31",
+            "board_capture_utc": "2026-10-30T12:01:00Z", "games": [game]}))
+        (intraday / "new.json").write_text(json.dumps({
+            "schema_version": "nba-five-markets-v1", "target_date": "2026-10-31",
+            "board_capture_utc": "2026-10-30T18:00:00Z",
+            "games": [{**game, "markets": {}}]}))
+        rows = frozen_forecast_audit(root / "intraday", root / "settled")
+        assert rows["per_market"]["CROWN_TOTAL"]["as_of_board_source_locked"] == 1
+        assert rows["per_market"]["CROWN_TOTAL"]["generation_time_requires_git_commit_proof"] == 1
     print("NBA_STAGE3_EVIDENCE_AUDIT_SELF_TEST_PASS")
 
 
