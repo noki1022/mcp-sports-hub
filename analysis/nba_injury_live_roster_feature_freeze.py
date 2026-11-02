@@ -113,7 +113,42 @@ def verified_team_roster(code, normal_fetch=R.roster_fetch, fallback_fetch=None)
         proof["source_fallback_reason"]=type(first_error).__name__
         return rows,proof
 
-def freeze_game(fixture,games,proof,roster_index,roster_proof,captured):
+def secondary_cross_team_role(candidate,history_by_person,team,fixture_date):
+    """Historical player role from any earlier NBA team, never present-team proof.
+
+    This can rescue *evidence* for transfers who played fewer than three games
+    for their current team, but never permits a numeric injury adjustment.
+    """
+    if (not candidate or
+        candidate.get("identity_match_status") !=
+        "CURRENT_ROSTER_VERIFIED_BUT_NOT_ENOUGH_PRIOR_SAME_TEAM_MINUTES"):
+        return None
+    pid=candidate.get("nba_log_person_id")
+    if not pid or not str(pid).isdecimal():
+        return None
+    eligible=[r for r in (history_by_person or {}).get(str(pid),[])
+              if r["date"]<fixture_date]
+    if len(eligible)<3:
+        return None
+    recent=eligible[-8:]
+    other_teams=sorted({r["team"] for r in recent if r["team"]!=team})
+    # Preserve latest source team; even if historical evidence is deep, the
+    # future new team may assign completely different minutes or game role.
+    return {
+        "nba_game_log_person_id":str(pid),
+        "source_only_from_earlier_game_dates":True,
+        "recent_all_team_games":len(recent),
+        "all_team_prior_minutes_avg":round(sum(r["minutes"] for r in recent)/len(recent),5),
+        "last_game_date":recent[-1]["date"],
+        "last_game_team":recent[-1]["team"],
+        "different_earlier_teams":other_teams,
+        "reported_current_team":team,
+        "applicable_as_current_team_expected_minutes":False,
+        "usable_for_live_injury_probability":False,
+        "reason":"PRIOR_ANY_TEAM_ROLE_ONLY_CURRENT_TEAM_HISTORY_INSUFFICIENT",
+    }
+
+def freeze_game(fixture,games,proof,roster_index,roster_proof,captured,history_by_person=None):
     tip=stamp(fixture["tipoff_utc"])
     day=tip.astimezone(ET).date().isoformat()
     matchup=fixture["away"]+"@"+fixture["home"]
@@ -189,6 +224,9 @@ def freeze_game(fixture,games,proof,roster_index,roster_proof,captured):
                     eligible=m
                     why="ID_TEAM_AND_PAST_MINUTES_VALIDATED"
             if eligible is None:issues[why]+=1
+            secondary=(secondary_cross_team_role(
+                matches[0] if len(matches)==1 else None,
+                history_by_person,team,day) if eligible is None else None)
             minutes=(float(eligible["recent_same_team_prior_minutes"])
                      if eligible is not None else None)
             if minutes is not None and status in ("Out","Doubtful","Questionable"):
@@ -199,7 +237,8 @@ def freeze_game(fixture,games,proof,roster_index,roster_proof,captured):
                 "espn_roster_athlete_id":eligible.get("espn_athlete_id") if eligible else None,
                 "prior_team_minutes":minutes,
                 "last_prior_game_date":eligible.get("last_same_team_played_date") if eligible else None,
-                "identity":why,"numeric_player_effect":None})
+                "identity":why,"numeric_player_effect":None,
+                "separately_labeled_prior_any_team_role":secondary})
     base["unresolved"]=dict(sorted(issues.items()))
     base["minutes_exposure_not_impact"]={side:dict(exposure[side]) for side in ("home","away")}
     base["identity_coverage_complete"]=bool(base["injured_players"]) and not issues
@@ -233,6 +272,10 @@ def run(out):
     # Date-exclusive game log data. No game from current Eastern day can be a
     # feature even if its box score is available after an earlier tip.
     linked,mapping=R.crosswalk(roster_players,history,et_day)
+    prior_by_person=defaultdict(list)
+    for played in history:
+        if played["date"]<et_day:
+            prior_by_person[str(played["person_id"])].append(played)
     index=defaultdict(list)
     for entry in linked:
         index[(entry["team_at_capture"],entry["name"])].append(entry)
@@ -240,7 +283,7 @@ def run(out):
     games,pdf=official_snapshot(et_day)
     now=datetime.now(UTC)
     future=[x for x in fixtures if stamp(x["tipoff_utc"])>now+timedelta(minutes=10)]
-    rows=[freeze_game(f,games,pdf,index,proofs,now) for f in future]
+    rows=[freeze_game(f,games,pdf,index,proofs,now,prior_by_person) for f in future]
     if not rows:raise RuntimeError("NO_PREGAME_RESEARCH_ELIGIBLE_FIXTURES")
     dest=Path(out);dest.mkdir(parents=True,exist_ok=True)
     file=dest/"prospective_official_injury_roster_minutes.jsonl"
@@ -263,6 +306,10 @@ def run(out):
         "official_both_teams_published":sum(r["official_both_teams_published"] for r in rows),
         "official_player_rows":sum(len(r["injured_players"]) for r in rows),
         "fully_identified_fixtures":sum(r["identity_coverage_complete"] for r in rows),
+        "secondary_historical_all_team_role_players":sum(
+            p.get("separately_labeled_prior_any_team_role") is not None
+            for game in rows for p in game["injured_players"]),
+        "secondary_role_is_not_team_adjustment":True,
         "unresolved_reported_players_by_reason":dict(sorted(issue_counts.items())),
         "all_reported_player_identity_statuses":dict(sorted(person_statuses.items())),
         "identified_player_minutes_records":person_statuses["ID_TEAM_AND_PAST_MINUTES_VALIDATED"],
@@ -284,6 +331,7 @@ def run(out):
         "roster_teams":len(roster_sources),
         "roster_unavailable_teams":[x["team"] for x in roster_fail],
         "id_and_prior_minutes_matches":summary["identified_player_minutes_records"],
+        "extra_cross_team_role_evidence":summary["secondary_historical_all_team_role_players"],
         "unresolved_reasons":summary["unresolved_reported_players_by_reason"],
         "production_changed":False},ensure_ascii=False))
     return summary
@@ -339,6 +387,27 @@ def selftest():
         assert str(error)=="NUMERIC_ESPN_ROSTER_TEAM_IDENTITY_NOT_VERIFIED"
     else:
         raise AssertionError("WRONG_ESPN_TEAM_IDENTITY_ACCEPTED")
+    old_minutes=[
+        {"date":"2026-10-12","team":"BOS","person_id":"60001",
+         "minutes":31.0,"game_id":"a"},
+        {"date":"2026-10-14","team":"BOS","person_id":"60001",
+         "minutes":33.0,"game_id":"b"},
+        {"date":"2026-10-15","team":"BOS","person_id":"60001",
+         "minutes":35.0,"game_id":"c"},
+        {"date":"2026-11-04","team":"ORL","person_id":"60001",
+         "minutes":60.0,"game_id":"future"},
+    ]
+    candidate={
+        "identity_match_status":"CURRENT_ROSTER_VERIFIED_BUT_NOT_ENOUGH_PRIOR_SAME_TEAM_MINUTES",
+        "nba_log_person_id":"60001"}
+    legacy=secondary_cross_team_role(candidate,{"60001":old_minutes},"ORL","2026-11-02")
+    assert legacy["all_team_prior_minutes_avg"]==33
+    assert legacy["different_earlier_teams"]==["BOS"]
+    assert legacy["last_game_date"]=="2026-10-15"
+    assert legacy["usable_for_live_injury_probability"] is False
+    assert secondary_cross_team_role(
+        {"identity_match_status":"NOT_PRESENT_IN_PRIOR_PLAYED_GAME_LOGS"},
+        {"60001":old_minutes},"ORL","2026-11-02") is None
     print("NBA_REAL_FUTURE_INJURY_ID_ROSTER_PRIOR_MINUTES_SELFTEST_PASS")
 
 if __name__=="__main__":

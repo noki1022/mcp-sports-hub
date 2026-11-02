@@ -51,6 +51,7 @@ jobs:
           assert audit['existing_push_and_model_untouched'] is True
           assert audit['source_roster_captured_now_only'] is True
           assert audit['historical_release_clock_not_verified'] is True
+          assert audit['secondary_role_is_not_team_adjustment'] is True
           assert sum(audit['all_reported_player_identity_statuses'].values())==audit['official_player_rows']
           assert audit['identified_player_minutes_records']<=audit['official_player_rows']
           assert sum(audit['unresolved_reported_players_by_reason'].values())+audit['identified_player_minutes_records']==audit['official_player_rows']
@@ -67,9 +68,21 @@ jobs:
                       assert player['last_prior_game_date']<tip.date().isoformat()
                       assert player['nba_log_person_id'] is not None
                       assert player['espn_roster_athlete_id'] is not None
+                  extra=player.get('separately_labeled_prior_any_team_role')
+                  if extra is not None:
+                      assert player['prior_team_minutes'] is None
+                      assert player['numeric_player_effect'] is None
+                      assert extra['usable_for_live_injury_probability'] is False
+                      assert extra['applicable_as_current_team_expected_minutes'] is False
+                      assert extra['source_only_from_earlier_game_dates'] is True
+                      assert extra['last_game_date']<tip.date().isoformat()
+          assert audit['secondary_historical_all_team_role_players']==sum(
+              p.get('separately_labeled_prior_any_team_role') is not None
+              for row in rows for p in row['injured_players'])
           print('NBA_LIVE_INJURY_ROSTER_ASOF_RESEARCH_ACCEPTED',audit['future_games'],
                 audit['official_both_teams_published'],audit['official_player_rows'],
-                audit['fully_identified_fixtures'],audit['status'])
+                audit['fully_identified_fixtures'],
+                audit['secondary_historical_all_team_role_players'],audit['status'])
           PY
       - if: always()
         uses: actions/upload-artifact@v4

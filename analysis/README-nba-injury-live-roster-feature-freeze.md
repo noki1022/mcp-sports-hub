@@ -31,3 +31,11 @@ The source PDF release time is not independently verified; collection time is th
 The original ESPN abbreviation roster lookup failed for New Orleans (NOP) and Utah (UTA) in the first real CI run (28/30 successful team rosters). The research-only collector now tries their known numeric ESPN **team routing IDs** 3 and 26 only after the original request fails, and only accepts the fallback when the response identifies **both exact team ID and displayed team name**. It preserves the actual numeric URL, SHA256 and UTC fetch clock. A missing or mismatching team identity is rejected, never silently attributed. These ESPN *team IDs* are not player IDs, and cannot substitute for unique current roster / NBA log-person ID matching.
 
 The initial research pass observed 44 official injury-listed player rows across six two-team-published games; 21 had independently linked roster ID + earlier same-team minutes, 13 lacked unambiguous current roster names, six lacked three earlier same-team appearances and four lacked historical player logs. None were permitted to generate a replacement injury probability. Subsequent runs recompute the real counts and may differ.
+
+## Safely incorporating additional real minutes from a player who changed clubs
+
+Some genuine current ESPN roster members have a unique NBA player ID but fewer than three completed games with their new club. Rather than discarding every older appearance, an additional separate research-only field now records their last eight prior NBA player games across clubs, the actual teams of those appearances, the final earlier game date and observed average minutes. It only runs when the current-team same-club model gate fails and still has a unique verified NBA player ID.
+
+These are NOT the new club's expected minutes, and the existing same-team prior_team_minutes remains unavailable. Every record explicitly declares applicable_as_current_team_expected_minutes=false and usable_for_live_injury_probability=false. If no sufficiently long past playing history exists, the field is null. Status-specific role exposure still uses ONLY earlier same-team minutes; legacy-team minutes cannot inflate it.
+
+A future model may learn a separately validated trade/role-transfer relationship from historical games, but this PR does not assign a predictive coefficient or turn the injury shadow on.
