@@ -6,7 +6,9 @@ or completed game labels are ever copied. Stage directory is separate from
 the repo and intended exclusively for network-disabled read-only Docker.
 """
 from __future__ import annotations
-from datetime import datetime,timezone
+from datetime import datetime,timezone,timedelta,time
+from zoneinfo import ZoneInfo
+BJ=ZoneInfo('Asia/Shanghai')
 from pathlib import Path
 import argparse,hashlib,json,os,re
 
@@ -112,6 +114,13 @@ def select(repo,day,slot,now):
     jc_time=dt((raw["jingcai"].get("jc_007_public_odds_shadow") or {}).get("captured_at_utc"))
     if any(x is None or x>now for x in (board,cap,jc_time)):
         raise ValueError("INCOMPLETE_OR_FUTURE_PRETIP_SOURCE")
+    if slot=="2130":
+        scheduled=(datetime.fromisoformat(day).date()-timedelta(days=1))
+        cap_local=cap.astimezone(BJ)
+        if cap_local.date()!=scheduled or cap_local.time()<time(21,30):
+            raise ValueError("SKIP_EARLY_OR_WRONG_DAY_2130_CAPTURE")
+        if cap_local.time()>time(22,0):
+            raise ValueError("SKIP_LATE_2130_CAPTURE_NOT_FINAL")
     if now-cap>__import__("datetime").timedelta(minutes=150):
         raise ValueError("SHADOW_CAPTURE_STALE_NOT_SUITABLE_FOR_SLOT")
     if raw["joined"].get("requested_display_date")!=day or any(
@@ -182,7 +191,9 @@ def main():
         # for a new prediction. All unexpected integrity failures remain RED.
         if code in ("SKIP_NO_CANONICAL_ORIGINAL_ACCEPTED_MARKER",
                     "SHADOW_CAPTURE_STALE_NOT_SUITABLE_FOR_SLOT",
-                    "ONE_OR_MORE_NBA_GAMES_ALREADY_STARTED"):
+                    "ONE_OR_MORE_NBA_GAMES_ALREADY_STARTED",
+                    "SKIP_EARLY_OR_WRONG_DAY_2130_CAPTURE",
+                    "SKIP_LATE_2130_CAPTURE_NOT_FINAL"):
             print("NBA_INDEPENDENT_SHADOW_SAFE_SKIP",code)
             return
         raise
