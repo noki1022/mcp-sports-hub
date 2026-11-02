@@ -40,6 +40,7 @@ jobs:
           out=json.loads((root/'nba_shadow_model_bridge.json').read_text())
           copy=json.loads((root/'nba_five_market_shadow_preintegration.json').read_text())
           graded=json.loads((root/'nba_shadow_direction_scorecard.json').read_text())
+          candidate=json.loads((root/'nba_shadow_candidate_paired_grade.json').read_text())
           keys=('JINGCAI_WIN','JINGCAI_HANDICAP','JINGCAI_TOTAL','CROWN_HANDICAP','CROWN_TOTAL')
           assert out['schema_version']=='nba-shadow-five-play-model-bridge-v1'
           assert out['game_count']==len(orig['games'])==len(copy['games'])==15
@@ -52,6 +53,9 @@ jobs:
           assert out['model_feature_availability_requires_NEW_prediction_after_market_capture'] is True
           assert graded['graded_game_markets']==0
           assert graded['production_promotion_allowed'] is False
+          assert candidate['status']=='AWAITING_GENUINE_SEALED_NEW_MODEL_AND_OFFICIAL_FINALS'
+          assert candidate['independent_games']==0
+          assert candidate['promotion_allowed'] is False
           byid={str(g['game_id']):g for g in orig['games']}
           for annotated in copy['games']:
               original=byid[str(annotated['game_id'])]
