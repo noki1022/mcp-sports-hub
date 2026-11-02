@@ -1,0 +1,72 @@
+name: Deploy Cloudflare secondary NBA scheduler (manual, verified)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cloudflare-secondary-nba-scheduler-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require all Cloudflare credentials before deployment
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_GITHUB_TOKEN: ${{ secrets.CLOUDFLARE_SCHEDULER_GITHUB_TOKEN }}
+        run: |
+          for variable in CF_API_TOKEN CF_ACCOUNT_ID CF_GITHUB_TOKEN; do
+            if [ -z "${!variable}" ]; then
+              echo "::error::Cloudflare not deployed: required secret for ${variable} is missing."
+              exit 1
+            fi
+          done
+          echo "CLOUDFLARE_CREDENTIALS_PRESENT_NO_VALUES_LOGGED"
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Regress Worker slot mapping and dedup before deploy
+        run: node scheduler/test-scheduler.mjs
+      - name: Deploy Cloudflare Worker and explicit backup Cron triggers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 deploy --config scheduler/wrangler.toml
+      - name: Store GitHub Actions dispatch token as Worker secret
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_GITHUB_TOKEN: ${{ secrets.CLOUDFLARE_SCHEDULER_GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$CF_GITHUB_TOKEN" | npx --yes wrangler@4 secret put GITHUB_TOKEN --config scheduler/wrangler.toml
+      - name: Verify Cloudflare API lists exactly the configured Cron triggers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python3 - <<'PY'
+          import json,os,tomllib,urllib.request
+          from pathlib import Path
+          expected=set(tomllib.loads(Path("scheduler/wrangler.toml").read_text())["triggers"]["crons"])
+          script="nba-external-schedule-watchdog"
+          account=os.environ["CLOUDFLARE_ACCOUNT_ID"]
+          url=f"https://api.cloudflare.com/client/v4/accounts/{account}/workers/scripts/{script}/schedules"
+          req=urllib.request.Request(url,headers={
+              "Authorization":"Bearer "+os.environ["CLOUDFLARE_API_TOKEN"],
+              "Accept":"application/json",
+              "User-Agent":"nba-cloudflare-schedule-deploy-check"})
+          with urllib.request.urlopen(req,timeout=20) as response:
+              body=json.load(response)
+          actual={s["cron"] for s in body.get("result",{}).get("schedules",[])}
+          if body.get("success") is not True or actual!=expected:
+              raise RuntimeError("CLOUDFLARE_SCHEDULES_NOT_EQUAL_TO_DECLARED_CONFIG")
+          print("CLOUDFLARE_SCHEDULES_CONFIRMED",len(actual),
+                "MIDNIGHT_BACKUP_0030_0330_CONFIGURED")
+          PY
+      - name: Record actual deployment status
+        if: ${{ success() }}
+        run: |
+          echo "Cloudflare Cron triggers verified by API, not yet proof of a live timed dispatch." >> "$GITHUB_STEP_SUMMARY"
+          echo "Check Cloudflare scheduled invocation logs and GitHub dispatches for 00:30/03:30 Beijing after activation." >> "$GITHUB_STEP_SUMMARY"
