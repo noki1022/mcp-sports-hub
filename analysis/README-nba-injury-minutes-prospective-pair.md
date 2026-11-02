@@ -66,3 +66,29 @@ all-player-verified paired gate.
 To increase verified complete paired cases, the next source-side task is to
 improve official name reconciliation and genuine player ID/prior same-team
 minutes, never to promote interval midpoint as a measured forecast.
+
+## Prevent stale role assumptions and prioritize missing athlete evidence
+
+The upstream roster already exposes the last actual same-team playing date,
+but without age limits a uniquely identified former rotation player could
+still receive the role from many seasons ago. The existing player-log evidence
+constant `MAX_LOG_DAYS_PRIOR=410` is now enforced in BOTH the live source
+freeze and downstream paired-candidate validation. Stale same-team minutes
+remain a factual history, but cannot be accepted as a current rotation role;
+the official player is marked unresolved, and any otherwise complete paired
+probability is blocked. This does not increase accuracy by fiat; it removes
+a documented source of false certainty.
+
+A separate `priority_unverified_official_injury_roles.json` is now emitted
+with the same original research artifact, SHA256-pinned in the manifest. For
+each unknown official injury row, retain only exact reported name, current
+fixture, side, status, unverified identity reason and a descending **what-if
+feature interval width** assuming up to 48 minutes. The ranking is solely to
+prioritize which roster ID/minutes source to research next; it **is not** the
+actual player's effect, minutes forecast, or betting rank. The previous
+candidate, original archived pregame predictions and scorecards are unchanged.
+
+As supplementary background, older 2023–24 player game logs do exist in the
+same upstream source, but they cannot establish a current-season role without
+recent team-specific playing evidence. Do not silently extend the certified
+same-team minutes window or treat DNP absences as zero-minute proof.
