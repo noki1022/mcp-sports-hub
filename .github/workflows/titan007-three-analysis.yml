@@ -403,6 +403,26 @@ jobs:
             --movement titan007_slot_movement.json \
             --dynamic nba_slot_dynamic_review.json \
             --five nba_five_market_forecast.json
+      - name: Final overnight pretip check immediately before PushPlus
+        id: final_pretip
+        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
+        run: |
+          python3 - <<'PY'
+          import os,sys
+          from datetime import datetime
+          from pathlib import Path
+          sys.path.insert(0, "scripts")
+          from nba_fixed_slot_gate import BEIJING,overnight_slot_fresh,overnight_all_games_pretip,OVERNIGHT_MAX_DELAY_MINUTES
+          slot=os.environ["REPORT_SLOT"]
+          if slot in OVERNIGHT_MAX_DELAY_MINUTES:
+              target=os.environ["TARGET_DATE"]
+              now=datetime.now(BEIJING)
+              if not overnight_slot_fresh(slot,target,now):
+                  raise RuntimeError("OVERNIGHT_DELIVERY_EXPIRED_SUPPRESS_PUSH")
+              if not overnight_all_games_pretip(Path("titan007_three_joined.json"),target,now):
+                  raise RuntimeError("OVERNIGHT_KICKOFF_TOO_CLOSE_SUPPRESS_PUSH")
+          print("FINAL_PRETIP_FRESHNESS_PASS",slot)
+          PY
       - name: Send complete iPhone full-board NBA analysis
         if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
         env:
@@ -442,7 +462,7 @@ jobs:
             exit 1
           fi
       - name: Failsafe verified NBA schedule PushPlus when full report fails
-        if: ${{ failure() && steps.preflight.outcome == 'success' && steps.recheck.outcome != 'failure' }}
+        if: ${{ failure() && steps.preflight.outcome == 'success' && steps.recheck.outcome != 'failure' && steps.final_pretip.outcome != 'failure' }}
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
