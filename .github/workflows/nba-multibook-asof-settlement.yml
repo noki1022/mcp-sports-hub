@@ -35,6 +35,24 @@ jobs:
           python3 -m py_compile analysis/nba_multisource_score_backfill.py
           python3 analysis/nba_multisource_score_backfill.py --selftest
           python3 analysis/nba_multibook_same_line_consensus.py --source /tmp/nba-multibook-asof/multibook_asof_settled_only.jsonl --out /tmp/nba-multibook-asof/consensus
+      - name: Build unified 007 + multi-book pretip data with all 32 verified finals
+        run: |
+          python3 analysis/nba_multi_provider_odds_asof_archive.py --repo-root . --out /tmp/nba-multi-provider-asof
+          python3 analysis/nba_multisource_score_backfill.py --prior-ledger /tmp/nba-multi-provider-asof/all_providers_pretip_odds.jsonl --new-scores /tmp/nba-multibook-asof/multibook_asof_settled_only.jsonl --out /tmp/nba-multibook-asof/unified_007_and_9books
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('/tmp/nba-multibook-asof/unified_007_and_9books')
+          d=json.loads((p/'manifest.json').read_text())
+          assert d['distinct_games_with_quotations']==36
+          assert d['total_quote_rows']==1375
+          assert d['settled_distinct_games_before']==20
+          assert d['settled_distinct_games_after']==32
+          assert d['settled_new_distinct_games']==12
+          assert d['counts']['newly_scored_quotes']==324
+          assert d['counts']['previously_scored_quotes']==81
+          print('NBA_UNIFIED_TIMED_ODDS_VERIFIED_FINAL_LABELS',d)
+          PY
       - name: Assert against future info and all same-game duplicates
         run: |
           python3 - <<'PY'
