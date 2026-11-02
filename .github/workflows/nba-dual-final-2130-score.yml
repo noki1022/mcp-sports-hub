@@ -1,0 +1,72 @@
+name: NBA final 21:30 original vs independent shadow scoreboard (research only)
+on:
+  schedule:
+    # One quiet audit after completed NBA Beijing-date games, not a push.
+    - cron: '25 14 * * *'
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: Optional completed Beijing game date YYYY-MM-DD
+        type: string
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: nba-2130-dual-model-score-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  score-original-vs-independent-shadow-21-30-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read frozen audit branch in separate checkout, never rerun either model
+        run: |
+          git fetch --quiet origin audit/dual-model-slot-evidence
+          git worktree add --detach "$RUNNER_TEMP/dual-frozen-ledger" origin/audit/dual-model-slot-evidence
+      - name: Grade only pretip archived 21:30 original pushed HTML/forecast and independent shadow
+        env:
+          REQUESTED_DAY: ${{ inputs.target_date || '' }}
+        run: |
+          python3 - <<'PY'
+          import json,os,re
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          day=os.getenv('REQUESTED_DAY') or datetime.now(ZoneInfo('Asia/Shanghai')).date().isoformat()
+          if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',day):
+              raise SystemExit('INVALID_BEIJING_DATE')
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+              f.write('DUAL_GAME_DAY='+day+'\n')
+          PY
+          mkdir -p "$RUNNER_TEMP/dual-2130-score"
+          LEDGER="$RUNNER_TEMP/dual-frozen-ledger/reports/dual-model-slot-lock/$DUAL_GAME_DAY/2130/seal.json"
+          SETTLE="reports/five-market-settled/$DUAL_GAME_DAY/settlement.json"
+          if [ ! -f "$LEDGER" ]; then
+            echo '{"status":"NO_IMMUTABLE_2130_TWO_MODEL_EXAM","paired_graded":0}' > "$RUNNER_TEMP/dual-2130-score/status.json"
+            echo NO_2130_SOURCE_NO_SCORE
+            exit 0
+          fi
+          if [ ! -f "$SETTLE" ]; then
+            echo '{"status":"AWAITING_OFFICIAL_COMPLETED_FINALS","paired_graded":0}' > "$RUNNER_TEMP/dual-2130-score/status.json"
+            echo OFFICIAL_SCORE_NOT_READY
+            exit 0
+          fi
+          python3 analysis/nba_dual_model_final_2130_grade.py \
+            --ledger-worktree "$RUNNER_TEMP/dual-frozen-ledger" \
+            --settlement "$SETTLE" --day "$DUAL_GAME_DAY" \
+            --out "$RUNNER_TEMP/dual-2130-score/paired_2130_result.json"
+      - name: Upload historical 21:30 model versus independent shadow outcome score
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-two-independent-models-2130-official-score-${{ github.run_id }}
+          path: ${{ runner.temp }}/dual-2130-score/
+          retention-days: 90
+          if-no-files-found: warn
