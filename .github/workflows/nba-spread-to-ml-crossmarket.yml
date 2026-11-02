@@ -23,7 +23,7 @@ jobs:
         run: |
           python3 -m py_compile analysis/nba_spread_to_ml_shadow.py
           python3 analysis/nba_spread_to_ml_shadow.py --selftest
-          python3 analysis/nba_hf_open_close_crosscheck.py --selftest
+          python3 analysis/nba_hf_open_close_crosscheck.py --self-test
       - name: Cross-source official scores and real 2024-25 OPEN to CLOSE stage moneyline
         run: |
           python3 analysis/nba_spread_to_ml_shadow.py --out /tmp/nba-spread-to-ml-shadow.json
