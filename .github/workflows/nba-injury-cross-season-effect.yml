@@ -53,6 +53,12 @@ jobs:
               for value in d['selected_bootstrap'].values():
                   assert math.isfinite(value['selected_minus_baseline'])
                   assert len(value['day_cluster_bootstrap_95pct'])==2
+              assert len(d['training_permutation_placebo'])==2
+              for name,value in d['training_permutation_placebo'].items():
+                  assert value['n_independent_training_permutations']==24
+                  assert value['training_injury_signal_scrambled'] is True
+                  assert value['later_evaluation_used_for_model_selection'] is False
+                  assert math.isfinite(value['placebo_brier_mean'])
           else:
               assert d['status'].startswith('INSUFFICIENT_PAIRED_GAMES')
           print('NBA_INJURY_REAL_CROSS_SEASON_ACCEPTED',d['status'],d['seasons'],
