@@ -1,0 +1,89 @@
+name: Freeze genuine pretip NBA injury minutes shadow against same trained baseline (research)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_injury_minutes_prospective_pair.py'
+      - '.github/workflows/nba-injury-minutes-prospective-pair.yml'
+      - 'analysis/README-nba-injury-minutes-prospective-pair.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  archive-actual-future-injury-comparator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned research parsing dependencies
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6 pandas==2.3.3 pyarrow==21.0.0 pdfplumber==0.11.7
+      - name: Check exact original injury proxy and pretip guardrails
+        run: |
+          python3 -m py_compile analysis/nba_injury_minutes_prospective_pair.py
+          python3 analysis/nba_injury_minutes_prospective_pair.py --selftest
+          python3 analysis/nba_injury_live_roster_feature_freeze.py --selftest
+      - name: Capture actual future injury player IDs status and previous minutes
+        run: |
+          python3 analysis/nba_injury_live_roster_feature_freeze.py \
+            --out /tmp/live-before-tip-injuries
+      - name: Freeze historical-trained team-form vs injury-only paired probability or explicit block
+        run: |
+          python3 analysis/nba_injury_minutes_prospective_pair.py \
+            --features /tmp/live-before-tip-injuries/prospective_official_injury_roster_minutes.jsonl \
+            --audit /tmp/live-before-tip-injuries/audit.json \
+            --out /tmp/nba-frozen-injury-research-pair
+      - name: Independently audit true pretip freeze and zero modifications to production
+        run: |
+          python3 - <<'PY'
+          import json,hashlib,math
+          from pathlib import Path
+          from datetime import datetime
+          root=Path('/tmp/nba-frozen-injury-research-pair')
+          d=json.loads((root/'manifest.json').read_text())
+          raw=(root/'frozen_independent_injury_pair.jsonl').read_bytes()
+          rows=[json.loads(s) for s in raw.splitlines()]
+          assert d['schema_version']=='nba-frozen-research-injury-minutes-paired-v1'
+          assert len(rows)==d['future_games'] and len(rows)>0
+          assert hashlib.sha256(raw).hexdigest()==d['forecast_pair_sha256']
+          assert d['no_generation_of_production_player_catalog'] is True
+          assert d['no_edits_to_existing_production_injury_shadow'] is True
+          assert d['no_new_scheduled_jobs'] is True
+          assert d['official_original_http_publication_utc_verified'] is False
+          assert d['independent_same_007_line_history_available'] is False
+          assert d['production_promotion_allowed'] is False
+          assert d['historical_candidate']['feature_used']==(
+              'status_weighted_PRIOR_SAME_TEAM_minutes_home_minus_away_over_40')
+          assert d['historical_candidate']['fit_games']>=1000
+          assert d['historical_candidate']['validation_games']>=600
+          assert d['research_pairs']==sum(x['status']=='PAIRED_RESEARCH_FORECAST_FROZEN' for x in rows)
+          for r in rows:
+              assert r['research_only'] is True and r['own_team_form_vs_injury_model_only'] is True
+              assert r['existing_production_model_changed'] is False
+              if r['status']=='PAIRED_RESEARCH_FORECAST_FROZEN':
+                  capture=datetime.fromisoformat(r['paired_forecast_capture_utc'].replace('Z','+00:00'))
+                  tip=datetime.fromisoformat(r['tipoff_utc'].replace('Z','+00:00'))
+                  assert capture<tip
+                  assert 0<r['injury_minutes_home_probability']<1
+                  assert 0<r['team_form_only_home_probability']<1
+                  assert r['not_the_existing_production_probability'] is True
+                  assert len(r['players_with_provenance'])>=1
+              else:
+                  assert 'block_reason' in r
+                  assert 'injury_minutes_home_probability' not in r
+          print('NBA_LIVE_INJURY_MINUTES_PAIRED_RESEARCH_ACCEPTED',d['future_games'],
+                d['research_pairs'],d['blocked_reasons'],
+                d['historical_candidate']['historical_validation_injury_minutes']['Brier_ML'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-frozen-injury-minutes-research-prospective-pair-and-source
+          path: |
+            /tmp/live-before-tip-injuries/
+            /tmp/nba-frozen-injury-research-pair/
+          if-no-files-found: warn
+          retention-days: 60
