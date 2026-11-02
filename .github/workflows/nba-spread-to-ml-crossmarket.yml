@@ -1,0 +1,75 @@
+name: NBA spread movement predicts moneyline market cross-signal (research only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_spread_to_ml_shadow.py'
+      - 'analysis/README-nba-spread-to-ml-crossmarket.md'
+      - '.github/workflows/nba-spread-to-ml-crossmarket.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  historical-signed-spread-to-moneyline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 26
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and verify signed-home spread side, earlier-only fit and fail-close
+        run: |
+          python3 -m py_compile analysis/nba_spread_to_ml_shadow.py
+          python3 analysis/nba_spread_to_ml_shadow.py --selftest
+          python3 analysis/nba_hf_open_close_crosscheck.py --self-test
+      - name: Cross-source official scores and real 2024-25 OPEN to CLOSE stage moneyline
+        run: |
+          python3 analysis/nba_spread_to_ml_shadow.py --out /tmp/nba-spread-to-ml-shadow.json
+      - name: Verify market-only baseline and no production confidence gain falsely attributed
+        run: |
+          python3 - <<'PY'
+          import json,math
+          d=json.load(open('/tmp/nba-spread-to-ml-shadow.json'))
+          assert d['schema_version']=='nba-spread-move-to-ml-crossmarket-shadow-v1'
+          assert d['history_input_games']==1312
+          assert d['eligible_games']>=1100
+          assert d['trained_on_earlier_dates_only'] is True
+          assert d['train_validation_evaluation_disjoint_by_date'] is True
+          assert d['prediction_validation_against_actual_scores_not_only_close_ml_prices'] is True
+          assert d['later_evaluation_current_results_not_blind'] is True
+          assert d['closing_ml_already_includes_market_information'] is True
+          assert d['exact_original_historical_open_close_quote_update_timestamps_verified'] is False
+          assert d['historical_bookmakers_are_crossbook_consensus_not_verified_007'] is True
+          assert d['no_authorized_live_ml_probability_adjustment'] is True
+          assert d['no_prod_model_push_schedule_crown_jingcai_changes'] is True
+          assert d['not_a_live_betting_edge_or_approved_five_market_fusion'] is True
+          p=d['model_parameters']
+          assert p['example_open_home_minus_7_5_to_close_home_minus_9_5_move_points']==2.0
+          assert p['residual_weight_selected_on_prior_validation'] in (0.,.25,.5,1.)
+          assert p['validation_prespecified_min_brier_gain']==0.0005
+          assert 0<p['example_80pct_open_ml_plus_2pt_spread_move_price_bridge']<1
+          z=d['date_grouped_splits']
+          assert z['earlier_fit']['date_end']<z['validation']['date_start']
+          assert z['validation']['date_end']<z['previously_explored_evaluation']['date_start']
+          assert z['earlier_fit']['n_games']>=450
+          assert z['validation']['n_games']>=220
+          assert z['previously_explored_evaluation']['n_games']>=280
+          ci=d['later_paired_brier_delta_bootstrap']
+          assert ci['date_clusters']>=60
+          assert len(ci['ci95'])==2 and ci['ci95'][0]<=ci['ci95'][1]
+          assert math.isfinite(ci['delta_brier'])
+          assert ci['research_previous_season_evaluation_not_new_holdout'] is True
+          ev=d['later_evaluation']['brier']
+          assert all(math.isfinite(ev[k]) for k in
+              ('opening_market','closing_market','opening_plus_spread_bridge','closing_plus_residual'))
+          print('NBA_SIGNED_SPREAD_CROSSMARKET_REAL_RESEARCH_ACCEPTED',p,d['later_evaluation'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-real-stage-spread-move-to-moneyline-crossmarket-research
+          path: /tmp/nba-spread-to-ml-shadow.json
+          if-no-files-found: warn
+          retention-days: 60
