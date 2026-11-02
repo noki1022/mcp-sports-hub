@@ -355,6 +355,139 @@ def grade(bridge,settlement):
     }
 
 
+def compare_candidate(bridge,candidate,settlement,source_bridge_sha):
+    """Pre-register NEXT-PREDICTION variant and grade only strict real pairs.
+
+    A candidate has to be a new model invocation AFTER market features exist,
+    with exactly the original JC/ID3 threshold and forecast before NBA tip.
+    A declared artifact hash is NOT proof of historical archival provenance:
+    require independent GitHub run timestamp inspection before promotion.
+    """
+    missing={"status":"AWAITING_GENUINE_SEALED_NEW_MODEL_AND_OFFICIAL_FINALS",
+             "paired_by_market":{k:{"n":0,"model_brier":None,"shadow_brier":None,
+                "shadow_minus_model_brier":None,"original_accuracy":None,
+                "shadow_accuracy":None} for k in KEYS},
+             "independent_games":0,"distinct_beijing_days":0,
+             "promotion_allowed":False,
+             "external_github_immutability_confirmed":False,
+             "numeric_candidate_generated":False}
+    if candidate is None or settlement is None:
+        return missing
+    if candidate.get("target_date")!=bridge["target_date"]:
+        raise ValueError("CANDIDATE_TARGET_DATE_NOT_MATCHED")
+    if candidate.get("model_type")!="INDEPENDENT_POST_MARKET_SHADOW_MODEL":
+        raise ValueError("MARKET_CONSENSUS_IS_NOT_INDEPENDENT_MODEL")
+    if candidate.get("market_feature_source_sha256")!=source_bridge_sha:
+        raise ValueError("CANDIDATE_INPUT_FEATURE_DIGEST_NOT_MATCHED")
+    if candidate.get("model_probabilities_are_frozen") is not True:
+        raise ValueError("UNFROZEN_CANDIDATE_NOT_ADMISSIBLE")
+    if settlement.get("beijing_date")!=bridge["target_date"]:
+        raise ValueError("CANDIDATE_SETTLEMENT_DAY_CONFLICT")
+    pred_time=D.clock(candidate.get("generated_at_utc"))
+    if pred_time is None:raise ValueError("INVALID_CANDIDATE_GENERATION_CLOCK")
+    preds=D.unique_games(candidate)
+    finals=D.unique_games(settlement)
+    originals={x["game_id"]:x for x in bridge["games"]}
+    if set(preds)!=set(originals):
+        raise ValueError("NEW_MODEL_AND_ORIGINAL_GAME_IDS_DIFFER")
+    result={k:[] for k in KEYS}
+    refused=Counter()
+    for gid,original in originals.items():
+        new=preds[gid]
+        if not D.consistent_identity(new,original):
+            # Ignore Jingcai number differences, but not event identity
+            raise ValueError("NEW_MODEL_TEAM_TIP_OR_ESPN_ID_CONFLICT")
+        tip=D.clock(original.get("tipoff_beijing"))
+        features=original["preintegration_model_input_features"]
+        feature_t=D.clock(features["market_features_effective_asof_utc"])
+        if not feature_t or not tip or not feature_t<=pred_time<tip:
+            raise ValueError("NEW_MODEL_PREDICTION_NOT_AFTER_FEATURE_AND_BEFORE_TIP")
+        score=finals.get(gid)
+        if score is None:
+            refused["NO_VERIFIED_FINAL"]+=1
+            continue
+        if (score.get("home_team"),score.get("away_team"))!=(
+                original["home_team"],original["away_team"]):
+            raise ValueError("SCORE_TEAM_IDENTITY_CONFLICT")
+        hp,ap=score.get("home_points"),score.get("away_points")
+        if (not isinstance(hp,int) or isinstance(hp,bool)
+                or not isinstance(ap,int) or isinstance(ap,bool)
+                or hp<50 or ap<50):
+            refused["NO_VERIFIED_FINAL"]+=1
+            continue
+        original_market=original["three_play_five_target_judgments"]
+        newmarkets=new.get("markets") or {}
+        if set(newmarkets)!=set(KEYS):
+            raise ValueError("NEW_MODEL_FIVE_PLAY_KEYS_NOT_COMPLETE")
+        for key in KEYS:
+            baseline=original_market[key]; newrow=newmarkets[key]
+            if newrow.get("market")!=key:raise ValueError("CANDIDATE_MARKET_KEY_CHANGED")
+            if not equal(newrow.get("line"),baseline.get("direct_market_line")):
+                raise ValueError("CANDIDATE_DIRECT_JC_OR_CROWN_LINE_CHANGED")
+            if key.endswith("HANDICAP") and not equal(
+                    newrow.get("signed_home_handicap"),baseline.get("signed_home_handicap")):
+                raise ValueError("CANDIDATE_HOME_SIGN_INVERTED")
+            p0=finite(baseline.get("independent_first_side_probability"))
+            p1=finite(newrow.get("probability_first_side"))
+            if (baseline["source_quality"]!="ASOF_MODEL_AND_LINE_VERIFIED"
+                    or p0 is None or p1 is None or not 0<p0<1 or not 0<p1<1):
+                refused["INVALID_PAIR_"+key]+=1
+                continue
+            expected=EXPECTED[key][0] if p1>.5 else EXPECTED[key][1] if p1<.5 else "TIE"
+            if newrow.get("direction")!=expected:
+                raise ValueError("NEW_MODEL_DIRECTION_PROBABILITY_CONTRADICTION")
+            if key=="JINGCAI_WIN":delta=hp-ap
+            elif key.endswith("HANDICAP"):delta=hp-ap+baseline["signed_home_handicap"]
+            else:delta=hp+ap-baseline["direct_market_line"]
+            if abs(delta)<1e-8:
+                refused["PUSH_"+key]+=1
+                continue
+            y=int(delta>0)
+            old_dir=baseline["original_direction"]
+            if old_dir not in EXPECTED[key]:
+                refused["ORIGINAL_DIRECTION_INVALID_"+key]+=1
+                continue
+            result[key].append({
+                "event":gid,"day":bridge["target_date"],"y":y,
+                "original_probability":p0,"candidate_probability":p1,
+                "original_hit":int(old_dir==EXPECTED[key][1-y]),
+                "candidate_hit":int(expected==EXPECTED[key][1-y]),
+            })
+    summary={}
+    for key,values in result.items():
+        n=len(values)
+        a=lambda fn:round(sum(fn(x) for x in values)/n,8) if n else None
+        summary[key]={
+            "n":n,
+            "model_brier":a(lambda x:(x["original_probability"]-x["y"])**2),
+            "shadow_brier":a(lambda x:(x["candidate_probability"]-x["y"])**2),
+            "shadow_minus_model_brier":a(lambda x:
+                 (x["candidate_probability"]-x["y"])**2-
+                 (x["original_probability"]-x["y"])**2),
+            "original_accuracy":a(lambda x:x["original_hit"]),
+            "shadow_accuracy":a(lambda x:x["candidate_hit"]),
+            "source_duplicated_games_are_not_independent":True,
+        }
+    games={r["event"] for rs in result.values() for r in rs}
+    return {
+        "status":"RESEARCH_ONLY_CHRONOLOGICAL_PAIRED_GRADE",
+        "paired_by_market":summary,
+        "independent_games":len(games),
+        "distinct_beijing_days":1 if games else 0,
+        "rejected":dict(sorted(refused.items())),
+        "model_feature_time_before_new_candidate":True,
+        "candidate_outcome_label_not_used_as_model_feature":True,
+        "candidate_generation_declared_not_independently_archival_proven":True,
+        "external_github_immutability_confirmed":False,
+        "promotion_allowed":False,
+        "promotion_sample_requirements":{
+            "minimum_independent_games_per_market":MIN_EVENTS_FOR_REVIEW,
+            "minimum_distinct_days":MIN_DAYS_FOR_REVIEW,
+            "must_compare_future_prospective_cohort":True
+        }
+    }
+
+
 def run(root,date,earlier,later,out):
     base=Path(root)/date
     paths={"earlier_consensus":base/earlier/"nba_market_consensus.json",
@@ -416,6 +549,46 @@ def selftest():
         old=sha(path)
         path.write_text("changed")
         assert sha(path)!=old
+    assert compare_candidate(z,None,finals,"a"*64)["independent_games"]==0
+    # Strictly chronologically re-generated synthetic model after source capture.
+    sample=deepcopy(z)
+    sample["games"][0]["nba_game_id"]="test-event"
+    sample["games"][0]["tipoff_beijing"]="2026-11-03T08:00:00+08:00"
+    sample["games"][0]["preintegration_model_input_features"]={
+        "market_features_effective_asof_utc":"2026-11-02T10:00:00Z"}
+    candidate={"target_date":"2026-11-03",
+               "model_type":"INDEPENDENT_POST_MARKET_SHADOW_MODEL",
+               "market_feature_source_sha256":"a"*64,
+               "model_probabilities_are_frozen":True,
+               "generated_at_utc":"2026-11-02T10:30:00Z",
+               "games":[{
+                 "game_id":"g","nba_game_id":"test-event",
+                 "home_team":"H","away_team":"A",
+                 "tipoff_beijing":"2026-11-03T08:00:00+08:00",
+                 "markets":{
+                   k:{"market":k,
+                      "line":(220.5 if k.endswith("TOTAL")
+                               else -3.5 if k.endswith("HANDICAP") else None),
+                      "signed_home_handicap":-3.5 if k.endswith("HANDICAP") else None,
+                      "probability_first_side":.67,
+                      "direction":EXPECTED[k][0]} for k in KEYS}}]}
+    paired=compare_candidate(sample,candidate,finals,"a"*64)
+    assert paired["paired_by_market"]["JINGCAI_WIN"]["n"]==1
+    assert paired["paired_by_market"]["JINGCAI_WIN"]["shadow_brier"]<paired[
+        "paired_by_market"]["JINGCAI_WIN"]["model_brier"]
+    broken=deepcopy(candidate)
+    broken["games"][0]["markets"]["CROWN_HANDICAP"]["signed_home_handicap"]=3.5
+    try:compare_candidate(sample,broken,finals,"a"*64)
+    except ValueError as exc:
+        assert str(exc)=="CANDIDATE_HOME_SIGN_INVERTED"
+    else:raise AssertionError("WRONG_SIDE_CROWN_ADMITTED")
+    late=deepcopy(candidate)
+    late["generated_at_utc"]="2026-11-03T02:00:00Z"
+    try:compare_candidate(sample,late,finals,"a"*64)
+    except ValueError as exc:
+        assert str(exc)=="NEW_MODEL_PREDICTION_NOT_AFTER_FEATURE_AND_BEFORE_TIP"
+    else:raise AssertionError("POSTTIP_MODEL_ADMITTED")
+    assert compare_candidate(sample,candidate,None,"a"*64)["independent_games"]==0
     print("NBA_SHADOW_MODEL_BRIDGE_FAIL_CLOSED_SELFTEST_PASS")
 
 
@@ -426,10 +599,25 @@ def main():
     parser.add_argument("--earlier-slot",default="1200")
     parser.add_argument("--later-slot",default="1800")
     parser.add_argument("--out",default="/tmp/nba-shadow-model-bridge")
+    parser.add_argument("--candidate",help="Optional REAL pretip independent model artifact; absent remains ungraded")
     parser.add_argument("--selftest",action="store_true")
     args=parser.parse_args()
-    if args.selftest:selftest()
-    else:run(args.daily_root,args.date,args.earlier_slot,args.later_slot,args.out)
+    if args.selftest:
+        selftest()
+    else:
+        summary,_,_=run(args.daily_root,args.date,args.earlier_slot,args.later_slot,args.out)
+        candidate=load(args.candidate) if args.candidate else None
+        original_bridge_path=Path(args.out)/"nba_shadow_model_bridge.json"
+        settlement=Path("reports/five-market-settled")/args.date/"settlement.json"
+        audit=compare_candidate(
+            summary,candidate,
+            load(settlement) if settlement.is_file() else None,
+            sha(original_bridge_path))
+        (Path(args.out)/"nba_shadow_candidate_paired_grade.json").write_text(
+            json.dumps(audit,ensure_ascii=False,sort_keys=True,indent=2)+"\n",
+            encoding="utf-8")
+        print("NBA_SHADOW_CANDIDATE_PAIRED_REPLAY",audit["status"],
+              audit["independent_games"],"NO_AUTO_PROMOTION")
 
 
 if __name__=="__main__":
