@@ -5,6 +5,10 @@ on:
       - 'analysis/nba_shadow_three_play_train.py'
       - 'analysis/nba_postcapture_crossplay_shadow.py'
       - 'analysis/nba_shadow_postmarket_runner.py'
+      - 'analysis/nba_shadow_prospective_final_grade.py'
+      - '.github/workflows/nba-postmarket-shadow-auto.yml'
+      - '.github/workflows/nba-shadow-prospective-final-grade.yml'
+      - 'analysis/README-nba-shadow-actual-performance.md'
       - 'config/nba_shadow_three_play_params.json'
       - '.github/workflows/nba-postmarket-shadow-research.yml'
   workflow_dispatch:
@@ -23,10 +27,12 @@ jobs:
           python-version: '3.12'
       - name: Validate strictly earlier-season three-play model training and timestamped shadow inference
         run: |
-          python3 -m py_compile analysis/nba_shadow_three_play_train.py analysis/nba_postcapture_crossplay_shadow.py
+          python3 -m py_compile analysis/nba_shadow_three_play_train.py analysis/nba_postcapture_crossplay_shadow.py analysis/nba_shadow_postmarket_runner.py analysis/nba_shadow_prospective_final_grade.py
           python3 analysis/nba_shadow_three_play_train.py --selftest
           python3 analysis/nba_postcapture_crossplay_shadow.py --selftest
           python3 analysis/nba_shadow_model_integration.py --selftest
+          python3 analysis/nba_shadow_postmarket_runner.py --selftest
+          python3 analysis/nba_shadow_prospective_final_grade.py --selftest
       - name: Fit three-play market movement correction on historical genuine scored training subset
         run: |
           python3 analysis/nba_shadow_three_play_train.py --train --out /tmp/nba-shadow-crossplay-trained.json
@@ -49,6 +55,9 @@ jobs:
           cand=json.loads((root/'nba_postmarket_new_shadow.json').read_text())
           params=json.loads(Path('/tmp/nba-shadow-crossplay-trained.json').read_text())
           assert params['actual_crosschecked_independent_games']==1312
+          assert params['coefficients']['ml']['retrospective_later_strictly_paired_direction']['n']==374
+          assert params['coefficients']['ml']['retrospective_later_strictly_paired_direction']['candidate_hits']==263
+          assert params['coefficients']['ml']['retrospective_later_strictly_paired_direction']['baseline_hits']==264
           assert params['train_last_date']<params['validation_first_date']<params['retrospective_later_first_date']
           assert cand['game_count']==base['game_count']==15
           assert cand['model_type']=='INDEPENDENT_POST_MARKET_SHADOW_MODEL'
