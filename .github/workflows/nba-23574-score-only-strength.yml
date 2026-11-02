@@ -49,7 +49,14 @@ jobs:
               assert z['calibration_variance_from_training_only'] is True
               assert math.isfinite(z['selected_evaluation']['mae'])
               assert d['prospective_full_history_score_only_shadow_coefficients'][market]['training_games']==23574
+          fusion=d['market_plus_strength_research_only']
+          assert fusion['production_market_fusion_allowed'] is False
+          assert fusion['market_benchmark_quote_time_verified'] is False
+          assert fusion['selected_strength_weight_on_validation_only'] in (0.0,0.1,0.2,0.3,0.4,0.5)
+          assert fusion['selected_evaluation']['brier']>0
+          assert len(fusion['paired_date_bootstrap_95pct'])==2
           print('NBA_23574_REAL_SCORE_MODEL_CHRONOLOGY_ACCEPTED',tr['n'],val['n'],ev['n'])
+          print('NBA_23574_MARKET_STRENGTH_BLEND_RESEARCH',fusion['selected_strength_weight_on_validation_only'],fusion['selected_evaluation'],fusion['delta_brier_selected_minus_market'])
           PY
       - if: always()
         uses: actions/upload-artifact@v4
