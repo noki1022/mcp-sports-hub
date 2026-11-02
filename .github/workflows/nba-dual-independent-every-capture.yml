@@ -1,0 +1,134 @@
+name: NBA independent market shadow every successful original capture (zero shadow PushPlus)
+on:
+  workflow_run:
+    workflows:
+      - 'Titan007 scheduled full-board NBA analysis and PushPlus delivery'
+      - 'NBA PRIORITY 21:30 Beijing pre-cutoff report'
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: nba-shadow-run-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+jobs:
+  independent-forecast:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    permissions:
+      contents: read
+    outputs:
+      ready: ${{ steps.stage.outputs.ready }}
+      day: ${{ steps.stage.outputs.day }}
+      slot: ${{ steps.stage.outputs.slot }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exactly one accepted original capture; sanitize ONLY shared pretip 007 market input
+        id: stage
+        env:
+          ORIGINAL_RUN: ${{ github.event.workflow_run.id }}
+        run: |
+          git fetch --quiet origin main
+          python3 analysis/nba_dual_independent_stage.py --run-id "$ORIGINAL_RUN" --stage "$RUNNER_TEMP/solo-market-stage"
+          if [ -f "$RUNNER_TEMP/solo-market-stage/input_manifest.json" ]; then
+            python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          x=json.loads((Path(os.environ['RUNNER_TEMP'])/'solo-market-stage/input_manifest.json').read_text())
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:
+              f.write('ready=true\n')
+              f.write('day='+x['target_date']+'\n')
+              f.write('slot='+x['slot']+'\n')
+          assert x['original_model_output_never_mounted'] is True
+          assert x['postgame_result_files_never_mounted'] is True
+          print('SHADOW_ONE_RAW_CAPTURE_READY',x['target_date'],x['slot'])
+          PY
+          fi
+      - name: Calculate truly independent new five-market probabilities in a source-only Docker sandbox
+        if: steps.stage.outputs.ready == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/independent-output"
+          chmod 0777 "$RUNNER_TEMP/independent-output"
+          EXTRA=()
+          if [ -f "$RUNNER_TEMP/solo-market-stage/previous.json" ]; then EXTRA+=(--previous previous.json); fi
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --memory 512m --cpus 1 \
+            --user "$(id -u):$(id -g)" \
+            -v "$RUNNER_TEMP/solo-market-stage:/workspace:ro" \
+            -v "$RUNNER_TEMP/independent-output:/output:rw" -w /workspace \
+            -e PYTHONDONTWRITEBYTECODE=1 python:3.12-slim \
+            python3 -B analysis/nba_independent_market_shadow.py \
+            --joined joined.json --consensus consensus.json --jingcai jingcai.json \
+            --slot "${{ steps.stage.outputs.slot }}" --out /output/independent_prediction.json "${EXTRA[@]}"
+          cp "$RUNNER_TEMP/solo-market-stage"/*.json "$RUNNER_TEMP/independent-output/"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'independent-output'
+          p=json.loads((root/'independent_prediction.json').read_text())
+          assert p['game_count']>0 and len(p['games'])==p['game_count']
+          assert p['original_model_inputs_read'] is False
+          assert p['postgame_data_read'] is False
+          assert p['may_send_pushplus'] is False
+          assert all(len(x['markets'])==5 for x in p['games'])
+          print('INDEPENDENT_SOURCE_ONLY_FIVE_PLAY_PREDICTIONS',p['target_date'],p['slot'],p['game_count'])
+          PY
+      - name: Upload original-free and outcome-free source/forecast evidence
+        if: steps.stage.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-independent-raw-only-${{ steps.stage.outputs.day }}-${{ steps.stage.outputs.slot }}-run-${{ github.run_id }}
+          path: ${{ runner.temp }}/independent-output/
+          retention-days: 90
+          if-no-files-found: error
+  separate-evidence-sealer:
+    needs: independent-forecast
+    if: needs.independent-forecast.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    concurrency:
+      group: nba-dual-shadow-ledger-serial-append
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: nba-independent-raw-only-${{ needs.independent-forecast.outputs.day }}-${{ needs.independent-forecast.outputs.slot }}-run-${{ github.run_id }}
+          path: ${{ runner.temp }}/independent-original-free
+      - name: Append first actual slot prediction to dedicated research Git branch; 21:30 also copies ORIGINAL pushed answer
+        env:
+          ORIGINAL_RUN: ${{ github.event.workflow_run.id }}
+          TARGET: ${{ needs.independent-forecast.outputs.day }}
+          SLOT: ${{ needs.independent-forecast.outputs.slot }}
+        run: |
+          cp analysis/nba_dual_model_slot_seal.py "$RUNNER_TEMP/dual_slot_sealer.py"
+          git fetch --quiet origin main audit/dual-model-slot-evidence
+          git worktree add --detach "$RUNNER_TEMP/original-main" origin/main
+          git checkout -B audit/dual-model-slot-evidence origin/audit/dual-model-slot-evidence
+          if [ -e "reports/dual-model-slot-lock/$TARGET/$SLOT/seal.json" ]; then
+            echo FIRST_VALID_DUAL_MODEL_SLOT_ALREADY_LOCKED_NO_OVERWRITE
+            exit 0
+          fi
+          python3 "$RUNNER_TEMP/dual_slot_sealer.py" \
+            --from-artifact "$RUNNER_TEMP/independent-original-free" \
+            --original-repo "$RUNNER_TEMP/original-main" \
+            --ledger-root reports/dual-model-slot-lock \
+            --day "$TARGET" --slot "$SLOT" --source-run-id "$ORIGINAL_RUN"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "reports/dual-model-slot-lock/$TARGET/$SLOT"
+          git commit -m "Immutable independent shadow $TARGET $SLOT source-run $ORIGINAL_RUN"
+          git push origin HEAD:audit/dual-model-slot-evidence
+          echo SAVED_GIT_SHA_DUAL_MODEL_ORIGINAL_PLUS_INDEPENDENT_SHADOW "$(git rev-parse HEAD)"

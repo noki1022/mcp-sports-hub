@@ -37,7 +37,8 @@ workflows={
  "titan007-daily-free.yml":[],
  "odds-results-settlement.yml":["0 8 * * *"],
  # One QUIET research-only scorecard, no 007 collection and no PushPlus.
- "nba-shadow-prospective-final-grade.yml":["25 15 * * *"]
+ "nba-shadow-prospective-final-grade.yml":[],
+ "nba-dual-final-2130-score.yml":["25 14 * * *"]
 }
 def load(path):
     obj=yaml.safe_load(path.read_text())
@@ -135,8 +136,8 @@ def main():
     assert "titan007_join_beijing_verified.py" not in postgame
     # Research scorer checks pretip frozen artifacts and actual official final,
     # without additional bookmaker collection, notification or production model.
-    scorecard=(ROOT/".github/workflows/nba-shadow-prospective-final-grade.yml").read_text()
-    assert "nba_shadow_prospective_final_grade.py" in scorecard
+    scorecard=(ROOT/".github/workflows/nba-dual-final-2130-score.yml").read_text()
+    assert "nba_dual_model_final_2130_grade.py" in scorecard
     assert "pushplus_mobile.py" not in scorecard
     assert "optional_007_enrichment.py" not in scorecard
     assert "titan007_join_beijing_verified.py" not in scorecard
