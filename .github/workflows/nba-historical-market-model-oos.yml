@@ -1,0 +1,51 @@
+name: NBA real historical odds-informed model OOS competition (research only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_historical_market_model_oos.py'
+      - 'analysis/nba_historical_market_benchmark.py'
+      - '.github/workflows/nba-historical-market-model-oos.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  market-oos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install numpy pinned
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Compile and run synthetic leakage/metric tests
+        run: |
+          python3 -m py_compile analysis/nba_historical_market_model_oos.py analysis/nba_historical_market_benchmark.py
+          python3 analysis/nba_historical_market_model_oos.py --self-test
+      - name: Train and evaluate disjoint historical seasons
+        run: |
+          python3 analysis/nba_historical_market_model_oos.py --out /tmp/nba-market-odds-oos.json
+      - name: Confirm training/validation/holdout isolation
+        run: |
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/nba-market-odds-oos.json'))
+          p=d['splits']
+          assert p['train']['n']>15000 and p['validate']['n']>1000 and p['holdout']['n']>1000
+          assert p['train']['latest_date']<p['validate']['earliest_date']
+          assert p['validate']['latest_date']<p['holdout']['earliest_date']
+          assert d['historic_price_ingestion_enabled'] is False
+          assert d['model_deployment']=='BLOCKED_NO_VERIFIED_PREGAME_QUOTE_TIME'
+          assert d['moneyline']['test_scores']['selected_on_validation_only']['n']==p['holdout']['n']
+          print('NBA_HISTORICAL_ODDS_MODEL_HOLDOUT_DATA_VALIDATED',p)
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-historical-market-oos-scores
+          path: /tmp/nba-market-odds-oos.json
+          if-no-files-found: warn
+          retention-days: 60

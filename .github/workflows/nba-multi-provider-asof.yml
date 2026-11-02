@@ -1,0 +1,63 @@
+name: NBA multi-provider real pretip odds dataset (research only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_multi_provider_odds_asof_archive.py'
+      - '.github/workflows/nba-multi-provider-asof.yml'
+      - 'analysis/nba_007_historical_odds_backfill.py'
+      - 'analysis/historical_odds_validator.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pretip-multi-provider:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify parse, provenance, time and score identity
+        run: |
+          python3 -m py_compile analysis/nba_multi_provider_odds_asof_archive.py
+          python3 analysis/nba_multi_provider_odds_asof_archive.py --self-test
+          python3 analysis/historical_odds_validator.py --self-test
+      - name: Materialize timestamped cross-book NBA research archive
+        run: python3 analysis/nba_multi_provider_odds_asof_archive.py --repo-root . --out /tmp/nba-multi-provider-asof
+      - name: Enforce no future prices and exact unique bookmaker source
+        run: |
+          python3 - <<'PY'
+          import json
+          from datetime import datetime
+          root='/tmp/nba-multi-provider-asof'
+          d=json.load(open(root+'/manifest.json'))
+          assert d['all_market_quote_rows']>900 and d['unique_games_all_providers']>=20
+          assert d['production_promotion_allowed'] is False
+          seen=set()
+          with open(root+'/all_providers_pretip_odds.jsonl') as f:
+            for ln in f:
+              r=json.loads(ln)
+              def dt(v):return datetime.fromisoformat(v.replace('Z','+00:00'))
+              assert dt(r['source_quote_captured_utc'])<dt(r['tipoff_utc'])
+              assert r['no_production_promotion'] is True
+              if r['provider']=='the-odds-api-v4':
+                assert r['line_and_price_orientation_verified'] is True
+                assert dt(r['bookmaker_last_update_utc'])<=dt(r['source_quote_captured_utc'])
+              else:
+                assert r['provider']=='007' and r['price_first_no_vig'] is None
+              k=(r['provider'],r['game_key'],r['market'],r['bookmaker'],r['source_quote_captured_utc'])
+              assert k not in seen
+              seen.add(k)
+          print('NBA_MULTI_PROVIDER_ASOF_SOURCE_AND_TIME_VERIFIED',d['coverage_by_provider'],
+                d['unique_labeled_games'],d['priced_direction_verified_labeled_rows'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-all-providers-real-timestamped-odds
+          path: /tmp/nba-multi-provider-asof
+          if-no-files-found: warn
+          retention-days: 60
