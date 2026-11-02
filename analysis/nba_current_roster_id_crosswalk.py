@@ -88,10 +88,10 @@ def crosswalk(players,hist,asof_date):
     by_team_name=defaultdict(list)
     for a in players:
         by_team_name[(a["team_at_capture"],a["name"])].append(a["espn_athlete_id"])
-    if len({x["espn_athlete_id"] for x in players})!=len(players):
-        # An ESPN ID should not belong to two different team rosters at the
-        # same collection epoch. Different capture seconds are still allowed.
-        raise RuntimeError("ESPN_ID_IN_MORE_THAN_ONE_CURRENT_ROSTER")
+    # A cached ESPN roster may list an athlete in multiple teams. That is
+    # unresolved roster identity, not evidence to assign either membership.
+    dual_ids={eid for eid in (x["espn_athlete_id"] for x in players)
+              if sum(y["espn_athlete_id"]==eid for y in players)>1}
     result=[];counts=Counter()
     for a in players:
         d=dict(a)
@@ -102,7 +102,9 @@ def crosswalk(players,hist,asof_date):
         d["current_roster_confirmed_before_future_tipoff"]=False
         d["ready_for_live_injury_adjustment"]=False
         ids=by_name.get(a["name"],set())
-        if len(by_team_name[(a["team_at_capture"],a["name"])])!=1:
+        if a["espn_athlete_id"] in dual_ids:
+            status="ESPN_ID_IN_MULTIPLE_TEAM_ROSTERS"
+        elif len(by_team_name[(a["team_at_capture"],a["name"])])!=1:
             status="DUPLICATE_ESPN_ROSTER_NAME_SAME_TEAM"
         elif len(ids)==0:
             status="NOT_PRESENT_IN_PRIOR_PLAYED_GAME_LOGS"
@@ -161,7 +163,7 @@ def run(destination):
         "only_valid_for_appointments_after_capture":True,
         "cannot_backfill_old_injury_shadow_with_later_roster":True,
         "original_injury_shadow_11_prior_games_modified":False,
-        "current_team_membership_based_on_es pn_roster_asof_only".replace(" ","_"):True,
+        "current_team_membership_based_on_ESPN_roster_asof_only":True,
         "NBA_log_player_ID_and_ESPN_athlete_ID_not_equivalent":True,
         "player_logs_prior_game_date_exclusive":cutoff,
         "completed_roster_teams":len(rosters),
