@@ -2,7 +2,7 @@ name: NBA PRIORITY 21:30 Beijing pre-cutoff report
 on:
   schedule:
     # Start early enough for the full model; bounded retries stay before 21:58.
-    - cron: "20 13 * * *"
+    # Never issue a final 21:30 answer before the 21:30 checkpoint.
     - cron: "30 13 * * *"
     - cron: "40 13 * * *"
   workflow_dispatch:
