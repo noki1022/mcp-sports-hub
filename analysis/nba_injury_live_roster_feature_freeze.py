@@ -9,7 +9,7 @@ now is retroactive evidence for an older frozen forecast.
 from __future__ import annotations
 import argparse
 from collections import Counter,defaultdict
-from datetime import datetime,timedelta,timezone
+from datetime import date,datetime,timedelta,timezone
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -220,6 +220,12 @@ def freeze_game(fixture,games,proof,roster_index,roster_proof,captured,history_b
                 elif (m.get("last_same_team_played_date","")>=day or
                       m.get("identity_asof_date_exclusive","")>day):
                     why="FUTURE_MINUTES_OR_ROSTER"
+                elif (not m.get("last_same_team_played_date") or
+                      (date.fromisoformat(day)-date.fromisoformat(
+                           m["last_same_team_played_date"])).days>IDS.MAX_LOG_DAYS_PRIOR):
+                    # A returning player may have verified identity but old
+                    # minutes must NOT proxy their current-team rotation role.
+                    why="STALE_SAME_TEAM_MINUTES_OVER_410_DAYS"
                 else:
                     eligible=m
                     why="ID_TEAM_AND_PAST_MINUTES_VALIDATED"
@@ -363,6 +369,13 @@ def selftest():
     assert valid["status"]=="PRETIP_IDENTITIES_COMPLETE_NO_EFFECT_MODEL"
     assert valid["minutes_exposure_not_impact"]["home"]["Out"]==34.
     assert valid["injury_adjusted_probability"] is None
+    stale={**roster,("BOS","jayson tatum"):[{
+        **roster[("BOS","jayson tatum")][0],
+        "last_same_team_played_date":"2024-10-01"}]}
+    stale_game=freeze_game(game,official,proof,stale,sources,now)
+    assert not stale_game["identity_coverage_complete"]
+    assert stale_game["unresolved"]["STALE_SAME_TEAM_MINUTES_OVER_410_DAYS"]==1
+    assert stale_game["injured_players"][1]["prior_team_minutes"] is None
     too_old=freeze_game(game,official,{**proof,"report_et_date":"2026-11-01"},roster,sources,now)
     assert too_old["status"]=="REPORT_DAY_NOT_MATCHED"
     missing=freeze_game(game,official,proof,{("ORL","paolo banchero"):roster[("ORL","paolo banchero")]},sources,now)

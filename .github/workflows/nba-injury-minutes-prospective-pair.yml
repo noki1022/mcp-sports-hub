@@ -68,6 +68,18 @@ jobs:
               'conditional_home_probability_sensitivity_range' in x.get('partial_injury_sensitivity',{})
               for x in rows)
           assert d['research_pairs']+d['partial_role_sensitivity_games']<=len(rows)
+          source_triage=root/'priority_unverified_official_injury_roles.json'
+          raw_triage=source_triage.read_bytes()
+          assert hashlib.sha256(raw_triage).hexdigest()==d['role_backfill_triage_sha256']
+          triage=json.loads(raw_triage)
+          assert triage['not_a_player_impact_or_betting_priority'] is True
+          assert triage['source_research_pairs_unchanged'] is True
+          assert triage['hypothetical_48_minute_assumption_not_empirical'] is True
+          assert triage['unverified_player_rows']==len(triage['targets'])
+          assert triage['unverified_player_rows']==d['unverified_official_roles_for_source_backfill']
+          assert all(t['must_verify_unique_player_id_and_fresh_same_team_minutes'] is True
+                     and t['priority_is_source_reconciliation_not_prediction_impact'] is True
+                     for t in triage['targets'])
           for r in rows:
               assert r['research_only'] is True and r['own_team_form_vs_injury_model_only'] is True
               assert r['existing_production_model_changed'] is False
