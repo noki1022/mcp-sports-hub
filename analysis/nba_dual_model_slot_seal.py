@@ -9,7 +9,9 @@ No results are read. Dedicated Git branch prohibits routine rewrites.
 from __future__ import annotations
 import argparse,hashlib,json,re
 from pathlib import Path
-from datetime import datetime,timezone
+from datetime import datetime,timezone,timedelta,time
+from zoneinfo import ZoneInfo
+BJ=ZoneInfo('Asia/Shanghai')
 
 SCHEMA="nba-dual-model-2130-independent-seal-v1"
 def dt(v):
@@ -49,6 +51,13 @@ def seal(source,main,root,day,slot,run_id,now):
     collected=dt(original.get("source_captured_utc"))
     if not generated or not collected or not collected<=generated<=now:
         raise ValueError("PREDICTION_NOT_AFTER_REAL_CAPTURE_OR_AFTER_ARCHIVE")
+    if slot=="2130":
+        expected=datetime.fromisoformat(day).date()-timedelta(days=1)
+        sg,sc=generated.astimezone(BJ),collected.astimezone(BJ)
+        if not (sg.date()==sc.date()==expected and
+                time(21,30)<=sc.time()<time(22,0) and
+                time(21,30)<=sg.time()<time(22,0)):
+            raise ValueError("NOT_ACTUAL_BEIJING_2130_FINAL_MODEL_AND_SNAPSHOT")
     if not candidate.get("games"):raise ValueError("EMPTY_PREDICTION_BOARD")
     for g in candidate["games"]:
         tip=dt(g.get("tipoff_beijing"))
