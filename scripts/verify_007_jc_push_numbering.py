@@ -180,8 +180,8 @@ def self_test():
     else:raise AssertionError("FORGED_MANUAL_TEAM_IDENTITY_ACCEPTED")
     # Also test that a legitimately verified but conflicting number cannot
     # be silently overwritten by a manual entry.
-    correct=wrong.replace("俄克拉荷马城雷霆,雷霆^12^克里夫兰骑士,骑士",
-        "克里夫兰骑士,骑士^12^俄克拉荷马城雷霆,雷霆")
+    correct=wrong.replace("俄克拉荷马城雷霆,雷霆^12^克里夫兰骑士,骑士".encode(),
+        "克里夫兰骑士,骑士^12^俄克拉荷马城雷霆,雷霆".encode())
     try:verify(user_board,correct,overrides=[dict(item,label="周一303")])
     except ValueError as e:assert "CONFLICT" in str(e)
     else:raise AssertionError("SOURCE_VS_MANUAL_LABEL_CONFLICT_SILENCED")
