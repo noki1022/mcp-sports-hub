@@ -42,6 +42,27 @@ jobs:
       - name: Generate new postmarket five-play model predictions independently from the ORIGINAL
         run: |
           python3 analysis/nba_postcapture_crossplay_shadow.py --bridge /tmp/nba-crossplay-replay/nba_shadow_model_bridge.json --params /tmp/nba-shadow-crossplay-trained.json --out /tmp/nba-crossplay-replay/nba_postmarket_new_shadow.json
+      - name: Test authenticated source-delivery gate on the REAL original archived 18:00 report
+        run: |
+          REAL_RUN=$(python3 - <<'PY'
+          import json
+          print(json.load(open('reports/pushplus-sent/2026-11-03/1800.json'))['run_id'])
+          PY
+          )
+          python3 analysis/nba_shadow_postmarket_runner.py --trigger-run "$REAL_RUN" --out /tmp/nba-auto-postmarket-research
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('/tmp/nba-auto-postmarket-research/auto_run_status.json')
+          s=json.loads(p.read_text())
+          assert s['status']=='NEW_INDEPENDENT_SHADOW_FROZEN_PRETIP' or s['status'].startswith('SKIPPED_')
+          assert s['no_original_forecast_or_push_mutation'] is True
+          if s['status']=='NEW_INDEPENDENT_SHADOW_FROZEN_PRETIP':
+              assert s['integrity']['games']==15
+              assert s['integrity']['markets']==75
+              assert s['no_five_market_probability_promotion'] is True
+          print('NBA_POSTPRODUCTION_REAL_SOURCE_GATE_VERIFIED',s['status'])
+          PY
       - name: Verify exact original JC/Crown lines, no posttip capture and independent official score not fabricated
         run: |
           python3 - <<'PY'
@@ -79,5 +100,6 @@ jobs:
           path: |
             /tmp/nba-crossplay-replay/
             /tmp/nba-shadow-crossplay-trained.json
+            /tmp/nba-auto-postmarket-research/
           retention-days: 90
           if-no-files-found: warn
