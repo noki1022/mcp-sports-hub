@@ -403,7 +403,7 @@ def run(features_path,audit_path,out):
         "source_research_pairs_unchanged":True,
         "unverified_player_rows":len(backfill),
         "targets":backfill,
-    },indent=2,ensure_ascii=False,allow_nan=False)+"\\n",encoding="utf-8")
+    },indent=2,ensure_ascii=False,allow_nan=False)+chr(10),encoding="utf-8")
     details={
         "schema_version":SCHEMA,
         "source_live_injury_snapshot_sha256":sha256(raw).hexdigest(),
