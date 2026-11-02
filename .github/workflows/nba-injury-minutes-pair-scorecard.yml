@@ -1,0 +1,78 @@
+name: Independently settle actual frozen NBA injury-minutes research pairs (research)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_injury_minutes_pair_scorecard.py'
+      - 'analysis/README-nba-injury-minutes-pair-scorecard.md'
+      - '.github/workflows/nba-injury-minutes-pair-scorecard.yml'
+  workflow_dispatch:
+    inputs:
+      original_forecast_run_id:
+        description: 'GitHub Actions run ID with original immutable pretip injury paired forecast'
+        required: true
+        type: string
+        default: '41412031386'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  settle-immutable-prospective:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned math dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Reject altered originals and test official result side and event identity
+        run: |
+          python3 -m py_compile analysis/nba_injury_minutes_pair_scorecard.py
+          python3 analysis/nba_injury_minutes_pair_scorecard.py --selftest
+      - name: Obtain original unmodified frozen forecast artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@v4
+        with:
+          name: nba-frozen-injury-minutes-research-prospective-pair-and-source
+          run-id: ${{ inputs.original_forecast_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: /tmp/original-frozen-injury-archive
+      - name: Grade immutable original against independently fetched completed ESPN finals
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python3 analysis/nba_injury_minutes_pair_scorecard.py \
+            --predictions /tmp/original-frozen-injury-archive/nba-frozen-injury-research-pair/frozen_independent_injury_pair.jsonl \
+            --manifest /tmp/original-frozen-injury-archive/nba-frozen-injury-research-pair/manifest.json \
+            --out /tmp/nba-frozen-injury-pair-grade
+      - name: Never assume that unpaired old or unfinished games have injury scores
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/nba-frozen-injury-pair-grade/injury_minutes_pair_scorecard.json'))
+          s=d['summary'];rows=d['per_game']
+          assert s['original_future_games']==len(rows)
+          assert s['original_research_paired_games']<=len(rows)
+          assert s['actually_scored_paired_games']<=s['original_research_paired_games']
+          assert s['not_the_deployed_production_model_comparison'] is True
+          assert s['does_not_prove_independent_holdout_profit'] is True
+          assert s['no_auto_promotion'] is True
+          assert s['production_pipeline_modified'] is False
+          assert sum(s['status_counts'].values())==len(rows)
+          for r in rows:
+            if r['grade_status']!='OFFICIAL_FINAL_PAIR_GRADED':
+              assert 'injury_minus_baseline_brier' not in r
+          print('NBA_REAL_PRETIP_INJURY_PAIR_SETTLEMENT_ACCEPTED',
+                s['original_research_paired_games'],
+                s['actually_scored_paired_games'],s['status_counts'])
+          PY
+      - if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-independent-frozen-injury-minutes-pair-scorecard
+          path: /tmp/nba-frozen-injury-pair-grade/
+          if-no-files-found: warn
+          retention-days: 60
