@@ -38,7 +38,7 @@ def truth(row, score):
         return "HOME_AWAY_DISAGREEMENT"
     return None
 
-def join(original, scores):
+def join(original, scores, asof_utc=None):
     """Pure auditable score-label enrichment; no new odds, zero model fitting."""
     candidates, conflict_ids = {}, set()
     for s in scores:
@@ -61,6 +61,7 @@ def join(original, scores):
         if key in fixture_identity and fixture_identity[key] != identity:
             invalid_games.add(key)
         fixture_identity[key] = identity
+    asof_utc = asof_utc or datetime.now(timezone.utc)
     out, errors, newly = [], Counter(), set()
     prior_games = {(r["beijing_date"],r["game_id"]) for r in original
                    if r["settled_result"] is not None}
@@ -107,6 +108,10 @@ def join(original, scores):
     games = {(r["beijing_date"],r["game_id"]) for r in out}
     labeled = {(r["beijing_date"],r["game_id"]) for r in out
                if r["training_score_label_available"]}
+    missing = {key: seven.when(fixture_identity[key][3]) for key in games-labeled}
+    due = {key for key, tip in missing.items() if tip is not None and
+           tip + timedelta(hours=5) < asof_utc}
+    pending = set(missing)-due
     return out, {
         "schema_version":SCHEMA,
         "original_quote_rows":len(original),
@@ -116,6 +121,12 @@ def join(original, scores):
         "newly_labeled_games":len(newly),
         "labeled_games_after":len(labeled),
         "unlabeled_games_after":len(games-labeled),
+        "unlabeled_games_after_reasonable_final_window":len(due),
+        "unlabeled_games_not_yet_past_final_window":len(pending),
+        "newly_labeled_game_ids":[{"date":day,"007_game_id":gid}
+                                  for day,gid in sorted(newly)],
+        "unlabeled_finished_game_ids":[{"date":day,"007_game_id":gid}
+                                      for day,gid in sorted(due)],
         "newly_labeled_quote_rows":sum(r["new_score_label"] for r in out),
         "rejection_counts":dict(sorted(errors.items())),
         "same_game_quotes_not_independent":True,
