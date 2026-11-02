@@ -217,6 +217,56 @@ def paired_date_bootstrap(rows,y,b,c,reps=350):
                                              float(np.quantile(draws,.975))],
             "distinct_game_dates":len(days)}
 
+def market_strength_fusion(validation_rows, evaluation_rows, val_strength, eval_strength):
+    """Validation-only mix of game-date market benchmark with independent score model.
+
+    Historical quote update times are UNKNOWN: retrospective research only.
+    Evaluation rows are already examined by previous project studies.
+    """
+    weights=(0.0,0.1,0.2,0.3,0.4,0.5)
+    val_market=np.asarray([r["original_market_p_home"] for r in validation_rows],float)
+    ev_market=np.asarray([r["original_market_p_home"] for r in evaluation_rows],float)
+    val_y=np.asarray([r["home_win"] for r in validation_rows],float)
+    ev_y=np.asarray([r["home_win"] for r in evaluation_rows],float)
+    val_strength=np.asarray(val_strength,float)
+    ev_strength=np.asarray(eval_strength,float)
+    def fused(m,s,w):
+        return np.clip((1.0-w)*m+w*s,.001,.999)
+    val_scores={str(w):probabilistic(val_y,fused(val_market,val_strength,w))
+                for w in weights}
+    contender=min(weights[1:],key=lambda w:val_scores[str(w)]["brier"])
+    # Never promote a blend for a negligible validation gain.
+    selected=contender if (
+        val_scores[str(contender)]["brier"]<=val_scores["0.0"]["brier"]-.0005
+    ) else 0.0
+    test_scores={str(w):probabilistic(ev_y,fused(ev_market,ev_strength,w))
+                 for w in weights}
+    base=(ev_market-ev_y)**2
+    candidate=(fused(ev_market,ev_strength,selected)-ev_y)**2
+    byday=collections.defaultdict(list)
+    for idx,row in enumerate(evaluation_rows):
+        byday[row["date"]].append(idx)
+    dates=sorted(byday)
+    rng=random.Random(SEED)
+    estimates=[]
+    for _ in range(350):
+        ids=[i for day in (dates[rng.randrange(len(dates))] for __ in dates)
+             for i in byday[day]]
+        estimates.append(float(np.mean((candidate-base)[ids])))
+    return {
+        "market_benchmark_quote_time_verified":False,
+        "price_bookmaker_not_007":True,
+        "selected_strength_weight_on_validation_only":selected,
+        "minimum_validation_brier_gain":.0005,
+        "validation":val_scores,
+        "previously_exposed_evaluation":test_scores,
+        "selected_evaluation":test_scores[str(selected)],
+        "delta_brier_selected_minus_market":float(np.mean(candidate-base)),
+        "paired_date_bootstrap_95pct":[float(np.quantile(estimates,.025)),
+                                       float(np.quantile(estimates,.975))],
+        "production_market_fusion_allowed":False,
+    }
+
 def evaluate(games):
     rows=build_features(games)
     parts=split(rows)
@@ -258,6 +308,9 @@ def evaluate(games):
                else None)
         if prior is not None:
             score["retrospective_unknown_quote_time_market_ML_reference"]=probabilistic(labels,prior)
+            result["market_plus_strength_research_only"] = market_strength_fusion(
+                val,test,probability(model[selected],valpred[selected]),
+                probability(model[selected],testpred[selected]))
         result["targets"][target]={
             "validation_metrics":valid,"previously_exposed_evaluation_metrics":testmetrics,
             "selected_on_validation":selected,
@@ -331,6 +384,7 @@ def main():
                    "selected_vs_baseline_paired_date_ci",
                    "validation_metrics","previously_exposed_evaluation_metrics",
                    "probabilistic_evaluation")},
+        "market_strength_fusion":result["market_plus_strength_research_only"],
         "production_promotion_allowed":False,
     },ensure_ascii=False))
 if __name__=="__main__":
