@@ -74,6 +74,68 @@ jobs:
             --user "$(id -u):$(id -g)" \
             -v "$RUNNER_TEMP/shadow-whitelist:/workspace:ro" -w /workspace \
             -e PYTHONDONTWRITEBYTECODE=1 python:3.12-slim python3 -B -c 'import pathlib,socket,sys;sys.path.insert(0,"analysis");import nba_shadow_postmarket_runner as R;import nba_shadow_three_play_train as T;assert not pathlib.Path("reports/five-market-settled").exists();assert not pathlib.Path("analysis/nba_historical_market_benchmark.py").exists();assert not pathlib.Path(".git").exists();assert socket.socket().connect_ex(("1.1.1.1",443))!=0;print("NBA_SHADOW_TRUE_CONTAINER_NO_NETWORK_NO_FINAL_NO_HISTORY_PASS")'
+      - name: True 007 15-game pretip archive through the ACTUAL isolated model and seal, while still pretip
+        run: |
+          ORIGINAL_RUN=$(python3 - <<'PY'
+          import json
+          print(json.load(open('reports/pushplus-sent/2026-11-03/1800.json'))['run_id'])
+          PY
+          )
+          python3 analysis/nba_shadow_pretip_airgap.py --stage "$RUNNER_TEMP/real-airgap-stage" --status-out "$RUNNER_TEMP/real-airgap-control" --trigger-run "$ORIGINAL_RUN"
+          STATUS=$(python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          print(json.loads((Path(os.environ['RUNNER_TEMP'])/'real-airgap-control/stage_status.json').read_text())['status'])
+          PY
+          )
+          if [ "$STATUS" != READY ]; then
+            echo "REAL_PRETIP_ARCHIVE_NO_LONGER_ELIGIBLE=$STATUS; PRIMARY_ISOLATION_CI_STILL_PASSED"
+            exit 0
+          fi
+          mkdir -p "$RUNNER_TEMP/real-airgap-prediction"
+          chmod 0777 "$RUNNER_TEMP/real-airgap-prediction"
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --memory 512m \
+            --user "$(id -u):$(id -g)" \
+            -v "$RUNNER_TEMP/real-airgap-stage:/workspace:ro" \
+            -v "$RUNNER_TEMP/real-airgap-prediction:/output:rw" -w /workspace \
+            -e PYTHONDONTWRITEBYTECODE=1 python:3.12-slim \
+            python3 -B analysis/nba_shadow_postmarket_runner.py --daily-root reports/daily \
+              --sent-root reports/pushplus-sent --params config/nba_shadow_three_play_params.json \
+              --trigger-run "$ORIGINAL_RUN" --out /output
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,shutil,json
+          t=Path(os.environ['RUNNER_TEMP'])
+          stage=t/'real-airgap-stage'
+          dest=t/'real-airgap-prediction'
+          status=json.loads((dest/'auto_run_status.json').read_text())
+          assert status['status']=='NEW_INDEPENDENT_SHADOW_FROZEN_PRETIP'
+          assert status['integrity']['games']==15
+          assert status['integrity']['markets']==75
+          shutil.copy2(stage/'pretip_input_manifest.json',dest/'pretip_input_manifest.json')
+          for rel in (
+              'reports/daily/2026-11-03/1200/nba_market_consensus.json',
+              'reports/daily/2026-11-03/1800/nba_market_consensus.json',
+              'reports/daily/2026-11-03/1800/nba_dynamic_five_market_shadow.json',
+              'reports/daily/2026-11-03/1800/nba_five_market_forecast.json',
+              'reports/pushplus-sent/2026-11-03/1800.json',
+              'config/nba_shadow_three_play_params.json',
+          ):
+              p=dest/'input_snapshots'/rel
+              p.parent.mkdir(parents=True,exist_ok=True)
+              shutil.copy2(stage/rel,p)
+          print('REAL_OUTCOME_FREE_NETWORK_DISABLED_007_15GAMEx5_MARKET_PREDICTION_PASS')
+          PY
+          python3 analysis/nba_shadow_seal_ledger.py --source "$RUNNER_TEMP/real-airgap-prediction" \
+            --ledger-root "$RUNNER_TEMP/test-evidence-ledger" --day 2026-11-03 \
+            --github-run "$GITHUB_RUN_ID" --source-commit "$GITHUB_SHA"
+          if python3 analysis/nba_shadow_seal_ledger.py --source "$RUNNER_TEMP/real-airgap-prediction" \
+            --ledger-root "$RUNNER_TEMP/test-evidence-ledger" --day 2026-11-03 \
+            --github-run "$GITHUB_RUN_ID" --source-commit "$GITHUB_SHA"; then
+            echo SECURITY_FAILURE_OVERWRITE_WAS_ALLOWED
+            exit 1
+          fi
+          echo REAL_PRETIP_INPUT_AND_APPEND_ONCE_GIT_EVIDENCE_TEST_PASS
       - name: Check main flow unchanged and grader alone sees actual settlement
         run: |
           python3 - <<'PY'
