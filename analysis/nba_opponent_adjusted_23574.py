@@ -30,7 +30,7 @@ MODEL_RIDGE_ALPHA = 160.0
 IMPROVEMENT_MARGIN = 0.08
 IMPROVEMENT_TOTAL = 0.10
 
-def opponent_adjusted_features(games):
+def opponent_adjusted_features(games, future_fixtures=()):
     bydate = defaultdict(list)
     for g in games:
         bydate[g["date"]].append(g)
@@ -87,6 +87,47 @@ def opponent_adjusted_features(games):
             a["off"]+=EFF_K*ea
             h["def"]+=EFF_K*ea
             league_totals.append(g["total_points"])
+    # Scoreless future fixture mode: observe PREVIOUS completed games only.
+    # Never synthesize a future result or mutate strength from a forecast.
+    if future_fixtures:
+        latest=max(bydate) if bydate else None
+        future_keys=set()
+        for g in sorted(future_fixtures,key=lambda q:(q["date"],q["home"],q["away"])):
+            day=g["date"]
+            if latest is not None and day<=latest:
+                raise RuntimeError("FUTURE_FIXTURE_NOT_AFTER_LAST_COMPLETED_DATE")
+            if g["home"]==g["away"]:
+                raise RuntimeError("INVALID_FUTURE_FIXTURE")
+            key=(day,g["home"],g["away"])
+            if key in future_keys:
+                raise RuntimeError("DUPLICATE_FUTURE_FIXTURE")
+            future_keys.add(key)
+            season=int(B.season_of(day).split("-")[0])
+            def fresh(team):
+                s=states[team]
+                if s["season"]==season:
+                    return s
+                return {
+                    "elo":1500.+.75*(s["elo"]-1500.),
+                    "power":.75*s["power"],
+                    "off":.75*s["off"],
+                    "def":.75*s["def"],
+                }
+            h=fresh(g["home"]);a=fresh(g["away"])
+            league=(sum(league_totals)/len(league_totals)/2) if league_totals else 109.
+            home=league+1.1+h["off"]+a["def"]
+            away=league-1.1+a["off"]+h["def"]
+            features[key]={
+                "opponent_elo_gap":(h["elo"]-a["elo"])/100.,
+                "opponent_power_gap":h["power"]-a["power"],
+                "opponent_pred_margin":2.2+h["power"]-a["power"],
+                "opponent_pred_total":home+away,
+                "opponent_pred_home_pts":home,
+                "opponent_pred_away_pts":away,
+                "opponent_expected_home_win":1/(1+10**(
+                    -(h["elo"]+ELO_HOME_EDGE-a["elo"])/400.)),
+                "current_season":season,
+            }
     return features
 
 def add_features(games):
