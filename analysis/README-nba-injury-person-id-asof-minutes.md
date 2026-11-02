@@ -4,12 +4,12 @@
 
 Do not create another injury model. The existing 21:30 NBA injury shadow archives pretip original-model probabilities and official NBA injury-report status. It has **zero qualified injury-model paired probabilities** until a real frozen player-availability correction exists.
 
-This module uses actual 2025-26 and 2026-27 *played NBA player-game logs* and matches each archived official injury name to source player IDs. All player-minute statistics are computed from only strictly **earlier game dates**, never the forecasted game's minutes, later game results or a different team's roster. An inability to find a played row does **not** prove that the player was healthy or had zero minutes.
+This module uses actual 2024-25, 2025-26 and 2026-27 *played NBA player-game logs* and matches each archived official injury name to source player IDs. All player-minute statistics are computed from only strictly **earlier game dates**, never the forecasted game's minutes, later game results or a different team's roster. An inability to find a played row does **not** prove that the player was healthy or had zero minutes.
 
 ## Strict data gates
 
 - Read the original archived `nba_injury_prospective_2130.json`, same-snapshot `nba_priority_model.json` and verified fixture. Match exact ESPN event ID, 007 ID, original home and away, official report timestamp and original probability. Preserve source SHA256.
-- Read two versioned season Parquet files from `cbratkovics/nba-game-logs`: player stable `player_id`, `game_id`, game date, name, team and minutes. Source data originates from third-party NBA/Kaggle derivatives; its claimed license does not certify NBA underlying rights.
+- Read three versioned season Parquet files from `cbratkovics/nba-game-logs`: player stable `player_id`, `game_id`, game date, name, team and minutes. Source data originates from third-party NBA/Kaggle derivatives; its claimed license does not certify NBA underlying rights.
 - Reject duplicate player games, invalid teams and minutes; quarantine a stable player ID if it has inconsistent normalized names. A shared name with multiple unique player IDs is **ambiguous**, not joined.
 - Match official report name to stable ID and reported team, require at least 3 prior games for same team and use the last up-to-8 games' historical minutes. Prior player team must match the reported team, otherwise fail closed for trades.
 - Distinguish **current-season verified played membership** from a player last seen with that team in a previous season, rather than assuming the latter is a valid 2026-27 roster confirmation.
