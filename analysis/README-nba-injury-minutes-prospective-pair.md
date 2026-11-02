@@ -34,3 +34,35 @@ An isolated PR/manual CI uploads a 60-day artifact. No scheduled workflow is add
 ## Follow-up
 
 Only when enough new, independently sealed *same exact-game* outcomes are gathered should the existing prospective scorecard compare this true research pair. A separate true production-baseline-plus-injury experiment requires training a residual effect conditioned on the deployed production margin model; independent historical team-form coefficients cannot simply be added to production margin predictions.
+
+## Partial coverage sensitivity extension
+
+The first actual future run (#223) inspected 29 games and produced no complete
+research pairs: 23 lacked published two-team official report, and 6 had
+verified reports but incomplete same-team player IDs/minutes. To retain useful
+signal without inventing a precise forecast, blocked cases **with both team
+reports published** can now produce an additional **hypothetical missingness
+sensitivity** record. This does not change the production model or the strict
+all-player-verified paired gate.
+
+- Fix only players whose stable NBA player ID, current team and previous
+  same-team minutes are already verified.
+- For each other officially listed player with a verified name/status/side
+  but no trusted prior minutes, examine a deliberately labeled hypothetical
+  0–48-minute range. This range is **not statistically estimated and not a
+  guaranteed bound**: overtime can exceed 48 minutes.
+- Calculate the corresponding scenario interval in exactly the original
+  historical prior-minutes feature, and (only when the historical validation
+  gate passes and team form is available) the *conditional model sensitivity
+  range*. It is not a confidence interval, no unique injury probability is
+  supplied, and no change in the match's actual probability is claimed.
+- Any bad clock, missing team report, inconsistent player side/status, source
+  SHA mismatch or fabricated numeric minutes without ID blocks even the
+  scenario output.
+- All partials remain marked BLOCKED in the original immutable model-pair
+  file and cannot enter the actual paired injury scorecard. Exact counts and
+  scenarios are written to the existing 60-day research artifact.
+
+To increase verified complete paired cases, the next source-side task is to
+improve official name reconciliation and genuine player ID/prior same-team
+minutes, never to promote interval midpoint as a measured forecast.
