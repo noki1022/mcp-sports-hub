@@ -162,6 +162,10 @@ def build(early,late,dynamic,five,hashes):
                 "original_frozen_model_probability":previous.get("frozen_direction_probability"),
                 "independent_first_side_probability":previous.get("first_side_probability"),
                 "original_model_status":previous.get("probability_status"),
+                "original_quote_or_market_invalid_reasons":previous.get("invalid_reasons") or [],
+                "original_independent_model_moneyline_home_probability":(
+                    (d.get("independent_model") or {}).get("home_win_probability")
+                    if key=="JINGCAI_WIN" else None),
                 "market_direction_context":baseline.get("market_direction_signal"),
                 "market_direction_evidence":evidence,
                 "source_quality":"ASOF_MODEL_AND_LINE_VERIFIED" if asof_verified else
@@ -182,8 +186,37 @@ def build(early,late,dynamic,five,hashes):
                 "delta_pp":0.0,
                 "production_fusion_allowed":False,
             }
+        spread=e["observed_institution_line_directions"]["full_spread"]
+        totals=e["observed_institution_line_directions"]["full_total"]
+        encode=lambda x: (1 if x=="RISING" else -1 if x=="FALLING" else
+                          0 if x=="STABLE" else None)
+        # The interface is usable by a *NEW* model inference run at or after
+        # late 007 company collection. Never pretend those later quotes
+        # existed when an earlier independent forecast was computed.
+        model_input_features={
+            "market_features_effective_asof_utc":late_end.isoformat(),
+            "new_model_prediction_must_be_generated_not_before_utc":late_end.isoformat(),
+            "existing_independent_model_generated_utc":original_model_time.isoformat(),
+            "historical_model_originally_saw_these_features":False,
+            "features_available_for_original_model_time":late_end<=original_model_time,
+            "spread_home_strength_direction_code":encode(spread["direction"]),
+            "spread_home_strength_median_line_change_points":(
+                spread["median_change"] if spread["status"]=="VERIFIED_PAIRED_COMPANY_TREND"
+                else None),
+            "spread_same_company_quote_pairs":spread["paired_companies"],
+            "spread_direction_agreement":spread.get("agreement_fraction"),
+            "total_expected_scoring_direction_code":encode(totals["direction"]),
+            "total_expected_scoring_line_change_points":(
+                totals["median_change"] if totals["status"]=="VERIFIED_PAIRED_COMPANY_TREND"
+                else None),
+            "total_same_company_quote_pairs":totals["paired_companies"],
+            "total_direction_agreement":totals.get("agreement_fraction"),
+            "no_moneyline_probability_manufactured_from_spread":True,
+            "no_prediction_probability_numerically_changed":True,
+        }
         result.append({
             "game_id":gid,"nba_game_id":f.get("nba_game_id"),
+            "preintegration_model_input_features":model_input_features,
             "home_team":f.get("home_team"),"away_team":f.get("away_team"),
             "jingcai_number":f.get("jingcai_number"),
             "tipoff_beijing":f.get("tipoff_beijing"),
@@ -213,6 +246,10 @@ def build(early,late,dynamic,five,hashes):
         "prepared_model_input_contract":True,
         "five_play_weights":{"jingcai":0.7,"crown_id3":0.3},
         "model_probability_fusion_ready":False,
+        "model_features_originally_used_in_frozen_model":False,
+        "model_feature_availability_requires_NEW_prediction_after_market_capture":True,
+        "number_of_games_with_newer_market_input_than_original_model":sum(
+            not x["market_information_available_before_original_model"] for x in result),
         "promotion_status":"BLOCKED_UNTIL_INDEPENDENT_PROSPECTIVE_OUTCOME_LIFT",
         "promotion_requirements":{
             "minimum_independent_games_per_target_play":MIN_EVENTS_FOR_REVIEW,
@@ -369,6 +406,7 @@ def selftest():
     assert g["by_market"]["JINGCAI_WIN"]["hits"]==1
     assert g["by_market"]["JINGCAI_TOTAL"]["hits"]==1
     assert grade(z,None)["graded_game_markets"]==0
+    assert all(k in EXPECTED for k in KEYS)
     assert grade(z,{"beijing_date":"2026-11-03","games":[]})["graded_game_markets"]==0
     inverted=deepcopy(z)
     inverted["games"][0]["three_play_five_target_judgments"]["CROWN_HANDICAP"]["signed_home_handicap"]=-12
