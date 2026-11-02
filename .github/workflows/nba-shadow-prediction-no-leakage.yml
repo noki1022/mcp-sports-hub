@@ -57,8 +57,7 @@ jobs:
           assert 'contents: read' in wf and 'contents: write' in wf
           assert 'git push origin HEAD:audit/shadow-pretip-ledger' in wf
           assert 'git worktree add --detach' in grader
-          assert 'nba_shadow_prospective_final_grade.py' not in
-              '\n'.join(x for x in wf.splitlines() if 'docker run ' in x)
+          assert not any('nba_shadow_prospective_final_grade.py' in line for line in wf.splitlines() if 'docker run ' in line)
           # No eager historical score imports in inference submodule.
           t=ast.parse(train)
           for node in t.body:
