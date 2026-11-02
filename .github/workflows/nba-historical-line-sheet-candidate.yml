@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'analysis/nba_line_sheet_candidate_inventory.py'
+      - 'analysis/nba_historical_market_benchmark.py'
       - '.github/workflows/nba-historical-line-sheet-candidate.yml'
   workflow_dispatch:
 permissions:
@@ -24,6 +25,11 @@ jobs:
           python3 analysis/nba_line_sheet_candidate_inventory.py --self-test
       - name: Inspect real license-claimed historical NBA market CSV
         run: python3 analysis/nba_line_sheet_candidate_inventory.py --out /tmp/nba-line-sheet-inventory.json
+      - name: Construct independent scored historical NBA market benchmark
+        run: |
+          python3 -m py_compile analysis/nba_historical_market_benchmark.py
+          python3 analysis/nba_historical_market_benchmark.py --self-test
+          python3 analysis/nba_historical_market_benchmark.py --out /tmp/nba-line-sheet-benchmark
       - name: Prove production segregation
         run: |
           python3 - <<'PY'
@@ -33,12 +39,18 @@ jobs:
           assert d['not_007_jingcai_or_crown'] is True
           assert d['eligible_for_007_point_in_time_training'] is False
           assert d['independent_quote_time_verified'] is False
-          print('LINE_SHEET_REAL_ROWS_AUDITED',d['rows'],d['sha256'],d['columns'])
+          q=json.load(open('/tmp/nba-line-sheet-benchmark/benchmark_manifest.json'))
+          assert q['unique_valid_game_rows']>10000
+          assert q['training_007_market_odds_forbidden'] is True
+          assert q['no_production_weight_change'] is True
+          print('LINE_SHEET_REAL_ROWS_AUDITED',d['rows'],q['unique_valid_game_rows'],d['sha256'],d['columns'])
           PY
       - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: nba-line-sheet-independent-historical-market-inventory
-          path: /tmp/nba-line-sheet-inventory.json
+          path: |
+            /tmp/nba-line-sheet-inventory.json
+            /tmp/nba-line-sheet-benchmark/
           retention-days: 60
           if-no-files-found: warn
