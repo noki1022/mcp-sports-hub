@@ -1,0 +1,67 @@
+name: NBA 23574 historical score-only strength model (research only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_23574_score_only_strength.py'
+      - 'analysis/nba_historical_market_benchmark.py'
+      - 'analysis/README-nba-23574-score-only-strength.md'
+      - '.github/workflows/nba-23574-score-only-strength.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  train-evaluate-score-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned numerical dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Compile and run synthetic date-leakage / probability checks
+        run: |
+          python3 -m py_compile analysis/nba_23574_score_only_strength.py
+          python3 analysis/nba_23574_score_only_strength.py --selftest
+      - name: Train score-only strength candidates on verified 23574 historical games
+        run: |
+          python3 analysis/nba_23574_score_only_strength.py --out /tmp/nba-23574-score-only.json
+      - name: Validate chronological splits, feature independence, prospective isolation
+        run: |
+          python3 - <<'PY'
+          import json,math
+          d=json.load(open('/tmp/nba-23574-score-only.json'))
+          assert d['input_rows']==23574 and d['feature_rows']==23574
+          tr=d['splits']['train'];val=d['splits']['validation'];ev=d['splits']['previously_exposed_evaluation']
+          assert tr['n']>20000 and val['n']>1000 and ev['n']>1000
+          assert tr['last']<val['first'] and val['last']<ev['first']
+          assert d['used_historical_quote_or_spread_as_model_feature'] is False
+          assert d['source_price_timestamp']=='GAME_DATE_ONLY_UNKNOWN_QUOTE_PUBLICATION_TIME'
+          assert d['production_promotion_allowed'] is False
+          assert d['2024_26_holdout_previously_examined_by_other_research'] is True
+          for market in ('margin','total'):
+              z=d['targets'][market]
+              assert z['selected_on_validation'] in ('baseline','enhanced','enhanced_decay')
+              assert z['selected_evaluation']['n']==ev['n']
+              assert z['calibration_variance_from_training_only'] is True
+              assert math.isfinite(z['selected_evaluation']['mae'])
+              assert d['prospective_full_history_score_only_shadow_coefficients'][market]['training_games']==23574
+          fusion=d['market_plus_strength_research_only']
+          assert fusion['production_market_fusion_allowed'] is False
+          assert fusion['market_benchmark_quote_time_verified'] is False
+          assert fusion['selected_strength_weight_on_validation_only'] in (0.0,0.1,0.2,0.3,0.4,0.5)
+          assert fusion['selected_evaluation']['brier']>0
+          assert len(fusion['paired_date_bootstrap_95pct'])==2
+          print('NBA_23574_REAL_SCORE_MODEL_CHRONOLOGY_ACCEPTED',tr['n'],val['n'],ev['n'])
+          print('NBA_23574_MARKET_STRENGTH_BLEND_RESEARCH',fusion['selected_strength_weight_on_validation_only'],fusion['selected_evaluation'],fusion['delta_brier_selected_minus_market'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-23574-score-only-strength-chronological-evidence
+          path: /tmp/nba-23574-score-only.json
+          if-no-files-found: warn
+          retention-days: 60
