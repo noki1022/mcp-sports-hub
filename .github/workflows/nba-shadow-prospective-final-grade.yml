@@ -1,0 +1,55 @@
+name: NBA new five-play shadow genuine postgame scorecard (research only)
+on:
+  schedule:
+    # One quiet research replay after most Beijing-date NBA games have
+    # independently completed, never a replacement for the live review.
+    - cron: '25 15 * * *'
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: 'Optional completed Beijing NBA game date YYYY-MM-DD'
+        type: string
+        required: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nba-postmarket-independent-final-grading-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  grade-authenticated-pretip-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify independent official-score pairing and artifact admission
+        run: |
+          python3 -m py_compile analysis/nba_shadow_prospective_final_grade.py
+          python3 analysis/nba_shadow_prospective_final_grade.py --selftest
+          python3 analysis/nba_shadow_model_integration.py --selftest
+      - name: Grade earliest authenticated frozen post-market model versus original five target outcomes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUESTED_DATE: ${{ inputs.target_date || '' }}
+        run: |
+          ARGS=()
+          if [ -n "$REQUESTED_DATE" ]; then
+            case "$REQUESTED_DATE" in
+              ????-??-??) ARGS+=(--date "$REQUESTED_DATE") ;;
+              *) echo INVALID_BEIJING_DATE; exit 1 ;;
+            esac
+          fi
+          python3 analysis/nba_shadow_prospective_final_grade.py "${ARGS[@]}" --out /tmp/nba-shadow-prospective-postgame-scorecard.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-five-market-prospective-new-shadow-versus-original-final
+          path: /tmp/nba-shadow-prospective-postgame-scorecard.json
+          if-no-files-found: ignore
+          retention-days: 90
