@@ -260,7 +260,9 @@ def evaluate(rows, predictions=None, min_ev=DEFAULT_MIN_EV):
                 model_used.add(key)
             else:
                 model_status = "MODEL_SOURCE_CLOCK_OR_TEAM_NOT_MATCHED"
-        d = snapshot + timedelta(hours=8)
+        # Group results by the game date in Beijing, not by the earlier
+        # pregame quote snapshot date (often the prior Beijing day).
+        d = quotes[0]["_tip"] + timedelta(hours=8)
         results.append({
             "event_id": event, "market": market, "line": line,
             "game_date_beijing": d.date().isoformat(),
