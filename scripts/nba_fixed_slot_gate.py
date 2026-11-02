@@ -12,7 +12,7 @@ import json
 import os
 import re
 import subprocess
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -41,6 +41,49 @@ SCHEDULE_SLOTS = {
     "0 13 * * *": "2100",
 }
 FIXED_SLOTS = frozenset(SCHEDULE_SLOTS.values())
+# GitHub scheduled events were actually 32-34 minutes late on Nov 2.
+# Accept bounded delay, but do not publish an overnight pre-tip prediction
+# after its slot has expired. This leaves daytime next-day reports unchanged.
+OVERNIGHT_MAX_DELAY_MINUTES = {"0030": 65, "0330": 55}
+MINIMUM_PRETIP_LEAD_MINUTES = 5
+
+
+def overnight_slot_fresh(slot: str, target: str, now: datetime) -> bool:
+    if slot not in OVERNIGHT_MAX_DELAY_MINUTES:
+        return True
+    local = now.astimezone(BEIJING)
+    if local.date().isoformat() != target:
+        return False
+    start = datetime.fromisoformat(
+        target + "T" + slot[:2] + ":" + slot[2:] + ":00+08:00"
+    )
+    elapsed = (local - start).total_seconds() / 60
+    return 0 <= elapsed <= OVERNIGHT_MAX_DELAY_MINUTES[slot]
+
+
+def overnight_all_games_pretip(path: Path, target: str, now: datetime) -> bool:
+    try:
+        board = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    if not isinstance(board, dict) or board.get("requested_display_date") != target:
+        return False
+    games = board.get("nba_cba_games")
+    if not isinstance(games, list) or not games:
+        return False
+    local = now.astimezone(BEIJING)
+    for game in games:
+        if not isinstance(game, dict):
+            return False
+        try:
+            tip = datetime.fromisoformat(str(game["start_time_beijing"]).replace("Z", "+00:00"))
+        except (KeyError, ValueError, TypeError):
+            return False
+        if tip.tzinfo is None or tip.astimezone(BEIJING).date().isoformat() != target:
+            return False
+        if tip - local < timedelta(minutes=MINIMUM_PRETIP_LEAD_MINUTES):
+            return False
+    return True
 
 
 def resolve_slot(schedule: str, supplied: str, now: datetime, event_name: str = "") -> str:
@@ -121,6 +164,37 @@ def self_test() -> None:
             pass
         else:
             raise AssertionError("INVALID_MANUAL_SLOT_ACCEPTED")
+    for slot, stamp, expected in (
+        ("0030", "2026-11-02T00:29:59+08:00", False),
+        ("0030", "2026-11-02T00:30:00+08:00", True),
+        ("0030", "2026-11-02T01:04:06+08:00", True),  # production trigger
+        ("0030", "2026-11-02T01:35:00+08:00", True),
+        ("0030", "2026-11-02T01:35:01+08:00", False),
+        ("0330", "2026-11-02T04:02:02+08:00", True),  # production trigger
+        ("0330", "2026-11-02T04:25:01+08:00", False),
+        ("0330", "2026-11-03T04:02:02+08:00", False)
+    ):
+        assert overnight_slot_fresh(slot, "2026-11-02", datetime.fromisoformat(stamp)) is expected
+    assert overnight_slot_fresh("1200", "2026-11-03", datetime.fromisoformat("2026-11-02T13:00:00+08:00"))
+    from tempfile import TemporaryDirectory
+    with TemporaryDirectory() as folder:
+        board = Path(folder) / "joined.json"
+        cases = [
+            ("2026-11-02T04:30:00+08:00", "2026-11-02T04:02:00+08:00", True),
+            ("2026-11-02T04:30:00+08:00", "2026-11-02T04:25:01+08:00", False),
+            ("2026-11-02T04:00:00+08:00", "2026-11-02T04:02:00+08:00", False),
+            ("2026-11-03T04:30:00+08:00", "2026-11-02T04:02:00+08:00", False),
+            ("no-tip", "2026-11-02T04:02:00+08:00", False),
+        ]
+        for tip, ts, expected in cases:
+            board.write_text(json.dumps({"requested_display_date":"2026-11-02",
+                "nba_cba_games":[{"start_time_beijing":tip}]}),encoding="utf-8")
+            assert overnight_all_games_pretip(board,"2026-11-02",datetime.fromisoformat(ts)) is expected
+        assert not overnight_all_games_pretip(Path(folder)/"missing.json","2026-11-02",now)
+        board.write_text(json.dumps({"requested_display_date":"2026-11-02",
+            "nba_cba_games":[{"start_time_beijing":"2026-11-02T04:30+08:00"},
+                             {"start_time_beijing":"2026-11-02T04:00+08:00"}]}),encoding="utf-8")
+        assert not overnight_all_games_pretip(board,"2026-11-02",datetime.fromisoformat("2026-11-02T04:02+08:00"))
     assert marker_is_accepted(json.dumps({"state": ACCEPTED, "slot": "1200"}), "1200")
     for invalid in ('{}', '{"state":"PENDING","slot":"1200"}', '{"state":"API_ACCEPTED_NOT_DEVICE_CONFIRMED","slot":"1800"}', 'not-json'):
         try:
@@ -145,6 +219,10 @@ def self_test() -> None:
         assert 'os.environ["HOURLY_REPORT_SLOT"]' not in gate_region
         assert content.index("Preflight canonical slot and verified acceptance") < content.index("Install locked NBA numerical dependency")
         assert content.index("Recheck verified acceptance before PushPlus") < content.index("Send complete iPhone full-board NBA analysis")
+        assert content.index("Recheck verified acceptance before PushPlus") < content.index("Final overnight pretip check immediately before PushPlus")
+        assert content.index("Final overnight pretip check immediately before PushPlus") < content.index("Send complete iPhone full-board NBA analysis")
+        assert "steps.final_pretip.outcome != 'failure'" in content
+        assert "overnight_all_games_pretip(Path(\"titan007_three_joined.json\"),target,now)" in content
         for schedule in SCHEDULE_SLOTS:
             assert '    - cron: "' + schedule + '"' in content
         region = content[content.index("      - name: Join independent UTC fixture"):
@@ -177,6 +255,24 @@ def main() -> None:
         append_env("REPORT_SLOT", slot)
     else:
         slot = os.environ["REPORT_SLOT"]
+    # Overnight analysis only: fail closed if the workflow wakes up too late
+    # or if any verified game is already too close to kickoff. A stale skip
+    # is NOT a successful delivery and must not write an accepted marker.
+    clock = datetime.now(BEIJING)
+    if not overnight_slot_fresh(slot, target, clock):
+        if args.phase == "preflight":
+            append_env("REPORT_ALREADY_SENT", "false")
+            with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as file:
+                file.write("skip=true\nsent=false\n")
+            print("OVERNIGHT_SLOT_EXPIRED_SKIP_NO_STALE_REPORT", target, slot)
+            return
+        raise RuntimeError("OVERNIGHT_RECHECK_EXPIRED_ABORT_NO_STALE_PUSH")
+    if args.phase == "recheck" and slot in OVERNIGHT_MAX_DELAY_MINUTES:
+        joined = Path("titan007_three_joined.json")
+        # A failure before fetching the board may still use the verified
+        # schedule-only fallback; it cannot claim an analyzed prediction.
+        if joined.is_file() and not overnight_all_games_pretip(joined, target, clock):
+            raise RuntimeError("OVERNIGHT_GAME_ALREADY_STARTED_OR_TIP_UNVERIFIED_ABORT")
     accepted = remote_accepted(slot, target)
     append_env("REPORT_ALREADY_SENT", "true" if accepted else "false")
     if args.phase == "preflight":
