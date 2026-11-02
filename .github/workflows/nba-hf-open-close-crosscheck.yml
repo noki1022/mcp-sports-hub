@@ -1,0 +1,48 @@
+name: NBA 2024-25 open close odds cross-source score check (research only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_hf_open_close_crosscheck.py'
+      - 'analysis/nba_historical_market_benchmark.py'
+      - '.github/workflows/nba-hf-open-close-crosscheck.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  open-close:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run score and source semantical tests
+        run: |
+          python3 -m py_compile analysis/nba_hf_open_close_crosscheck.py
+          python3 analysis/nba_hf_open_close_crosscheck.py --self-test
+      - name: Fetch public licensed source and crossvalidate 2024-25 games
+        run: |
+          python3 analysis/nba_hf_open_close_crosscheck.py --out /tmp/nba-open-close-crosschecked
+      - name: Gate out ambiguous source time and contradictory results
+        run: |
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/nba-open-close-crosschecked/manifest.json'))
+          assert d['source_rows']>=1200
+          assert d['crosschecked_games']>=1000
+          assert d['actual_odds_quote_update_utc_available'] is False
+          assert d['production_promotion_allowed'] is False
+          assert d['evaluation']['games']==d['crosschecked_games']
+          print('NBA_HF_OPEN_CLOSE_CROSS_SOURCE_VALID',d['crosschecked_games'],
+            d['evaluation'],d['rejections'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-2024-25-verified-open-close-market
+          path: /tmp/nba-open-close-crosschecked
+          retention-days: 60
+          if-no-files-found: warn
