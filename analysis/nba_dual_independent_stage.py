@@ -93,7 +93,8 @@ def marker(repo,run_id):
             continue
         if str(doc.get("run_id"))==str(run_id) and doc.get("state")=="API_ACCEPTED_NOT_DEVICE_CONFIRMED":
             if path.stem in VALID_SLOTS:matches.append((path.parent.name,path.stem,path))
-    if len(matches)!=1:raise ValueError("EXACT_ONE_ORIGINAL_ACCEPTED_MARKER_REQUIRED")
+    if not matches:raise ValueError("SKIP_NO_CANONICAL_ORIGINAL_ACCEPTED_MARKER")
+    if len(matches)>1:raise ValueError("AMBIGUOUS_DUPLICATE_ORIGINAL_ACCEPTED_MARKERS")
     return matches[0]
 
 def select(repo,day,slot,now):
@@ -172,5 +173,17 @@ def main():
     p.add_argument("--stage",default="/tmp/dual-independent-stage")
     p.add_argument("--repo",default=".")
     a=p.parse_args()
-    stage(a.repo,a.run_id,a.stage,datetime.now(timezone.utc))
+    try:
+        stage(a.repo,a.run_id,a.stage,datetime.now(timezone.utc))
+    except ValueError as exc:
+        code=str(exc)
+        # Scheduled recovery runs frequently complete with success but
+        # intentionally skip already accepted slots. Do not mistake those
+        # for a new prediction. All unexpected integrity failures remain RED.
+        if code in ("SKIP_NO_CANONICAL_ORIGINAL_ACCEPTED_MARKER",
+                    "SHADOW_CAPTURE_STALE_NOT_SUITABLE_FOR_SLOT",
+                    "ONE_OR_MORE_NBA_GAMES_ALREADY_STARTED"):
+            print("NBA_INDEPENDENT_SHADOW_SAFE_SKIP",code)
+            return
+        raise
 if __name__=="__main__":main()
