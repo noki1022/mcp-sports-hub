@@ -24,6 +24,7 @@ WORKFLOWS = {
     "NBA PRIORITY 21:30 Beijing pre-cutoff report": "nba-priority-2130-",
     "NBA PRIORITY 06:30 Beijing morning full report": "nba-priority-0630-",
     "Titan007 NBA/CBA final one-hour report": "titan007-final-window-",
+    "Free Titan007 NBA and CBA daily odds report": "titan007-basketball-daily-",
 }
 MAX_FILES = 750
 MAX_ONE_FILE = 12 * 1024 * 1024
@@ -36,7 +37,7 @@ SENSITIVE = ("api_key", "apikey", "access_token", "pushplus_token",
              "cookie", "secret_key")
 # The entire real source JSON is saved. These are the game-data producers
 # only, never messages/push receipts or unknown generated files.
-TOP_PREFIXES = ("nba_", "titan007_", "market_value_policy")
+TOP_PREFIXES = ("nba_", "titan007_", "daily_market_", "market_value_policy")
 SPECIAL = ("reports/hourly/", "reports/top10/", "reports/hourly-reviews/",
            "reports/five-market-intraday/", "reports/two-market-intraday/",
            "reports/overnight-cohorts/", "reports/noon-cohorts/")
@@ -45,7 +46,8 @@ SKIP_NAMES = {
     "schedule_fallback_status.json", "pushplus_mobile_preview.html",
 }
 BOARD_NAMES = {"titan007_three_joined.json", "titan007_priority_joined.json",
-               "titan007_joined_today.json", "titan007_final_window.json"}
+               "titan007_joined_today.json", "titan007_final_window.json",
+               "titan007_joined_nba_cba.json"}
 JC_NAME = "nba_jingcai_three_market.json"
 BOOK_NAME = "nba_top10_companies.json"
 CONSENSUS_NAME = "nba_market_consensus.json"
