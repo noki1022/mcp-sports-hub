@@ -121,7 +121,7 @@ jobs:
             echo "verified=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Send one verified NBA zero-game notification at noon
-        if: ${{ steps.offday.outputs.verified == 'true' && env.REPORT_SLOT == '1200' }}
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified == 'true' && env.REPORT_SLOT == '1200'
         run: |
           git fetch --quiet origin main
           python3 scripts/nba_fixed_slot_gate.py --phase recheck
