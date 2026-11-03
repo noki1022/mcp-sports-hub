@@ -40,8 +40,15 @@ def validate_player(p,team,fixture_day):
     if p.get("current_roster_confirmed_before_future_tipoff") is True:
         # This flag does not imply a confirmed lineup; the source sets FALSE.
         raise ValueError("PLAYER_ASSERTS_CONFIRMED_STARTER_WITHOUT_SOURCE")
-    if p.get("identity_asof_date_exclusive")!=fixture_day:
-        # The current roster study excludes all logs from the capture ET date.
+    asof=p.get("identity_asof_date_exclusive")
+    try:
+        exclusive=date.fromisoformat(asof)
+        fixture=date.fromisoformat(fixture_day)
+    except (TypeError,ValueError):
+        return None
+    # A roster captured today can be used for tomorrow's match, but its
+    # player logs must still stop strictly *before* the original capture day.
+    if exclusive>fixture:
         return None
     if not str(p.get("nba_log_person_id") or "").isdecimal() or not str(
             p.get("espn_athlete_id") or "").isdecimal():
@@ -57,7 +64,7 @@ def validate_player(p,team,fixture_day):
         game=date.fromisoformat(fixture_day)
     except (KeyError,TypeError,ValueError):
         return None
-    if not 0<(game-last).days<=MAX_CURRENT_ROLE_AGE_DAYS:
+    if not (last<exclusive and 0<(game-last).days<=MAX_CURRENT_ROLE_AGE_DAYS):
         return None
     return {"espn_athlete_id":str(p["espn_athlete_id"]),
             "nba_log_person_id":str(p["nba_log_person_id"]),
