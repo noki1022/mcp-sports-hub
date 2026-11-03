@@ -59,6 +59,13 @@ def seal(source,main,root,day,slot,run_id,now):
                 time(21,30)<=sg.time()<time(22,0)):
             raise ValueError("NOT_ACTUAL_BEIJING_2130_FINAL_MODEL_AND_SNAPSHOT")
     if not candidate.get("games"):raise ValueError("EMPTY_PREDICTION_BOARD")
+    if candidate.get("official_injury_is_observational_and_no_numeric_probability_uplift") is not True:
+        raise ValueError("INJURY_RESEARCH_NOT_OBSERVATIONAL_ONLY")
+    if original.get("injury_evidence_sanitized_only") is not True:
+        raise ValueError("INJURY_SOURCE_WAS_NOT_SAFE_STAGED")
+    for g in candidate.get("games",[]):
+        if (g.get("research_official_injury_asof") or {}).get("injury_adjusted_probability") is not None:
+            raise ValueError("UNVERIFIED_INJURY_PROBABILITY_IN_SHADOW")
     if candidate.get("multibook_candidate_version"):
         if candidate.get("multibook_candidate_numerically_separate_not_promoted") is not True:
             raise ValueError("MULTIBOOK_VARIANT_ATTEMPTED_PRODUCTION_PROMOTION")
@@ -82,7 +89,7 @@ def seal(source,main,root,day,slot,run_id,now):
         if set(g.get("markets",{}))!=set(candidate["five_target_markets"]):
             raise ValueError("INCOMPLETE_INDEPENDENT_FIVE_MARKET_ANSWER")
     required=("input_manifest.json","joined.json","consensus.json","jingcai.json",
-              "independent_prediction.json")
+              "injury.json","injury_history.json","independent_prediction.json")
     for name in required:
         if not (src/name).is_file():raise ValueError("MISSING_SOURCE_ONLY_FROZEN_DOCUMENT:"+name)
     if (src/"previous.json").is_file():
