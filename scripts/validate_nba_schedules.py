@@ -39,7 +39,9 @@ workflows={
  # One QUIET research-only scorecard, no 007 collection and no PushPlus.
  "nba-dual-final-2130-score.yml":["25 14 * * *"],
  # Lightweight health check only; no market fetch, inference or routine push.
- "nba-archive-capacity-watch.yml":["15 4 * * *"]
+ "nba-archive-capacity-watch.yml":["15 4 * * *"],
+ # Quiet, independent raw vault audit and conditional offsite backup.
+ "nba-raw-vault-backup.yml":["10 5 * * *"]
 }
 def load(path):
     obj=yaml.safe_load(path.read_text())
