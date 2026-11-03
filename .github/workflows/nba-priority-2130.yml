@@ -285,6 +285,10 @@ jobs:
         run: |
           mkdir -p "reports/daily/$TARGET_DATE/2130" "reports/pushplus-sent/$TARGET_DATE"
           cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_market_consensus.json nba_five_market_forecast.json nba_dynamic_five_market_shadow.json nba_priority_focus.json nba_priority_iphone.html nba_injury_prospective_2130.json "reports/daily/$TARGET_DATE/2130/"
+          # Preserve the already-computed official report in the SAME 21:30
+          # archived slot for independent read-only research after send.
+          # If unavailable, original production delivery and archive proceed.
+          if [ -f nba_priority_injury_context.json ]; then cp nba_priority_injury_context.json "reports/daily/$TARGET_DATE/2130/"; fi
           python3 - <<'PY'
           import os,json
           from pathlib import Path
