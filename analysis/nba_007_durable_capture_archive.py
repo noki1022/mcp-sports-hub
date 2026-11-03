@@ -117,7 +117,7 @@ def read_source(path: Path) -> tuple[bytes, dict | None]:
             low = raw.lower()
             for name in SENSITIVE:
                 needle = name.encode("ascii")
-                if re.search(rb'["\\']' + re.escape(needle) + rb'["\\']\\s*:',low):
+                if re.search(rb'"' + re.escape(needle) + rb'"\s*:', low):
                     raise ValueError("POSSIBLE_SECRET_IN_MALFORMED_JSON:"+name)
             print("MALFORMED_ORIGINAL_JSON_PRESERVED_NOT_TRAINING_APPROVED",
                   path.name,type(exc).__name__,str(exc)[:100])
