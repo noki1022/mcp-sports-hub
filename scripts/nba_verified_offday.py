@@ -10,22 +10,93 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, date
+import urllib.parse
+import urllib.request
+from datetime import datetime, date, timedelta
 from html import escape
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from nba_official_beijing_schedule import OFFICIAL_SCHEDULE, fetch as fetch_league, parse_date as parse_league_utc
+from nba_official_beijing_schedule import (OFFICIAL_SCHEDULE, ESPN_SCHEDULE, fetch as fetch_league, parse_date as parse_league_utc)
 from pushplus_mobile import send
 
 BEIJING = ZoneInfo("Asia/Shanghai")
 ACCEPTED = "API_ACCEPTED_NOT_DEVICE_CONFIRMED"
 
 
+def espn_zero_game_confirmation(target: str, *, feeds: dict | None = None) -> None:
+    """Fallback for NBA CDN HTTP 403: two US dates cover the entire Beijing day.
+
+    Require independent dated ESPN responses for US(target-1) and US(target),
+    plus neighboring NBA games to prove the source is active. Do not treat a
+    network error, empty stale feed, malformed event, or partial response
+    as a verified off-day.
+    """
+    from zoneinfo import ZoneInfo
+
+    target_day = date.fromisoformat(target)
+    et = ZoneInfo("America/New_York")
+    dates = [target_day + timedelta(days=delta) for delta in (-2, -1, 0, 1)]
+    active = {}
+    for day in dates:
+        key = day.strftime("%Y%m%d")
+        if feeds is not None:
+            if key not in feeds:
+                raise RuntimeError("OFFDAY_ESPN_MISSING_DATED_RESPONSE")
+            feed = feeds[key]
+        else:
+            url = ESPN_SCHEDULE + "?" + urllib.parse.urlencode({"dates": key, "limit": "100"})
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0 (compatible; NBA-OffdayDateAudit/1.0)",
+                "Accept": "application/json",
+            })
+            with urllib.request.urlopen(req, timeout=18) as res:
+                if res.status != 200:
+                    raise RuntimeError("OFFDAY_ESPN_NON_200_RESPONSE")
+                body = res.read(2000001)
+                if len(body) > 2000000:
+                    raise RuntimeError("OFFDAY_ESPN_RESPONSE_TOO_LARGE")
+            feed = json.loads(body)
+        if not isinstance(feed, dict):
+            raise RuntimeError("OFFDAY_ESPN_MALFORMED_DATED_FEED")
+        events, leagues = feed.get("events"), feed.get("leagues")
+        if not isinstance(events, list) or len(events) >= 100:
+            raise RuntimeError("OFFDAY_ESPN_EVENTS_MISSING_OR_TRUNCATED")
+        if not isinstance(leagues, list) or not any(
+            isinstance(x, dict) and
+            (str(x.get("slug", "")).lower() == "nba" or
+             str(x.get("abbreviation", "")).upper() == "NBA")
+            for x in leagues
+        ):
+            raise RuntimeError("OFFDAY_ESPN_LEAGUE_IDENTITY_UNVERIFIED")
+        for ev in events:
+            if not isinstance(ev, dict) or not ev.get("id") or not ev.get("date"):
+                raise RuntimeError("OFFDAY_ESPN_EVENT_IDENTITY_MISSING")
+            utc = parse_league_utc(ev["date"])
+            if utc.astimezone(et).date() != day:
+                raise RuntimeError("OFFDAY_ESPN_WRONG_US_DATE_WINDOW")
+            if utc.astimezone(BEIJING).date() == target_day:
+                raise RuntimeError("OFFDAY_ESPN_CONFIRMS_GAMES_FOR_TARGET")
+        active[key] = len(events)
+    if active[dates[0].strftime("%Y%m%d")] == 0 or not (
+        active[dates[2].strftime("%Y%m%d")] or
+        active[dates[3].strftime("%Y%m%d")]
+    ):
+        raise RuntimeError("OFFDAY_ESPN_NEIGHBORING_GAME_DAYS_UNVERIFIED")
+    print("OFFDAY_ESPN_UTC_DATE_CROSSCHECK_PASS", target,
+          json.dumps(active, sort_keys=True), flush=True)
+
+
 def league_zero_game_confirmation(target: str, league: dict | None = None) -> None:
     """Check the NBA league's real full-season fixture list, not a partial date API."""
     if league is None:
-        league = fetch_league()
+        try:
+            league = fetch_league()
+        except (OSError, ValueError, RuntimeError) as exc:
+            print("OFFDAY_NBA_LEAGUE_CDN_UNAVAILABLE_ESPN_FALLBACK",
+                  type(exc).__name__, flush=True)
+            espn_zero_game_confirmation(target)
+            return
     try:
         days = league["leagueSchedule"]["gameDates"]
         all_games = [game for day in days for game in day.get("games", [])]
@@ -139,6 +210,30 @@ def self_test() -> None:
         pass
     else:
         raise AssertionError("NBA_LEAGUE_CONFLICT_MUST_ABORT")
+    # Simulate NBA CDN blocking GitHub runners (HTTP 403): ESPN fallback
+    # needs both US dates plus real games on adjacent NBA calendar dates.
+    def date_feed(events):
+        return {"leagues": [{"slug": "nba", "abbreviation": "NBA"}],
+                "events": events}
+    def event(game_id, tip):
+        return {"id": game_id, "date": tip}
+    feeds = {
+        "20261102": date_feed([event("es1", "2026-11-03T00:00:00Z")]),
+        "20261103": date_feed([]),
+        "20261104": date_feed([event("es2", "2026-11-05T00:00:00Z")]),
+        "20261105": date_feed([event("es3", "2026-11-06T00:00:00Z")]),
+    }
+    espn_zero_game_confirmation("2026-11-04", feeds=feeds)
+    conflicting_feeds = json.loads(json.dumps(feeds))
+    conflicting_feeds["20261103"]["events"].append(event("bad", "2026-11-03T23:00:00Z"))
+    for bad in (conflicting_feeds, {**feeds, "20261103": date_feed(None)},
+                {**feeds, "20261102": date_feed([])}):
+        try:
+            espn_zero_game_confirmation("2026-11-04", feeds=bad)
+        except (RuntimeError, TypeError):
+            pass
+        else:
+            raise AssertionError("INVALID_OR_CONFLICTING_ESPN_OFFDAY_MUST_ABORT")
     print("VERIFIED_NBA_OFFDAY_SELFTEST_PASS")
 
 
@@ -167,7 +262,7 @@ def main() -> None:
         raise RuntimeError("OFFDAY_CANNOT_PUSH_WITH_OFFICIAL_FIXTURES")
     if args.probe:
         print("VERIFIED_ZERO_NBA_GAME_DAY", args.target,
-              "NBA_LEAGUE_SOURCE_CONFIRMED", OFFICIAL_SCHEDULE)
+              "UTC_SOURCE_CROSS_DATE_CONFIRMED", flush=True)
         return
     if args.slot != "1200":
         raise RuntimeError("OFFDAY_NOTIFICATION_IS_NOON_ONLY")
