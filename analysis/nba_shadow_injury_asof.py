@@ -7,6 +7,7 @@ injury-to-points adjustment or a confirmed starting lineup.
 """
 from __future__ import annotations
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 import json, sys
 from pathlib import Path
 
@@ -24,14 +25,18 @@ def clock(value):
 def safe_players(players):
     if not isinstance(players,list):return None
     out=[]
+    seen=set()
     for p in players:
         if not isinstance(p,dict) or not str(p.get("name") or "").strip() or p.get("status") not in STATUSES:
             return None
+        name=str(p["name"]).strip().casefold()
+        if name in seen:return None
+        seen.add(name)
         reason=str(p.get("reason") or "")[:240]
         out.append({"name":str(p["name"]).strip()[:120],
                     "status":p["status"],"reason":reason,
                     "medical_reason_observed":reason.lower().startswith("injury/illness"),
-                    "confirmed_to_play":False}) # Even Available is NOT a starting-lineup guarantee.
+                    "confirmed_starting_lineup":None}) # Available is NOT a guaranteed starter.
     return out
 
 def stage(raw, board, day, now):
@@ -69,7 +74,9 @@ def stage(raw, board, day, now):
             observed=clock(rec.get("source_captured_at_utc"))
             states=[(rec.get(side) or {}).get("report_state") for side in ("home","away")]
             players=[safe_players((rec.get(side) or {}).get("players")) for side in ("home","away")]
-            trustworthy=(rec.get("source_date_matches_tip") is True
+            trustworthy=(rec.get("source_report_et_date")==tip.astimezone(
+                             ZoneInfo("America/New_York")).date().isoformat()
+                         and rec.get("source_date_matches_tip") is True
                          and rec.get("capture_before_tip_verified") is True
                          and rec.get("parsed_player_ambiguity") is False
                          and observed is not None and observed<=now and observed<tip
