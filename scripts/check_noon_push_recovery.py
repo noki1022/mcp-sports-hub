@@ -17,7 +17,12 @@ assert s.index("Recheck verified acceptance before PushPlus") < s.index("Send co
 assert "python3 scripts/nba_fixed_slot_gate.py --phase preflight" in s
 assert "python3 scripts/nba_fixed_slot_gate.py --phase recheck" in s
 assert "if: steps.preflight.outputs.skip != 'true'" in s
-assert "if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}" in s
+assert "if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}" in s
+assert "Independently confirm verified NBA zero-game day" in s
+assert "scripts/nba_verified_offday.py --joined titan007_three_joined.json" in s
+assert "steps.offday.outputs.verified != 'true'" in s
+assert "env.REPORT_SLOT == '1200'" in s
+assert "scripts/nba_verified_offday.py --self-test" in Path(".github/workflows/ci.yml").read_text()
 assert "--send --require-token --require-delivery" in s
 assert "status.get('state')!='API_ACCEPTED_NOT_DEVICE_CONFIRMED'" in s
 assert "FALLBACK_SLOT=\"${REPORT_SLOT:-}\"" in s
