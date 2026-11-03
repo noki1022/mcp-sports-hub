@@ -38,7 +38,9 @@ workflows={
  "odds-results-settlement.yml":["0 8 * * *"],
  # One QUIET research-only scorecard, no 007 collection and no PushPlus.
  "nba-dual-final-2130-score.yml":["25 14 * * *"],
- # Long-lived immutable source audit, independent index and optional offsite mirror.
+ # Lightweight health check only; no market fetch, inference or routine push.
+ "nba-archive-capacity-watch.yml":["15 4 * * *"],
+ # Quiet, independent raw vault audit and conditional offsite backup.
  "nba-raw-vault-backup.yml":["10 5 * * *"]
 }
 def load(path):
