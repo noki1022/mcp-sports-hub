@@ -1,0 +1,111 @@
+name: NBA immutable raw vault index audit and optional independent R2 mirror
+on:
+  workflow_dispatch:
+  schedule:
+    # Beijing 13:10 UTC+8; production capture and PushPlus never wait on this.
+    - cron: "10 5 * * *"
+  pull_request:
+    paths:
+      - "ops/nba_raw_vault.py"
+      - "ops/nba_raw_catalog.py"
+      - "ops/nba_r2_offsite_mirror.py"
+      - ".github/workflows/nba-raw-vault-backup.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nba-raw-vault-durable-catalog-and-r2
+  cancel-in-progress: false
+
+jobs:
+  independently-verify-and-catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install mirror client for isolated selftest
+        run: python3 -m pip install --quiet "boto3>=1.35,<2"
+      - name: Verify local exact byte restore, immutable remote upload and tamper detection
+        run: |
+          python3 -m py_compile ops/nba_raw_vault.py ops/nba_raw_catalog.py ops/nba_r2_offsite_mirror.py
+          python3 ops/nba_raw_vault.py selftest
+          python3 ops/nba_r2_offsite_mirror.py --selftest
+      - name: Checkout actual append-only source branch (not temporary Action artifact)
+        run: |
+          git fetch --quiet origin archive/nba-market-captures
+          git worktree add --detach "$RUNNER_TEMP/nba-raw-evidence" origin/archive/nba-market-captures
+      - name: Inspect and independently decompress, validate all archived originals
+        run: |
+          python3 ops/nba_raw_vault.py --archive-root "$RUNNER_TEMP/nba-raw-evidence" audit
+          python3 ops/nba_raw_catalog.py build \
+            --archive-root "$RUNNER_TEMP/nba-raw-evidence" \
+            --catalog "$RUNNER_TEMP/nba-verified-catalog"
+          echo "Verified source data; index is derived only" >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve searchable month-index as separate durable Git branch
+        if: github.event_name != 'pull_request'
+        run: |
+          git fetch --quiet origin audit/nba-raw-search-catalog
+          git worktree add --detach "$RUNNER_TEMP/catalog-branch" origin/audit/nba-raw-search-catalog
+          git -C "$RUNNER_TEMP/catalog-branch" checkout -B audit/nba-raw-search-catalog origin/audit/nba-raw-search-catalog
+          mkdir -p "$RUNNER_TEMP/catalog-branch/catalog"
+          cp -a "$RUNNER_TEMP/nba-verified-catalog/." "$RUNNER_TEMP/catalog-branch/catalog/"
+          git -C "$RUNNER_TEMP/catalog-branch" config user.name "github-actions[bot]"
+          git -C "$RUNNER_TEMP/catalog-branch" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cd "$RUNNER_TEMP/catalog-branch"
+          git add -- catalog/
+          if ! git diff --cached --quiet; then
+            git commit -m "Index verified immutable NBA originals without rewriting archive"
+            for attempt in 1 2 3; do
+              if git push origin HEAD:audit/nba-raw-search-catalog; then exit 0; fi
+              git pull --rebase origin audit/nba-raw-search-catalog
+            done
+            exit 1
+          fi
+      - name: Replicate compressed originals and manifests to independent Cloudflare R2
+        if: github.event_name != 'pull_request'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.R2_BACKUP_BUCKET }}
+        run: |
+          python3 ops/nba_r2_offsite_mirror.py --archive-root "$RUNNER_TEMP/nba-raw-evidence"
+          echo "Independent R2 objects validated by download and SHA256" >> "$GITHUB_STEP_SUMMARY"
+      - name: Show truthful mirror-failure status; never silently claim offsite backup
+        if: failure()
+        run: |
+          echo "::error::NBA_ORIGINAL_RAW_BACKUP_OR_AUDIT_FAILED; original Git evidence was NOT deleted"
+          echo "## Backup incomplete" >> "$GITHUB_STEP_SUMMARY"
+          echo "Inspect failed step. Without four R2 secrets, the offsite copy is NOT active." >> "$GITHUB_STEP_SUMMARY"
+      - name: Notify of backup failures through optional existing PushPlus channel
+        if: failure() && github.event_name != 'pull_request'
+        env:
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json,os,urllib.request
+          token=os.environ.get("PUSHPLUS_TOKEN","")
+          if not token:
+              print("::warning::NO_PUSHPLUS_TOKEN_FOR_BACKUP_FAILURE_ALERT")
+          else:
+              payload=json.dumps({
+                  "token":token,"title":"NBA原始数据备份异常",
+                  "content":"GitHub长期数据备份未完成；需要检查归档及R2配置。原始Git数据未执行任何删除。\nhttps://github.com/"+os.environ["GITHUB_REPOSITORY"]+"/actions",
+                  "template":"txt"}).encode("utf-8")
+              req=urllib.request.Request("https://www.pushplus.plus/send",data=payload,
+                                         headers={"Content-Type":"application/json"})
+              try:
+                  with urllib.request.urlopen(req,timeout=15) as resp:
+                      ans=json.load(resp)
+                  if str(ans.get("code"))!="200":
+                      print("::warning::BACKUP_FAILURE_PUSHPLUS_NOT_ACCEPTED")
+              except Exception as e:
+                  print("::warning::BACKUP_FAILURE_NOTIFICATION_UNAVAILABLE",type(e).__name__)
+          PY
