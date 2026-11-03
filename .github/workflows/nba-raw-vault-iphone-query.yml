@@ -1,0 +1,68 @@
+name: NBA raw vault search and exact restore for iPhone
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: Beijing game date YYYY-MM-DD (optional)
+        required: false
+        type: string
+      game_id:
+        description: Exact game ID / JC number (optional)
+        required: false
+        type: string
+      source:
+        description: Source path substring e.g. jingcai, top10 (optional)
+        required: false
+        type: string
+      manifest:
+        description: Exact manifest path for optional original recovery
+        required: false
+        type: string
+      restore_source:
+        description: Exact original source path in that manifest
+        required: false
+        type: string
+  pull_request:
+    paths:
+      - '.github/workflows/nba-raw-vault-iphone-query.yml'
+      - 'ops/nba_raw_iphone_action.py'
+
+permissions:
+  contents: read
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VAULT_DAY: ${{ inputs.day || '' }}
+      VAULT_GAME_ID: ${{ inputs.game_id || '' }}
+      VAULT_SOURCE: ${{ inputs.source || '' }}
+      VAULT_MANIFEST: ${{ inputs.manifest || '' }}
+      VAULT_RESTORE_SOURCE: ${{ inputs.restore_source || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Test restore integrity and anti-tamper safety
+        run: |
+          python3 -m py_compile ops/nba_raw_iphone_action.py
+          python3 ops/nba_raw_vault.py selftest
+      - name: Checkout original data branch, never edit it
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git fetch --quiet origin archive/nba-market-captures
+          git worktree add --detach "$RUNNER_TEMP/archive" origin/archive/nba-market-captures
+      - name: Search real originals and optionally restore exact byte content
+        if: github.event_name == 'workflow_dispatch'
+        run: python3 ops/nba_raw_iphone_action.py
+      - name: Downloadable verified original and search log (temporary 7-day copy)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-vault-query-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/vault-search.jsonl
+            ${{ runner.temp }}/recovered-original.*
+          if-no-files-found: ignore
+          retention-days: 7
