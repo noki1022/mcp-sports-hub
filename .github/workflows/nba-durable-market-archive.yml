@@ -1,0 +1,163 @@
+name: Durable NBA every-capture 007 / Jingcai / multi-book raw market evidence
+on:
+  workflow_run:
+    workflows:
+      - 'Titan007 scheduled full-board NBA analysis and PushPlus delivery'
+      - 'NBA PRIORITY 21:30 Beijing pre-cutoff report'
+      - 'NBA PRIORITY 06:30 Beijing morning full report'
+      - 'Titan007 NBA/CBA final one-hour report'
+    types: [completed]
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'analysis/nba_007_durable_capture_archive.py'
+      - '.github/workflows/nba-durable-market-archive.yml'
+  workflow_dispatch:
+    inputs:
+      backfill_date:
+        description: Optional YYYY-MM-DD Beijing game date; empty backfills all existing evidence
+        type: string
+        required: false
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: nba-007-durable-append-only-archive-branch
+  cancel-in-progress: false
+jobs:
+  archive-source:
+    if: >-
+      ${{
+        github.event_name != 'workflow_run' ||
+        (
+          github.event.workflow_run.head_repository.full_name == github.repository &&
+          github.event.workflow_run.head_branch == 'main'
+        )
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      SOURCE_RUN: ${{ github.event.workflow_run.id || '' }}
+      SOURCE_ATTEMPT: ${{ github.event.workflow_run.run_attempt || '1' }}
+      SOURCE_NAME: ${{ github.event.workflow_run.name || '' }}
+      SOURCE_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}
+      ARCHIVE_BACKFILL_DATE: ${{ inputs.backfill_date || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify byte-for-byte gzip and SHA256 manifest implementation
+        run: python3 analysis/nba_007_durable_capture_archive.py --selftest
+      - name: Discover artifacts from the exact original GitHub run, including failed analyses
+        if: github.event_name == 'workflow_run'
+        id: discover
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN/artifacts?per_page=100" > "$RUNNER_TEMP/source-artifacts.json"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          import sys
+          sys.path.insert(0,'analysis')
+          from nba_007_durable_capture_archive import WORKFLOWS
+          name=os.environ['SOURCE_NAME']
+          prefix=WORKFLOWS.get(name)
+          if not prefix:
+              raise SystemExit('UNRECOGNIZED_ORIGINAL_CAPTURE_WORKFLOW')
+          listing=json.loads((Path(os.environ['RUNNER_TEMP'])/'source-artifacts.json').read_text())
+          matched=[a['name'] for a in listing.get('artifacts',[])
+                   if not a.get('expired') and a['name'].startswith(prefix)]
+          if len(matched)>3:
+              raise SystemExit('TOO_MANY_ORIGINAL_SOURCE_CAPTURE_ARTIFACTS')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as stream:
+              stream.write('available='+('true' if matched else 'false')+'\n')
+          print('SOURCE_CAPTURE_ARTIFACTS_FROM_ORIGINAL_RUN',os.environ['SOURCE_RUN'],
+                'conclusion',os.environ['SOURCE_CONCLUSION'],'names',matched)
+          if not matched:
+              print('::warning::NO_EVIDENCE_ARTIFACT_FROM_ORIGINAL_ACTION_RUN; capture was not archived')
+          PY
+      - name: Download immutable original run artifacts (never use latest-by-date)
+        if: github.event_name == 'workflow_run' && steps.discover.outputs.available == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/original-run-artifacts
+          merge-multiple: false
+      - name: Mount separate long-lived append-only market archive Git branch
+        if: github.event_name != 'workflow_run' || steps.discover.outputs.available == 'true'
+        run: |
+          git fetch --quiet origin archive/nba-market-captures
+          git worktree add --detach "$RUNNER_TEMP/nba-archive" origin/archive/nba-market-captures
+          git -C "$RUNNER_TEMP/nba-archive" checkout -B archive/nba-market-captures origin/archive/nba-market-captures
+          git -C "$RUNNER_TEMP/nba-archive" config user.name "github-actions[bot]"
+          git -C "$RUNNER_TEMP/nba-archive" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Preserve every source capture's raw bookmaker and JC JSON before artifact expiration
+        if: github.event_name == 'workflow_run' && steps.discover.outputs.available == 'true'
+        run: |
+          python3 analysis/nba_007_durable_capture_archive.py \
+            --artifact-root "$RUNNER_TEMP/original-run-artifacts" \
+            --archive-root "$RUNNER_TEMP/nba-archive" \
+            --workflow-name "$SOURCE_NAME" \
+            --run-id "$SOURCE_RUN" --attempt "$SOURCE_ATTEMPT" \
+            --conclusion "$SOURCE_CONCLUSION"
+      - name: Backfill ALL already available daily, hourly, JC and original company quote files
+        if: github.event_name != 'workflow_run'
+        run: |
+          if [ -n "$ARCHIVE_BACKFILL_DATE" ]; then
+            python3 analysis/nba_007_durable_capture_archive.py \
+              --main-repo "$GITHUB_WORKSPACE" \
+              --archive-root "$RUNNER_TEMP/nba-archive" \
+              --backfill-date "$ARCHIVE_BACKFILL_DATE"
+          else
+            python3 analysis/nba_007_durable_capture_archive.py \
+              --main-repo "$GITHUB_WORKSPACE" \
+              --archive-root "$RUNNER_TEMP/nba-archive" --backfill-all
+          fi
+      - name: Verify archive SHA256, gzip decompression and manifest before Git commit
+        if: github.event_name != 'workflow_run' || steps.discover.outputs.available == 'true'
+        run: |
+          python3 - <<'PY'
+          import gzip,hashlib,json,os
+          from pathlib import Path
+          base=Path(os.environ['RUNNER_TEMP'])/'nba-archive/reports/market-captures'
+          manifests=list(base.glob('**/manifest.json'))
+          for manifest in manifests:
+              doc=json.loads(manifest.read_text())
+              if doc['schema_version']!='nba-007-durable-market-evidence-v1':
+                  raise RuntimeError('ARCHIVE_SCHEMA_INVALID')
+              for entry in doc['files']:
+                  zipped=(manifest.parent/entry['compressed_file']).read_bytes()
+                  raw=gzip.decompress(zipped)
+                  if hashlib.sha256(raw).hexdigest()!=entry['source_sha256']:
+                      raise RuntimeError('ARCHIVE_SHA256_MISMATCH')
+                  if hashlib.sha256(zipped).hexdigest()!=entry['gzip_sha256']:
+                      raise RuntimeError('ARCHIVE_GZIP_SHA256_MISMATCH')
+          print('ARCHIVE_INDEPENDENT_SHA256_GZIP_MANIFESTS_VERIFIED',len(manifests))
+          PY
+      - name: Append only new evidence to research branch; leave original GitHub production branch untouched
+        if: github.event_name != 'workflow_run' || steps.discover.outputs.available == 'true'
+        run: |
+          cd "$RUNNER_TEMP/nba-archive"
+          git add -- reports/market-captures/
+          if git diff --cached --quiet; then
+            echo "NBA_007_CAPTURE_ALREADY_ARCHIVED_OR_NO_ELIGIBLE_SOURCE"
+            exit 0
+          fi
+          git commit -m "Immutable NBA 007/JC multibook capture $SOURCE_RUN attempt $SOURCE_ATTEMPT"
+          for retry in 1 2 3 4 5; do
+            if git push origin HEAD:archive/nba-market-captures; then
+              echo "NBA_007_DURABLE_CAPTURE_COMMITTED $(git rev-parse HEAD)"
+              exit 0
+            fi
+            git pull --rebase origin archive/nba-market-captures
+          done
+          echo 'FAILED_TO_PERSIST_NBA_007_CAPTURE_DURABLY' >&2
+          exit 1
