@@ -15,7 +15,7 @@ from html import escape
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from nba_official_beijing_schedule import fetch as fetch_league, extract as extract_league, convert as convert_league
+from nba_official_beijing_schedule import (OFFICIAL_SCHEDULE, fetch as fetch_league, extract as extract_league, convert as convert_league)
 from pushplus_mobile import send
 
 BEIJING = ZoneInfo("Asia/Shanghai")
