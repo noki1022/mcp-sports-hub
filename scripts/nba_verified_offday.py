@@ -10,19 +10,35 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from html import escape
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from nba_official_beijing_schedule import OFFICIAL_SCHEDULE
+from nba_official_beijing_schedule import OFFICIAL_SCHEDULE, fetch as fetch_league, extract as extract_league, convert as convert_league
 from pushplus_mobile import send
 
 BEIJING = ZoneInfo("Asia/Shanghai")
 ACCEPTED = "API_ACCEPTED_NOT_DEVICE_CONFIRMED"
 
 
-def verified_offday(board: dict, target: str) -> bool:
+def league_zero_game_confirmation(target: str, league: dict | None = None) -> None:
+    """Check the NBA league's real full-season fixture list, not a partial date API."""
+    if league is None:
+        league = fetch_league()
+    try:
+        days = league["leagueSchedule"]["gameDates"]
+        all_games = [game for day in days for game in day.get("games", [])]
+        dated = [date.fromisoformat(convert_league(g)["beijing_date"]) for g in all_games]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError("OFFDAY_NBA_LEAGUE_SCHEDULE_INVALID") from exc
+    if len(dated) < 100 or not (min(dated) < date.fromisoformat(target) < max(dated)):
+        raise RuntimeError("OFFDAY_NBA_LEAGUE_SEASON_NOT_VERIFIED")
+    if extract_league(league, target):
+        raise RuntimeError("OFFDAY_NBA_LEAGUE_DISAGREES_ON_ZERO_GAME_DAY")
+
+
+def verified_offday(board: dict, target: str, *, official_league: dict | None = None) -> bool:
     if board.get("requested_display_date") != target:
         raise RuntimeError("OFFDAY_TARGET_DATE_MISMATCH")
     try:
@@ -41,9 +57,9 @@ def verified_offday(board: dict, target: str) -> bool:
         return False
     if count != 0:
         raise RuntimeError("OFFDAY_INVALID_OFFICIAL_COUNT")
-    sources = board.get("official_schedule_source")
-    if not isinstance(sources, list) or OFFICIAL_SCHEDULE not in sources:
-        raise RuntimeError("OFFDAY_MISSING_NBA_LEAGUE_CONFIRMATION")
+    # Never infer an off-day from an empty ESPN window or unavailable feed.
+    # Require full-season official NBA confirmation of the exact Beijing date.
+    league_zero_game_confirmation(target, official_league)
     if (board.get("nba_cba_games") != [] or
             board.get("verified_fixture_ids_for_date") != 0 or
             board.get("markets_joined_for_date") != 0):
@@ -66,6 +82,17 @@ def render(target: str) -> str:
 
 
 def self_test() -> None:
+    league = {"leagueSchedule": {"gameDates": [
+        {"games": [{"gameId": "1", "gameTimeUTC": "2026-10-30T23:00:00Z",
+                    "homeTeam": {"teamTricode": "WAS"},
+                    "awayTeam": {"teamTricode": "CHA"}}]},
+        {"games": [{"gameId": str(i), "gameTimeUTC": "2026-11-01T23:00:00Z",
+                    "homeTeam": {"teamTricode": "NYK"},
+                    "awayTeam": {"teamTricode": "BOS"}} for i in range(2, 105)]},
+        {"games": [{"gameId": "105", "gameTimeUTC": "2026-11-07T23:00:00Z",
+                    "homeTeam": {"teamTricode": "UTA"},
+                    "awayTeam": {"teamTricode": "DEN"}}]},
+    ]}}
     board = {
         "requested_display_date": "2026-11-04",
         "captured_at_utc": "2026-11-03T04:00:25+00:00",
@@ -77,10 +104,10 @@ def self_test() -> None:
         "markets_joined_for_date": 0,
         "site_query_dates": {"2026-11-04": {"nba_rows": 15}},
     }
-    assert verified_offday(board, "2026-11-04")
+    assert verified_offday(board, "2026-11-04", official_league=league)
     assert "0 场比赛" in render("2026-11-04")
     assert not verified_offday({**board, "upcoming_nba_games": [{"nba_game_id": "1"}],
-                                "official_schedule_count": 1}, "2026-11-04")
+                                "official_schedule_count": 1}, "2026-11-04", official_league=league)
     for patch in (
         {"official_schedule_source": []},
         {"official_schedule_count": 1},
@@ -89,17 +116,29 @@ def self_test() -> None:
         {"nba_cba_games": [{"game_id": "123"}]},
     ):
         try:
-            verified_offday({**board, **patch}, "2026-11-04")
+            verified_offday({**board, **patch}, "2026-11-04", official_league=league)
         except RuntimeError:
             pass
         else:
             raise AssertionError("INVALID_OFFDAY_MUST_NOT_BE_ACCEPTED_" + repr(patch))
     try:
-        verified_offday(board, "2026-11-05")
+        verified_offday(board, "2026-11-05", official_league=league)
     except RuntimeError:
         pass
     else:
         raise AssertionError("WRONG_TARGET_MUST_NOT_BE_ACCEPTED")
+    conflicting = json.loads(json.dumps(league))
+    conflicting["leagueSchedule"]["gameDates"].append({"games": [{
+        "gameId": "106", "gameTimeUTC": "2026-11-03T23:00:00Z",
+        "homeTeam": {"teamTricode": "WAS"},
+        "awayTeam": {"teamTricode": "CHA"},
+    }]})
+    try:
+        verified_offday(board, "2026-11-04", official_league=conflicting)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("NBA_LEAGUE_CONFLICT_MUST_ABORT")
     print("VERIFIED_NBA_OFFDAY_SELFTEST_PASS")
 
 
