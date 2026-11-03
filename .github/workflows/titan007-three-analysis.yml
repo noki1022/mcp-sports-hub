@@ -109,8 +109,37 @@ jobs:
           b=json.load(open('titan007_three_joined.json'))
           print('OFFICIAL_FIXTURE_RECOVERY',b.get('quote_recovery', {'state':'FIRST_VERIFIED_CAPTURE'}))
           PY
-      - name: Lock the noon official NBA slate or enforce the locked cohort
+      - name: Independently confirm verified NBA zero-game day
+        id: offday
         if: steps.preflight.outputs.skip != 'true'
+        run: |
+          # A reported zero from ESPN or 007 is NOT enough: cross-check NBA
+          # league's full-season UTC schedule before allowing an off-day.
+          if python3 scripts/nba_verified_offday.py --joined titan007_three_joined.json --target "$TARGET_DATE" --probe; then
+            echo "verified=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "verified=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Send one verified NBA zero-game notification at noon
+        if: ${{ steps.offday.outputs.verified == 'true' && env.REPORT_SLOT == '1200' }}
+        run: |
+          git fetch --quiet origin main
+          python3 scripts/nba_fixed_slot_gate.py --phase recheck
+          python3 scripts/nba_verified_offday.py --joined titan007_three_joined.json --target "$TARGET_DATE" --slot 1200 --send
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "reports/pushplus-sent/$TARGET_DATE/1200.json"
+          if ! git diff --cached --quiet; then
+            git commit -m "Record verified NBA zero-game day notice $TARGET_DATE 1200"
+            for n in 1 2 3; do
+              if git push origin HEAD:main; then exit 0; fi
+              git pull --rebase origin main
+            done
+            exit 1
+          fi
+          echo "VERIFIED_NBA_OFFDAY_NO_DUPLICATE_NOTIFICATION"
+      - name: Lock the noon official NBA slate or enforce the locked cohort
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           git pull --ff-only origin main
           mkdir -p "reports/noon-cohorts/$TARGET_DATE"
@@ -164,7 +193,7 @@ jobs:
             python3 scripts/nba_noon_slate.py enforce --joined titan007_three_joined.json --lock "reports/noon-cohorts/$TARGET_DATE/1200.json" --out nba_same_slate.json "${anchor_args[@]}"
           fi
       - name: Enforce Beijing date identity and report market coverage
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           python3 - <<'PY'
           import json,os
@@ -185,17 +214,17 @@ jobs:
                 'MISSING',d['nba_markets_missing'])
           PY
       - name: Generate odds-blind NBA prediction artifact
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           python3 analysis/nba_prediction_adapter.py --joined titan007_three_joined.json --out nba_independent_predictions_gate.json
       - name: Collect official injury status, fail closed if unavailable
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           python3 -m pip install --disable-pip-version-check --quiet "pdfplumber==0.11.7"
           python3 analysis/nba_official_injury.py --date "$TARGET_DATE" --out nba_official_injuries.json || echo "OFFICIAL_INJURY_UNAVAILABLE_NO_INFERRED_HEALTH"
           python3 analysis/nba_injury_context.py --joined titan007_three_joined.json --injuries nba_official_injuries.json --out nba_injury_context.json
       - name: Render mobile report and market analysis
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           python3 scripts/titan007_report.py --joined titan007_three_joined.json --html titan007_three_report.html --csv titan007_three_report.csv
           python3 analysis/titan007_daily_market.py --joined titan007_three_joined.json --out titan007_three_market.json
@@ -204,13 +233,13 @@ jobs:
           python3 analysis/nba_model_report.py --joined titan007_three_joined.json --predictions nba_independent_predictions_gate.json --out-json nba_model_analysis.json --out-html nba_model_analysis.html --injury-context nba_injury_context.json
           python3 analysis/market_movement_tracker.py --current titan007_three_joined.json --history-root reports/daily/$TARGET_DATE --out titan007_three_movement.json
       - name: Capture full-board point-in-time snapshot and compare prior slots
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           git pull --ff-only origin main
           python3 analysis/titan007_hourly_history.py capture --current titan007_three_joined.json --root reports/hourly --daily-root reports/daily --out-movement titan007_slot_movement.json
           python3 analysis/nba_hourly_dynamic_review.py --movement titan007_slot_movement.json --model nba_model_analysis.json --injury nba_injury_context.json --out nba_slot_dynamic_review.json
       - name: Audit all three user-supplied Jingcai pricing sources before market fusion
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         env:
           MARZDATA_APP_ID: ${{ secrets.MARZDATA_APP_ID }}
           MARZDATA_APP_SECRET: ${{ secrets.MARZDATA_APP_SECRET }}
@@ -228,11 +257,11 @@ jobs:
           print("JINGCAI_REQUIRED_SOURCE_AUDIT",x["status"],x["verified_games_with_all_three"])
           PY
       - name: Capture 007 visible top-ten companies and compare last stored sample
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           python3 scripts/optional_007_enrichment.py collect --joined titan007_three_joined.json --out nba_top10_companies.json --analysis nba_top10_comparison.json --history-root reports/top10 --status nba_top10_capture_status.json --timeout 120
       - name: Build point-in-time multi-company 007 market consensus
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           python3 scripts/optional_007_enrichment.py consensus --joined titan007_three_joined.json --top10 nba_top10_companies.json --out nba_market_consensus.json --status nba_market_consensus_status.json --timeout 25
           python3 - <<'PY'
@@ -244,7 +273,7 @@ jobs:
           print("NBA_MULTI_COMPANY_CONSENSUS",x["consensus_market_count"],"/",x["possible_market_count"])
           PY
       - name: Persist top-ten institution snapshots for next scheduled comparison
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         continue-on-error: true
         run: |
           git config user.name github-actions[bot]
@@ -259,7 +288,7 @@ jobs:
             done
           fi
       - name: Freeze five independent Jingcai/Crown NBA research directions
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           python3 analysis/nba_five_markets.py \
             --joined titan007_three_joined.json \
@@ -278,11 +307,11 @@ jobs:
           print("FIVE_MARKET_SNAPSHOT_FROZEN",x["game_count"],x["ready_counts"])
           PY
       - name: P0 fail-closed five-market source and team identity integrity
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           python3 analysis/nba_five_market_integrity_gate.py --joined titan007_three_joined.json --five nba_five_market_forecast.json --jingcai nba_jingcai_three_market.json --out nba_five_market_integrity.json
       - name: Calculate shadow-only dynamic five-market probabilities
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           PREVIOUS_SHADOW=""
           if [ -d "reports/daily/$TARGET_DATE" ]; then
@@ -321,11 +350,11 @@ jobs:
           print("DYNAMIC_FIVE_MARKET_SHADOW_GATE_PASS",x.get("status","OK_SHADOW"),x["game_count"])
           PY
       - name: Generate mandatory NBA spread and total research verdicts from ten institutions
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           python3 analysis/nba_two_market_forecast.py --joined titan007_three_joined.json --model nba_model_analysis.json --top10 nba_top10_comparison.json --out nba_two_market_forecast.json
       - name: Enforce seven-stage 007 NBA analysis SOP before PushPlus
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           python3 analysis/nba_analysis_sop.py \
             --joined titan007_three_joined.json \
@@ -346,11 +375,11 @@ jobs:
           print('NBA_SOP_PRESEND_EVIDENCE_GATE_PASS',x['game_count'],x['verified_jingcai_ids'])
           PY
       - name: Enforce analyzed same-capture market and independent model
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           python3 scripts/verify_nba_capture_analysis.py --joined titan007_three_joined.json --movement titan007_slot_movement.json --model nba_model_analysis.json --dynamic nba_slot_dynamic_review.json --out nba_capture_audit.json
       - name: Publish point-in-time snapshots for next run
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
@@ -364,17 +393,17 @@ jobs:
             exit 1
           fi
       - name: Audit market B and fusion C without directional assumptions
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           python3 analysis/nba_market_bc_diagnostics.py --joined titan007_three_joined.json --movement titan007_slot_movement.json --model nba_model_analysis.json --out nba_market_bc_diagnostics.json
       - name: Recheck verified acceptance before PushPlus
         id: recheck
-        if: steps.preflight.outputs.skip != 'true'
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
           git fetch --quiet origin main
           python3 scripts/nba_fixed_slot_gate.py --phase recheck
       - name: Archive analysis in repository
-        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
+        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
         run: |
           count=$(python3 -c "import json; print(len(json.load(open('titan007_three_joined.json')).get('nba_cba_games',[])))")
           if [ "$count" -gt 0 ]; then
@@ -396,7 +425,7 @@ jobs:
             echo "NO_MATCHED_GAMES_SKIP_ARCHIVE"
           fi
       - name: Validate cross-artifact delivery contract before PushPlus
-        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
+        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
         run: |
           python3 scripts/nba_delivery_contract.py \
             --joined titan007_three_joined.json \
@@ -405,7 +434,7 @@ jobs:
             --five nba_five_market_forecast.json
       - name: Final overnight pretip check immediately before PushPlus
         id: final_pretip
-        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
+        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
         run: |
           python3 - <<'PY'
           import os,sys
@@ -424,13 +453,13 @@ jobs:
           print("FINAL_PRETIP_FRESHNESS_PASS",slot)
           PY
       - name: Send complete iPhone full-board NBA analysis
-        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
+        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
           python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_slot_movement.json --dynamic nba_slot_dynamic_review.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --sop nba_analysis_sop.json --five nba_five_market_forecast.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token --require-delivery
       - name: Save confirmed accepted notification slot
-        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' }}
+        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
         run: |
           python3 - <<'PY'
           import os,json
@@ -462,7 +491,7 @@ jobs:
             exit 1
           fi
       - name: Failsafe verified NBA schedule PushPlus when full report fails
-        if: ${{ failure() && steps.preflight.outcome == 'success' && steps.recheck.outcome != 'failure' && steps.final_pretip.outcome != 'failure' }}
+        if: ${{ failure() && steps.offday.outputs.verified != 'true' && steps.preflight.outcome == 'success' && steps.recheck.outcome != 'failure' && steps.final_pretip.outcome != 'failure' }}
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
@@ -538,5 +567,7 @@ jobs:
             pushplus_mobile_preview.html
             pushplus_status.json
             schedule_fallback_status.json
+            nba_offday_pushplus_status.json
+            nba_offday_pushplus_preview.html
           if-no-files-found: warn
           retention-days: 14
