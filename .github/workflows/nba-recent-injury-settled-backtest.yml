@@ -1,0 +1,56 @@
+name: NBA last completed games injury shadow frozen retrospective score (research only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_recent_injury_settled_backtest.py'
+      - '.github/workflows/nba-recent-injury-settled-backtest.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recent-pretip-only-injury-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify scoring signs, medical versus nonmedical and pretip fail closed
+        run: |
+          python3 -m py_compile analysis/nba_recent_injury_settled_backtest.py
+          python3 analysis/nba_recent_injury_settled_backtest.py --selftest
+      - name: Score most recent actual completed NBA games against original sealed injury snapshots
+        run: |
+          mkdir -p "$RUNNER_TEMP/injury-finished-audit"
+          python3 analysis/nba_recent_injury_settled_backtest.py \
+            --repo . --start 2026-10-31 --end 2026-11-03 \
+            --out "$RUNNER_TEMP/injury-finished-audit/recent-completed-injury-retrospective.json"
+      - name: Enforce zero invented candidate uplift and immutable as-of score sources
+        run: |
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path(os.environ['RUNNER_TEMP'])/'injury-finished-audit/recent-completed-injury-retrospective.json'
+          d=json.loads(p.read_text())
+          assert d['schema_version']=='nba-recent-settled-injury-frozen-outcome-audit-v1'
+          assert d['completed_games_in_settlements']>0
+          assert d['strict_frozen_baseline_evaluable_games']>0
+          assert d['injury_adjusted_genuine_pretip_paired_n']==0
+          assert d['injury_adjusted_vs_original'] is None
+          assert d['does_not_create_a_new_injury_prediction_after_outcome'] is True
+          assert d['no_production_or_pushplus_changes'] is True
+          assert len(d['cohort_days'])>=2
+          assert sum(x['original_model_moneyline']['all']['n'] for x in [d])==d['strict_frozen_baseline_evaluable_games']
+          assert all(g['injury_model_uplift_over_original'] is None for g in d['games'] if g.get('eligible'))
+          print('REAL_RECENT_INJURY_FROZEN_BACKTEST_SOURCE_PROVENANCE_PASS')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-recent-actual-settled-injury-pretip-backtest
+          path: ${{ runner.temp }}/injury-finished-audit/
+          retention-days: 90
+          if-no-files-found: warn
