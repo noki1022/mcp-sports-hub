@@ -138,6 +138,23 @@ def verified_offday(board: dict, target: str, *, official_league: dict | None = 
     return True
 
 
+def accepted_offday_marker(target: str, root: Path = Path(".")) -> bool:
+    """Only an exact API-accepted, same-day zero-game noon marker can skip priority."""
+    marker = root / "reports" / "pushplus-sent" / target / "1200.json"
+    if not marker.is_file():
+        return False
+    try:
+        payload = json.loads(marker.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return (isinstance(payload, dict)
+            and payload.get("state") == ACCEPTED
+            and payload.get("kind") == "VERIFIED_NBA_OFFDAY"
+            and payload.get("target_date") == target
+            and payload.get("slot") == "1200"
+            and payload.get("games_considered") == 0)
+
+
 def render(target: str) -> str:
     d = datetime.fromisoformat(target).strftime("%Y年%m月%d日")
     return ("<div style='max-width:520px;font-family:-apple-system,Arial;"
@@ -234,6 +251,20 @@ def self_test() -> None:
             pass
         else:
             raise AssertionError("INVALID_OR_CONFLICTING_ESPN_OFFDAY_MUST_ABORT")
+    from tempfile import TemporaryDirectory
+    with TemporaryDirectory() as d:
+        root = Path(d)
+        marker = root / "reports/pushplus-sent/2026-11-04/1200.json"
+        marker.parent.mkdir(parents=True)
+        assert not accepted_offday_marker("2026-11-04", root)
+        valid = {"state": ACCEPTED, "kind": "VERIFIED_NBA_OFFDAY",
+                 "target_date": "2026-11-04", "slot": "1200",
+                 "games_considered": 0}
+        marker.write_text(json.dumps(valid))
+        assert accepted_offday_marker("2026-11-04", root)
+        assert not accepted_offday_marker("2026-11-05", root)
+        marker.write_text(json.dumps({**valid, "games_considered": 1}))
+        assert not accepted_offday_marker("2026-11-04", root)
     print("VERIFIED_NBA_OFFDAY_SELFTEST_PASS")
 
 
