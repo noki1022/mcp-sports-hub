@@ -41,7 +41,10 @@ workflows={
  # Lightweight health check only; no market fetch, inference or routine push.
  "nba-archive-capacity-watch.yml":["15 4 * * *"],
  # Quiet, independent raw vault audit and conditional offsite backup.
- "nba-raw-vault-backup.yml":["10 5 * * *"]
+ "nba-raw-vault-backup.yml":["10 5 * * *"],
+ # Separate source-only injury minutes/role research after 21:30. No odds
+ # monitoring, no PushPlus, no modification of original forecasts.
+ "nba-injury-live-roster-feature-freeze.yml":["10 18 * * *"]
 }
 def load(path):
     obj=yaml.safe_load(path.read_text())
@@ -145,6 +148,18 @@ def main():
     assert "optional_007_enrichment.py" not in scorecard
     assert "titan007_join_beijing_verified.py" not in scorecard
     assert "contents: read" in scorecard
+    # A standalone research-only scheduled injury role job may archive its own
+    # source evidence, but cannot dispatch any original-market collection,
+    # send a notification, or publish an unvalidated numeric player effect.
+    role_job=(ROOT/".github/workflows/nba-injury-live-roster-feature-freeze.yml").read_text()
+    assert "nba_injury_live_roster_feature_freeze.py" in role_job
+    assert "nba_injury_rotation_role_asof.py" in role_job
+    assert "audit/nba-injury-role-evidence" in role_job
+    assert "git push origin HEAD:main" not in role_job
+    assert "pushplus_mobile.py" not in role_job
+    assert "optional_007_enrichment.py" not in role_job
+    assert "titan007_join_beijing_verified.py" not in role_job
+    assert "contents: write" in role_job and "contents: read" in role_job
     # Only TWO deliberate full-report exceptions to the otherwise silent
     # Beijing 22:30–05:30 market-monitor period: 00:30 and 03:30.
     cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())

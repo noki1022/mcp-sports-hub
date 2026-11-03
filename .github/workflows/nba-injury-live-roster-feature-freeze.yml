@@ -3,9 +3,14 @@ on:
   pull_request:
     paths:
       - 'analysis/nba_injury_live_roster_feature_freeze.py'
+      - 'analysis/nba_injury_rotation_role_asof.py'
       - 'analysis/README-nba-injury-live-roster-feature-freeze.md'
       - '.github/workflows/nba-injury-live-roster-feature-freeze.yml'
   workflow_dispatch:
+  # Separate low-priority research run, after official reports are usually posted.
+  # 18:10 UTC = 02:10 Beijing next day; never blocks an original 007/PushPlus job.
+  schedule:
+    - cron: '10 18 * * *'
 permissions:
   contents: read
 jobs:
@@ -24,7 +29,8 @@ jobs:
           python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6 pandas==2.2.3 pyarrow==20.0.0 pdfplumber==0.11.7
       - name: Run existing parser and research time-leak tests
         run: |
-          python3 -m py_compile analysis/nba_injury_live_roster_feature_freeze.py
+          python3 -m py_compile analysis/nba_injury_live_roster_feature_freeze.py analysis/nba_injury_rotation_role_asof.py
+          python3 analysis/nba_injury_rotation_role_asof.py
           python3 analysis/nba_injury_live_roster_feature_freeze.py --selftest
           python3 analysis/nba_current_roster_id_crosswalk.py --selftest
           python3 analysis/nba_injury_person_id_asof_minutes.py --selftest
@@ -47,6 +53,8 @@ jobs:
           assert audit['frozen_jsonl_sha256']==hashlib.sha256(blob).hexdigest()
           assert len(rows)==audit['future_games'] and len(rows)>0
           assert audit['no_injury_effect_fitted'] is True
+          assert audit['rotation_role_impact_coefficients_trained'] is False
+          assert audit['rotation_role_is_not_confirmed_lineup_or_replacement'] is True
           assert audit['no_retroactive_old_shadow_rewrite'] is True
           assert audit['existing_push_and_model_untouched'] is True
           assert audit['source_roster_captured_now_only'] is True
@@ -56,6 +64,13 @@ jobs:
           assert audit['identified_player_minutes_records']<=audit['official_player_rows']
           assert sum(audit['unresolved_reported_players_by_reason'].values())+audit['identified_player_minutes_records']==audit['official_player_rows']
           for row in rows:
+              role=row['research_rotation_role_asof']
+              assert role['schema_version']=='nba-injury-asof-rotation-role-source-only-v1'
+              assert role['probability_adjustment'] is None
+              if role.get('teams'):
+                  for side in role['teams'].values():
+                      assert side['all_minutes_descriptive_only'] is True
+                      assert side['no_confirmed_lineup'] is True
               assert row['injury_adjusted_probability'] is None
               assert row['candidate_coefficients'] is None
               assert row['production_eligible'] is False
@@ -91,3 +106,67 @@ jobs:
           path: /tmp/nba-live-injury-roster-frozen/
           if-no-files-found: warn
           retention-days: 60
+
+  # Durable minimal derived source evidence in a separate research branch.
+  # Original PDF bytes and player-game parquet blobs are never committed.
+  # This runs ONLY after the isolated scheduled research collector succeeds.
+  durable-source-role-audit:
+    needs: prospect-only-research
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    concurrency:
+      group: nba-injury-role-evidence-append
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: nba-future-real-injury-roster-role-prospective-evidence
+          path: ${{ runner.temp }}/injury-archive
+      - name: SHA-verify observed source and append only to separate branch
+        run: |
+          python3 - <<'PY'
+          import os,json,hashlib
+          from pathlib import Path
+          source=Path(os.environ["RUNNER_TEMP"])/"injury-archive"
+          audit=json.loads((source/"audit.json").read_text())
+          raw=(source/"prospective_official_injury_roster_minutes.jsonl").read_bytes()
+          if audit["frozen_jsonl_sha256"]!=hashlib.sha256(raw).hexdigest():
+              raise SystemExit("INJURY_ROLE_SOURCE_HASH_MISMATCH")
+          if not audit.get("rotation_role_is_not_confirmed_lineup_or_replacement"):
+              raise SystemExit("INJURY_ROLE_ARCHIVE_FORBIDS_PRODUCTION_SIGNAL")
+          print("INJURY_ROLE_DURABLE_SOURCE_SHA_VALID",audit["future_games"])
+          PY
+          git fetch --quiet origin audit/nba-injury-role-evidence
+          git checkout -B audit/nba-injury-role-evidence origin/audit/nba-injury-role-evidence
+          TARGET=$(python3 - <<'PY'
+          import os,json
+          from pathlib import Path
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          audit=json.loads((Path(os.environ["RUNNER_TEMP"])/"injury-archive/audit.json").read_text())
+          clock=datetime.fromisoformat(audit["capture_start_utc"].replace("Z","+00:00"))
+          print(clock.astimezone(ZoneInfo("America/New_York")).date().isoformat())
+          PY
+          )
+          DEST="reports/injury-role-asof/$TARGET/${{ github.run_id }}"
+          if [ -e "$DEST" ]; then
+            echo INJURY_ROLE_SAME_RUN_ALREADY_ARCHIVED_NO_OVERWRITE
+            exit 0
+          fi
+          mkdir -p "$DEST"
+          cp "$RUNNER_TEMP/injury-archive/audit.json" "$DEST/audit.json"
+          gzip -n -c "$RUNNER_TEMP/injury-archive/prospective_official_injury_roster_minutes.jsonl" > "$DEST/roles.jsonl.gz"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$DEST"
+          git commit -m "Append read-only NBA official injury role asof $TARGET scheduled ${{ github.run_id }}"
+          git push origin HEAD:audit/nba-injury-role-evidence
+          echo NBA_INJURY_ROLE_DURABLY_APPENDED "$DEST"
