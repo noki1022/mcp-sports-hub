@@ -56,10 +56,10 @@ def run():
         assert not (p/"settlement.json").exists()
         assert (p/"injury.json").exists() and (p/"injury_history.json").exists()
         assert "original_model" not in (p/"injury.json").read_text()
-        assert all(g["research_official_injury_asof"]["injury_adjusted_probability"] is None
-                   for g in generated["games"])
         assert "nba_independent_market_shadow.py" in (p/"analysis/nba_independent_market_shadow.py").name
         generated=prediction(p,simulated,slot)
+        assert all(g["research_official_injury_asof"]["injury_adjusted_probability"] is None
+                   for g in generated["games"])
         assert generated["game_count"]==15
         assert len(generated["games"][0]["markets"])==5
         assert generated["multibook_candidate_numerically_separate_not_promoted"] is True
