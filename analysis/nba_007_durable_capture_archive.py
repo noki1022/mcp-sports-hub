@@ -243,7 +243,7 @@ def write_manifest(output: Path, *, workflow_name: str, run_id: str,
     }
     target=output/"manifest.json"
     target.write_text(json.dumps(result,ensure_ascii=False,indent=2,sort_keys=True)+"\n")
-    if target.read_bytes() != target.read_bytes():
+    if json.loads(target.read_text()).get("file_count") != len(entries):
         raise RuntimeError("MANIFEST_WRITE_VERIFICATION_FAILED")
     return result
 
@@ -318,6 +318,34 @@ def backfill_day(source: Path, archive_root: Path, day: str):
     return output
 
 
+def backfill_all(source: Path, archive_root: Path):
+    days=set()
+    for base in ("reports/daily","reports/top10","reports/hourly",
+                 "reports/hourly-reviews","reports/five-market-intraday",
+                 "reports/two-market-intraday"):
+        root=source/base
+        if root.is_dir():
+            days.update(child.name for child in root.iterdir()
+                        if child.is_dir() and not child.is_symlink()
+                        and DAY.fullmatch(child.name))
+    done=[]
+    for day in sorted(days):
+        output=archive_root/"reports/market-captures"/day/"main-existing-historical-backfill"
+        if output.exists():
+            print("HISTORICAL_007_ALREADY_ARCHIVED_NEVER_OVERWRITE",day)
+            continue
+        try:
+            result=backfill_day(source,archive_root,day)
+            done.append((day,str(result)))
+        except ValueError as e:
+            if str(e)=="NO_EXISTING_RAW_NBA_ARCHIVE_FOR_DATE_"+day:
+                print("HISTORICAL_007_DATE_NO_ELIGIBLE_RAW_CAPTURE",day)
+                continue
+            raise
+    print("HISTORICAL_007_DAILY_DATES_ARCHIVED",len(done),[d for d,_ in done])
+    return done
+
+
 def selftest():
     from tempfile import TemporaryDirectory
     with TemporaryDirectory() as temp:
@@ -386,6 +414,7 @@ def main():
     parser.add_argument("--conclusion",default="unknown")
     parser.add_argument("--fallback-date")
     parser.add_argument("--backfill-date")
+    parser.add_argument("--backfill-all",action="store_true")
     a=parser.parse_args()
     if a.selftest:
         selftest()
@@ -393,7 +422,11 @@ def main():
     if not a.archive_root:
         raise SystemExit("REQUIRES_ARCHIVE_BRANCH_WORKTREE")
     target=Path(a.archive_root)
-    if a.backfill_date:
+    if a.backfill_all:
+        if not a.main_repo:
+            raise SystemExit("REQUIRES_SEPARATE_MAIN_WORKTREE")
+        backfill_all(Path(a.main_repo),target)
+    elif a.backfill_date:
         if not a.main_repo:
             raise SystemExit("REQUIRES_SEPARATE_MAIN_WORKTREE")
         backfill_day(Path(a.main_repo),target,a.backfill_date)
