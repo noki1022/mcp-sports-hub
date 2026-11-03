@@ -19,12 +19,21 @@ def prediction(stage_folder,now,slot):
     data={n:json.loads((p/(n+".json")).read_text()) for n in ("joined","consensus","jingcai")}
     prev=json.loads((p/"previous.json").read_text()) if (p/"previous.json").is_file() else None
     history=json.loads((p/"history.json").read_text()) if (p/"history.json").is_file() else None
+    safe_injury=json.loads((p/"injury.json").read_text())
+    prior_injury=json.loads((p/"injury_history.json").read_text())
     result=MO.compute(data["joined"],data["consensus"],data["jingcai"],
-                      prev,now,slot,history=history)
+                      prev,now,slot,history=history,
+                      injury=safe_injury,injury_history=prior_injury)
+    assert all(g["research_official_injury_asof"]["injury_adjusted_probability"] is None
+               for g in result["games"])
+    assert all(g["research_official_injury_asof"]["core_player_impact_points"] is None
+               for g in result["games"])
     result["input_sha256"]={n:ST.sha(p/(n+".json")) for n in data}
     if prev:result["input_sha256"]["previous"]=ST.sha(p/"previous.json")
     if (p/"history.json").is_file():
         result["input_sha256"]["history"]=ST.sha(p/"history.json")
+    result["input_sha256"]["injury"]=ST.sha(p/"injury.json")
+    result["input_sha256"]["injury_history"]=ST.sha(p/"injury_history.json")
     assert result["original_model_inputs_read"] is False
     assert result["postgame_data_read"] is False
     assert all(len(g["markets"])==5 for g in result["games"])
@@ -45,6 +54,10 @@ def run():
         assert not (p/"nba_five_market_forecast.json").exists()
         assert not (p/"nba_priority_model.json").exists()
         assert not (p/"settlement.json").exists()
+        assert (p/"injury.json").exists() and (p/"injury_history.json").exists()
+        assert "original_model" not in (p/"injury.json").read_text()
+        assert all(g["research_official_injury_asof"]["injury_adjusted_probability"] is None
+                   for g in generated["games"])
         assert "nba_independent_market_shadow.py" in (p/"analysis/nba_independent_market_shadow.py").name
         generated=prediction(p,simulated,slot)
         assert generated["game_count"]==15
