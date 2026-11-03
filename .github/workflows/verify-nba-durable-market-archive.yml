@@ -1,0 +1,81 @@
+name: Verify byte-faithful NBA/007 all-capture long-lived archive
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_007_durable_capture_archive.py'
+      - '.github/workflows/nba-durable-market-archive.yml'
+      - '.github/workflows/verify-nba-durable-market-archive.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  historical-true-source-and-data-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate Python and synthetic tamper/replay/secret tests
+        run: |
+          python3 -m py_compile analysis/nba_007_durable_capture_archive.py
+          python3 analysis/nba_007_durable_capture_archive.py --selftest
+      - name: Backfill actual Nov3 NBA full board, JC three plays and 10-company price history into temporary branch-shaped folder
+        run: |
+          mkdir -p "$RUNNER_TEMP/archive-test"
+          python3 analysis/nba_007_durable_capture_archive.py \
+            --main-repo . --archive-root "$RUNNER_TEMP/archive-test" \
+            --backfill-date 2026-11-03
+          python3 - <<'PY'
+          import gzip,hashlib,json,os
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'archive-test/reports/market-captures/2026-11-03/main-existing-historical-backfill'
+          manifest=json.loads((root/'manifest.json').read_text())
+          sources={x['relative_original_source']:x for x in manifest['files']}
+          assert manifest['status']=='HISTORICAL_REMAINING_FILES_BACKFILLED'
+          assert not manifest['missing_required_source_categories'],manifest
+          for name in (
+             'reports/daily/2026-11-03/2130/titan007_priority_joined.json',
+             'reports/daily/2026-11-03/2130/nba_jingcai_three_market.json',
+             'reports/daily/2026-11-03/2130/nba_market_consensus.json',
+          ):
+              assert name in sources,name
+          top=[n for n in sources if n.startswith('reports/top10/2026-11-03/')]
+          hourly=[n for n in sources if n.startswith('reports/hourly/2026-11-03/')]
+          assert len(top)>=6,top
+          assert len(hourly)>=6,hourly
+          doc=json.loads(gzip.decompress((root/sources[
+              'reports/daily/2026-11-03/2130/nba_jingcai_three_market.json']['compressed_file']).read_bytes()))
+          assert len(doc['games'])==15
+          g=next(x for x in doc['games'] if x['game_id']=='728298')
+          assert g['markets']['handicap']['data']['current']['line']==-6.5
+          assert g['markets']['total']['data']['current']['line']==229.5
+          assert g['markets']['win_lose']['data']['current']['first_side']==1.29
+          for e in manifest['files']:
+              zipped=(root/e['compressed_file']).read_bytes()
+              assert hashlib.sha256(zipped).hexdigest()==e['gzip_sha256']
+              original=gzip.decompress(zipped)
+              assert hashlib.sha256(original).hexdigest()==e['source_sha256']
+              assert original==Path(e['relative_original_source']).read_bytes()
+          print('REAL_NOV03_15_NBA_ALL_JC_WIN_ATS_TOTAL_AND_MULTIBOOK_TIMESTAMPS_BYTES_ARCHIVED',
+                len(manifest['files']),'top10_snapshots',len(top),'hourly',len(hourly))
+          PY
+      - name: Prove archive cannot modify production chain and archive remains separate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          wf=Path('.github/workflows/nba-durable-market-archive.yml').read_text()
+          assert 'workflow_run:' in wf
+          assert 'types: [completed]' in wf
+          assert 'github.event.workflow_run.id' in wf
+          assert 'actions/download-artifact@v4' in wf
+          assert 'archive/nba-market-captures' in wf
+          assert 'HEAD:main' not in wf
+          assert 'cancel-in-progress: false' in wf
+          assert 'retention-days: 7' not in wf and 'retention-days: 14' not in wf
+          assert 'on:\\n' in wf
+          print('NO_PRODUCTION_PUSH_CHANGE_APPEND_ONLY_ARCHIVE_BRANCH_AND_ORIGINAL_RUN_ID_PASS')
+          PY
