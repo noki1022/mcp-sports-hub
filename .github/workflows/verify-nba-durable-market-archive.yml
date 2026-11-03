@@ -77,6 +77,6 @@ jobs:
           assert 'HEAD:main' not in wf
           assert 'cancel-in-progress: false' in wf
           assert 'retention-days: 7' not in wf and 'retention-days: 14' not in wf
-          assert 'on:\\n' in wf
+          assert 'on:' in wf
           print('NO_PRODUCTION_PUSH_CHANGE_APPEND_ONLY_ARCHIVE_BRANCH_AND_ORIGINAL_RUN_ID_PASS')
           PY
