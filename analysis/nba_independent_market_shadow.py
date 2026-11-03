@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import hashlib,json,math
 import nba_multibook_crossplay_signals as BOOK
+import nba_shadow_injury_asof as INJ
 
 SCHEMA="nba-independent-market-only-fiveplay-v1"
 KEYS=("JINGCAI_WIN","JINGCAI_HANDICAP","JINGCAI_TOTAL","CROWN_HANDICAP","CROWN_TOTAL")
@@ -74,7 +75,7 @@ def quote_movement(previous,now,kind):
             "up":up,"down":down,"median_points_change":round(meanchange,3),
             "not_a_cover_probability":True}
 
-def compute(joined,consensus,jc,previous,now,slot,history=None):
+def compute(joined,consensus,jc,previous,now,slot,history=None,injury=None,injury_history=None):
     # The scoring state and any other model output are absent from this API.
     day=str(joined.get("requested_display_date") or "")
     board=clock(joined.get("captured_at_utc"))
@@ -88,6 +89,12 @@ def compute(joined,consensus,jc,previous,now,slot,history=None):
     market=idx(consensus.get("games"))
     jc_rows=idx((jc.get("jc_007_public_odds_shadow") or {}).get("games"))
     earlier=idx(previous.get("games")) if previous else {}
+    if injury is None:
+        injury=INJ.stage(None,list(games.values()),day,now)
+    if injury.get("target_date")!=day or injury.get("schema_version")!=INJ.SCHEMA:
+        raise ValueError("SHADOW_INJURY_SOURCE_DATE_OR_SCHEMA_MISMATCH")
+    if set(str(z.get("game_id")) for z in injury.get("games",[]))!=set(games):
+        raise ValueError("SHADOW_INJURY_CONTEXT_GAME_SET_MISMATCH")
     if not games or set(games)!=set(market) or not set(jc_rows)<=set(games):
         raise ValueError("INDEPENDENT_BOARD_OR_PROVIDER_IDENTITY_MISMATCH")
     if previous and (previous.get("target_date")!=day
@@ -183,11 +190,13 @@ def compute(joined,consensus,jc,previous,now,slot,history=None):
         # Independent baseline remains authoritative until *strictly*
         # future-frozen 21:30 results establish that this research variant
         # actually improves SAME-GAME/SAME-LINE directional decisions.
+        injury_observed=INJ.features(injury,injury_history,gid,now,tip)
         rows.append({"game_id":gid,"nba_game_id":g.get("nba_game_id"),
            "jingcai_number":(j.get("jingcai_number") or None),
            "home_team":g.get("home_team"),"away_team":g.get("away_team"),
            "tipoff_beijing":tip.isoformat(),"markets":predictions,
            "research_multibook_features":multibook,
+           "research_official_injury_asof":injury_observed,
            "research_model_candidates":{"ROBUST_MULTIBOOK":provisional},
            "market_strength_features":{"expected_home_margin":mu_m,
              "expected_total_points":mu_t,"paired_book_trends":trends,
@@ -205,6 +214,8 @@ def compute(joined,consensus,jc,previous,now,slot,history=None):
             "assumed_margin_sigma":SIGMA_MARGIN,
             "assumed_total_sigma":SIGMA_TOTAL,
             "probability_uncertainty":"RESEARCH_ONLY_PROVISIONAL_SIGMAS_REQUIRE_OOS_CALIBRATION",
+            "official_injury_feature_version":INJ.SCHEMA,
+            "official_injury_is_observational_and_no_numeric_probability_uplift":True,
             "original_model_inputs_read":False,
             "postgame_data_read":False,
             "may_send_pushplus":False,
@@ -216,6 +227,8 @@ def main():
         p.add_argument("--"+k,required=True)
     p.add_argument("--previous")
     p.add_argument("--history")
+    p.add_argument("--injury")
+    p.add_argument("--injury-history")
     p.add_argument("--slot",required=True)
     a=p.parse_args()
     args={k:Path(getattr(a,k)) for k in ("joined","consensus","jingcai")}
@@ -224,10 +237,16 @@ def main():
     if prev:source_hash["previous"]=sha_bytes(prev.read_bytes())
     history_file=Path(a.history) if a.history else None
     if history_file:source_hash["history"]=sha_bytes(history_file.read_bytes())
+    injury_file=Path(a.injury) if a.injury else None
+    injury_history_file=Path(a.injury_history) if a.injury_history else None
+    if injury_file:source_hash["injury"]=sha_bytes(injury_file.read_bytes())
+    if injury_history_file:source_hash["injury_history"]=sha_bytes(injury_history_file.read_bytes())
     history=json.loads(history_file.read_text()) if history_file else None
     obj=compute(*(json.loads(path.read_text()) for path in args.values()),
                 json.loads(prev.read_text()) if prev else None,
-                datetime.now(timezone.utc),a.slot,history=history)
+                datetime.now(timezone.utc),a.slot,history=history,
+                injury=json.loads(injury_file.read_text()) if injury_file else None,
+                injury_history=json.loads(injury_history_file.read_text()) if injury_history_file else None)
     obj["input_sha256"]=source_hash
     Path(a.out).write_text(json.dumps(obj,ensure_ascii=False,indent=2,sort_keys=True)+"\n")
     print("INDEPENDENT_SHADOW_NEW_PREDICTION_FROZEN",obj["target_date"],obj["slot"],obj["game_count"])
