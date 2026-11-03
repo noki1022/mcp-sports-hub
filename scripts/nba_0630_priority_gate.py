@@ -12,6 +12,7 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from nba_verified_offday import accepted_offday_marker
 
 BJ=ZoneInfo("Asia/Shanghai")
 DEFAULT_START=datetime.strptime("06:20","%H:%M").time()
@@ -50,6 +51,16 @@ def decide(now,phase,root=Path(".")):
         raise ValueError("UNKNOWN_GATE_PHASE")
     local=now.astimezone(BJ)
     target=local.date().isoformat()
+    if accepted_offday_marker(target,root):
+        return {"ok":False,"run_report":False,"target_date":target,
+                "slot":"0630","phase":phase,
+                "checked_at_beijing":local.isoformat(),
+                "earliest_locked_tip_beijing":None,
+                "next_unstarted_tip_beijing":None,
+                "eligible_games_by_time":0,
+                "minimum_lead_minutes":PREFLIGHT_LEAD_MINUTES if phase=="preflight" else PRESEND_LEAD_MINUTES,
+                "reason":"VERIFIED_OFFDAY_ALREADY_NOTIFIED",
+                "delivery_cutoff_beijing":"NO_GAMES"}
     tips=locked_tips(target,root)
     lead=PREFLIGHT_LEAD_MINUTES if phase=="preflight" else PRESEND_LEAD_MINUTES
     eligible=[tip for tip in tips if (tip-local).total_seconds()/60>=lead]
@@ -105,6 +116,15 @@ def self_test():
         assert not d["ok"]
         e=decide(datetime.fromisoformat("2026-11-01T10:00:00+08:00"),"presend",root)
         assert not e["ok"]
+        offday=root/"reports/pushplus-sent/2026-11-02/1200.json"
+        offday.parent.mkdir(parents=True)
+        offday.write_text(json.dumps({"state":"API_ACCEPTED_NOT_DEVICE_CONFIRMED",
+            "kind":"VERIFIED_NBA_OFFDAY","target_date":"2026-11-02",
+            "slot":"1200","games_considered":0}))
+        no_game=decide(datetime.fromisoformat("2026-11-02T06:35:00+08:00"),
+                       "preflight",root)
+        assert not no_game["ok"] and not no_game["run_report"]
+        assert no_game["reason"]=="VERIFIED_OFFDAY_ALREADY_NOTIFIED"
     print("NBA_0630_DYNAMIC_OFFICIAL_TIP_GATE_PASS")
 
 if __name__=="__main__":

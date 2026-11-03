@@ -7,24 +7,26 @@ when the cutoff has passed. All time windows use Asia/Shanghai, not US dates.
 from __future__ import annotations
 import argparse
 import os
+import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from nba_verified_offday import accepted_offday_marker
 from datetime import datetime,time,timedelta
 from zoneinfo import ZoneInfo
 
 BEIJING=ZoneInfo("Asia/Shanghai")
 SCHEDULED=(time(21,30),time(21,58))  # keep a two minute API buffer
 
-def decide(now,phase):
+def decide(now,phase,root=Path('.')):
     local=now.astimezone(BEIJING)
     target=(local.date()+timedelta(days=1)).isoformat()
     clock=local.time().replace(tzinfo=None)
-    if phase=="preflight":
-        good=SCHEDULED[0]<=clock<SCHEDULED[1]
-    elif phase=="presend":
-        good=SCHEDULED[0]<=clock<SCHEDULED[1]
-    else:raise ValueError("BAD_PHASE")
+    if phase not in ("preflight", "presend"):raise ValueError("BAD_PHASE")
+    offday=accepted_offday_marker(target,root)
+    good=(SCHEDULED[0]<=clock<SCHEDULED[1]) and not offday
     return {"ok":good,"target_date":target,"current_beijing":local.isoformat(),
             "slot":"2130","lottery_cutoff_beijing":"22:00",
-            "reason":"OK" if good else "OUTSIDE_2130_PRE_CUTOFF_WINDOW"}
+            "reason":"VERIFIED_OFFDAY_ALREADY_NOTIFIED" if offday else ("OK" if good else "OUTSIDE_2130_PRE_CUTOFF_WINDOW")}
 
 def write_outputs(result):
     path=os.environ.get("GITHUB_OUTPUT")
@@ -46,6 +48,16 @@ def self_test():
         result=decide(datetime.fromisoformat(ts),"presend")
         assert result["ok"]==valid,(ts,result)
         assert result["target_date"]=="2026-10-31"
+    with TemporaryDirectory() as d:
+        root=Path(d)
+        target="2026-11-01"
+        marker=root/"reports/pushplus-sent"/target/"1200.json"
+        marker.parent.mkdir(parents=True)
+        marker.write_text(json.dumps({"state":"API_ACCEPTED_NOT_DEVICE_CONFIRMED",
+            "kind":"VERIFIED_NBA_OFFDAY","target_date":target,"slot":"1200",
+            "games_considered":0}))
+        got=decide(datetime.fromisoformat("2026-10-31T21:40:00+08:00"),"preflight",root)
+        assert not got["ok"] and got["reason"]=="VERIFIED_OFFDAY_ALREADY_NOTIFIED"
     print("NBA_2130_BEIJING_CUTOFF_GATE_PASS")
 
 if __name__=="__main__":
