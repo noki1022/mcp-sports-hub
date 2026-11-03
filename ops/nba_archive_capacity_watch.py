@@ -190,11 +190,15 @@ def main():
     if not token or len(repo.split("/")) != 2:
         raise ValueError("GITHUB_TOKEN_AND_REPOSITORY_REQUIRED")
     root = "/repos/" + quote(repo, safe="/")
+    # Pin the archive tree to one observed commit SHA to avoid branch-name
+    # slash encoding ambiguity and a race with concurrent append-only pushes.
+    branch = api(root + "/branches/" + quote(ARCHIVE, safe="/"), token)
+    archive_tree_sha = branch["commit"]["commit"]["tree"]["sha"]
     report = assess(
         api(root, token),
         api(root + "/git/trees/main?recursive=1", token),
-        api(root + "/git/trees/" + quote(ARCHIVE, safe="") + "?recursive=1", token),
-        api(root + "/branches/" + quote(ARCHIVE, safe="/"), token),
+        api(root + "/git/trees/" + archive_tree_sha + "?recursive=1", token),
+        branch,
         datetime.now(timezone.utc),
     )
     Path(args.out).write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
