@@ -145,10 +145,15 @@ def evaluate_day(root,day):
             "settlement":settlement}
     if not settlement.is_file():return None
     if any(not p.is_file() for k,p in inputs.items() if k!="five"):
+        settled=load(settlement)
+        missing=settled.get("games",[])
         return {"date":day,"source_files_present":False,
                 "block_reason":"MISSING_PREGAME_INJURY_OR_MODEL_ARCHIVE",
-                "recent_completed_games":len(load(settlement).get("games",[])),
-                "rows":[]}
+                "recent_completed_games":len(missing),
+                "rows":[{"game_id":str(g.get("game_id")),
+                         "eligible":False,
+                         "block_reason":"MISSING_PREGAME_INJURY_OR_MODEL_ARCHIVE"}
+                        for g in missing]}
     docs={k:load(p) for k,p in inputs.items() if p.is_file()}
     if docs["settlement"].get("schema_version")!="nba-five-market-settlement-v1" or (
         docs["settlement"].get("beijing_date")!=day):
@@ -285,6 +290,8 @@ def run(root,start,end):
         "cohort_days":[v["date"] for v in days],
         "completed_games_in_settlements":sum(x["recent_completed_games"] for x in days),
         "strict_frozen_baseline_evaluable_games":len(valid),
+        "older_pretip_21_20_or_21_25_reference_only_n":sum(
+            not r["official_2130_clock_window"] for r in valid),
         "blocked_games":len(allrows)-len(valid),
         "blocked_reasons":dict(sorted(Counter(x.get("block_reason","UNKNOWN") for x in allrows
                                              if not x.get("eligible")).items())),
@@ -294,9 +301,14 @@ def run(root,start,end):
         "verified_explicit_medical_out_or_uncertain_n":sum(
             r["injury"]["confirmed_medical_absence_or_uncertainty_listed"] for r in complete),
         "original_model_moneyline":{"all":ml(valid),
+                                    "verified_21_30_only":ml([
+                                        r for r in valid if r["official_2130_clock_window"]]),
                                     "both_official_verified":ml(complete),
                                     "injury_unverified":ml(unknown)},
-        "original_model_five_market":{"all":five(valid),"both_official_verified":five(complete)},
+        "original_model_five_market":{"all":five(valid),
+                                     "verified_21_30_only":five([
+                                         r for r in valid if r["official_2130_clock_window"]]),
+                                     "both_official_verified":five(complete)},
         "injury_adjusted_genuine_pretip_paired_n":len(paired),
         "injury_adjusted_vs_original":paired_comparison,
         "injury_role_identity_reconstructed_after_tip":False,
@@ -372,6 +384,8 @@ def main():
         "blocked":report["blocked_games"],
         "21_30_clock":report["same_game_21_30_clock_window_n"],
         "official_both_teams_verified":report["verified_official_both_teams_n"],
+        "older_21_20_21_25_reference_only":report["older_pretip_21_20_or_21_25_reference_only_n"],
+        "blocked_source_reasons":report["blocked_reasons"],
         "original_moneyline":report["original_model_moneyline"],
         "original_five_market":report["original_model_five_market"]["all"],
         "genuine_frozen_injury_candidate_pairs":report["injury_adjusted_genuine_pretip_paired_n"],
