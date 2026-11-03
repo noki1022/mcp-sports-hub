@@ -110,8 +110,8 @@ jobs:
           print('OFFICIAL_FIXTURE_RECOVERY',b.get('quote_recovery', {'state':'FIRST_VERIFIED_CAPTURE'}))
           PY
       - name: Independently confirm verified NBA zero-game day
-        id: offday
         if: steps.preflight.outputs.skip != 'true'
+        id: offday
         run: |
           # A reported zero from ESPN or 007 is NOT enough: cross-check NBA
           # league's full-season UTC schedule before allowing an off-day.
