@@ -105,7 +105,22 @@ def read_source(path: Path) -> tuple[bytes, dict | None]:
     if path.stat().st_size > MAX_ONE_FILE:
         raise ValueError("SOURCE_FILE_EXCEEDS_MAX_BYTES")
     raw = path.read_bytes()
-    obj = json.loads(raw) if path.suffix == ".json" else None
+    obj = None
+    if path.suffix == ".json":
+        try:
+            obj = json.loads(raw)
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            # Never discard uniquely timestamped evidence because a prior
+            # producer accidentally appended two JSON documents. Preserve
+            # ORIGINAL BYTES exactly, but flag that source as malformed:
+            # it is NOT an approved parsed training sample.
+            low = raw.lower()
+            for name in SENSITIVE:
+                needle = name.encode("ascii")
+                if re.search(rb'["\\']' + re.escape(needle) + rb'["\\']\\s*:',low):
+                    raise ValueError("POSSIBLE_SECRET_IN_MALFORMED_JSON:"+name)
+            print("MALFORMED_ORIGINAL_JSON_PRESERVED_NOT_TRAINING_APPROVED",
+                  path.name,type(exc).__name__,str(exc)[:100])
     if obj is not None:
         unsafe = secret_key(obj)
         if unsafe:
@@ -134,6 +149,9 @@ def add_file(root: Path, source: Path, logical: str, output: Path, entries: list
         "source_bytes": len(data),
         "compressed_bytes": len(zipped),
         "source_snapshot_utc": snapshot_time(obj),
+        "source_json_status": ("INVALID_ORIGINAL_JSON_PRESERVED_NOT_APPROVED_FOR_TRAINING"
+            if source.suffix == ".json" and obj is None else
+            "VALID_JSON" if source.suffix == ".json" else "SOURCE_CSV"),
     }
     if obj is not None:
         if source.name in BOARD_NAMES:
@@ -208,7 +226,11 @@ def pick_day(sources, fallback=None):
 def write_manifest(output: Path, *, workflow_name: str, run_id: str,
                    attempt: str, status: str, entries: list, origin: str,
                    source_conclusion: str):
-    present={PurePosixPath(x["relative_original_source"]).name for x in entries}
+    present={PurePosixPath(x["relative_original_source"]).name
+             for x in entries
+             if x["source_json_status"]!="INVALID_ORIGINAL_JSON_PRESERVED_NOT_APPROVED_FOR_TRAINING"}
+    invalid=[x["relative_original_source"] for x in entries
+             if x["source_json_status"]=="INVALID_ORIGINAL_JSON_PRESERVED_NOT_APPROVED_FOR_TRAINING"]
     # "raw company" can also be a direct reports/top10 observation file.
     has_book=BOOK_NAME in present or any(
         x["relative_original_source"].startswith("reports/top10/")
@@ -223,7 +245,8 @@ def write_manifest(output: Path, *, workflow_name: str, run_id: str,
     ]
     result={
         "schema_version":SCHEMA,
-        "status":status if not missing else "PARTIAL_OR_MISSING_SOURCES",
+        "status":("PRESERVED_WITH_INVALID_SOURCE_JSON" if invalid else
+                  status if not missing else "PARTIAL_OR_MISSING_SOURCES"),
         "original_actions_workflow":workflow_name,
         "original_run_id":str(run_id),
         "original_run_attempt":str(attempt),
@@ -234,6 +257,7 @@ def write_manifest(output: Path, *, workflow_name: str, run_id: str,
         "raw_json_bytes_preserved_inside_gzip":True,
         "source_stamps_are_capture_observation_times_not_book_update_times":True,
         "missing_required_source_categories":missing,
+        "invalid_original_json_preserved_not_training_eligible":invalid,
         "file_count":len(entries),
         "total_original_bytes":sum(x["source_bytes"] for x in entries),
         "total_gzip_bytes":sum(x["compressed_bytes"] for x in entries),
@@ -389,6 +413,21 @@ def selftest():
             assert "NEVER_REPLACE" in str(err)
         else:
             raise AssertionError("SAME_RUN_WAS_ALLOWED_TO_OVERWRITE")
+        # A historical producer may have inadvertently written multiple
+        # JSON documents consecutively. Preserve bytes and mark source BAD;
+        # never silently treat the concatenation as a valid model sample.
+        (artifact/"nba_malformed.json").write_bytes(b'{"game_id":"A"}\n{"game_id":"B"}\n')
+        anomaly=archive_artifact(root/"a",root/"b",list(WORKFLOWS)[0],
+                                 "123458","1","failure")
+        assert anomaly is not None
+        bad=json.loads((anomaly/"manifest.json").read_text())
+        assert bad["status"]=="PRESERVED_WITH_INVALID_SOURCE_JSON"
+        assert any("nba_malformed.json" in x for x in
+                   bad["invalid_original_json_preserved_not_training_eligible"])
+        assert (anomaly/"files/nba_malformed.json.gz").is_file()
+        assert gzip.decompress(
+            (anomaly/"files/nba_malformed.json.gz").read_bytes()
+        )==(artifact/"nba_malformed.json").read_bytes()
         assert not safe_relative("../token.json")
         assert not safe_relative("pushplus_status.json")
         (artifact/"nba_extra.json").write_text('{"api_key":"DO_NOT_ARCHIVE"}')
