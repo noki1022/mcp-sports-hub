@@ -10,12 +10,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from html import escape
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from nba_official_beijing_schedule import OFFICIAL_SCHEDULE, fetch as fetch_league, extract as extract_league, convert as convert_league
+from nba_official_beijing_schedule import fetch as fetch_league, extract as extract_league, convert as convert_league
 from pushplus_mobile import send
 
 BEIJING = ZoneInfo("Asia/Shanghai")
@@ -109,7 +109,7 @@ def self_test() -> None:
     assert not verified_offday({**board, "upcoming_nba_games": [{"nba_game_id": "1"}],
                                 "official_schedule_count": 1}, "2026-11-04", official_league=league)
     for patch in (
-        {"official_schedule_source": []},
+        {"upcoming_nba_games": None},
         {"official_schedule_count": 1},
         {"verified_fixture_ids_for_date": 1},
         {"markets_joined_for_date": 1},
