@@ -37,7 +37,9 @@ workflows={
  "titan007-daily-free.yml":[],
  "odds-results-settlement.yml":["0 8 * * *"],
  # One QUIET research-only scorecard, no 007 collection and no PushPlus.
- "nba-dual-final-2130-score.yml":["25 14 * * *"]
+ "nba-dual-final-2130-score.yml":["25 14 * * *"],
+ # Long-lived immutable source audit, independent index and optional offsite mirror.
+ "nba-raw-vault-backup.yml":["10 5 * * *"]
 }
 def load(path):
     obj=yaml.safe_load(path.read_text())
