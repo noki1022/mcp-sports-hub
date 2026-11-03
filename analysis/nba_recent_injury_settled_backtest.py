@@ -328,7 +328,7 @@ def selftest():
         "model_direction_probability":.62,"line":229},112,117) is None
     assert grade("CROWN_HANDICAP",{
         "status":"DIRECTION_ISSUED","direction":"AWAY_COVER",
-        "model_direction_probability":.62,"signed_home_handicap":5.},120,115) is None
+        "model_direction_probability":.62,"signed_home_handicap":-5.},120,115) is None
     t=clock("2026-11-03T00:00:00Z")
     good={"source_captured_at_utc":"2026-11-02T13:30:00Z",
           "source_date_matches_tip":True,"source_report_et_date":"2026-11-02",
