@@ -1,5 +1,13 @@
 name: NBA immutable raw vault index audit and optional independent R2 mirror
 on:
+  # Bootstrap the permanent catalog as soon as this workflow reaches main.
+  push:
+    branches: [main]
+    paths:
+      - "ops/nba_raw_vault.py"
+      - "ops/nba_raw_catalog.py"
+      - "ops/nba_r2_offsite_mirror.py"
+      - ".github/workflows/nba-raw-vault-backup.yml"
   workflow_dispatch:
   schedule:
     # Beijing 13:10 UTC+8; production capture and PushPlus never wait on this.
