@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'analysis/nba_recent_injury_settled_backtest.py'
+      - 'analysis/README-nba-recent-finished-injury-backtest-20261104.md'
       - '.github/workflows/nba-recent-injury-settled-backtest.yml'
   workflow_dispatch:
 permissions:
@@ -37,6 +38,8 @@ jobs:
           d=json.loads(p.read_text())
           assert d['schema_version']=='nba-recent-settled-injury-frozen-outcome-audit-v1'
           assert d['completed_games_in_settlements']>0
+          assert d['blocked_games']==d['completed_games_in_settlements']-d['strict_frozen_baseline_evaluable_games']
+          assert d['same_game_21_30_clock_window_n']<=d['strict_frozen_baseline_evaluable_games']
           assert d['strict_frozen_baseline_evaluable_games']>0
           assert d['injury_adjusted_genuine_pretip_paired_n']==0
           assert d['injury_adjusted_vs_original'] is None
