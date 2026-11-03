@@ -15,7 +15,7 @@ from html import escape
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from nba_official_beijing_schedule import (OFFICIAL_SCHEDULE, fetch as fetch_league, extract as extract_league, convert as convert_league)
+from nba_official_beijing_schedule import OFFICIAL_SCHEDULE, fetch as fetch_league, parse_date as parse_league_utc
 from pushplus_mobile import send
 
 BEIJING = ZoneInfo("Asia/Shanghai")
@@ -29,12 +29,12 @@ def league_zero_game_confirmation(target: str, league: dict | None = None) -> No
     try:
         days = league["leagueSchedule"]["gameDates"]
         all_games = [game for day in days for game in day.get("games", [])]
-        dated = [date.fromisoformat(convert_league(g)["beijing_date"]) for g in all_games]
+        dated = [parse_league_utc(g["gameTimeUTC"]).astimezone(BEIJING).date() for g in all_games]
     except (KeyError, TypeError, ValueError) as exc:
         raise RuntimeError("OFFDAY_NBA_LEAGUE_SCHEDULE_INVALID") from exc
     if len(dated) < 100 or not (min(dated) < date.fromisoformat(target) < max(dated)):
         raise RuntimeError("OFFDAY_NBA_LEAGUE_SEASON_NOT_VERIFIED")
-    if extract_league(league, target):
+    if date.fromisoformat(target) in dated:
         raise RuntimeError("OFFDAY_NBA_LEAGUE_DISAGREES_ON_ZERO_GAME_DAY")
 
 
