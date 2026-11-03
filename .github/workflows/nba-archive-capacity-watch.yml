@@ -1,0 +1,53 @@
+name: NBA durable archive capacity and freshness watch (read-only)
+on:
+  schedule:
+    # Beijing 12:15, independent from the NBA data pipeline.
+    - cron: '15 4 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'ops/nba_archive_capacity_watch.py'
+      - '.github/workflows/nba-archive-capacity-watch.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nba-archive-capacity-watch-read-only
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test size thresholds and fail-closed checks
+        run: |
+          python3 -m py_compile ops/nba_archive_capacity_watch.py
+          python3 ops/nba_archive_capacity_watch.py --selftest
+      - name: Audit live GitHub size and long-lived capture branch
+        if: github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+        run: |
+          extra=()
+          if [ "${{ github.event_name }}" = schedule ]; then
+            extra+=(--notify-critical)
+          fi
+          python3 ops/nba_archive_capacity_watch.py \
+            --out "$RUNNER_TEMP/nba-archive-capacity-health.json" "${extra[@]}"
+      - name: Upload 30-day health diagnostics (not the raw-data archive)
+        if: github.event_name != 'pull_request' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-archive-capacity-${{ github.run_id }}
+          path: ${{ runner.temp }}/nba-archive-capacity-health.json
+          if-no-files-found: ignore
+          retention-days: 30
