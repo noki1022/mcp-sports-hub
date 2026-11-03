@@ -49,8 +49,9 @@ jobs:
           assert len(hourly)>=6,hourly
           doc=json.loads(gzip.decompress((root/sources[
               'reports/daily/2026-11-03/2130/nba_jingcai_three_market.json']['compressed_file']).read_bytes()))
-          assert len(doc['games'])==15
-          g=next(x for x in doc['games'] if x['game_id']=='728298')
+          assert len(doc['jc_007_public_odds_shadow']['games'])==15
+          g=next(x for x in doc['jc_007_public_odds_shadow']['games']
+                 if x['game_id']=='728298')
           assert g['markets']['handicap']['data']['current']['line']==-6.5
           assert g['markets']['total']['data']['current']['line']==229.5
           assert g['markets']['win_lose']['data']['current']['first_side']==1.29
