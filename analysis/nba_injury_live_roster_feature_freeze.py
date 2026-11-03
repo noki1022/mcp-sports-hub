@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 import nba_official_injury as OFF
 import nba_current_roster_id_crosswalk as R
 import nba_injury_person_id_asof_minutes as IDS
+import nba_injury_rotation_role_asof as ROLE
 import nba_prospective_score_shadow as SCHED
 
 ET=ZoneInfo("America/New_York")
@@ -290,6 +291,10 @@ def run(out):
     now=datetime.now(UTC)
     future=[x for x in fixtures if stamp(x["tipoff_utc"])>now+timedelta(minutes=10)]
     rows=[freeze_game(f,games,pdf,index,proofs,now,prior_by_person) for f in future]
+    # Only observable, date-prior same-team playing-time roles. Never turn
+    # these sources into a numeric forecast or a confirmed starting lineup.
+    for row in rows:
+        row["research_rotation_role_asof"]=ROLE.describe(row,linked,roster_sources)
     if not rows:raise RuntimeError("NO_PREGAME_RESEARCH_ELIGIBLE_FIXTURES")
     dest=Path(out);dest.mkdir(parents=True,exist_ok=True)
     file=dest/"prospective_official_injury_roster_minutes.jsonl"
@@ -319,6 +324,17 @@ def run(out):
         "unresolved_reported_players_by_reason":dict(sorted(issue_counts.items())),
         "all_reported_player_identity_statuses":dict(sorted(person_statuses.items())),
         "identified_player_minutes_records":person_statuses["ID_TEAM_AND_PAST_MINUTES_VALIDATED"],
+        "rotation_role_feature_version":ROLE.SCHEMA,
+        "fixtures_with_eight_plus_verified_same_team_rotation_roles":sum(
+            any(s.get("role_source_quality")=="MINIMUM_VERIFIED_ROTATION_COHORT"
+                for s in x["research_rotation_role_asof"].get("teams",{}).values())
+            for x in rows),
+        "official_reported_core_rotation_role_rows":sum(
+            sum(1 for p in side.get("observed_core_rotation_injuries",[])
+                if p.get("verified_core_rotation_role"))
+            for x in rows for side in x["research_rotation_role_asof"].get("teams",{}).values()),
+        "rotation_role_impact_coefficients_trained":False,
+        "rotation_role_is_not_confirmed_lineup_or_replacement":True,
         "status":dict(Counter(r["status"] for r in rows)),
         "frozen_jsonl_sha256":sha256(file.read_bytes()).hexdigest(),
         "source_roster_captured_now_only":True,
@@ -338,6 +354,7 @@ def run(out):
         "roster_unavailable_teams":[x["team"] for x in roster_fail],
         "id_and_prior_minutes_matches":summary["identified_player_minutes_records"],
         "extra_cross_team_role_evidence":summary["secondary_historical_all_team_role_players"],
+        "core_rotation_role_rows":summary["official_reported_core_rotation_role_rows"],
         "unresolved_reasons":summary["unresolved_reported_players_by_reason"],
         "production_changed":False},ensure_ascii=False))
     return summary
