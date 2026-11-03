@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 BJ=ZoneInfo('Asia/Shanghai')
 from pathlib import Path
 import argparse,hashlib,json,os,re
+import nba_shadow_injury_asof as INJ
 
 VALID_SLOTS={"1200","1400","1500","1800","2100","2130","0030","0330"}
 SCHEMA="nba-independent-dual-shadow-source-only-v1"
@@ -161,6 +162,34 @@ def stage(repo,run_id,dest,now):
           "jingcai":strip_jc(raw["jingcai"])}
     if older:safe["previous"]=strip_consensus(older)
     safe["history"]=[strip_consensus(item) for _,_,item in available]
+    # Official injury context is collected by the original job; ingest ONLY
+    # the source-only official PDF context, never model probability or results.
+    folder=base/"reports/daily"/day/slot
+    injury_name="nba_priority_injury_context.json" if slot=="2130" else "nba_injury_context.json"
+    injury_path=folder/injury_name
+    injury_raw=load(injury_path) if injury_path.is_file() and not injury_path.is_symlink() else None
+    board=[g for g in raw["joined"].get("nba_cba_games",[]) if g.get("league")=="NBA"]
+    safe["injury"]=INJ.stage(injury_raw,board,day,now)
+    # Latest independently archived earlier *official* injury snapshot is
+    # retained only for observed status transitions. No carry-forward of
+    # unreported injuries into an adjusted probability.
+    earlier_injury=[]
+    cap=dt(raw["consensus"].get("collection_completed_at_utc"))
+    for path in list((base/"reports/daily"/day).glob("*/nba_injury_context.json"))+list(
+            (base/"reports/daily"/day).glob("*/nba_priority_injury_context.json")):
+        if path==injury_path or path.is_symlink():continue
+        try:
+            source=load(path)
+            stamps=[INJ.clock(g.get("source_captured_at_utc")) for g in source.get("games",[])]
+            if not stamps or any(t is None for t in stamps):continue
+            t=max(stamps)
+            if t<cap and t<=now:
+                older_safe=INJ.stage(source,board,day,now)
+                earlier_injury.append((t,path,older_safe))
+        except (ValueError,TypeError,KeyError,OSError):
+            continue
+    earlier_injury.sort(key=lambda x:(x[0],str(x[1])))
+    safe["injury_history"]=earlier_injury[-1][2] if earlier_injury else INJ.stage(None,board,day,now)
     for key,val in safe.items():
         deny(val)
         (target/(key+".json")).write_text(json.dumps(val,ensure_ascii=False,sort_keys=True)+"\n")
@@ -169,6 +198,8 @@ def stage(repo,run_id,dest,now):
     (target/"analysis/nba_independent_market_shadow.py").write_bytes(src.read_bytes())
     signal_code=base/"analysis/nba_multibook_crossplay_signals.py"
     (target/"analysis/nba_multibook_crossplay_signals.py").write_bytes(signal_code.read_bytes())
+    injury_code=base/"analysis/nba_shadow_injury_asof.py"
+    (target/"analysis/nba_shadow_injury_asof.py").write_bytes(injury_code.read_bytes())
     manifest={"schema_version":SCHEMA,"target_date":day,"slot":slot,
         "original_completed_workflow_id":str(run_id),
         "original_accepted_push_marker_sha256":sha(accepted),
@@ -179,6 +210,11 @@ def stage(repo,run_id,dest,now):
             {"capture_utc":t.isoformat(),"sha256":sha(path)}
             for t,path,_ in available],
         "multibook_candidate_code_sha256":sha(signal_code),
+        "official_injury_source_sha256":sha(injury_path) if injury_raw is not None else None,
+        "earlier_official_injury_source_sha256":sha(earlier_injury[-1][1]) if earlier_injury else None,
+        "injury_evidence_sanitized_only":True,
+        "injury_status_not_player_impact_or_confirmed_lineup":True,
+        "injury_code_sha256":sha(injury_code),
         "sanitized_inputs_sha256":{k:sha(target/(k+".json")) for k in safe},
         "prediction_code_sha256":sha(src),
         "original_model_output_never_mounted":True,
