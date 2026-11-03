@@ -174,6 +174,7 @@ def stage(repo,run_id,dest,now):
     # retained only for observed status transitions. No carry-forward of
     # unreported injuries into an adjusted probability.
     earlier_injury=[]
+    cap=dt(raw["consensus"].get("collection_completed_at_utc"))
     for path in list((base/"reports/daily"/day).glob("*/nba_injury_context.json"))+list(
             (base/"reports/daily"/day).glob("*/nba_priority_injury_context.json")):
         if path==injury_path or path.is_symlink():continue
