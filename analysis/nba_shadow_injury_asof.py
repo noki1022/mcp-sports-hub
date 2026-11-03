@@ -39,8 +39,13 @@ def stage(raw, board, day, now):
     Missing, incomplete, ambiguous and post-tip data are visible but never
     converted to a no-injury / zero-minute assertion.
     """
-    if raw is not None and (raw.get("target_date")!=day or raw.get("source")!="official NBA injury PDF"):
-        raise ValueError("INJURY_SOURCE_OR_DATE_INVALID")
+    if raw is not None and raw.get("target_date")!=day:
+        raise ValueError("INJURY_SOURCE_DATE_INVALID")
+    # The original capture legitimately records NOT_PROVIDED when NBA's PDF
+    # is unavailable. Never let that stop the market-only shadow or assert
+    # that either team has no injuries.
+    if raw is not None and raw.get("source")!="official NBA injury PDF":
+        raw=None
     originals=(raw or {}).get("games") or []
     if not isinstance(originals,list):raise ValueError("INJURY_GAMES_INVALID")
     found={}
