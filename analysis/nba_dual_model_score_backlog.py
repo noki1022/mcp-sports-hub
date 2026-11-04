@@ -28,8 +28,13 @@ def summarize(results):
     for key in grade.KEYS:
         pairs = [dict(row, target_date=r['target_date']) for r in results
                  for row in r['five_market_by_market'][key]['game_score_pairs']]
+        probability_pairs=[dict(row,target_date=r['target_date']) for r in results
+                           for row in r['probability_pairs_including_neutral'][key]]
+        def probability_avg(field):
+            return (sum(r[field] for r in probability_pairs)/len(probability_pairs)
+                    if probability_pairs else None)
         n = len(pairs)
-        dates = sorted({r['target_date'] for r in pairs})
+        dates = sorted({r['target_date'] for r in probability_pairs})
         def avg(field):
             return sum(r[field] for r in pairs)/n if n else None
         output[key] = {
@@ -37,18 +42,23 @@ def summarize(results):
             'original_hits': sum(r['original_hit'] for r in pairs),
             'shadow_hits': sum(r['shadow_hit'] for r in pairs),
             'original_accuracy': avg('original_hit'), 'shadow_accuracy': avg('shadow_hit'),
-            'original_brier': avg('original_brier'), 'shadow_brier': avg('shadow_brier'),
-            'original_log_loss': avg('original_log_loss'), 'shadow_log_loss': avg('shadow_log_loss'),
-            'shadow_minus_original_brier': (avg('shadow_brier')-avg('original_brier')) if n else None,
+            'probability_graded_including_neutral': len(probability_pairs),
+            'neutral_shadow_count': len(probability_pairs)-n,
+            'direction_coverage': n/len(probability_pairs) if probability_pairs else None,
+            'original_brier': probability_avg('original_brier'),
+            'shadow_brier': probability_avg('shadow_brier'),
+            'original_log_loss': probability_avg('original_log_loss'),
+            'shadow_log_loss': probability_avg('shadow_log_loss'),
+            'shadow_minus_original_brier': (probability_avg('shadow_brier')-probability_avg('original_brier')) if probability_pairs else None,
         }
     return {'schema_version': 'nba-cumulative-frozen-2130-pairs-v1',
             'scored_dates': sorted(r['target_date'] for r in results),
             'independent_fixture_count': len({(r['target_date'],p['game_id'])
-                 for r in results for m in r['five_market_by_market'].values()
-                 for p in m['game_score_pairs']}),
+                 for r in results for rows in r['probability_pairs_including_neutral'].values()
+                 for p in rows}),
             'five_markets': output, 'production_promotion_allowed': False,
             'historical_predictions_recomputed': False,
-            'note': 'Descriptive paired evidence; small samples do not establish uplift.'}
+            'note': 'Accuracy uses paired directional predictions; Brier/log loss include neutral 50% predictions. Small samples do not establish uplift.'}
 
 
 def run(ledger, repo, out, through, requested=None):

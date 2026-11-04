@@ -1,5 +1,12 @@
 name: NBA independent market shadow every successful original capture (zero shadow PushPlus)
 on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'analysis/nba_dual_model_slot_seal.py'
+      - 'analysis/nba_recover_shadow_seals.py'
+      - '.github/workflows/nba-dual-independent-every-capture.yml'
   workflow_run:
     workflows:
       - 'Titan007 scheduled full-board NBA analysis and PushPlus delivery'
@@ -139,3 +146,38 @@ jobs:
           git commit -m "Immutable independent shadow $TARGET $SLOT source-run $ORIGINAL_RUN"
           git push origin HEAD:audit/dual-model-slot-evidence
           echo SAVED_GIT_SHA_DUAL_MODEL_ORIGINAL_PLUS_INDEPENDENT_SHADOW "$(git rev-parse HEAD)"
+
+  recover-original-failed-artifacts:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    concurrency:
+      group: nba-dual-shadow-ledger-serial-append
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Recover original prediction bytes only while all games remain pretip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch --quiet origin audit/dual-model-slot-evidence
+          git worktree add --detach "$RUNNER_TEMP/recovery-ledger" origin/audit/dual-model-slot-evidence
+          python3 analysis/nba_recover_shadow_seals.py \
+            --repo . --ledger-worktree "$RUNNER_TEMP/recovery-ledger"
+          cd "$RUNNER_TEMP/recovery-ledger"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add reports/dual-model-slot-lock/
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Recover original failed shadow seals before tip without inference"
+          for attempt in 1 2 3; do
+            if git push origin HEAD:audit/dual-model-slot-evidence; then exit 0; fi
+            git pull --rebase origin audit/dual-model-slot-evidence
+          done
+          exit 1

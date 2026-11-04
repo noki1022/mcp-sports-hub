@@ -45,10 +45,10 @@ jobs:
           data=json.loads((Path(os.environ['RUNNER_TEMP'])/'dual-2130-score/summary.json').read_text())
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
               f.write('Frozen 21:30 paired fixtures: '+str(data['independent_fixture_count'])+'\n\n')
-              f.write('| Market | Paired games | Dates | Original hits | Shadow hits | Original Brier | Shadow Brier |\n')
-              f.write('|---|---:|---:|---:|---:|---:|---:|\n')
+              f.write('| Market | Direction pairs | Probability pairs | Neutral | Dates | Original hits | Shadow hits | Original Brier | Shadow Brier |\n')
+              f.write('|---|---:|---:|---:|---:|---:|---:|---:|---:|\n')
               for name,row in data['five_markets'].items():
-                  f.write('| '+name+' | '+' | '.join(str(row[k]) for k in ('paired_games','independent_beijing_dates','original_hits','shadow_hits','original_brier','shadow_brier'))+' |\n')
+                  f.write('| '+name+' | '+' | '.join(str(row[k]) for k in ('paired_games','probability_graded_including_neutral','neutral_shadow_count','independent_beijing_dates','original_hits','shadow_hits','original_brier','shadow_brier'))+' |\n')
               f.write('\nResearch only; no production promotion. Missing finals remain ungraded.\n')
           PY
       - name: Upload historical 21:30 model versus independent shadow outcome score
