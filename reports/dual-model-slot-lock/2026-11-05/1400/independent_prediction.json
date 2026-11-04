@@ -1,0 +1,4474 @@
+{
+  "assumed_margin_sigma": 15.55,
+  "assumed_total_sigma": 19.47,
+  "five_target_markets": [
+    "JINGCAI_WIN",
+    "JINGCAI_HANDICAP",
+    "JINGCAI_TOTAL",
+    "CROWN_HANDICAP",
+    "CROWN_TOTAL"
+  ],
+  "game_count": 14,
+  "games": [
+    {
+      "away_team": "费城76人",
+      "game_id": "728304",
+      "home_team": "底特律活塞",
+      "jingcai_number": null,
+      "market_strength_features": {
+        "expected_home_margin": 2.5,
+        "expected_total_points": 217.5,
+        "independence_note": "MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT",
+        "paired_book_trends": {
+          "expected_points": {
+            "direction": "MIXED",
+            "down": 0,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 8,
+            "up": 1
+          },
+          "home_strength": {
+            "direction": "MIXED",
+            "down": 0,
+            "median_points_change": 0.25,
+            "not_a_cover_probability": true,
+            "same_book_count": 8,
+            "up": 1
+          }
+        }
+      },
+      "markets": {
+        "CROWN_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "HOME_COVER",
+          "first_side_probability": 0.512825516,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 2.0,
+          "market": "CROWN_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -2.0,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "CROWN_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "UNDER",
+          "first_side_probability": 0.489756075,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 218.0,
+          "market": "CROWN_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "HOME_COVER",
+          "first_side_probability": 0.52563778,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": -1.5,
+          "market": "JINGCAI_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -1.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 217.5,
+          "market": "JINGCAI_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_WIN": {
+          "direct_quote_available": true,
+          "direction": "HOME_WIN",
+          "first_side_probability": 0.563863394,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": null,
+          "market": "JINGCAI_WIN",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        }
+      },
+      "nba_game_id": "401909922",
+      "research_model_candidates": {
+        "ROBUST_MULTIBOOK": {
+          "CROWN_HANDICAP": {
+            "baseline_probability": 0.512825516,
+            "direction": "HOME_COVER",
+            "first_side_probability": 0.507125414,
+            "independent_companies": 9,
+            "line": 2.0,
+            "market": "CROWN_HANDICAP",
+            "market_center": 2.277778,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -2.0,
+            "uncertainty_sigma": 15.5515878,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "CROWN_TOTAL": {
+            "baseline_probability": 0.489756075,
+            "direction": "UNDER",
+            "first_side_probability": 0.494308864,
+            "independent_companies": 9,
+            "line": 218.0,
+            "market": "CROWN_TOTAL",
+            "market_center": 217.722222,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4712681,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_HANDICAP": {
+            "baseline_probability": 0.52563778,
+            "direction": "HOME_COVER",
+            "first_side_probability": 0.519943894,
+            "independent_companies": 9,
+            "line": -1.5,
+            "market": "JINGCAI_HANDICAP",
+            "market_center": 2.277778,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -1.5,
+            "uncertainty_sigma": 15.5515878,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_TOTAL": {
+            "baseline_probability": 0.5,
+            "direction": "OVER",
+            "first_side_probability": 0.504552956,
+            "independent_companies": 9,
+            "line": 217.5,
+            "market": "JINGCAI_TOTAL",
+            "market_center": 217.722222,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4712681,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_WIN": {
+            "baseline_probability": 0.563863394,
+            "direction": "HOME_WIN",
+            "first_side_probability": 0.558223214,
+            "independent_companies": 9,
+            "line": null,
+            "market": "JINGCAI_WIN",
+            "market_center": 2.277778,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 15.5515878,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          }
+        }
+      },
+      "research_multibook_features": {
+        "full_spread": {
+          "bounded_robust_center": 2.277778,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 9,
+          "intervals": [
+            {
+              "agreement_among_all": 0.125,
+              "agreement_among_movers": 1.0,
+              "decreased": 0,
+              "increased": 1,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.25,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 8,
+              "unchanged": 7
+            }
+          ],
+          "kind": "full_spread",
+          "last_step": {
+            "agreement_among_all": 0.125,
+            "agreement_among_movers": 1.0,
+            "decreased": 0,
+            "increased": 1,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.25,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 8,
+            "unchanged": 7
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 2.0,
+          "mean_absolute_deviation": 0.222222,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 2.5,
+          "net_change_earliest_to_current": 0.25,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 1,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 2.5
+        },
+        "full_total": {
+          "bounded_robust_center": 217.722222,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 9,
+          "intervals": [
+            {
+              "agreement_among_all": 0.125,
+              "agreement_among_movers": 1.0,
+              "decreased": 0,
+              "increased": 1,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 8,
+              "unchanged": 7
+            }
+          ],
+          "kind": "full_total",
+          "last_step": {
+            "agreement_among_all": 0.125,
+            "agreement_among_movers": 1.0,
+            "decreased": 0,
+            "increased": 1,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 8,
+            "unchanged": 7
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 4.0,
+          "mean_absolute_deviation": 0.222222,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 217.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 1,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 217.5
+        },
+        "not_a_value_or_arbitrage_finder": true,
+        "not_yet_a_validated_forecast_uplift": true,
+        "source": "007_CERTIFIED_ASOF_DISTINCT_BOOKS_ONLY"
+      },
+      "research_official_injury_asof": {
+        "away_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Barlow, Dominick",
+            "reason": "",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Hukporti, Ariel",
+            "reason": "",
+            "status": "Out"
+          }
+        ],
+        "core_player_impact_points": null,
+        "core_role_minutes_verified": false,
+        "home_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Duren, Jalen",
+            "reason": "Injury/Illness - Right Hamstring Strain",
+            "status": "Out"
+          }
+        ],
+        "injury_adjusted_probability": null,
+        "injury_signal_is_observational_only": true,
+        "source_status": "VERIFIED_OFFICIAL_REPORT",
+        "status_changes": []
+      },
+      "tipoff_beijing": "2026-11-05T00:00:00+00:00"
+    },
+    {
+      "away_team": "亚特兰大老鹰",
+      "game_id": "728305",
+      "home_team": "华盛顿奇才",
+      "jingcai_number": null,
+      "market_strength_features": {
+        "expected_home_margin": -2.5,
+        "expected_total_points": 232.5,
+        "independence_note": "MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT",
+        "paired_book_trends": {
+          "expected_points": {
+            "direction": "MIXED",
+            "down": 0,
+            "median_points_change": 1.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 4
+          },
+          "home_strength": {
+            "direction": "MIXED",
+            "down": 3,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          }
+        }
+      },
+      "markets": {
+        "CROWN_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": -2.5,
+          "market": "CROWN_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": 2.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "CROWN_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 232.5,
+          "market": "CROWN_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "AWAY_COVER",
+          "first_side_probability": 0.47436222,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 1.5,
+          "market": "JINGCAI_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": 1.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "OVER",
+          "first_side_probability": 0.520481097,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 231.5,
+          "market": "JINGCAI_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_WIN": {
+          "direct_quote_available": true,
+          "direction": "AWAY_WIN",
+          "first_side_probability": 0.436136606,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": null,
+          "market": "JINGCAI_WIN",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        }
+      },
+      "nba_game_id": "401909923",
+      "research_model_candidates": {
+        "ROBUST_MULTIBOOK": {
+          "CROWN_HANDICAP": {
+            "baseline_probability": 0.5,
+            "direction": "TIE",
+            "first_side_probability": 0.5,
+            "independent_companies": 8,
+            "line": -2.5,
+            "market": "CROWN_HANDICAP",
+            "market_center": -2.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": 2.5,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "CROWN_TOTAL": {
+            "baseline_probability": 0.5,
+            "direction": "UNDER",
+            "first_side_probability": 0.493597943,
+            "independent_companies": 8,
+            "line": 232.5,
+            "market": "CROWN_TOTAL",
+            "market_center": 232.1875,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4725077,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_HANDICAP": {
+            "baseline_probability": 0.47436222,
+            "direction": "AWAY_COVER",
+            "first_side_probability": 0.47436222,
+            "independent_companies": 8,
+            "line": 1.5,
+            "market": "JINGCAI_HANDICAP",
+            "market_center": -2.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": 1.5,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_TOTAL": {
+            "baseline_probability": 0.520481097,
+            "direction": "OVER",
+            "first_side_probability": 0.514082205,
+            "independent_companies": 8,
+            "line": 231.5,
+            "market": "JINGCAI_TOTAL",
+            "market_center": 232.1875,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4725077,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_WIN": {
+            "baseline_probability": 0.436136606,
+            "direction": "AWAY_WIN",
+            "first_side_probability": 0.436136606,
+            "independent_companies": 8,
+            "line": null,
+            "market": "JINGCAI_WIN",
+            "market_center": -2.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          }
+        }
+      },
+      "research_multibook_features": {
+        "full_spread": {
+          "bounded_robust_center": -2.5,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.42857,
+              "agreement_among_movers": 1.0,
+              "decreased": 3,
+              "increased": 0,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 4
+            }
+          ],
+          "kind": "full_spread",
+          "last_step": {
+            "agreement_among_all": 0.42857,
+            "agreement_among_movers": 1.0,
+            "decreased": 3,
+            "increased": 0,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 4
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 2.0,
+          "mean_absolute_deviation": 0.0,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": -2.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 3,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": -2.5
+        },
+        "full_total": {
+          "bounded_robust_center": 232.1875,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.57143,
+              "agreement_among_movers": 1.0,
+              "decreased": 0,
+              "increased": 4,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 1.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 3
+            }
+          ],
+          "kind": "full_total",
+          "last_step": {
+            "agreement_among_all": 0.57143,
+            "agreement_among_movers": 1.0,
+            "decreased": 0,
+            "increased": 4,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 1.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 3
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 4.0,
+          "mean_absolute_deviation": 0.3125,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 232.5,
+          "net_change_earliest_to_current": 1.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 4,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 232.5
+        },
+        "not_a_value_or_arbitrage_finder": true,
+        "not_yet_a_validated_forecast_uplift": true,
+        "source": "007_CERTIFIED_ASOF_DISTINCT_BOOKS_ONLY"
+      },
+      "research_official_injury_asof": {
+        "away_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Dennis, RayJ",
+            "reason": "G League - Two-Way",
+            "status": "Questionable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Gilbert, Keshon",
+            "reason": "G League - Two-Way",
+            "status": "Doubtful"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Gueye, Mouhamed",
+            "reason": "Injury/Illness - Left Foot Fracture",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Johnson, Jalen",
+            "reason": "Injury/Illness - Left Ankle Sprain",
+            "status": "Questionable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Landale, Jock",
+            "reason": "Injury/Illness - Left Hip Strain",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Veesaar, Henri",
+            "reason": "Injury/Illness - Right ACL Tear",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Wilson, Jalen",
+            "reason": "G League - Two-Way",
+            "status": "Doubtful"
+          }
+        ],
+        "core_player_impact_points": null,
+        "core_role_minutes_verified": false,
+        "home_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Beekman, Reece",
+            "reason": "Injury/Illness - Right AC Joint Injury",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Champagnie, Justin",
+            "reason": "Injury/Illness - Right Foot Surgery",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Gill, Anthony",
+            "reason": "Injury/Illness - Low Back Spasms",
+            "status": "Questionable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Sarr, Alex",
+            "reason": "Injury/Illness - Left Knee Soreness",
+            "status": "Questionable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Vukcevic, Tristan",
+            "reason": "Injury/Illness - Left Hip Impingement",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Watkins, Jamir",
+            "reason": "",
+            "status": "Out"
+          }
+        ],
+        "injury_adjusted_probability": null,
+        "injury_signal_is_observational_only": true,
+        "source_status": "VERIFIED_OFFICIAL_REPORT",
+        "status_changes": []
+      },
+      "tipoff_beijing": "2026-11-05T00:00:00+00:00"
+    },
+    {
+      "away_team": "密尔沃基雄鹿",
+      "game_id": "728306",
+      "home_team": "波士顿凯尔特人",
+      "jingcai_number": null,
+      "market_strength_features": {
+        "expected_home_margin": 11.5,
+        "expected_total_points": 223.5,
+        "independence_note": "MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT",
+        "paired_book_trends": {
+          "expected_points": {
+            "direction": "MIXED",
+            "down": 0,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 3
+          },
+          "home_strength": {
+            "direction": "STABLE",
+            "down": 0,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          }
+        }
+      },
+      "markets": {
+        "CROWN_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 11.5,
+          "market": "CROWN_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -11.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "CROWN_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "OVER",
+          "first_side_probability": 0.520481097,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 222.5,
+          "market": "CROWN_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "AWAY_COVER",
+          "first_side_probability": 0.47436222,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": -12.5,
+          "market": "JINGCAI_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -12.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 223.5,
+          "market": "JINGCAI_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_WIN": {
+          "direct_quote_available": true,
+          "direction": "HOME_WIN",
+          "first_side_probability": 0.770213406,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": null,
+          "market": "JINGCAI_WIN",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        }
+      },
+      "nba_game_id": "401909924",
+      "research_model_candidates": {
+        "ROBUST_MULTIBOOK": {
+          "CROWN_HANDICAP": {
+            "baseline_probability": 0.5,
+            "direction": "AWAY_COVER",
+            "first_side_probability": 0.496793207,
+            "independent_companies": 8,
+            "line": 11.5,
+            "market": "CROWN_HANDICAP",
+            "market_center": 11.375,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -11.5,
+            "uncertainty_sigma": 15.5505024,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "CROWN_TOTAL": {
+            "baseline_probability": 0.520481097,
+            "direction": "OVER",
+            "first_side_probability": 0.524310789,
+            "independent_companies": 8,
+            "line": 222.5,
+            "market": "CROWN_TOTAL",
+            "market_center": 223.6875,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4749148,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_HANDICAP": {
+            "baseline_probability": 0.47436222,
+            "direction": "AWAY_COVER",
+            "first_side_probability": 0.471163705,
+            "independent_companies": 8,
+            "line": -12.5,
+            "market": "JINGCAI_HANDICAP",
+            "market_center": 11.375,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -12.5,
+            "uncertainty_sigma": 15.5505024,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_TOTAL": {
+            "baseline_probability": 0.5,
+            "direction": "OVER",
+            "first_side_probability": 0.503840865,
+            "independent_companies": 8,
+            "line": 223.5,
+            "market": "JINGCAI_TOTAL",
+            "market_center": 223.6875,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4749148,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_WIN": {
+            "baseline_probability": 0.770213406,
+            "direction": "HOME_WIN",
+            "first_side_probability": 0.767759318,
+            "independent_companies": 8,
+            "line": null,
+            "market": "JINGCAI_WIN",
+            "market_center": 11.375,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 15.5505024,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          }
+        }
+      },
+      "research_multibook_features": {
+        "full_spread": {
+          "bounded_robust_center": 11.375,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.0,
+              "agreement_among_movers": null,
+              "decreased": 0,
+              "increased": 0,
+              "market_signal": "UNCHANGED",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 7
+            }
+          ],
+          "kind": "full_spread",
+          "last_step": {
+            "agreement_among_all": 0.0,
+            "agreement_among_movers": null,
+            "decreased": 0,
+            "increased": 0,
+            "market_signal": "UNCHANGED",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 7
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 2.0,
+          "mean_absolute_deviation": 0.125,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 11.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 11.5
+        },
+        "full_total": {
+          "bounded_robust_center": 223.6875,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.42857,
+              "agreement_among_movers": 1.0,
+              "decreased": 0,
+              "increased": 3,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 4
+            }
+          ],
+          "kind": "full_total",
+          "last_step": {
+            "agreement_among_all": 0.42857,
+            "agreement_among_movers": 1.0,
+            "decreased": 0,
+            "increased": 3,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 4
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 4.0,
+          "mean_absolute_deviation": 0.4375,
+          "median_absolute_deviation": 0.25,
+          "median_all_independent_companies": 223.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 3,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 223.5
+        },
+        "not_a_value_or_arbitrage_finder": true,
+        "not_yet_a_validated_forecast_uplift": true,
+        "source": "007_CERTIFIED_ASOF_DISTINCT_BOOKS_ONLY"
+      },
+      "research_official_injury_asof": {
+        "away_players": [],
+        "core_player_impact_points": null,
+        "core_role_minutes_verified": false,
+        "home_players": [],
+        "injury_adjusted_probability": null,
+        "injury_signal_is_observational_only": true,
+        "source_status": "OFFICIAL_CONTEXT_INCOMPLETE_OR_UNVERIFIED",
+        "status_changes": []
+      },
+      "tipoff_beijing": "2026-11-05T00:30:00+00:00"
+    },
+    {
+      "away_team": "芝加哥公牛",
+      "game_id": "728307",
+      "home_team": "纽约尼克斯",
+      "jingcai_number": null,
+      "market_strength_features": {
+        "expected_home_margin": 12.0,
+        "expected_total_points": 233.75,
+        "independence_note": "MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT",
+        "paired_book_trends": {
+          "expected_points": {
+            "direction": "STABLE",
+            "down": 0,
+            "median_points_change": 0.25,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          },
+          "home_strength": {
+            "direction": "MIXED",
+            "down": 1,
+            "median_points_change": -0.5,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          }
+        }
+      },
+      "markets": {
+        "CROWN_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "HOME_COVER",
+          "first_side_probability": 0.512825516,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 11.5,
+          "market": "CROWN_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -11.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "CROWN_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "UNDER",
+          "first_side_probability": 0.494877615,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 234.0,
+          "market": "CROWN_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "HOME_COVER",
+          "first_side_probability": 0.512825516,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": -11.5,
+          "market": "JINGCAI_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -11.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "OVER",
+          "first_side_probability": 0.525595043,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 232.5,
+          "market": "JINGCAI_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_WIN": {
+          "direct_quote_available": true,
+          "direction": "HOME_WIN",
+          "first_side_probability": 0.779855173,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": null,
+          "market": "JINGCAI_WIN",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        }
+      },
+      "nba_game_id": "401909926",
+      "research_model_candidates": {
+        "ROBUST_MULTIBOOK": {
+          "CROWN_HANDICAP": {
+            "baseline_probability": 0.512825516,
+            "direction": "HOME_COVER",
+            "first_side_probability": 0.512818893,
+            "independent_companies": 8,
+            "line": 11.5,
+            "market": "CROWN_HANDICAP",
+            "market_center": 12.0,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -11.5,
+            "uncertainty_sigma": 15.5580365,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "CROWN_TOTAL": {
+            "baseline_probability": 0.494877615,
+            "direction": "UNDER",
+            "first_side_probability": 0.49615866,
+            "independent_companies": 8,
+            "line": 234.0,
+            "market": "CROWN_TOTAL",
+            "market_center": 233.8125,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4725077,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_HANDICAP": {
+            "baseline_probability": 0.512825516,
+            "direction": "HOME_COVER",
+            "first_side_probability": 0.512818893,
+            "independent_companies": 8,
+            "line": -11.5,
+            "market": "JINGCAI_HANDICAP",
+            "market_center": 12.0,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -11.5,
+            "uncertainty_sigma": 15.5580365,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_TOTAL": {
+            "baseline_probability": 0.525595043,
+            "direction": "OVER",
+            "first_side_probability": 0.526869448,
+            "independent_companies": 8,
+            "line": 232.5,
+            "market": "JINGCAI_TOTAL",
+            "market_center": 233.8125,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4725077,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_WIN": {
+            "baseline_probability": 0.779855173,
+            "direction": "HOME_WIN",
+            "first_side_probability": 0.77973708,
+            "independent_companies": 8,
+            "line": null,
+            "market": "JINGCAI_WIN",
+            "market_center": 12.0,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 15.5580365,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          }
+        }
+      },
+      "research_multibook_features": {
+        "full_spread": {
+          "bounded_robust_center": 12.0,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.14286,
+              "agreement_among_movers": 1.0,
+              "decreased": 1,
+              "increased": 0,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": -0.5,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 6
+            }
+          ],
+          "kind": "full_spread",
+          "last_step": {
+            "agreement_among_all": 0.14286,
+            "agreement_among_movers": 1.0,
+            "decreased": 1,
+            "increased": 0,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": -0.5,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 6
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 2.0,
+          "mean_absolute_deviation": 0.5,
+          "median_absolute_deviation": 0.5,
+          "median_all_independent_companies": 12.0,
+          "net_change_earliest_to_current": -0.5,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 1,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 12.0
+        },
+        "full_total": {
+          "bounded_robust_center": 233.8125,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.0,
+              "agreement_among_movers": null,
+              "decreased": 0,
+              "increased": 0,
+              "market_signal": "UNCHANGED",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.25,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 7
+            }
+          ],
+          "kind": "full_total",
+          "last_step": {
+            "agreement_among_all": 0.0,
+            "agreement_among_movers": null,
+            "decreased": 0,
+            "increased": 0,
+            "market_signal": "UNCHANGED",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.25,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 7
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 4.0,
+          "mean_absolute_deviation": 0.3125,
+          "median_absolute_deviation": 0.25,
+          "median_all_independent_companies": 233.75,
+          "net_change_earliest_to_current": 0.25,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 233.75
+        },
+        "not_a_value_or_arbitrage_finder": true,
+        "not_yet_a_validated_forecast_uplift": true,
+        "source": "007_CERTIFIED_ASOF_DISTINCT_BOOKS_ONLY"
+      },
+      "research_official_injury_asof": {
+        "away_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Claxton, Nic",
+            "reason": "Injury/Illness - Left Hamstring Strain",
+            "status": "Questionable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Smith, Jalen",
+            "reason": "Injury/Illness - Left Finger Sprain",
+            "status": "Probable"
+          }
+        ],
+        "core_player_impact_points": null,
+        "core_role_minutes_verified": false,
+        "home_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Hart, Josh",
+            "reason": "Injury/Illness - Right Ankle Soreness",
+            "status": "Questionable"
+          }
+        ],
+        "injury_adjusted_probability": null,
+        "injury_signal_is_observational_only": true,
+        "source_status": "VERIFIED_OFFICIAL_REPORT",
+        "status_changes": []
+      },
+      "tipoff_beijing": "2026-11-05T00:30:00+00:00"
+    },
+    {
+      "away_team": "夏洛特黄蜂",
+      "game_id": "728308",
+      "home_team": "布鲁克林篮网",
+      "jingcai_number": null,
+      "market_strength_features": {
+        "expected_home_margin": -3.5,
+        "expected_total_points": 213.5,
+        "independence_note": "MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT",
+        "paired_book_trends": {
+          "expected_points": {
+            "direction": "MIXED",
+            "down": 2,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 8,
+            "up": 0
+          },
+          "home_strength": {
+            "direction": "STABLE",
+            "down": 0,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 8,
+            "up": 0
+          }
+        }
+      },
+      "markets": {
+        "CROWN_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": -3.5,
+          "market": "CROWN_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": 3.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "CROWN_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 213.5,
+          "market": "CROWN_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 3.5,
+          "market": "JINGCAI_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": 3.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 213.5,
+          "market": "JINGCAI_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_WIN": {
+          "direct_quote_available": true,
+          "direction": "AWAY_WIN",
+          "first_side_probability": 0.41095837,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": null,
+          "market": "JINGCAI_WIN",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        }
+      },
+      "nba_game_id": "401909925",
+      "research_model_candidates": {
+        "ROBUST_MULTIBOOK": {
+          "CROWN_HANDICAP": {
+            "baseline_probability": 0.5,
+            "direction": "TIE",
+            "first_side_probability": 0.5,
+            "independent_companies": 9,
+            "line": -3.5,
+            "market": "CROWN_HANDICAP",
+            "market_center": -3.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": 3.5,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "CROWN_TOTAL": {
+            "baseline_probability": 0.5,
+            "direction": "TIE",
+            "first_side_probability": 0.5,
+            "independent_companies": 9,
+            "line": 213.5,
+            "market": "CROWN_TOTAL",
+            "market_center": 213.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.47,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_HANDICAP": {
+            "baseline_probability": 0.5,
+            "direction": "TIE",
+            "first_side_probability": 0.5,
+            "independent_companies": 9,
+            "line": 3.5,
+            "market": "JINGCAI_HANDICAP",
+            "market_center": -3.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": 3.5,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_TOTAL": {
+            "baseline_probability": 0.5,
+            "direction": "TIE",
+            "first_side_probability": 0.5,
+            "independent_companies": 9,
+            "line": 213.5,
+            "market": "JINGCAI_TOTAL",
+            "market_center": 213.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.47,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_WIN": {
+            "baseline_probability": 0.41095837,
+            "direction": "AWAY_WIN",
+            "first_side_probability": 0.41095837,
+            "independent_companies": 9,
+            "line": null,
+            "market": "JINGCAI_WIN",
+            "market_center": -3.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          }
+        }
+      },
+      "research_multibook_features": {
+        "full_spread": {
+          "bounded_robust_center": -3.5,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 9,
+          "intervals": [
+            {
+              "agreement_among_all": 0.0,
+              "agreement_among_movers": null,
+              "decreased": 0,
+              "increased": 0,
+              "market_signal": "UNCHANGED",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 8,
+              "unchanged": 8
+            }
+          ],
+          "kind": "full_spread",
+          "last_step": {
+            "agreement_among_all": 0.0,
+            "agreement_among_movers": null,
+            "decreased": 0,
+            "increased": 0,
+            "market_signal": "UNCHANGED",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 8,
+            "unchanged": 8
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 2.0,
+          "mean_absolute_deviation": 0.0,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": -3.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": -3.5
+        },
+        "full_total": {
+          "bounded_robust_center": 213.5,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 9,
+          "intervals": [
+            {
+              "agreement_among_all": 0.25,
+              "agreement_among_movers": 1.0,
+              "decreased": 2,
+              "increased": 0,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 8,
+              "unchanged": 6
+            }
+          ],
+          "kind": "full_total",
+          "last_step": {
+            "agreement_among_all": 0.25,
+            "agreement_among_movers": 1.0,
+            "decreased": 2,
+            "increased": 0,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 8,
+            "unchanged": 6
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 4.0,
+          "mean_absolute_deviation": 0.0,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 213.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 2,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 213.5
+        },
+        "not_a_value_or_arbitrage_finder": true,
+        "not_yet_a_validated_forecast_uplift": true,
+        "source": "007_CERTIFIED_ASOF_DISTINCT_BOOKS_ONLY"
+      },
+      "research_official_injury_asof": {
+        "away_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Ajayi, Michael",
+            "reason": "G League - Two-Way",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Boswell, Kylan",
+            "reason": "G League - Two-Way",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Hall, PJ",
+            "reason": "G League - Two-Way",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Knueppel, Kon",
+            "reason": "Injury/Illness - Left Hamstring Strain",
+            "status": "Probable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "White, Coby",
+            "reason": "",
+            "status": "Probable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Williams, Grant",
+            "reason": "Injury/Illness - Right Hamstring Strain",
+            "status": "Out"
+          }
+        ],
+        "core_player_impact_points": null,
+        "core_role_minutes_verified": false,
+        "home_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Bilodeau, Tyler",
+            "reason": "G League - Two-Way",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Demin, Egor",
+            "reason": "Injury/Illness - Right Bone Bruise",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Jefferson, Joshua",
+            "reason": "G League - On Assignment",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Nelson, Grant",
+            "reason": "G League - Two-Way",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Powell, Drake",
+            "reason": "G League - On Assignment",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Saraf, Ben",
+            "reason": "G League - On Assignment",
+            "status": "Out"
+          }
+        ],
+        "injury_adjusted_probability": null,
+        "injury_signal_is_observational_only": true,
+        "source_status": "VERIFIED_OFFICIAL_REPORT",
+        "status_changes": []
+      },
+      "tipoff_beijing": "2026-11-05T00:30:00+00:00"
+    },
+    {
+      "away_team": "印第安纳步行者",
+      "game_id": "728896",
+      "home_team": "孟菲斯灰熊",
+      "jingcai_number": null,
+      "market_strength_features": {
+        "expected_home_margin": 6.5,
+        "expected_total_points": 229.5,
+        "independence_note": "MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT",
+        "paired_book_trends": {
+          "expected_points": {
+            "direction": "FALLING",
+            "down": 6,
+            "median_points_change": -1.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          },
+          "home_strength": {
+            "direction": "STABLE",
+            "down": 0,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          }
+        }
+      },
+      "markets": {
+        "CROWN_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 6.5,
+          "market": "CROWN_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -6.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "CROWN_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "OVER",
+          "first_side_probability": 0.510243925,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 229.0,
+          "market": "CROWN_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "AWAY_COVER",
+          "first_side_probability": 0.448830213,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": -8.5,
+          "market": "JINGCAI_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -8.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "UNDER",
+          "first_side_probability": 0.479518903,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 230.5,
+          "market": "JINGCAI_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_WIN": {
+          "direct_quote_available": true,
+          "direction": "HOME_WIN",
+          "first_side_probability": 0.662028792,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": null,
+          "market": "JINGCAI_WIN",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        }
+      },
+      "nba_game_id": "401909927",
+      "research_model_candidates": {
+        "ROBUST_MULTIBOOK": {
+          "CROWN_HANDICAP": {
+            "baseline_probability": 0.5,
+            "direction": "TIE",
+            "first_side_probability": 0.5,
+            "independent_companies": 8,
+            "line": 6.5,
+            "market": "CROWN_HANDICAP",
+            "market_center": 6.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -6.5,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "CROWN_TOTAL": {
+            "baseline_probability": 0.510243925,
+            "direction": "OVER",
+            "first_side_probability": 0.511522595,
+            "independent_companies": 8,
+            "line": 229.0,
+            "market": "CROWN_TOTAL",
+            "market_center": 229.5625,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4725077,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_HANDICAP": {
+            "baseline_probability": 0.448830213,
+            "direction": "AWAY_COVER",
+            "first_side_probability": 0.448830213,
+            "independent_companies": 8,
+            "line": -8.5,
+            "market": "JINGCAI_HANDICAP",
+            "market_center": 6.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -8.5,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_TOTAL": {
+            "baseline_probability": 0.479518903,
+            "direction": "UNDER",
+            "first_side_probability": 0.480800421,
+            "independent_companies": 8,
+            "line": 230.5,
+            "market": "JINGCAI_TOTAL",
+            "market_center": 229.5625,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4725077,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_WIN": {
+            "baseline_probability": 0.662028792,
+            "direction": "HOME_WIN",
+            "first_side_probability": 0.662028792,
+            "independent_companies": 8,
+            "line": null,
+            "market": "JINGCAI_WIN",
+            "market_center": 6.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          }
+        }
+      },
+      "research_multibook_features": {
+        "full_spread": {
+          "bounded_robust_center": 6.5,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.0,
+              "agreement_among_movers": null,
+              "decreased": 0,
+              "increased": 0,
+              "market_signal": "UNCHANGED",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 7
+            }
+          ],
+          "kind": "full_spread",
+          "last_step": {
+            "agreement_among_all": 0.0,
+            "agreement_among_movers": null,
+            "decreased": 0,
+            "increased": 0,
+            "market_signal": "UNCHANGED",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 7
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 2.0,
+          "mean_absolute_deviation": 0.0,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 6.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 6.5
+        },
+        "full_total": {
+          "bounded_robust_center": 229.5625,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.85714,
+              "agreement_among_movers": 1.0,
+              "decreased": 6,
+              "increased": 0,
+              "market_signal": "BROAD_FALLING",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": -1.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 1
+            }
+          ],
+          "kind": "full_total",
+          "last_step": {
+            "agreement_among_all": 0.85714,
+            "agreement_among_movers": 1.0,
+            "decreased": 6,
+            "increased": 0,
+            "market_signal": "BROAD_FALLING",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": -1.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 1
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 4.0,
+          "mean_absolute_deviation": 0.3125,
+          "median_absolute_deviation": 0.25,
+          "median_all_independent_companies": 229.5,
+          "net_change_earliest_to_current": -1.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 6,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 229.5
+        },
+        "not_a_value_or_arbitrage_finder": true,
+        "not_yet_a_validated_forecast_uplift": true,
+        "source": "007_CERTIFIED_ASOF_DISTINCT_BOOKS_ONLY"
+      },
+      "research_official_injury_asof": {
+        "away_players": [],
+        "core_player_impact_points": null,
+        "core_role_minutes_verified": false,
+        "home_players": [],
+        "injury_adjusted_probability": null,
+        "injury_signal_is_observational_only": true,
+        "source_status": "OFFICIAL_CONTEXT_INCOMPLETE_OR_UNVERIFIED",
+        "status_changes": []
+      },
+      "tipoff_beijing": "2026-11-05T01:00:00+00:00"
+    },
+    {
+      "away_team": "克里夫兰骑士",
+      "game_id": "728897",
+      "home_team": "俄克拉荷马城雷霆",
+      "jingcai_number": null,
+      "market_strength_features": {
+        "expected_home_margin": 2.5,
+        "expected_total_points": 227.5,
+        "independence_note": "MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT",
+        "paired_book_trends": {
+          "expected_points": {
+            "direction": "STABLE",
+            "down": 0,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          },
+          "home_strength": {
+            "direction": "MIXED",
+            "down": 2,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          }
+        }
+      },
+      "markets": {
+        "CROWN_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "HOME_COVER",
+          "first_side_probability": 0.512825516,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 2.0,
+          "market": "CROWN_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -2.0,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "CROWN_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "UNDER",
+          "first_side_probability": 0.489756075,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 228.0,
+          "market": "CROWN_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": -2.5,
+          "market": "JINGCAI_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -2.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 227.5,
+          "market": "JINGCAI_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_WIN": {
+          "direct_quote_available": true,
+          "direction": "HOME_WIN",
+          "first_side_probability": 0.563863394,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": null,
+          "market": "JINGCAI_WIN",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        }
+      },
+      "nba_game_id": "401909929",
+      "research_model_candidates": {
+        "ROBUST_MULTIBOOK": {
+          "CROWN_HANDICAP": {
+            "baseline_probability": 0.512825516,
+            "direction": "HOME_COVER",
+            "first_side_probability": 0.508016207,
+            "independent_companies": 8,
+            "line": 2.0,
+            "market": "CROWN_HANDICAP",
+            "market_center": 2.3125,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -2.0,
+            "uncertainty_sigma": 15.5511304,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "CROWN_TOTAL": {
+            "baseline_probability": 0.489756075,
+            "direction": "UNDER",
+            "first_side_probability": 0.493597415,
+            "independent_companies": 8,
+            "line": 228.0,
+            "market": "CROWN_TOTAL",
+            "market_center": 227.6875,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4709028,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_HANDICAP": {
+            "baseline_probability": 0.5,
+            "direction": "AWAY_COVER",
+            "first_side_probability": 0.495190069,
+            "independent_companies": 8,
+            "line": -2.5,
+            "market": "JINGCAI_HANDICAP",
+            "market_center": 2.3125,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -2.5,
+            "uncertainty_sigma": 15.5511304,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_TOTAL": {
+            "baseline_probability": 0.5,
+            "direction": "OVER",
+            "first_side_probability": 0.503841657,
+            "independent_companies": 8,
+            "line": 227.5,
+            "market": "JINGCAI_TOTAL",
+            "market_center": 227.6875,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4709028,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_WIN": {
+            "baseline_probability": 0.563863394,
+            "direction": "HOME_WIN",
+            "first_side_probability": 0.55910601,
+            "independent_companies": 8,
+            "line": null,
+            "market": "JINGCAI_WIN",
+            "market_center": 2.3125,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 15.5511304,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          }
+        }
+      },
+      "research_multibook_features": {
+        "full_spread": {
+          "bounded_robust_center": 2.3125,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.28571,
+              "agreement_among_movers": 1.0,
+              "decreased": 2,
+              "increased": 0,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 5
+            }
+          ],
+          "kind": "full_spread",
+          "last_step": {
+            "agreement_among_all": 0.28571,
+            "agreement_among_movers": 1.0,
+            "decreased": 2,
+            "increased": 0,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 5
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 2.0,
+          "mean_absolute_deviation": 0.1875,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 2.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 2,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 2.5
+        },
+        "full_total": {
+          "bounded_robust_center": 227.6875,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.0,
+              "agreement_among_movers": null,
+              "decreased": 0,
+              "increased": 0,
+              "market_signal": "UNCHANGED",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 7
+            }
+          ],
+          "kind": "full_total",
+          "last_step": {
+            "agreement_among_all": 0.0,
+            "agreement_among_movers": null,
+            "decreased": 0,
+            "increased": 0,
+            "market_signal": "UNCHANGED",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 7
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 4.0,
+          "mean_absolute_deviation": 0.1875,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 227.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 227.5
+        },
+        "not_a_value_or_arbitrage_finder": true,
+        "not_yet_a_validated_forecast_uplift": true,
+        "source": "007_CERTIFIED_ASOF_DISTINCT_BOOKS_ONLY"
+      },
+      "research_official_injury_asof": {
+        "away_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Diop, Khalifa",
+            "reason": "G League - On Assignment",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Tomlin, Nae'Qwan",
+            "reason": "",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Tyson, Jaylon",
+            "reason": "Injury/Illness - Right Ankle Sprain",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Udeh, Jr., Ernest",
+            "reason": "G League - Two-Way",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Watson, Peyton",
+            "reason": "",
+            "status": "Out"
+          }
+        ],
+        "core_player_impact_points": null,
+        "core_role_minutes_verified": false,
+        "home_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Holmgren, Chet",
+            "reason": "",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Sorber, Thomas",
+            "reason": "Injury/Illness - Right Knee Surgery",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Topic, Nikola",
+            "reason": "Injury/Illness - Low Back Surgery",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Wallace, Cason",
+            "reason": "Injury/Illness - Left Shoulder Surgery",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Williams, Jalen",
+            "reason": "Injury/Illness - Left Ankle Surgery",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Williams, Jaylin",
+            "reason": "Injury/Illness - Low Back Spasms",
+            "status": "Questionable"
+          }
+        ],
+        "injury_adjusted_probability": null,
+        "injury_signal_is_observational_only": true,
+        "source_status": "VERIFIED_OFFICIAL_REPORT",
+        "status_changes": []
+      },
+      "tipoff_beijing": "2026-11-05T01:00:00+00:00"
+    },
+    {
+      "away_team": "犹他爵士",
+      "game_id": "728898",
+      "home_team": "新奥尔良鹈鹕",
+      "jingcai_number": null,
+      "market_strength_features": {
+        "expected_home_margin": 5.5,
+        "expected_total_points": 235.25,
+        "independence_note": "MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT",
+        "paired_book_trends": {
+          "expected_points": {
+            "direction": "MIXED",
+            "down": 2,
+            "median_points_change": -0.25,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          },
+          "home_strength": {
+            "direction": "MIXED",
+            "down": 1,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          }
+        }
+      },
+      "markets": {
+        "CROWN_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "HOME_COVER",
+          "first_side_probability": 0.512825516,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 5.0,
+          "market": "CROWN_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -5.0,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "CROWN_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "OVER",
+          "first_side_probability": 0.505122385,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 235.0,
+          "market": "CROWN_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "AWAY_COVER",
+          "first_side_probability": 0.47436222,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": -6.5,
+          "market": "JINGCAI_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -6.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "UNDER",
+          "first_side_probability": 0.494877615,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 235.5,
+          "market": "JINGCAI_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_WIN": {
+          "direct_quote_available": true,
+          "direction": "HOME_WIN",
+          "first_side_probability": 0.638217295,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": null,
+          "market": "JINGCAI_WIN",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        }
+      },
+      "nba_game_id": "401909928",
+      "research_model_candidates": {
+        "ROBUST_MULTIBOOK": {
+          "CROWN_HANDICAP": {
+            "baseline_probability": 0.512825516,
+            "direction": "HOME_COVER",
+            "first_side_probability": 0.509619551,
+            "independent_companies": 8,
+            "line": 5.0,
+            "market": "CROWN_HANDICAP",
+            "market_center": 5.375,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -5.0,
+            "uncertainty_sigma": 15.5505024,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "CROWN_TOTAL": {
+            "baseline_probability": 0.505122385,
+            "direction": "OVER",
+            "first_side_probability": 0.50256077,
+            "independent_companies": 8,
+            "line": 235.0,
+            "market": "CROWN_TOTAL",
+            "market_center": 235.125,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.473611,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_HANDICAP": {
+            "baseline_probability": 0.47436222,
+            "direction": "AWAY_COVER",
+            "first_side_probability": 0.471163705,
+            "independent_companies": 8,
+            "line": -6.5,
+            "market": "JINGCAI_HANDICAP",
+            "market_center": 5.375,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -6.5,
+            "uncertainty_sigma": 15.5505024,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_TOTAL": {
+            "baseline_probability": 0.494877615,
+            "direction": "UNDER",
+            "first_side_probability": 0.492318111,
+            "independent_companies": 8,
+            "line": 235.5,
+            "market": "JINGCAI_TOTAL",
+            "market_center": 235.125,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.473611,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_WIN": {
+            "baseline_probability": 0.638217295,
+            "direction": "HOME_WIN",
+            "first_side_probability": 0.635196365,
+            "independent_companies": 8,
+            "line": null,
+            "market": "JINGCAI_WIN",
+            "market_center": 5.375,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 15.5505024,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          }
+        }
+      },
+      "research_multibook_features": {
+        "full_spread": {
+          "bounded_robust_center": 5.375,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.14286,
+              "agreement_among_movers": 1.0,
+              "decreased": 1,
+              "increased": 0,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 6
+            }
+          ],
+          "kind": "full_spread",
+          "last_step": {
+            "agreement_among_all": 0.14286,
+            "agreement_among_movers": 1.0,
+            "decreased": 1,
+            "increased": 0,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 6
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 2.0,
+          "mean_absolute_deviation": 0.125,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 5.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 1,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 5.5
+        },
+        "full_total": {
+          "bounded_robust_center": 235.125,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.28571,
+              "agreement_among_movers": 1.0,
+              "decreased": 2,
+              "increased": 0,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": -0.25,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 5
+            }
+          ],
+          "kind": "full_total",
+          "last_step": {
+            "agreement_among_all": 0.28571,
+            "agreement_among_movers": 1.0,
+            "decreased": 2,
+            "increased": 0,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": -0.25,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 5
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 4.0,
+          "mean_absolute_deviation": 0.375,
+          "median_absolute_deviation": 0.25,
+          "median_all_independent_companies": 235.25,
+          "net_change_earliest_to_current": -0.25,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 2,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 235.25
+        },
+        "not_a_value_or_arbitrage_finder": true,
+        "not_yet_a_validated_forecast_uplift": true,
+        "source": "007_CERTIFIED_ASOF_DISTINCT_BOOKS_ONLY"
+      },
+      "research_official_injury_asof": {
+        "away_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Alexander, Trey",
+            "reason": "G League - Two-Way",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Bamba, Mo",
+            "reason": "Injury/Illness - Right Ankle Sprain",
+            "status": "Questionable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Ingram, Harrison",
+            "reason": "G League - Two-Way",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Jackson Jr., Jaren",
+            "reason": "Injury/Illness - Right MCL Tear",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Nurkic, Jusuf",
+            "reason": "",
+            "status": "Out"
+          }
+        ],
+        "core_player_impact_points": null,
+        "core_role_minutes_verified": false,
+        "home_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Dia, Malik",
+            "reason": "G League - Two-Way",
+            "status": "Doubtful"
+          }
+        ],
+        "injury_adjusted_probability": null,
+        "injury_signal_is_observational_only": true,
+        "source_status": "VERIFIED_OFFICIAL_REPORT",
+        "status_changes": []
+      },
+      "tipoff_beijing": "2026-11-05T01:00:00+00:00"
+    },
+    {
+      "away_team": "明尼苏达森林狼",
+      "game_id": "728899",
+      "home_team": "休斯顿火箭",
+      "jingcai_number": null,
+      "market_strength_features": {
+        "expected_home_margin": 8.5,
+        "expected_total_points": 220.5,
+        "independence_note": "MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT",
+        "paired_book_trends": {
+          "expected_points": {
+            "direction": "MIXED",
+            "down": 3,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 8,
+            "up": 0
+          },
+          "home_strength": {
+            "direction": "STABLE",
+            "down": 0,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 8,
+            "up": 0
+          }
+        }
+      },
+      "markets": {
+        "CROWN_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 8.5,
+          "market": "CROWN_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -8.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "CROWN_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 220.5,
+          "market": "CROWN_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "AWAY_COVER",
+          "first_side_probability": 0.47436222,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": -9.5,
+          "market": "JINGCAI_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -9.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "UNDER",
+          "first_side_probability": 0.479518903,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 221.5,
+          "market": "JINGCAI_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_WIN": {
+          "direct_quote_available": true,
+          "direction": "HOME_WIN",
+          "first_side_probability": 0.707681391,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": null,
+          "market": "JINGCAI_WIN",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        }
+      },
+      "nba_game_id": "401909930",
+      "research_model_candidates": {
+        "ROBUST_MULTIBOOK": {
+          "CROWN_HANDICAP": {
+            "baseline_probability": 0.5,
+            "direction": "TIE",
+            "first_side_probability": 0.5,
+            "independent_companies": 9,
+            "line": 8.5,
+            "market": "CROWN_HANDICAP",
+            "market_center": 8.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -8.5,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "CROWN_TOTAL": {
+            "baseline_probability": 0.5,
+            "direction": "TIE",
+            "first_side_probability": 0.5,
+            "independent_companies": 9,
+            "line": 220.5,
+            "market": "CROWN_TOTAL",
+            "market_center": 220.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4712681,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_HANDICAP": {
+            "baseline_probability": 0.47436222,
+            "direction": "AWAY_COVER",
+            "first_side_probability": 0.47436222,
+            "independent_companies": 9,
+            "line": -9.5,
+            "market": "JINGCAI_HANDICAP",
+            "market_center": 8.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -9.5,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_TOTAL": {
+            "baseline_probability": 0.479518903,
+            "direction": "UNDER",
+            "first_side_probability": 0.479520236,
+            "independent_companies": 9,
+            "line": 221.5,
+            "market": "JINGCAI_TOTAL",
+            "market_center": 220.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4712681,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_WIN": {
+            "baseline_probability": 0.707681391,
+            "direction": "HOME_WIN",
+            "first_side_probability": 0.707681391,
+            "independent_companies": 9,
+            "line": null,
+            "market": "JINGCAI_WIN",
+            "market_center": 8.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          }
+        }
+      },
+      "research_multibook_features": {
+        "full_spread": {
+          "bounded_robust_center": 8.5,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 9,
+          "intervals": [
+            {
+              "agreement_among_all": 0.0,
+              "agreement_among_movers": null,
+              "decreased": 0,
+              "increased": 0,
+              "market_signal": "UNCHANGED",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 8,
+              "unchanged": 8
+            }
+          ],
+          "kind": "full_spread",
+          "last_step": {
+            "agreement_among_all": 0.0,
+            "agreement_among_movers": null,
+            "decreased": 0,
+            "increased": 0,
+            "market_signal": "UNCHANGED",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 8,
+            "unchanged": 8
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 2.0,
+          "mean_absolute_deviation": 0.0,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 8.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 8.5
+        },
+        "full_total": {
+          "bounded_robust_center": 220.5,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 9,
+          "intervals": [
+            {
+              "agreement_among_all": 0.375,
+              "agreement_among_movers": 1.0,
+              "decreased": 3,
+              "increased": 0,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 8,
+              "unchanged": 5
+            }
+          ],
+          "kind": "full_total",
+          "last_step": {
+            "agreement_among_all": 0.375,
+            "agreement_among_movers": 1.0,
+            "decreased": 3,
+            "increased": 0,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 8,
+            "unchanged": 5
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 4.0,
+          "mean_absolute_deviation": 0.222222,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 220.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 3,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 220.5
+        },
+        "not_a_value_or_arbitrage_finder": true,
+        "not_yet_a_validated_forecast_uplift": true,
+        "source": "007_CERTIFIED_ASOF_DISTINCT_BOOKS_ONLY"
+      },
+      "research_official_injury_asof": {
+        "away_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "DiVincenzo, Donte",
+            "reason": "",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Edwards, Anthony",
+            "reason": "",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Shannon Jr, Terrence",
+            "reason": "Injury/Illness - Left Hip Contusion",
+            "status": "Questionable"
+          }
+        ],
+        "core_player_impact_points": null,
+        "core_role_minutes_verified": false,
+        "home_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Adams, Steven",
+            "reason": "Injury/Illness - Right Soleus Strain",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Capela, Clint",
+            "reason": "Injury/Illness - Right Ankle Sprain",
+            "status": "Questionable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Copeland, Quadir",
+            "reason": "G League - Two-Way",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Phillips, Julian",
+            "reason": "G League - Two-Way",
+            "status": "Out"
+          }
+        ],
+        "injury_adjusted_probability": null,
+        "injury_signal_is_observational_only": true,
+        "source_status": "VERIFIED_OFFICIAL_REPORT",
+        "status_changes": []
+      },
+      "tipoff_beijing": "2026-11-05T01:30:00+00:00"
+    },
+    {
+      "away_team": "多伦多猛龙",
+      "game_id": "728900",
+      "home_team": "丹佛掘金",
+      "jingcai_number": null,
+      "market_strength_features": {
+        "expected_home_margin": 4.5,
+        "expected_total_points": 230.5,
+        "independence_note": "MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT",
+        "paired_book_trends": {
+          "expected_points": {
+            "direction": "FALLING",
+            "down": 5,
+            "median_points_change": -1.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          },
+          "home_strength": {
+            "direction": "STABLE",
+            "down": 0,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          }
+        }
+      },
+      "markets": {
+        "CROWN_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 4.5,
+          "market": "CROWN_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -4.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "CROWN_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 230.5,
+          "market": "CROWN_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": -4.5,
+          "market": "JINGCAI_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -4.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "UNDER",
+          "first_side_probability": 0.479518903,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 231.5,
+          "market": "JINGCAI_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_WIN": {
+          "direct_quote_available": true,
+          "direction": "HOME_WIN",
+          "first_side_probability": 0.61385817,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": null,
+          "market": "JINGCAI_WIN",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        }
+      },
+      "nba_game_id": "401909931",
+      "research_model_candidates": {
+        "ROBUST_MULTIBOOK": {
+          "CROWN_HANDICAP": {
+            "baseline_probability": 0.5,
+            "direction": "TIE",
+            "first_side_probability": 0.5,
+            "independent_companies": 8,
+            "line": 4.5,
+            "market": "CROWN_HANDICAP",
+            "market_center": 4.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -4.5,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "CROWN_TOTAL": {
+            "baseline_probability": 0.5,
+            "direction": "OVER",
+            "first_side_probability": 0.503841657,
+            "independent_companies": 8,
+            "line": 230.5,
+            "market": "CROWN_TOTAL",
+            "market_center": 230.6875,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4709028,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_HANDICAP": {
+            "baseline_probability": 0.5,
+            "direction": "TIE",
+            "first_side_probability": 0.5,
+            "independent_companies": 8,
+            "line": -4.5,
+            "market": "JINGCAI_HANDICAP",
+            "market_center": 4.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -4.5,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_TOTAL": {
+            "baseline_probability": 0.479518903,
+            "direction": "UNDER",
+            "first_side_probability": 0.483357394,
+            "independent_companies": 8,
+            "line": 231.5,
+            "market": "JINGCAI_TOTAL",
+            "market_center": 230.6875,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4709028,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_WIN": {
+            "baseline_probability": 0.61385817,
+            "direction": "HOME_WIN",
+            "first_side_probability": 0.61385817,
+            "independent_companies": 8,
+            "line": null,
+            "market": "JINGCAI_WIN",
+            "market_center": 4.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          }
+        }
+      },
+      "research_multibook_features": {
+        "full_spread": {
+          "bounded_robust_center": 4.5,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.0,
+              "agreement_among_movers": null,
+              "decreased": 0,
+              "increased": 0,
+              "market_signal": "UNCHANGED",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 7
+            }
+          ],
+          "kind": "full_spread",
+          "last_step": {
+            "agreement_among_all": 0.0,
+            "agreement_among_movers": null,
+            "decreased": 0,
+            "increased": 0,
+            "market_signal": "UNCHANGED",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 7
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 2.0,
+          "mean_absolute_deviation": 0.0,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 4.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 4.5
+        },
+        "full_total": {
+          "bounded_robust_center": 230.6875,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.71429,
+              "agreement_among_movers": 1.0,
+              "decreased": 5,
+              "increased": 0,
+              "market_signal": "BROAD_FALLING",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": -1.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 2
+            }
+          ],
+          "kind": "full_total",
+          "last_step": {
+            "agreement_among_all": 0.71429,
+            "agreement_among_movers": 1.0,
+            "decreased": 5,
+            "increased": 0,
+            "market_signal": "BROAD_FALLING",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": -1.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 2
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 4.0,
+          "mean_absolute_deviation": 0.1875,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 230.5,
+          "net_change_earliest_to_current": -1.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 5,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 230.5
+        },
+        "not_a_value_or_arbitrage_finder": true,
+        "not_yet_a_validated_forecast_uplift": true,
+        "source": "007_CERTIFIED_ASOF_DISTINCT_BOOKS_ONLY"
+      },
+      "research_official_injury_asof": {
+        "away_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Bittle, Nate",
+            "reason": "",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Leonard, Kawhi",
+            "reason": "",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Poeltl, Jakob",
+            "reason": "Injury/Illness - Left Shoulder Bursitis",
+            "status": "Questionable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Smith, Malachi",
+            "reason": "G League - Two-Way",
+            "status": "Out"
+          }
+        ],
+        "core_player_impact_points": null,
+        "core_role_minutes_verified": false,
+        "home_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Diallo, Alpha",
+            "reason": "Injury/Illness - Right Wrist Sprain",
+            "status": "Probable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Johnson, Cameron",
+            "reason": "",
+            "status": "Probable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Jones, Spencer",
+            "reason": "",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Strawther, Julian",
+            "reason": "Injury/Illness - Left Knee Sprain",
+            "status": "Out"
+          }
+        ],
+        "injury_adjusted_probability": null,
+        "injury_signal_is_observational_only": true,
+        "source_status": "VERIFIED_OFFICIAL_REPORT",
+        "status_changes": []
+      },
+      "tipoff_beijing": "2026-11-05T02:00:00+00:00"
+    },
+    {
+      "away_team": "波特兰开拓者",
+      "game_id": "728901",
+      "home_team": "菲尼克斯太阳",
+      "jingcai_number": null,
+      "market_strength_features": {
+        "expected_home_margin": -3.0,
+        "expected_total_points": 227.5,
+        "independence_note": "MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT",
+        "paired_book_trends": {
+          "expected_points": {
+            "direction": "STABLE",
+            "down": 0,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          },
+          "home_strength": {
+            "direction": "STABLE",
+            "down": 0,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          }
+        }
+      },
+      "markets": {
+        "CROWN_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": -3.0,
+          "market": "CROWN_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": 3.0,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "CROWN_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 227.5,
+          "market": "CROWN_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "HOME_COVER",
+          "first_side_probability": 0.53842358,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 4.5,
+          "market": "JINGCAI_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": 4.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "UNDER",
+          "first_side_probability": 0.479518903,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 228.5,
+          "market": "JINGCAI_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_WIN": {
+          "direct_quote_available": true,
+          "direction": "AWAY_WIN",
+          "first_side_probability": 0.423508444,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": null,
+          "market": "JINGCAI_WIN",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        }
+      },
+      "nba_game_id": "401909932",
+      "research_model_candidates": {
+        "ROBUST_MULTIBOOK": {
+          "CROWN_HANDICAP": {
+            "baseline_probability": 0.5,
+            "direction": "AWAY_COVER",
+            "first_side_probability": 0.498396862,
+            "independent_companies": 8,
+            "line": -3.0,
+            "market": "CROWN_HANDICAP",
+            "market_center": -3.0625,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": 3.0,
+            "uncertainty_sigma": 15.5531398,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "CROWN_TOTAL": {
+            "baseline_probability": 0.5,
+            "direction": "TIE",
+            "first_side_probability": 0.5,
+            "independent_companies": 8,
+            "line": 227.5,
+            "market": "CROWN_TOTAL",
+            "market_center": 227.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.47,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_HANDICAP": {
+            "baseline_probability": 0.53842358,
+            "direction": "HOME_COVER",
+            "first_side_probability": 0.536819838,
+            "independent_companies": 8,
+            "line": 4.5,
+            "market": "JINGCAI_HANDICAP",
+            "market_center": -3.0625,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": 4.5,
+            "uncertainty_sigma": 15.5531398,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_TOTAL": {
+            "baseline_probability": 0.479518903,
+            "direction": "UNDER",
+            "first_side_probability": 0.479518903,
+            "independent_companies": 8,
+            "line": 228.5,
+            "market": "JINGCAI_TOTAL",
+            "market_center": 227.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.47,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_WIN": {
+            "baseline_probability": 0.423508444,
+            "direction": "AWAY_WIN",
+            "first_side_probability": 0.421950714,
+            "independent_companies": 8,
+            "line": null,
+            "market": "JINGCAI_WIN",
+            "market_center": -3.0625,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 15.5531398,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          }
+        }
+      },
+      "research_multibook_features": {
+        "full_spread": {
+          "bounded_robust_center": -3.0625,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.0,
+              "agreement_among_movers": null,
+              "decreased": 0,
+              "increased": 0,
+              "market_signal": "UNCHANGED",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 7
+            }
+          ],
+          "kind": "full_spread",
+          "last_step": {
+            "agreement_among_all": 0.0,
+            "agreement_among_movers": null,
+            "decreased": 0,
+            "increased": 0,
+            "market_signal": "UNCHANGED",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 7
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 2.0,
+          "mean_absolute_deviation": 0.3125,
+          "median_absolute_deviation": 0.5,
+          "median_all_independent_companies": -3.0,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": -3.0
+        },
+        "full_total": {
+          "bounded_robust_center": 227.5,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.0,
+              "agreement_among_movers": null,
+              "decreased": 0,
+              "increased": 0,
+              "market_signal": "UNCHANGED",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 7
+            }
+          ],
+          "kind": "full_total",
+          "last_step": {
+            "agreement_among_all": 0.0,
+            "agreement_among_movers": null,
+            "decreased": 0,
+            "increased": 0,
+            "market_signal": "UNCHANGED",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 7
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 4.0,
+          "mean_absolute_deviation": 0.0,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 227.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 227.5
+        },
+        "not_a_value_or_arbitrage_finder": true,
+        "not_yet_a_validated_forecast_uplift": true,
+        "source": "007_CERTIFIED_ASOF_DISTINCT_BOOKS_ONLY"
+      },
+      "research_official_injury_asof": {
+        "away_players": [],
+        "core_player_impact_points": null,
+        "core_role_minutes_verified": false,
+        "home_players": [],
+        "injury_adjusted_probability": null,
+        "injury_signal_is_observational_only": true,
+        "source_status": "OFFICIAL_CONTEXT_INCOMPLETE_OR_UNVERIFIED",
+        "status_changes": []
+      },
+      "tipoff_beijing": "2026-11-05T02:00:00+00:00"
+    },
+    {
+      "away_team": "达拉斯独行侠",
+      "game_id": "728902",
+      "home_team": "圣安东尼奥马刺",
+      "jingcai_number": null,
+      "market_strength_features": {
+        "expected_home_margin": 11.5,
+        "expected_total_points": 227.5,
+        "independence_note": "MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT",
+        "paired_book_trends": {
+          "expected_points": {
+            "direction": "MIXED",
+            "down": 0,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 8,
+            "up": 2
+          },
+          "home_strength": {
+            "direction": "STABLE",
+            "down": 0,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 8,
+            "up": 0
+          }
+        }
+      },
+      "markets": {
+        "CROWN_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 11.5,
+          "market": "CROWN_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -11.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "CROWN_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "UNDER",
+          "first_side_probability": 0.489756075,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 228.0,
+          "market": "CROWN_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "HOME_COVER",
+          "first_side_probability": 0.52563778,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": -10.5,
+          "market": "JINGCAI_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": -10.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 227.5,
+          "market": "JINGCAI_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_WIN": {
+          "direct_quote_available": true,
+          "direction": "HOME_WIN",
+          "first_side_probability": 0.770213406,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": null,
+          "market": "JINGCAI_WIN",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        }
+      },
+      "nba_game_id": "401909933",
+      "research_model_candidates": {
+        "ROBUST_MULTIBOOK": {
+          "CROWN_HANDICAP": {
+            "baseline_probability": 0.5,
+            "direction": "AWAY_COVER",
+            "first_side_probability": 0.498574698,
+            "independent_companies": 9,
+            "line": 11.5,
+            "market": "CROWN_HANDICAP",
+            "market_center": 11.444444,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -11.5,
+            "uncertainty_sigma": 15.5500992,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "CROWN_TOTAL": {
+            "baseline_probability": 0.489756075,
+            "direction": "UNDER",
+            "first_side_probability": 0.490895904,
+            "independent_companies": 9,
+            "line": 228.0,
+            "market": "CROWN_TOTAL",
+            "market_center": 227.555556,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4738834,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_HANDICAP": {
+            "baseline_probability": 0.52563778,
+            "direction": "HOME_COVER",
+            "first_side_probability": 0.524215095,
+            "independent_companies": 9,
+            "line": -10.5,
+            "market": "JINGCAI_HANDICAP",
+            "market_center": 11.444444,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": -10.5,
+            "uncertainty_sigma": 15.5500992,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_TOTAL": {
+            "baseline_probability": 0.5,
+            "direction": "OVER",
+            "first_side_probability": 0.50113812,
+            "independent_companies": 9,
+            "line": 227.5,
+            "market": "JINGCAI_TOTAL",
+            "market_center": 227.555556,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4738834,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_WIN": {
+            "baseline_probability": 0.770213406,
+            "direction": "HOME_WIN",
+            "first_side_probability": 0.769126255,
+            "independent_companies": 9,
+            "line": null,
+            "market": "JINGCAI_WIN",
+            "market_center": 11.444444,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 15.5500992,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          }
+        }
+      },
+      "research_multibook_features": {
+        "full_spread": {
+          "bounded_robust_center": 11.444444,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 9,
+          "intervals": [
+            {
+              "agreement_among_all": 0.0,
+              "agreement_among_movers": null,
+              "decreased": 0,
+              "increased": 0,
+              "market_signal": "UNCHANGED",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 8,
+              "unchanged": 8
+            }
+          ],
+          "kind": "full_spread",
+          "last_step": {
+            "agreement_among_all": 0.0,
+            "agreement_among_movers": null,
+            "decreased": 0,
+            "increased": 0,
+            "market_signal": "UNCHANGED",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 8,
+            "unchanged": 8
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 2.0,
+          "mean_absolute_deviation": 0.055556,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 11.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 11.5
+        },
+        "full_total": {
+          "bounded_robust_center": 227.555556,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 9,
+          "intervals": [
+            {
+              "agreement_among_all": 0.25,
+              "agreement_among_movers": 1.0,
+              "decreased": 0,
+              "increased": 2,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 8,
+              "unchanged": 6
+            }
+          ],
+          "kind": "full_total",
+          "last_step": {
+            "agreement_among_all": 0.25,
+            "agreement_among_movers": 1.0,
+            "decreased": 0,
+            "increased": 2,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 8,
+            "unchanged": 6
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 4.0,
+          "mean_absolute_deviation": 0.388889,
+          "median_absolute_deviation": 0.5,
+          "median_all_independent_companies": 227.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 2,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 227.5
+        },
+        "not_a_value_or_arbitrage_finder": true,
+        "not_yet_a_validated_forecast_uplift": true,
+        "source": "007_CERTIFIED_ASOF_DISTINCT_BOOKS_ONLY"
+      },
+      "research_official_injury_asof": {
+        "away_players": [],
+        "core_player_impact_points": null,
+        "core_role_minutes_verified": false,
+        "home_players": [],
+        "injury_adjusted_probability": null,
+        "injury_signal_is_observational_only": true,
+        "source_status": "OFFICIAL_CONTEXT_INCOMPLETE_OR_UNVERIFIED",
+        "status_changes": []
+      },
+      "tipoff_beijing": "2026-11-05T02:30:00+00:00"
+    },
+    {
+      "away_team": "洛杉矶湖人",
+      "game_id": "728903",
+      "home_team": "萨克拉门托国王",
+      "jingcai_number": null,
+      "market_strength_features": {
+        "expected_home_margin": -11.5,
+        "expected_total_points": 234.5,
+        "independence_note": "MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT",
+        "paired_book_trends": {
+          "expected_points": {
+            "direction": "MIXED",
+            "down": 2,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          },
+          "home_strength": {
+            "direction": "STABLE",
+            "down": 0,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          }
+        }
+      },
+      "markets": {
+        "CROWN_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": -11.5,
+          "market": "CROWN_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": 11.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "CROWN_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "OVER",
+          "first_side_probability": 0.510243925,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 234.0,
+          "market": "CROWN_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 11.5,
+          "market": "JINGCAI_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": 11.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "UNDER",
+          "first_side_probability": 0.459091752,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 236.5,
+          "market": "JINGCAI_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_WIN": {
+          "direct_quote_available": true,
+          "direction": "AWAY_WIN",
+          "first_side_probability": 0.229786594,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": null,
+          "market": "JINGCAI_WIN",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        }
+      },
+      "nba_game_id": "401909934",
+      "research_model_candidates": {
+        "ROBUST_MULTIBOOK": {
+          "CROWN_HANDICAP": {
+            "baseline_probability": 0.5,
+            "direction": "TIE",
+            "first_side_probability": 0.5,
+            "independent_companies": 8,
+            "line": -11.5,
+            "market": "CROWN_HANDICAP",
+            "market_center": -11.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": 11.5,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "CROWN_TOTAL": {
+            "baseline_probability": 0.510243925,
+            "direction": "OVER",
+            "first_side_probability": 0.50896325,
+            "independent_companies": 8,
+            "line": 234.0,
+            "market": "CROWN_TOTAL",
+            "market_center": 234.4375,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4709028,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_HANDICAP": {
+            "baseline_probability": 0.5,
+            "direction": "TIE",
+            "first_side_probability": 0.5,
+            "independent_companies": 8,
+            "line": 11.5,
+            "market": "JINGCAI_HANDICAP",
+            "market_center": -11.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": 11.5,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_TOTAL": {
+            "baseline_probability": 0.459091752,
+            "direction": "UNDER",
+            "first_side_probability": 0.45782002,
+            "independent_companies": 8,
+            "line": 236.5,
+            "market": "JINGCAI_TOTAL",
+            "market_center": 234.4375,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4709028,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_WIN": {
+            "baseline_probability": 0.229786594,
+            "direction": "AWAY_WIN",
+            "first_side_probability": 0.229786594,
+            "independent_companies": 8,
+            "line": null,
+            "market": "JINGCAI_WIN",
+            "market_center": -11.5,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 15.55,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          }
+        }
+      },
+      "research_multibook_features": {
+        "full_spread": {
+          "bounded_robust_center": -11.5,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.0,
+              "agreement_among_movers": null,
+              "decreased": 0,
+              "increased": 0,
+              "market_signal": "UNCHANGED",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 7
+            }
+          ],
+          "kind": "full_spread",
+          "last_step": {
+            "agreement_among_all": 0.0,
+            "agreement_among_movers": null,
+            "decreased": 0,
+            "increased": 0,
+            "market_signal": "UNCHANGED",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 7
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 2.0,
+          "mean_absolute_deviation": 0.0,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": -11.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 0,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": -11.5
+        },
+        "full_total": {
+          "bounded_robust_center": 234.4375,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.28571,
+              "agreement_among_movers": 1.0,
+              "decreased": 2,
+              "increased": 0,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 5
+            }
+          ],
+          "kind": "full_total",
+          "last_step": {
+            "agreement_among_all": 0.28571,
+            "agreement_among_movers": 1.0,
+            "decreased": 2,
+            "increased": 0,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 5
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 4.0,
+          "mean_absolute_deviation": 0.1875,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 234.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 2,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 234.5
+        },
+        "not_a_value_or_arbitrage_finder": true,
+        "not_yet_a_validated_forecast_uplift": true,
+        "source": "007_CERTIFIED_ASOF_DISTINCT_BOOKS_ONLY"
+      },
+      "research_official_injury_asof": {
+        "away_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Kessler, Walker",
+            "reason": "Injury/Illness - Left Finger Splint",
+            "status": "Available"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Thiero, Adou",
+            "reason": "",
+            "status": "Out"
+          }
+        ],
+        "core_player_impact_points": null,
+        "core_role_minutes_verified": false,
+        "home_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Achiuwa, Precious",
+            "reason": "Injury/Illness - Left Ankle Soreness",
+            "status": "Probable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Murray, Keegan",
+            "reason": "Injury/Illness - Left Ankle Capsulitis",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Pedulla, Sean",
+            "reason": "G League - Two-Way",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Raynaud, Maxime",
+            "reason": "",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Simmons, Ben",
+            "reason": "",
+            "status": "Out"
+          }
+        ],
+        "injury_adjusted_probability": null,
+        "injury_signal_is_observational_only": true,
+        "source_status": "VERIFIED_OFFICIAL_REPORT",
+        "status_changes": []
+      },
+      "tipoff_beijing": "2026-11-05T03:00:00+00:00"
+    },
+    {
+      "away_team": "迈阿密热火",
+      "game_id": "728904",
+      "home_team": "洛杉矶快船",
+      "jingcai_number": null,
+      "market_strength_features": {
+        "expected_home_margin": -5.0,
+        "expected_total_points": 233.5,
+        "independence_note": "MARKET_ONLY_NO_ORIGINAL_TEAM_FORECAST_INPUT",
+        "paired_book_trends": {
+          "expected_points": {
+            "direction": "MIXED",
+            "down": 2,
+            "median_points_change": 0.0,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 0
+          },
+          "home_strength": {
+            "direction": "MIXED",
+            "down": 2,
+            "median_points_change": -0.5,
+            "not_a_cover_probability": true,
+            "same_book_count": 7,
+            "up": 1
+          }
+        }
+      },
+      "markets": {
+        "CROWN_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "TIE",
+          "first_side_probability": 0.5,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": -5.0,
+          "market": "CROWN_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": 5.0,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "CROWN_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "OVER",
+          "first_side_probability": 0.510243925,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 233.0,
+          "market": "CROWN_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_HANDICAP": {
+          "direct_quote_available": true,
+          "direction": "HOME_COVER",
+          "first_side_probability": 0.53842358,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 6.5,
+          "market": "JINGCAI_HANDICAP",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": 6.5,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_TOTAL": {
+          "direct_quote_available": true,
+          "direction": "UNDER",
+          "first_side_probability": 0.479518903,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": 234.5,
+          "market": "JINGCAI_TOTAL",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        },
+        "JINGCAI_WIN": {
+          "direct_quote_available": true,
+          "direction": "AWAY_WIN",
+          "first_side_probability": 0.373899311,
+          "independent_model_source": "007_MULTI_BOOK_MARGIN_TOTAL_BASELINE",
+          "line": null,
+          "market": "JINGCAI_WIN",
+          "model_probability_not_original_model_output": true,
+          "signed_home_handicap": null,
+          "source_quality": "ASOF_DIRECT"
+        }
+      },
+      "nba_game_id": "401909935",
+      "research_model_candidates": {
+        "ROBUST_MULTIBOOK": {
+          "CROWN_HANDICAP": {
+            "baseline_probability": 0.5,
+            "direction": "TIE",
+            "first_side_probability": 0.5,
+            "independent_companies": 8,
+            "line": -5.0,
+            "market": "CROWN_HANDICAP",
+            "market_center": -5.0,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": 5.0,
+            "uncertainty_sigma": 15.554521,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "CROWN_TOTAL": {
+            "baseline_probability": 0.510243925,
+            "direction": "OVER",
+            "first_side_probability": 0.50896325,
+            "independent_companies": 8,
+            "line": 233.0,
+            "market": "CROWN_TOTAL",
+            "market_center": 233.4375,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4709028,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_HANDICAP": {
+            "baseline_probability": 0.53842358,
+            "direction": "HOME_COVER",
+            "first_side_probability": 0.538412446,
+            "independent_companies": 8,
+            "line": 6.5,
+            "market": "JINGCAI_HANDICAP",
+            "market_center": -5.0,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": 6.5,
+            "uncertainty_sigma": 15.554521,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_TOTAL": {
+            "baseline_probability": 0.479518903,
+            "direction": "UNDER",
+            "first_side_probability": 0.478241076,
+            "independent_companies": 8,
+            "line": 234.5,
+            "market": "JINGCAI_TOTAL",
+            "market_center": 233.4375,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 19.4709028,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          },
+          "JINGCAI_WIN": {
+            "baseline_probability": 0.373899311,
+            "direction": "AWAY_WIN",
+            "first_side_probability": 0.373934718,
+            "independent_companies": 8,
+            "line": null,
+            "market": "JINGCAI_WIN",
+            "market_center": -5.0,
+            "no_water_side_assumption": true,
+            "not_trained_or_promoted": true,
+            "signed_home_handicap": null,
+            "uncertainty_sigma": 15.554521,
+            "variant_name": "ROBUST_EQUAL_COMPANY_CENTER_WITH_DISAGREEMENT"
+          }
+        }
+      },
+      "research_multibook_features": {
+        "full_spread": {
+          "bounded_robust_center": -5.0,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.28571,
+              "agreement_among_movers": 0.66667,
+              "decreased": 2,
+              "increased": 1,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": -0.5,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 4
+            }
+          ],
+          "kind": "full_spread",
+          "last_step": {
+            "agreement_among_all": 0.28571,
+            "agreement_among_movers": 0.66667,
+            "decreased": 2,
+            "increased": 1,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": -0.5,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 4
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 2.0,
+          "mean_absolute_deviation": 0.375,
+          "median_absolute_deviation": 0.5,
+          "median_all_independent_companies": -5.0,
+          "net_change_earliest_to_current": -0.5,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 2,
+          "paired_book_observation_up_events": 1,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": -5.0
+        },
+        "full_total": {
+          "bounded_robust_center": 233.4375,
+          "compared_prices_are_independent_same_company": true,
+          "crown_id3_in_group": true,
+          "directional_reversal_after_confirmed_movement": false,
+          "historical_capture_count": 1,
+          "history_first_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+          "independent_books": 8,
+          "intervals": [
+            {
+              "agreement_among_all": 0.28571,
+              "agreement_among_movers": 1.0,
+              "decreased": 2,
+              "increased": 0,
+              "market_signal": "MIXED_OR_THIN_MOVEMENT",
+              "matched_price_change_is_observation_not_book_event_timestamp": true,
+              "median_change": 0.0,
+              "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+              "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+              "same_company_pairs": 7,
+              "unchanged": 5
+            }
+          ],
+          "kind": "full_total",
+          "last_step": {
+            "agreement_among_all": 0.28571,
+            "agreement_among_movers": 1.0,
+            "decreased": 2,
+            "increased": 0,
+            "market_signal": "MIXED_OR_THIN_MOVEMENT",
+            "matched_price_change_is_observation_not_book_event_timestamp": true,
+            "median_change": 0.0,
+            "new_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+            "old_capture_utc": "2026-11-04T04:01:18.044278+00:00",
+            "same_company_pairs": 7,
+            "unchanged": 5
+          },
+          "latest_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+          "max_winsorized_distance_points": 4.0,
+          "mean_absolute_deviation": 0.1875,
+          "median_absolute_deviation": 0.0,
+          "median_all_independent_companies": 233.5,
+          "net_change_earliest_to_current": 0.0,
+          "no_bookmaker_update_time_claim": true,
+          "paired_book_observation_down_events": 2,
+          "paired_book_observation_up_events": 0,
+          "raw_price_water_not_interpreted_as_direction": true,
+          "status": "AVAILABLE",
+          "upstream_007_consensus_median": 233.5
+        },
+        "not_a_value_or_arbitrage_finder": true,
+        "not_yet_a_validated_forecast_uplift": true,
+        "source": "007_CERTIFIED_ASOF_DISTINCT_BOOKS_ONLY"
+      },
+      "research_official_injury_asof": {
+        "away_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Antetokounmpo, Giannis",
+            "reason": "Injury/Illness - Right Wrist Sprain",
+            "status": "Probable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Gardner, Myron",
+            "reason": "",
+            "status": "Questionable"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Smith, Dru",
+            "reason": "Injury/Illness - Facial Laceration",
+            "status": "Available"
+          }
+        ],
+        "core_player_impact_points": null,
+        "core_role_minutes_verified": false,
+        "home_players": [
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Beal, Bradley",
+            "reason": "",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": true,
+            "name": "Ingram, Brandon",
+            "reason": "Injury/Illness - Right Heel Surgery",
+            "status": "Out"
+          },
+          {
+            "confirmed_starting_lineup": null,
+            "medical_reason_observed": false,
+            "name": "Miller, Jordan",
+            "reason": "",
+            "status": "Out"
+          }
+        ],
+        "injury_adjusted_probability": null,
+        "injury_signal_is_observational_only": true,
+        "source_status": "VERIFIED_OFFICIAL_REPORT",
+        "status_changes": []
+      },
+      "tipoff_beijing": "2026-11-05T03:30:00+00:00"
+    }
+  ],
+  "generated_at_utc": "2026-11-04T06:01:30.629658+00:00",
+  "input_sha256": {
+    "consensus": "dd2d1c6d01610f842eea7e45342146e8cf46c463da67fffba51eb8d0a3b493e0",
+    "history": "793aaa89ef7303a9529fcb3edbb88561b2264b9b085688dbff4a8599e8310179",
+    "injury": "895c97238bf2c7239c51889c83c77dca3fafba2a9a021ca4a88890eb9541555a",
+    "injury_history": "5f2fedafec97702dfc236c34d7da5744b1027e57afd68a4b3199772b2df39579",
+    "jingcai": "b503adbe01f53a93dbc73343392c5650f0c67efa48958622e0dc5e3e71ce501a",
+    "joined": "294912783e316ef1be3df302e7a20870d79cdf8ae4f87b44b693600428ef9411",
+    "previous": "dfcebf7af0c73e7b7b1dbc00c342f18b5a5ff4dcd6c04a81d6af2ffc3278c176"
+  },
+  "last_shared_quote_capture_utc": "2026-11-04T06:01:06.035854+00:00",
+  "may_modify_production_probability": false,
+  "may_send_pushplus": false,
+  "model_provenance": "SELF_CONTAINED_MARKET_PRIOR_NOT_VALIDATED_TEAM_MODEL_UPLIFT",
+  "multibook_candidate_numerically_separate_not_promoted": true,
+  "multibook_candidate_version": "nba-shadow-independent-multibook-candidate-v1",
+  "multibook_paired_sources_used": 1,
+  "official_injury_feature_version": "nba-shadow-official-injury-asof-v1",
+  "official_injury_is_observational_and_no_numeric_probability_uplift": true,
+  "original_model_inputs_read": false,
+  "postgame_data_read": false,
+  "probability_uncertainty": "RESEARCH_ONLY_PROVISIONAL_SIGMAS_REQUIRE_OOS_CALIBRATION",
+  "schema_version": "nba-independent-market-only-fiveplay-v1",
+  "slot": "1400",
+  "target_date": "2026-11-05",
+  "three_plays": [
+    "moneyline",
+    "handicap",
+    "totals"
+  ]
+}
