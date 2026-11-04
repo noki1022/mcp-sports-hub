@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {plannedJob,dispatchAt} from "./worker.mjs";
+import {plannedJob,dispatchAt,matchesReportSlot} from "./worker.mjs";
 const at=s=>Date.parse(s);
 const checks=[
 ["2026-10-30T04:00:00Z","1200","2026-10-31"],
@@ -87,7 +87,7 @@ const activeRun={
   async fetch(url){
     if(url.includes("/contents/"))return {status:404,ok:false};
     if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[
-      {created_at:"2026-10-30T07:00:20Z",event:"schedule",status:"in_progress",conclusion:null}
+      {created_at:"2026-10-30T07:00:20Z",event:"schedule",status:"in_progress",conclusion:null,display_title:"NBA full report | slot=0 7 * * * | date=auto"}
     ]})};
     throw Error("ACTIVE_RUN_MUST_NOT_DISPATCH");
   }
@@ -165,6 +165,7 @@ const activeMidnight=async url=>{
   if(url.includes("/contents/"))return {status:404,ok:false};
   if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[{
     created_at:"2026-10-30T16:30:07Z",event:"schedule",
+    display_title:"NBA full report | slot=30 16 * * * | date=auto",
     status:"in_progress",conclusion:null
   }]})};
   throw new Error("ACTIVE_MIDNIGHT_MUST_NOT_REDISPATCH");
@@ -200,3 +201,35 @@ const unavailable={
 await assert.rejects(()=>dispatchAt(at("2026-10-30T07:08:00Z"),{GITHUB_TOKEN:"FAKE"},unavailable.fetch),/MARKER_READ_HTTP_503/);
 
 console.log("CLOUDFLARE_SCHEDULER_UTC_SLOT_AND_DISPATCH_PASS");
+
+
+// Nov 4 incident: delayed 14:00 cron starts at 14:59/15:26/15:46.
+// Neither successful nor active earlier-slot work may suppress 15:00.
+for(const status of ["in_progress","completed"]){
+  for(const title of ["NBA full report | slot=0 6 * * * | date=auto",
+                     "NBA full report | slot=1400 | date=2026-11-05",
+                     "Titan007 scheduled full-board NBA analysis and PushPlus delivery"]){
+    const delayed=async(url,opts)=>{
+      if(url.includes("/contents/"))return {status:404,ok:false};
+      if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[{
+        created_at:"2026-11-04T06:59:30Z",event:"schedule",status,
+        conclusion:status==="completed"?"success":null,display_title:title
+      }]})};
+      if(url.endsWith("/dispatches")){
+        assert.equal(JSON.parse(opts.body).inputs.report_slot,"1500");
+        return {status:204};
+      }
+      throw Error(url);
+    };
+    assert.equal((await dispatchAt(at("2026-11-04T07:08:00Z"),
+      {GITHUB_TOKEN:"FAKE"},delayed)).state,"DISPATCH_ACCEPTED_NOT_COMPLETED");
+  }
+}
+const sameSlotJob=plannedJob(at("2026-11-04T07:08:00Z"));
+assert.equal(matchesReportSlot({event:"workflow_dispatch",display_title:
+  "NBA full report | slot=1500 | date=2026-11-05"},sameSlotJob),true);
+assert.equal(matchesReportSlot({event:"workflow_dispatch",display_title:
+  "NBA full report | slot=1500 | date=2026-11-04"},sameSlotJob),false);
+assert.equal(matchesReportSlot({event:"schedule",created_at:"2026-11-04T07:00:30Z",display_title:
+  "NBA full report | slot=0 7 * * * | date=auto"},sameSlotJob),true);
+console.log("DELAYED_PREVIOUS_SLOT_MUST_NOT_SUPPRESS_CURRENT_REPORT_PASS");
