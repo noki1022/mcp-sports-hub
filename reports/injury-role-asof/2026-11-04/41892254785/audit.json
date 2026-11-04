@@ -1,0 +1,349 @@
+{
+  "all_reported_player_identity_statuses": {
+    "CURRENT_ROSTER_VERIFIED_BUT_NOT_ENOUGH_PRIOR_SAME_TEAM_MINUTES": 14,
+    "ID_TEAM_AND_PAST_MINUTES_VALIDATED": 64,
+    "MISSING_OR_AMBIGUOUS_ESPN_ROSTER_NAME": 3,
+    "NOT_PRESENT_IN_PRIOR_PLAYED_GAME_LOGS": 12
+  },
+  "capture_end_utc": "2026-11-04T18:58:12.886204Z",
+  "capture_start_utc": "2026-11-04T18:58:04.995273Z",
+  "existing_push_and_model_untouched": true,
+  "fixtures_with_eight_plus_verified_same_team_rotation_roles": 14,
+  "frozen_jsonl_sha256": "eb1c276dfcf4186dd6b5d1fe5be0ac90705af8b286a6005dc6b14eb81121dfb5",
+  "fully_identified_fixtures": 3,
+  "future_games": 25,
+  "historical_release_clock_not_verified": true,
+  "identified_player_minutes_records": 64,
+  "no_injury_effect_fitted": true,
+  "no_retroactive_old_shadow_rewrite": true,
+  "official_both_teams_published": 11,
+  "official_player_rows": 93,
+  "official_report": {
+    "ambiguities": [],
+    "captured_utc": "2026-11-04T18:58:12.446562Z",
+    "matchups": 15,
+    "original_release_clock_not_proven": true,
+    "report_et_date": "2026-11-04",
+    "sha256": "188b67246aeff752d59a5b8bcf3e1b2e15e3ef65f4edf2279fcab187d7af205f",
+    "url": "https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-11-04_01_45PM.pdf"
+  },
+  "official_reported_core_rotation_role_rows": 6,
+  "player_log_rejections": {
+    "INVALID_LOG_ROW": 1910,
+    "PLAYER_ID_HAS_MULTIPLE_NAMES": 1
+  },
+  "player_log_source": [
+    {
+      "license_and_upstream_rights_need_independent_review": true,
+      "season": "2024-25",
+      "sha256": "a4cc538112a7c4c7a4f42476022726159907ed71fc13cdd9a070c9950c2b50d6",
+      "source_published_utc_independently_verified": false,
+      "source_rows": 26158,
+      "url": "https://huggingface.co/datasets/cbratkovics/nba-game-logs/resolve/main/game_logs/game_logs_2024-25.parquet"
+    },
+    {
+      "license_and_upstream_rights_need_independent_review": true,
+      "season": "2025-26",
+      "sha256": "2119a573915ebcd548a290e9d2d9c509921adb85b7e01e570908f423d60cb3a3",
+      "source_published_utc_independently_verified": false,
+      "source_rows": 26648,
+      "url": "https://huggingface.co/datasets/cbratkovics/nba-game-logs/resolve/main/game_logs/game_logs_2025-26.parquet"
+    },
+    {
+      "license_and_upstream_rights_need_independent_review": true,
+      "season": "2026-27",
+      "sha256": "19378381e5a91701ba98b8df3e01c56ebcc1cb3046de439724d25ff439595c9c",
+      "source_published_utc_independently_verified": false,
+      "source_rows": 2341,
+      "url": "https://huggingface.co/datasets/cbratkovics/nba-game-logs/resolve/main/game_logs/game_logs_2026-27.parquet"
+    }
+  ],
+  "roster_crosswalk": {
+    "CROSS_SOURCE_NBA_ID_TEAM_AND_PRIOR_MINUTES_RESEARCH_READY": 432,
+    "CURRENT_ROSTER_VERIFIED_BUT_NOT_ENOUGH_PRIOR_SAME_TEAM_MINUTES": 56,
+    "NOT_PRESENT_IN_PRIOR_PLAYED_GAME_LOGS": 33
+  },
+  "roster_failures": [],
+  "roster_sources": [
+    {
+      "captured_utc": "2026-11-04T18:58:07.952111Z",
+      "observed_roster_players": 18,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "6fcae93e0cd87fdfbae02519e60ad3e4b2c733b40e4d7ab9da80239c6628ba6c",
+      "team": "ATL",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/atl/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:08.031947Z",
+      "observed_roster_players": 17,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "cada62f82abfde72e0c8e4a756b14fbc16a0b99783c6481a7935561670d1a969",
+      "team": "BOS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/bos/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:08.119849Z",
+      "observed_roster_players": 18,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "3ff2f8620a72e1ec9b4367f1752f2241881e9b842130597411465638168c5b19",
+      "team": "BKN",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/bkn/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:08.245952Z",
+      "observed_roster_players": 17,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "9f92993a5f1a7fa5b8a348855d4e487c162057fdec92c41bc500044eef0a965c",
+      "team": "CHA",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/cha/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:08.391004Z",
+      "observed_roster_players": 17,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "7cbd6735d047888460602f58cf8e03e218c80f97c0247e75644be50d769f2cd7",
+      "team": "CHI",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/chi/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:08.462629Z",
+      "observed_roster_players": 15,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "ed2e641e0cf24232bc52cbe5b3e25b50ee86c4e5271dbe9802a3976ae935c3b7",
+      "team": "CLE",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/cle/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:08.580483Z",
+      "observed_roster_players": 18,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "17d733dbe8408b393acb949930a95e993799df8c7ca6c70be8f6874cfd936595",
+      "team": "DAL",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/dal/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:08.667333Z",
+      "observed_roster_players": 17,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "fdf43765254d38c8c2e1d3a2d9a6f9c46bc343a9ef860ee7e56c1dbb7180c56a",
+      "team": "DEN",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/den/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:08.799024Z",
+      "observed_roster_players": 18,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "86a8db534f5e88cef451feba9b0a57102b01714b57fb55a14645e866b34bd6d2",
+      "team": "DET",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/det/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:08.923479Z",
+      "observed_roster_players": 18,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "4efffca30a6ca57cb1f02869db9eccc00f6483e41d0c40b8e504bf9fd304e6c0",
+      "team": "GSW",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/gsw/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:09.073917Z",
+      "observed_roster_players": 17,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "5a8ffdf9a3be7b7085016323763682f3a60fce2334d29c5518dd4a8a080e4bb0",
+      "team": "HOU",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/hou/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:09.149323Z",
+      "observed_roster_players": 17,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "776d21004244c85e4c9bcf1fa101da82c67213ce86420f7f6242b4da6d76947f",
+      "team": "IND",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/ind/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:09.313772Z",
+      "observed_roster_players": 19,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "8131b1f9fa5a3ac6dc7dccb9a6e8b7044e40cb8dc13bef32936a59a7df19aee5",
+      "team": "LAC",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/lac/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:09.387145Z",
+      "observed_roster_players": 19,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "1b84c2d9eaefae6c267a9c440b9e88cf9fc800abdd1f78186fbf71b7aec6a3b3",
+      "team": "LAL",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/lal/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:09.469218Z",
+      "observed_roster_players": 18,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "a1ff492212f0f6f1cdd1b31f7ecec4d3fcc88f8782e3fe453e9ab44f01d35c72",
+      "team": "MEM",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/mem/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:09.561174Z",
+      "observed_roster_players": 17,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "13dc6063d7e36a0993faf46cc5a52841537b51db166e7175315be780e303dbf6",
+      "team": "MIA",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/mia/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:09.625803Z",
+      "observed_roster_players": 18,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "72e94718eb5b2c61642c7ae02d480935ff460cdc282767ceefbdb0161f23b705",
+      "team": "MIL",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/mil/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:09.795100Z",
+      "observed_roster_players": 16,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "871943e1eaccf52caef31f7ec56a568b4b77480b24a3440c7afa45b023b866a2",
+      "team": "MIN",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/min/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:10.099535Z",
+      "numeric_source_identity_crosscheck": true,
+      "observed_roster_players": 18,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "ea5bfb4bf432e5fbdbc5516b25aeffaa3d9ab067e11459a202cb758049c4a75b",
+      "source_fallback_reason": "HTTPError",
+      "team": "NOP",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/3/roster",
+      "verified_numeric_team_id": "3"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:10.205394Z",
+      "observed_roster_players": 17,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "914ccb0a9d1e4c9719687e89b2ad1bc020468243fbb8d835e023ebcdaea35b72",
+      "team": "NYK",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/nyk/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:10.508962Z",
+      "observed_roster_players": 18,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "fe5810e4715c5a8496254d3488d2c21d683aad06e3596cd1abb3435eddcb8387",
+      "team": "OKC",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/okc/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:10.593234Z",
+      "observed_roster_players": 17,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "84be76e6a7ecf99f98014af2fcbf1f0d94628f1e0cc8c1824a0c01be35146431",
+      "team": "ORL",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/orl/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:11.147531Z",
+      "observed_roster_players": 17,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "55b364c08946f666f14d332a6276060d6495cf89bee76a154f5a8bbd953e5f6d",
+      "team": "PHI",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/phi/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:11.209964Z",
+      "observed_roster_players": 17,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "2a7d48af5122776ed4bebac9ad6416e7675fdaf8648b46e71220a78fd20b6967",
+      "team": "PHX",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/phx/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:11.291998Z",
+      "observed_roster_players": 17,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "0a2087d886f3d8eb9ab49aa018d850a000ee588d26ae1bbfc4b56c8eea183d7d",
+      "team": "POR",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/por/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:11.373292Z",
+      "observed_roster_players": 17,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "f92b9b915a5c62dc798943b6f8ac053a54d7f946f27f7fc79f0f01b2379bdd56",
+      "team": "SAC",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/sac/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:11.490466Z",
+      "observed_roster_players": 17,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "6baa8e585a15fe13a96c2736e3be964de9196caaa8440a051e51f9e395b4299a",
+      "team": "SAS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/sas/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:11.567651Z",
+      "observed_roster_players": 16,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "20cf050442656dcf35a778acaf2ddc0d1d0993fc40d2db4aa96501c2a41bce92",
+      "team": "TOR",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/tor/roster"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:11.716362Z",
+      "numeric_source_identity_crosscheck": true,
+      "observed_roster_players": 18,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "0cb0113270ab0657b7d043a1bc35af56753b47c743d885002ca13eb96326c101",
+      "source_fallback_reason": "HTTPError",
+      "team": "UTA",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/26/roster",
+      "verified_numeric_team_id": "26"
+    },
+    {
+      "captured_utc": "2026-11-04T18:58:11.873383Z",
+      "observed_roster_players": 18,
+      "roster_source": "ESPN_PUBLIC_TEAM_ROSTER_NOT_NBA_OFFICIAL_REPORT",
+      "sha256": "0ddc99f08c856cec4d0a414810f3cdfaf50e10016953ded73716b7889b4f34ae",
+      "team": "WAS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/was/roster"
+    }
+  ],
+  "rotation_role_feature_version": "nba-injury-asof-rotation-role-source-only-v1",
+  "rotation_role_impact_coefficients_trained": false,
+  "rotation_role_is_not_confirmed_lineup_or_replacement": true,
+  "schedule_rejections": {},
+  "schedule_sources": [
+    {
+      "sha256": "3a755a5c7b32da23daa312871f2a7e1bac61676af6eea5d51d5cb6120e04ce7e",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261104&limit=100"
+    },
+    {
+      "sha256": "9b6363332362f0ea1152d9819fae6c94f5620e358e763aa3ee2d017b96f45aa8",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261105&limit=100"
+    },
+    {
+      "sha256": "016c1f99406d7e579d7aafb66e0156de001ae3152dc9a95298e010c9ce289bba",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261106&limit=100"
+    }
+  ],
+  "schema_version": "nba-live-injury-roster-strict-prior-minutes-v1",
+  "secondary_historical_all_team_role_players": 12,
+  "secondary_role_is_not_team_adjustment": true,
+  "source_roster_captured_now_only": true,
+  "status": {
+    "MATCHUP_NOT_PUBLISHED": 1,
+    "OFFICIAL_TEAM_IDENTITY_MISSING": 2,
+    "PARTIAL_OR_UNKNOWN_IDENTITY": 8,
+    "PRETIP_IDENTITIES_COMPLETE_NO_EFFECT_MODEL": 3,
+    "REPORT_DAY_NOT_MATCHED": 11
+  },
+  "unresolved_reported_players_by_reason": {
+    "CURRENT_ROSTER_VERIFIED_BUT_NOT_ENOUGH_PRIOR_SAME_TEAM_MINUTES": 14,
+    "MISSING_OR_AMBIGUOUS_ESPN_ROSTER_NAME": 3,
+    "NOT_PRESENT_IN_PRIOR_PLAYED_GAME_LOGS": 12
+  }
+}
