@@ -25,13 +25,15 @@ def build(root, destination, day=None):
     grouped = defaultdict(list)
     for manifest in manifest_paths(root, day):
         doc, _ = open_manifest(root, manifest)
-        game_date = manifest.split("/")[2]
-        month = game_date[:7]
+        date_folder = manifest.split("/")[2]
+        game_date = None if date_folder == "undated" else date_folder
+        month = game_date[:7] if game_date else "undated"
         for row in doc["files"]:
             raw = validate_entry(root, manifest, row)
             extra = metadata(raw, row.get("source_json_status"))
             record = {
                 "game_date_beijing": game_date,
+                "archive_date_basis": doc.get("archive_date_basis", "LEGACY_TYPED_SOURCE"),
                 "manifest": manifest,
                 "source": row["relative_original_source"],
                 "gzip": evidence_path(manifest, row),
@@ -85,6 +87,8 @@ def find(catalog, day=None, game=None, team=None, source=None, limit=100):
     if not 1 <= limit <= 5000:
         raise ValueError("LIMIT_OUT_OF_RANGE")
     files = sorted(catalog.glob("????-??.jsonl"))
+    if not day and (catalog/"undated.jsonl").is_file():
+        files.append(catalog/"undated.jsonl")
     count = 0
     for path in files:
         if day and path.stem != day[:7]:
@@ -135,3 +139,4 @@ if __name__ == "__main__":
     except (ValueError, OSError, KeyError, TypeError) as exc:
         print("NBA_RAW_CATALOG_FAIL_CLOSED:", repr(exc), file=sys.stderr)
         sys.exit(2)
+

@@ -8,7 +8,9 @@ on:
       - 'analysis/nba_dual_independent_stage.py'
       - '.github/workflows/nba-priority-2130.yml'
       - 'analysis/nba_dual_model_slot_seal.py'
+      - 'analysis/nba_recover_shadow_seals.py'
       - 'analysis/nba_dual_model_final_2130_grade.py'
+      - 'analysis/nba_dual_model_score_backlog.py'
       - 'analysis/nba_dual_model_contract_selftest.py'
       - '.github/workflows/nba-dual-independent-every-capture.yml'
       - '.github/workflows/nba-dual-final-2130-score.yml'
@@ -63,7 +65,7 @@ jobs:
           assert 'actions/download-artifact@v4' in f
           assert 'titan007_join_beijing_verified.py' not in f
           assert 'pushplus_mobile.py' not in f
-          assert 'nba_dual_model_final_2130_grade.py' in score
+          assert 'nba_dual_model_score_backlog.py' in score
           assert 'nba_independent_market_shadow.py' not in score
           # Decommissioned 18:00 research workflows must be ABSENT, not disabled.
           for obsolete in (
@@ -76,3 +78,17 @@ jobs:
               assert not Path(obsolete).exists(), "OBSOLETE_SHADOW_FILE_MUST_BE_DELETED: "+obsolete
           print('EXCLUSIVE_ORIGINAL_AND_SHADOW_2130_FINAL_EXAM_CONTRACT_PASS')
           PY
+
+      - name: Grade actual already frozen 21:30 predictions against archived finals
+        run: |
+          git fetch --quiet origin audit/dual-model-slot-evidence
+          git worktree add --detach "$RUNNER_TEMP/existing-frozen-ledger" origin/audit/dual-model-slot-evidence
+          python3 analysis/nba_dual_model_score_backlog.py \
+            --ledger-worktree "$RUNNER_TEMP/existing-frozen-ledger" \
+            --out "$RUNNER_TEMP/actual-frozen-score" --repo .
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: actual-frozen-2130-paired-score
+          path: ${{ runner.temp }}/actual-frozen-score/
+          retention-days: 90

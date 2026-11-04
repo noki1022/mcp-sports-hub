@@ -17,7 +17,7 @@ assert s.index("Recheck verified acceptance before PushPlus") < s.index("Send co
 assert "python3 scripts/nba_fixed_slot_gate.py --phase preflight" in s
 assert "python3 scripts/nba_fixed_slot_gate.py --phase recheck" in s
 assert "if: steps.preflight.outputs.skip != 'true'" in s
-assert "if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}" in s
+assert "if: ${{ success() && steps.preflight.outputs.skip != 'true' && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}" in s
 assert "Independently confirm verified NBA zero-game day" in s
 assert "scripts/nba_verified_offday.py --joined titan007_three_joined.json" in s
 assert "steps.offday.outputs.verified != 'true'" in s
@@ -59,3 +59,4 @@ with tempfile.TemporaryDirectory() as directory:
     assert loaded['baseline_quote_count']==0
     assert loaded['official_count']==1
 print('NOON_LATE_CAPTURE_AND_FALLBACK_GUARDS_PASS')
+

@@ -70,6 +70,23 @@ def main():
         "UNREVIEWED_OR_MISSING_SCHEDULED_WORKFLOW",
         sorted(scheduled_names-expected_scheduled_names),
         sorted(expected_scheduled_names-scheduled_names))
+    full=load(ROOT/'.github/workflows/titan007-three-analysis.yml')
+    guarded={'Archive analysis in repository',
+             'Validate cross-artifact delivery contract before PushPlus',
+             'Final overnight pretip check immediately before PushPlus',
+             'Send complete iPhone full-board NBA analysis',
+             'Save confirmed accepted notification slot',
+             'Failsafe verified NBA schedule PushPlus when full report fails'}
+    found=set()
+    for step in full['jobs']['analysis']['steps']:
+        if step.get('name') in guarded:
+            assert "steps.preflight.outputs.skip != 'true'" in step.get('if',''), step['name']
+            found.add(step['name'])
+    assert found==guarded, guarded-found
+    backup=load(ROOT/'.github/workflows/nba-raw-vault-backup.yml')
+    mirror=next(s for s in backup['jobs']['independently-verify-and-catalog']['steps']
+                if s.get('name','').startswith('Replicate compressed originals'))
+    assert "vars.R2_BACKUP_ENABLED == 'true'" in mirror['if']
     bj=ZoneInfo("Asia/Shanghai")
     all_times=[]
     for name,expected in workflows.items():
@@ -143,7 +160,8 @@ def main():
     # Research scorer checks pretip frozen artifacts and actual official final,
     # without additional bookmaker collection, notification or production model.
     scorecard=(ROOT/".github/workflows/nba-dual-final-2130-score.yml").read_text()
-    assert "nba_dual_model_final_2130_grade.py" in scorecard
+    assert "nba_dual_model_score_backlog.py" in scorecard
+    assert "nba_dual_model_final_2130_grade" in (ROOT/"analysis/nba_dual_model_score_backlog.py").read_text()
     assert "pushplus_mobile.py" not in scorecard
     assert "optional_007_enrichment.py" not in scorecard
     assert "titan007_join_beijing_verified.py" not in scorecard
@@ -208,3 +226,4 @@ def main():
     print("NBA_SCHEDULE_YAML_ALL_STRUCTURES_VALIDATED",len(all_times),"scheduled UTC triggers")
     print("NOTE_GITHUB_CRON_BEST_EFFORT_NOT_EXACT_TIME_GUARANTEE")
 if __name__=="__main__":main()
+

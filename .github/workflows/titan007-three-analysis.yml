@@ -403,7 +403,7 @@ jobs:
           git fetch --quiet origin main
           python3 scripts/nba_fixed_slot_gate.py --phase recheck
       - name: Archive analysis in repository
-        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
+        if: ${{ success() && steps.preflight.outputs.skip != 'true' && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
         run: |
           count=$(python3 -c "import json; print(len(json.load(open('titan007_three_joined.json')).get('nba_cba_games',[])))")
           if [ "$count" -gt 0 ]; then
@@ -425,7 +425,7 @@ jobs:
             echo "NO_MATCHED_GAMES_SKIP_ARCHIVE"
           fi
       - name: Validate cross-artifact delivery contract before PushPlus
-        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
+        if: ${{ success() && steps.preflight.outputs.skip != 'true' && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
         run: |
           python3 scripts/nba_delivery_contract.py \
             --joined titan007_three_joined.json \
@@ -434,7 +434,7 @@ jobs:
             --five nba_five_market_forecast.json
       - name: Final overnight pretip check immediately before PushPlus
         id: final_pretip
-        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
+        if: ${{ success() && steps.preflight.outputs.skip != 'true' && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
         run: |
           python3 - <<'PY'
           import os,sys
@@ -453,13 +453,13 @@ jobs:
           print("FINAL_PRETIP_FRESHNESS_PASS",slot)
           PY
       - name: Send complete iPhone full-board NBA analysis
-        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
+        if: ${{ success() && steps.preflight.outputs.skip != 'true' && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
           python3 scripts/pushplus_mobile.py --mode three --joined titan007_three_joined.json --model nba_model_analysis.json --movement titan007_slot_movement.json --dynamic nba_slot_dynamic_review.json --top10 nba_top10_comparison.json --jingcai nba_jingcai_three_market.json --verdict nba_two_market_forecast.json --sop nba_analysis_sop.json --five nba_five_market_forecast.json --preview pushplus_mobile_preview.html --status pushplus_status.json --send --require-token --require-delivery
       - name: Save confirmed accepted notification slot
-        if: ${{ success() && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
+        if: ${{ success() && steps.preflight.outputs.skip != 'true' && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
         run: |
           python3 - <<'PY'
           import os,json
@@ -491,7 +491,7 @@ jobs:
             exit 1
           fi
       - name: Failsafe verified NBA schedule PushPlus when full report fails
-        if: ${{ failure() && steps.offday.outputs.verified != 'true' && steps.preflight.outcome == 'success' && steps.recheck.outcome != 'failure' && steps.final_pretip.outcome != 'failure' }}
+        if: ${{ failure() && steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true' && steps.preflight.outcome == 'success' && steps.recheck.outcome != 'failure' && steps.final_pretip.outcome != 'failure' }}
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
@@ -571,3 +571,4 @@ jobs:
             nba_offday_pushplus_preview.html
           if-no-files-found: warn
           retention-days: 14
+

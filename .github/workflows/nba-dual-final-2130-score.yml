@@ -30,38 +30,27 @@ jobs:
         run: |
           git fetch --quiet origin audit/dual-model-slot-evidence
           git worktree add --detach "$RUNNER_TEMP/dual-frozen-ledger" origin/audit/dual-model-slot-evidence
-      - name: Grade only pretip archived 21:30 original pushed HTML/forecast and independent shadow
+      - name: Grade all available frozen finals, including previously missed dates
         env:
           REQUESTED_DAY: ${{ inputs.target_date || '' }}
         run: |
-          python3 - <<'PY'
-          import json,os,re
-          from datetime import datetime
-          from pathlib import Path
-          from zoneinfo import ZoneInfo
-          day=os.getenv('REQUESTED_DAY') or datetime.now(ZoneInfo('Asia/Shanghai')).date().isoformat()
-          if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',day):
-              raise SystemExit('INVALID_BEIJING_DATE')
-          with open(os.environ['GITHUB_ENV'],'a') as f:
-              f.write('DUAL_GAME_DAY='+day+'\n')
-          PY
-          mkdir -p "$RUNNER_TEMP/dual-2130-score"
-          LEDGER="$RUNNER_TEMP/dual-frozen-ledger/reports/dual-model-slot-lock/$DUAL_GAME_DAY/2130/seal.json"
-          SETTLE="reports/five-market-settled/$DUAL_GAME_DAY/settlement.json"
-          if [ ! -f "$LEDGER" ]; then
-            echo '{"status":"NO_IMMUTABLE_2130_TWO_MODEL_EXAM","paired_graded":0}' > "$RUNNER_TEMP/dual-2130-score/status.json"
-            echo NO_2130_SOURCE_NO_SCORE
-            exit 0
-          fi
-          if [ ! -f "$SETTLE" ]; then
-            echo '{"status":"AWAITING_OFFICIAL_COMPLETED_FINALS","paired_graded":0}' > "$RUNNER_TEMP/dual-2130-score/status.json"
-            echo OFFICIAL_SCORE_NOT_READY
-            exit 0
-          fi
-          python3 analysis/nba_dual_model_final_2130_grade.py \
+          EXTRA=()
+          if [ -n "$REQUESTED_DAY" ]; then EXTRA+=(--day "$REQUESTED_DAY"); fi
+          python3 analysis/nba_dual_model_score_backlog.py \
             --ledger-worktree "$RUNNER_TEMP/dual-frozen-ledger" \
-            --settlement "$SETTLE" --day "$DUAL_GAME_DAY" \
-            --out "$RUNNER_TEMP/dual-2130-score/paired_2130_result.json"
+            --repo . --out "$RUNNER_TEMP/dual-2130-score" "${EXTRA[@]}"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          data=json.loads((Path(os.environ['RUNNER_TEMP'])/'dual-2130-score/summary.json').read_text())
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
+              f.write('Frozen 21:30 paired fixtures: '+str(data['independent_fixture_count'])+'\n\n')
+              f.write('| Market | Direction pairs | Probability pairs | Neutral | Dates | Original hits | Shadow hits | Original Brier | Shadow Brier |\n')
+              f.write('|---|---:|---:|---:|---:|---:|---:|---:|---:|\n')
+              for name,row in data['five_markets'].items():
+                  f.write('| '+name+' | '+' | '.join(str(row[k]) for k in ('paired_games','probability_graded_including_neutral','neutral_shadow_count','independent_beijing_dates','original_hits','shadow_hits','original_brier','shadow_brier'))+' |\n')
+              f.write('\nResearch only; no production promotion. Missing finals remain ungraded.\n')
+          PY
       - name: Upload historical 21:30 model versus independent shadow outcome score
         if: always()
         uses: actions/upload-artifact@v4
@@ -70,3 +59,4 @@ jobs:
           path: ${{ runner.temp }}/dual-2130-score/
           retention-days: 90
           if-no-files-found: warn
+

@@ -69,16 +69,16 @@ def seal(source,main,root,day,slot,run_id,now):
     if candidate.get("multibook_candidate_version"):
         if candidate.get("multibook_candidate_numerically_separate_not_promoted") is not True:
             raise ValueError("MULTIBOOK_VARIANT_ATTEMPTED_PRODUCTION_PROMOTION")
-        if "history.json" not in original.get("sanitized_inputs_sha256",{}):
+        if "history" not in original.get("sanitized_inputs_sha256",{}):
             raise ValueError("UNSEALED_MULTIBOOK_HISTORY_OR_SNAPSHOT")
         for g in candidate["games"]:
             data=g.get("research_model_candidates") or {}
             variants=data.get("ROBUST_MULTIBOOK") or {}
             for key,side in variants.items():
-                main=(g.get("markets") or {}).get(key)
-                if not main or side.get("market")!=key or (
-                    side.get("signed_home_handicap")!=main.get("signed_home_handicap") or
-                    side.get("line")!=main.get("line")):
+                baseline_market=(g.get("markets") or {}).get(key)
+                if not baseline_market or side.get("market")!=key or (
+                    side.get("signed_home_handicap")!=baseline_market.get("signed_home_handicap") or
+                    side.get("line")!=baseline_market.get("line")):
                     raise ValueError("MULTIBOOK_CANDIDATE_CHANGED_DIRECT_JC_OR_ID3_LINE")
                 if side.get("not_trained_or_promoted") is not True:
                     raise ValueError("MULTIBOOK_CANDIDATE_HAS_FALSE_TRAINED_STATUS")
@@ -171,3 +171,4 @@ def main():
     seal(a.from_artifact,a.original_repo,a.ledger_root,a.day,a.slot,
          a.source_run_id,datetime.now(timezone.utc))
 if __name__=="__main__":main()
+

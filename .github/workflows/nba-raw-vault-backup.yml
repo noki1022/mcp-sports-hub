@@ -76,8 +76,13 @@ jobs:
             done
             exit 1
           fi
+      - name: Record operator-deferred offsite backup separately from Git archive health
+        if: github.event_name != 'pull_request' && vars.R2_BACKUP_ENABLED != 'true'
+        run: |
+          echo "R2_DEFERRED_BY_OPERATOR_GITHUB_ARCHIVE_AUDIT_STILL_REQUIRED"
+          echo "R2 is not enabled; no independent offsite copy is claimed. Git archive and exact-byte audit completed above." >> "$GITHUB_STEP_SUMMARY"
       - name: Replicate compressed originals and manifests to independent Cloudflare R2
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && vars.R2_BACKUP_ENABLED == 'true'
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -117,3 +122,4 @@ jobs:
               except Exception as e:
                   print("::warning::BACKUP_FAILURE_NOTIFICATION_UNAVAILABLE",type(e).__name__)
           PY
+

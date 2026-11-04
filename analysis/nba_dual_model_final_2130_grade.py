@@ -101,6 +101,7 @@ def score(orig,cand,proof,settlement):
     original=index(orig["games"]);shadow=index(cand["games"])
     scores=index(settlement["games"])
     by={k:[] for k in KEYS}
+    probability_pairs={k:[] for k in KEYS}
     candidate_pairs={k:[] for k in KEYS}
     rejected={}
     for gid,g in original.items():
@@ -120,7 +121,7 @@ def score(orig,cand,proof,settlement):
             b=(s.get("markets") or {}).get(key) or {}
             olddir,newdir=a.get("direction"),b.get("direction")
             if a.get("status")!="DIRECTION_ISSUED" or olddir not in SIDES[key] or (
-                newdir not in SIDES[key]):
+                newdir not in (*SIDES[key], "TIE")):
                 continue
             orig_line=finite(a.get("line"));new_line=finite(b.get("line"))
             orig_signed=finite(a.get("signed_home_handicap"));new_signed=finite(
@@ -141,7 +142,10 @@ def score(orig,cand,proof,settlement):
             if abs(value)<1e-7:continue
             y=int(value>0)
             po=p0 if olddir==SIDES[key][0] else 1-p0
-            by[key].append({
+            expected=SIDES[key][0] if p>.5 else SIDES[key][1] if p<.5 else "TIE"
+            if newdir != expected:
+                raise ValueError("SHADOW_PROBABILITY_DIRECTION_CONFLICT")
+            pair={
                 "game_id":gid,"model_line":orig_line,
                 "signed_home_handicap":orig_signed,
                 "final_home_points":hp,"final_away_points":ap,
@@ -149,11 +153,16 @@ def score(orig,cand,proof,settlement):
                 "original_direction":olddir,
                 "shadow_direction":newdir,
                 "original_hit":int(olddir==SIDES[key][1-y]),
-                "shadow_hit":int(newdir==SIDES[key][1-y]),
+                "shadow_hit":int(newdir==SIDES[key][1-y]) if newdir!="TIE" else None,
                 "original_first_side_probability":po,
                 "shadow_first_side_probability":p,
                 "original_brier":(po-y)**2,
-                "shadow_brier":(p-y)**2})
+                "shadow_brier":(p-y)**2,
+                "original_log_loss":-math.log(po if y else 1-po),
+                "shadow_log_loss":-math.log(p if y else 1-p)}
+            probability_pairs[key].append(pair)
+            if newdir != "TIE":
+                by[key].append(pair)
             research=((s.get("research_model_candidates") or {}).get(
                 "ROBUST_MULTIBOOK") or {}).get(key)
             if research is not None:
@@ -170,7 +179,7 @@ def score(orig,cand,proof,settlement):
                         candidate_pairs[key].append({
                             "game_id":gid,"same_line_as_original_and_shadow":True,
                             "original_hit":int(olddir==SIDES[key][1-y]),
-                            "shadow_baseline_hit":int(newdir==SIDES[key][1-y]),
+                            "shadow_baseline_hit":int(newdir==SIDES[key][1-y]) if newdir!="TIE" else None,
                             "multibook_candidate_hit":int(expected==SIDES[key][1-y]),
                             "original_brier":(po-y)**2,
                             "shadow_baseline_brier":(p-y)**2,
@@ -196,12 +205,14 @@ def score(orig,cand,proof,settlement):
     for key,v in candidate_pairs.items():
         count=len(v)
         def avg(name):
-            return round(sum(r[name] for r in v)/count,8) if count else None
+            valid=[r[name] for r in v if r[name] is not None]
+            return round(sum(valid)/len(valid),8) if valid else None
         trial[key]={
             "same_game_line_paired_n":count,
             "original_hits":sum(r["original_hit"] for r in v),
-            "independent_shadow_baseline_hits":sum(r["shadow_baseline_hit"] for r in v),
+            "independent_shadow_baseline_hits":sum(r["shadow_baseline_hit"] or 0 for r in v),
             "multibook_candidate_hits":sum(r["multibook_candidate_hit"] for r in v),
+            "shadow_baseline_directional_n":sum(r["shadow_baseline_hit"] is not None for r in v),
             "original_brier":avg("original_brier"),
             "independent_shadow_baseline_brier":avg("shadow_baseline_brier"),
             "multibook_candidate_brier":avg("multibook_candidate_brier"),
@@ -212,6 +223,8 @@ def score(orig,cand,proof,settlement):
         "target_date":orig["target_date"],
         "source_final":"ORIGINAL_PUSHED_2130_AND_INDEPENDENT_SHADOW_2130_ONLY",
         "five_market_by_market":final,
+        "probability_pairs_including_neutral":probability_pairs,
+        "neutral_probabilities_are_scored_not_discarded":True,
         "multibook_research_candidate_paired_vs_original_and_shadow":trial,
         "candidate_is_not_official_second_model_answer":True,
         "independent_games_with_any_pair":len(set(
@@ -238,3 +251,4 @@ def main():
           {k:{"n":v["paired_graded"],"original_hits":v["original_hits"],
               "shadow_hits":v["shadow_hits"]} for k,v in result["five_market_by_market"].items()})
 if __name__=="__main__":main()
+
