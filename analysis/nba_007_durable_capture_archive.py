@@ -225,6 +225,27 @@ def pick_day(sources, fallback=None):
     raise ValueError("CAN_NOT_ESTABLISH_NBA_GAME_DAY_FROM_REAL_SOURCE")
 
 
+
+def artifact_day(source: Path, sources, workflow_name: str):
+    """Recover only the producer's explicit artifact date, never wall time.
+
+    No-game/preflight runs may contain diagnostics but no typed market board.
+    Their exact bytes are still useful evidence, not a training sample.
+    """
+    prefix = WORKFLOWS[workflow_name]
+    dates = set()
+    for path, _ in sources:
+        folder = path.relative_to(source).parts[0]
+        match = re.fullmatch(re.escape(prefix) + r"(\d{4}-\d{2}-\d{2})(?:-.*)?", folder)
+        if match:
+            day = match.group(1)
+            datetime.strptime(day, "%Y-%m-%d")
+            dates.add(day)
+    if len(dates) > 1:
+        raise ValueError("AMBIGUOUS_ORIGINAL_ARTIFACT_DATE")
+    return dates.pop() if dates else None
+
+
 def write_manifest(output: Path, *, workflow_name: str, run_id: str,
                    attempt: str, status: str, entries: list, origin: str,
                    source_conclusion: str):
@@ -290,7 +311,16 @@ def archive_artifact(source: Path, archive_root: Path, workflow_name: str,
         return None
     if len(sources)>MAX_FILES:
         raise ValueError("TOO_MANY_RAW_CAPTURE_FILES")
-    day=pick_day(sources,fallback_day)
+    date_basis = "TYPED_SOURCE_OR_EXPLICIT_FALLBACK"
+    try:
+        day=pick_day(sources,fallback_day)
+    except ValueError as exc:
+        if str(exc) != "CAN_NOT_ESTABLISH_NBA_GAME_DAY_FROM_REAL_SOURCE":
+            raise
+        day=artifact_day(source,sources,workflow_name)
+        date_basis = ("PRODUCER_ARTIFACT_DATE_ONLY_NOT_VERIFIED_MARKET_DATE"
+                      if day else "UNKNOWN_DATE_QUARANTINED")
+        day = day or "undated"
     output=archive_root / "reports/market-captures" / day / (
         "original-run-"+str(run_id)) / ("attempt-"+str(attempt))
     if output.exists():
@@ -305,6 +335,12 @@ def archive_artifact(source: Path, archive_root: Path, workflow_name: str,
         run_id=run_id,attempt=attempt,status="CAPTURE_ARCHIVED",
         entries=entries,origin="ORIGINAL_ACTION_WORKFLOW_ARTIFACT",
         source_conclusion=conclusion)
+    result["archive_date_basis"] = date_basis
+    result["date_is_verified_market_date"] = date_basis == "TYPED_SOURCE_OR_EXPLICIT_FALLBACK"
+    if not result["date_is_verified_market_date"]:
+        result["status"] = "DIAGNOSTICS_ONLY_OR_UNVERIFIED_MARKET_DATE"
+        result["training_eligible"] = False
+    (output/"manifest.json").write_text(json.dumps(result,ensure_ascii=False,indent=2,sort_keys=True)+"\n")
     print("DURABLE_007_CAPTURE",day,run_id,attempt,
           "files",result["file_count"],"raw_bytes",result["total_original_bytes"],
           "missing",result["missing_required_source_categories"])
@@ -430,6 +466,38 @@ def selftest():
         assert gzip.decompress(
             (anomaly/"files/nba_malformed.json.gz").read_bytes()
         )==(artifact/"nba_malformed.json").read_bytes()
+        # Real incident: a priority preflight/off-day artifact has no board.
+        diagnostics = root/"diagnostics"/"nba-priority-0630-2026-11-04"
+        diagnostics.mkdir(parents=True)
+        payload = b'{"skip":true,"reason":"VERIFIED_OFFDAY"}\n'
+        (diagnostics/"nba_priority_0630_gate.json").write_bytes(payload)
+        out_diag = archive_artifact(root/"diagnostics",root/"b",
+            "NBA PRIORITY 06:30 Beijing morning full report", "123459", "1", "success")
+        doc = json.loads((out_diag/"manifest.json").read_text())
+        assert doc["status"]=="DIAGNOSTICS_ONLY_OR_UNVERIFIED_MARKET_DATE"
+        assert doc["training_eligible"] is False and not doc["date_is_verified_market_date"]
+        assert gzip.decompress((out_diag/"files/nba_priority_0630_gate.json.gz").read_bytes())==payload
+        # Actual skipped 06:30 runs uploaded a nameless-date artifact containing
+        # old cohort evidence. Preserve it by run ID without assigning a date.
+        undated = root/"undated"/"nba-priority-0630-"
+        undated.mkdir(parents=True)
+        (undated/"nba_priority_0630_gate.json").write_bytes(payload)
+        out_unknown=archive_artifact(root/"undated",root/"b",
+            "NBA PRIORITY 06:30 Beijing morning full report", "123461", "1", "success")
+        unknown=json.loads((out_unknown/"manifest.json").read_text())
+        assert out_unknown.parts[-3]=='undated'
+        assert unknown['archive_date_basis']=='UNKNOWN_DATE_QUARANTINED'
+        assert unknown['training_eligible'] is False
+        # Explicitly conflicting real board dates remain a hard failure.
+        (diagnostics/"nba_market_consensus.json").write_text('{"target_date":"2026-11-05"}')
+        (diagnostics/"titan007_priority_joined.json").write_text('{"requested_display_date":"2026-11-06"}')
+        try:
+            archive_artifact(root/"diagnostics",root/"b",
+                "NBA PRIORITY 06:30 Beijing morning full report", "123460", "1", "failure")
+        except ValueError as exc:
+            assert "CONFLICTING_ORIGINAL" in str(exc)
+        else:
+            raise AssertionError("ARTIFACT_DATE_MASKED_CONFLICTING_MARKET_DATES")
         assert not safe_relative("../token.json")
         assert not safe_relative("pushplus_status.json")
         (artifact/"nba_extra.json").write_text('{"api_key":"DO_NOT_ARCHIVE"}')
@@ -480,3 +548,4 @@ def main():
 
 if __name__=="__main__":
     main()
+

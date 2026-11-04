@@ -11,6 +11,7 @@ import nba_independent_market_shadow as MO
 import nba_multibook_crossplay_signals as BOOK
 import nba_dual_model_slot_seal as SE
 import nba_dual_model_final_2130_grade as GR
+import nba_dual_model_score_backlog as BACKLOG
 
 ROOT=Path(__file__).resolve().parents[1]
 def asof(v):return datetime.fromisoformat(v.replace("Z","+00:00"))
@@ -99,6 +100,31 @@ def run():
               shadow21["multibook_paired_sources_used"],
               sum(len(g["research_model_candidates"]["ROBUST_MULTIBOOK"])
                   for g in shadow21["games"]))
+        # Exercise the complete stage -> inference -> permanent seal boundary.
+        # Previously tests stopped before seal(), missing a hash-key typo and
+        # a market-row variable overwriting the original repository Path.
+        for folder, answer, capture_slot, source_run, clock in (
+            (p, generated, "1800", "41425286650", simulated),
+            (tmp/"real-valid-2130", shadow21, "2130", "41453596277", real_2130),
+        ):
+            (folder/"independent_prediction.json").write_text(json.dumps(answer))
+            proof = SE.seal(folder, ROOT, tmp/"complete-ledger", "2026-11-03",
+                            capture_slot, source_run, clock+timedelta(seconds=1))
+            assert "history.json" in proof["sha256"]
+            assert proof["both_model_answers_are_separately_frozen"] == (capture_slot=="2130")
+            assert all(ST.sha(tmp/"complete-ledger"/"2026-11-03"/capture_slot/name)==digest
+                       for name,digest in proof["sha256"].items())
+        # A changed safe input must fail BEFORE creating any permanent slot.
+        (p/"history.json").write_text("[]")
+        try:
+            SE.seal(p, ROOT, tmp/"tampered-ledger", "2026-11-03", "1800",
+                    "41425286650", simulated+timedelta(seconds=2))
+        except ValueError as exc:
+            assert "HASH_CHANGED" in str(exc)
+        else:
+            raise AssertionError("TAMPERED_MULTIBOOK_HISTORY_ACCEPTED")
+        assert not (tmp/"tampered-ledger/2026-11-03/1800").exists()
+        print("REAL_SOURCE_STAGE_PREDICT_SEAL_AND_TAMPER_REGRESSION_PASS")
         assert "source" not in generated or generated.get("postgame_data_read") is False
         # Hash changes must not be silently accepted as an identical freeze.
         found=generated["input_sha256"]["joined"]
@@ -176,6 +202,19 @@ def run():
             assert "RESEARCH_MULTIBOOK_SCORE_LINE_OR_SIDE_CHANGED" in str(ex)
         else:
             raise AssertionError("RESEARCH_MULTIBOOK_USED_CHANGED_DIRECT_MARKET_LINE")
+        summary=BACKLOG.summarize([result])
+        assert summary['independent_fixture_count']==1
+        assert summary['five_markets']['JINGCAI_WIN']['paired_games']==1
+        assert summary['five_markets']['JINGCAI_WIN']['independent_beijing_dates']==1
+        assert summary['five_markets']['JINGCAI_WIN']['original_log_loss']>0
+        assert summary['production_promotion_allowed'] is False
+        scan_fixture=tmp/'backlog-repo/reports/dual-model-slot-lock/2026-11-03/2130'
+        scan_fixture.mkdir(parents=True)
+        (scan_fixture/'seal.json').write_text('{}')
+        selected=BACKLOG.eligible_days(tmp/'backlog-repo',ROOT,'2026-11-04')
+        assert selected==['2026-11-03'], selected
+        assert BACKLOG.eligible_days(tmp/'backlog-repo',ROOT,'2026-11-02')==[]
+        assert BACKLOG.summarize([])['five_markets']['JINGCAI_WIN']['shadow_brier'] is None
         assert result["five_market_by_market"]["JINGCAI_WIN"]["original_hits"]==1
         assert result["five_market_by_market"]["JINGCAI_TOTAL"]["original_hits"]==0
         assert result["five_market_by_market"]["CROWN_HANDICAP"]["original_hits"]==0
@@ -184,3 +223,4 @@ def run():
               generated["game_count"],4)
     print("INDEPENDENT_MODEL_AND_SINGLE_2130_EXAM_WITHOUT_SCORE_LEAK_SELFTEST_PASS")
 if __name__=="__main__":run()
+

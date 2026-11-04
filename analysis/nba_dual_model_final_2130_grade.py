@@ -153,7 +153,9 @@ def score(orig,cand,proof,settlement):
                 "original_first_side_probability":po,
                 "shadow_first_side_probability":p,
                 "original_brier":(po-y)**2,
-                "shadow_brier":(p-y)**2})
+                "shadow_brier":(p-y)**2,
+                "original_log_loss":-math.log(po if y else 1-po),
+                "shadow_log_loss":-math.log(p if y else 1-p)})
             research=((s.get("research_model_candidates") or {}).get(
                 "ROBUST_MULTIBOOK") or {}).get(key)
             if research is not None:
@@ -238,3 +240,4 @@ def main():
           {k:{"n":v["paired_graded"],"original_hits":v["original_hits"],
               "shadow_hits":v["shadow_hits"]} for k,v in result["five_market_by_market"].items()})
 if __name__=="__main__":main()
+
