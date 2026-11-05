@@ -1,0 +1,102 @@
+{
+  "schema_version": "nba-two-market-forecast-v1",
+  "target_date": "2026-11-06",
+  "captured_at_utc": "2026-11-05T07:00:25.215059+00:00",
+  "company_ranking_verified": false,
+  "spread_orientation_verified": true,
+  "model_probability_reweighted": false,
+  "games": [
+    {
+      "game_id": "728905",
+      "nba_game_id": "401909936",
+      "home_team": "菲尼克斯太阳",
+      "away_team": "奥兰多魔术",
+      "beijing_tip": "2026-11-06T10:00+08:00",
+      "model_status": "PARTIAL",
+      "margin_home_minus_away": 1.5936175932116976,
+      "model_total": 225.07370947553082,
+      "markets": {
+        "SPREAD": {
+          "market": "SPREAD",
+          "line": 1.5,
+          "direction": "HOME",
+          "model_minus_market": 0.094,
+          "signed_home_handicap": -1.5,
+          "company_count": 8,
+          "strength": "VERY_LOW",
+          "rule": "007_INSTITUTION_RAW_POSITIVE_HOME_GIVES_MARGIN_MINUS_LINE"
+        },
+        "TOTAL": {
+          "market": "TOTAL",
+          "line": 223.5,
+          "direction": "OVER",
+          "model_minus_market": 1.574,
+          "company_count": 8,
+          "strength": "LOW",
+          "rule": "MODEL_EXPECTED_POINTS_MINUS_MARKET_TOTAL"
+        }
+      },
+      "market_context": {
+        "spread_median": 1.5,
+        "total_median": 223.5,
+        "spread_range": [
+          -1.5,
+          1.5
+        ],
+        "total_range": [
+          223.5,
+          224.0
+        ]
+      },
+      "assessment": "两项机构市场研究方向；主队实际让分已转换并明确标注；不等于投注价值",
+      "bet_recommendation": "NO_BET"
+    },
+    {
+      "game_id": "728906",
+      "nba_game_id": "401909937",
+      "home_team": "金州勇士",
+      "away_team": "迈阿密热火",
+      "beijing_tip": "2026-11-06T11:00+08:00",
+      "model_status": "OK",
+      "margin_home_minus_away": 2.0151918318634956,
+      "model_total": 232.97714070061116,
+      "markets": {
+        "SPREAD": {
+          "market": "SPREAD",
+          "line": 7.0,
+          "direction": "AWAY",
+          "model_minus_market": -4.985,
+          "signed_home_handicap": -7.0,
+          "company_count": 9,
+          "strength": "RESEARCH_MODERATE",
+          "rule": "007_INSTITUTION_RAW_POSITIVE_HOME_GIVES_MARGIN_MINUS_LINE"
+        },
+        "TOTAL": {
+          "market": "TOTAL",
+          "line": 235.5,
+          "direction": "UNDER",
+          "model_minus_market": -2.523,
+          "company_count": 9,
+          "strength": "LOW",
+          "rule": "MODEL_EXPECTED_POINTS_MINUS_MARKET_TOTAL"
+        }
+      },
+      "market_context": {
+        "spread_median": 7.0,
+        "total_median": 235.5,
+        "spread_range": [
+          6.5,
+          7.5
+        ],
+        "total_range": [
+          235.5,
+          236.0
+        ]
+      },
+      "assessment": "两项机构市场研究方向；主队实际让分已转换并明确标注；不等于投注价值",
+      "bet_recommendation": "NO_BET"
+    }
+  ],
+  "not_betting_advice": true,
+  "decision": "NO_BET"
+}
