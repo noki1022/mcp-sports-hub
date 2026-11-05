@@ -17,6 +17,8 @@ print("FOOTBALL_007_MOBILE_ANALYSIS_META",json.dumps({
     "bytes":len(raw),"tables":page.lower().count("<table"),
     "rows":page.lower().count("<tr"),"injury_tokens":page.count("伤停"),
     "h2h_tokens":page.count("对赛往绩"),"recent_tokens":page.count("近期战绩")},ensure_ascii=False))
+candidates=re.findall(r"""(?:[A-Za-z0-9_./-]{3,90}\.(?:ashx|aspx|json|js|htm)(?:\?[^"'<>\s]{0,80})?)""",page,flags=re.I)
+print("FOOTBALL_007_MOBILE_ENDPOINTS",json.dumps(list(dict.fromkeys(x for x in candidates if any(k in x.lower() for k in ("analysis","analy","injur","history","near","stat","data","team","detail"))))[:100],ensure_ascii=False))
 for term in ("对赛往绩","近期战绩","伤停情况","伤病","停赛","数据对比","历史交锋","主队近期","客队近期"):
     i=page.find(term)
     if i>=0:
