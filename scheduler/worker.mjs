@@ -101,6 +101,31 @@ async function markerAccepted(job,env,fetcher){
   return body.slot===job.slot&&body.state==="API_ACCEPTED_NOT_DEVICE_CONFIRMED";
 }
 
+// The same full-report workflow serves many slots. Creation time identifies
+// runner availability, NOT which cron fired (native schedules can arrive late).
+export function matchesReportSlot(run,job){
+  if(job.kind!=="full")return true; // priority/review have dedicated workflows
+  const match=/^NBA full report \| slot=(.+) \| date=(.+)$/.exec(run.display_title||"");
+  if(!match)return false; // unlabelled older runs cannot prove current-slot work
+  const native={
+    "30 16 * * *":"0030","45 16 * * *":"0030","0 17 * * *":"0030",
+    "30 19 * * *":"0330","45 19 * * *":"0330","0 20 * * *":"0330",
+    "0 4 * * *":"1200","15 4 * * *":"1200","30 4 * * *":"1200",
+    "0 6 * * *":"1400","15 6 * * *":"1400","30 6 * * *":"1400",
+    "0 7 * * *":"1500","15 7 * * *":"1500","30 7 * * *":"1500",
+    "0 10 * * *":"1800","15 10 * * *":"1800","30 10 * * *":"1800",
+    "0 13 * * *":"2100"
+  };
+  const slot=run.event==="schedule"?native[match[1]]:match[1];
+  if(slot!==job.slot)return false;
+  const day=match[2];
+  if(day!=="auto")return day===job.target_date;
+  const created=Date.parse(run.created_at);
+  if(!Number.isFinite(created))return false;
+  const local=beijingClock(created);
+  return (["0030","0330"].includes(slot)?local.day:local.tomorrow)===job.target_date;
+}
+
 export async function dispatchAt(timestamp,env,fetcher=fetch){
   const job=plannedJob(timestamp);
   if(!job)return {state:"NO_SLOT"};
@@ -113,7 +138,7 @@ export async function dispatchAt(timestamp,env,fetcher=fetch){
   const matching=(data.workflow_runs||[]).filter(run=>{
     const when=Date.parse(run.created_at);
     return Number.isFinite(when)&&when>=start&&when<=timestamp+60000&&
-      ["workflow_dispatch","schedule"].includes(run.event);
+      ["workflow_dispatch","schedule"].includes(run.event)&&matchesReportSlot(run,job);
   });
   if(matching.some(x=>ACTIVE.has(x.status)))
     return {state:"WORKFLOW_RUNNING",slot:job.slot,kind:job.kind};
@@ -150,3 +175,4 @@ export default {
   },
   async fetch(){return new Response("Not Found",{status:404});}
 };
+

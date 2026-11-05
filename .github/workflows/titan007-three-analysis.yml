@@ -1,4 +1,5 @@
 name: Titan007 scheduled full-board NBA analysis and PushPlus delivery
+run-name: NBA full report | slot=${{ inputs.report_slot || github.event.schedule || 'ONCE' }} | date=${{ inputs.target_date || 'auto' }}
 on:
   workflow_dispatch:
     inputs:
