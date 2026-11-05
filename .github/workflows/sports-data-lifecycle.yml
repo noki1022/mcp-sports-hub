@@ -1,0 +1,127 @@
+name: Sports long-term data admission and weight research
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/sports_lifecycle.py'
+      - 'ops/sports_learning_dataset.py'
+      - 'analysis/sports_weight_learning.py'
+      - 'config/sports_learning_policy.json'
+      - '.github/workflows/sports-data-lifecycle.yml'
+  pull_request:
+    paths:
+      - 'ops/sports_lifecycle.py'
+      - 'ops/sports_learning_dataset.py'
+      - 'analysis/sports_weight_learning.py'
+      - 'analysis/sport_match_final_registry.py'
+      - 'config/sports_learning_policy.json'
+      - 'tests/test_sports_learning_lifecycle.py'
+      - '.github/workflows/sports-data-lifecycle.yml'
+  workflow_run:
+    workflows:
+      - 'Football JC unified analysis, 21:30 locked final, 06:30 update'
+      - 'Durable NBA every-capture 007 / Jingcai / multi-book raw market evidence'
+      - 'Football + NBA immutable per-match latest valid pretip finals'
+      - 'NBA latest-per-match one-scorecard review readiness (silent, official results)'
+    types: [completed]
+    branches: [main]
+  schedule:
+    # Beijing 12:40; fallback if an upstream completion event was missed.
+    - cron: '40 4 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sports-data-lifecycle-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: false
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify sample isolation, timestamp rejection and immutable evidence
+        run: |
+          python -m unittest discover -s tests -p test_sports_learning_lifecycle.py -v
+          python -m unittest discover -s tests -p test_sport_match_final_registry.py -v
+  audit-and-research:
+    needs: tests
+    if: >-
+      github.event_name != 'pull_request' && github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.event != 'pull_request'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Only guarded main runs enter this job. No PR code/artifacts are executed.
+    # workflow_run is read-only by default; bounded JSON/receipt cache needs writes.
+    cache-mode: write
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Bind report to checked-out code
+        run: echo "LIFECYCLE_CODE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - uses: actions/cache/restore@v4
+        if: github.event_name != 'pull_request'
+        with:
+          path: lifecycle-cache/
+          key: sports-lifecycle-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: sports-lifecycle-v1-
+      - name: Read evidence, quarantine invalid samples, audit raw hashes and research weights
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python ops/sports_lifecycle.py --out lifecycle-output --cache-dir lifecycle-cache
+      - uses: actions/cache/save@v4
+        if: always() && github.event_name != 'pull_request'
+        with:
+          path: lifecycle-cache/
+          key: sports-lifecycle-v1-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Preserve derived audit without committing growing datasets to Git
+        if: always() && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ ! -f lifecycle-output/manifest.json ]; then
+            echo '::error::NO_COMPLETED_LIFECYCLE_MANIFEST; audit did not complete'
+            exit 1
+          fi
+          month="$(TZ=Asia/Shanghai date +%Y%m)"
+          tag="sports-data-lifecycle-$month"
+          archive="sports-lifecycle-${GITHUB_RUN_ID}-attempt-${GITHUB_RUN_ATTEMPT}.tar.gz"
+          tar -czf "$archive" lifecycle-output/
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "$GITHUB_SHA" --title "Sports data audit $month" \
+              --notes 'Derived dataset manifests, admission gaps, and research-only weight evaluations. No automatic production model promotion.'
+          fi
+          gh release upload "$tag" "$archive"
+          python - <<'PY'
+          import json,os
+          x=json.load(open('lifecycle-output/health.json'))
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
+              f.write('## Sports data audit\n\n'+json.dumps(x,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sports-lifecycle-${{ github.run_id }}-${{ github.run_attempt }}
+          path: lifecycle-output/
+          if-no-files-found: ignore
+          retention-days: 14

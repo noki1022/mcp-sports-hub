@@ -104,6 +104,7 @@ def make_candidate(sport,snapshot,forecast,run_id,slot=""):
                 require(quote<=generated and quote<tip,"NON_PRETIP_BASKETBALL_MARKET")
         record={
             "sport":sport,"match_id":mid,"official_game_id":extra_id,
+            "league":orig.get("league") or ("NBA" if sport=="basketball" else None),
             "jc_number":label,"home_team":row["home_team"],"away_team":row["away_team"],
             "home_id":home_id,"away_id":away_id,
             "kickoff_utc":tip.isoformat(),"capture_utc":captured.isoformat(),
