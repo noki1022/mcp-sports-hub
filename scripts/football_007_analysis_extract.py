@@ -184,6 +184,10 @@ def extract(raw,game,captured_at):
     away_id=away.get("teamId")
     if not isinstance(home_id,int) or not isinstance(away_id,int) or home_id==away_id:
         raise ValueError("BAD_ANALYSIS_TEAM_IDS")
+    if game.get("home_team_id_007") is not None and str(game["home_team_id_007"])!=str(home_id):
+        raise ValueError("ANALYSIS_HOME_TEAM_ID_VS_FIXTURE_MISMATCH")
+    if game.get("away_team_id_007") is not None and str(game["away_team_id_007"])!=str(away_id):
+        raise ValueError("ANALYSIS_AWAY_TEAM_ID_VS_FIXTURE_MISMATCH")
     expected_home=game.get("home_team_id_007")
     expected_away=game.get("away_team_id_007")
     if expected_home is not None and str(expected_home)!=str(home_id):
