@@ -24,6 +24,8 @@ workflows={
  # Cross-sport read-only run/archive audit; no odds collector or PushPlus.
  "sports-integrity-and-leakage-gates.yml":["35 0,6,12,18 * * *"],
  "nba-per-match-final-review-audit.yml":["20 15 * * *"],
+ # Quiet archive admission/research only; no odds collection or production push.
+ "sports-data-lifecycle.yml":["40 4 * * *"],
  "nba-silent-overnight-hourly.yml":["0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *"],
  "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
  # Complete allowlist: every scheduled workflow must be declared here.
@@ -174,6 +176,25 @@ def main():
     assert "pushplus_mobile.py" not in audit and "PUSHPLUS_TOKEN" not in audit
     assert "gh release upload" in audit and "cmp" in audit
     assert "actions/upload-artifact@v4" in audit
+
+    lifecycle_path=ROOT/".github/workflows/sports-data-lifecycle.yml"
+    lifecycle=load(lifecycle_path)
+    lifecycle_text=lifecycle_path.read_text()
+    assert lifecycle["permissions"]=={"contents":"read"}
+    assert "permissions" not in lifecycle["jobs"]["tests"]
+    researcher=lifecycle["jobs"]["audit-and-research"]
+    assert researcher["needs"]=="tests"
+    for guard in ("github.event_name != 'pull_request'", "github.ref == 'refs/heads/main'",
+                  "github.event.workflow_run.head_repository.full_name == github.repository",
+                  "github.event.workflow_run.head_branch == 'main'",
+                  "github.event.workflow_run.event != 'pull_request'"):
+        assert guard in researcher["if"], ("LIFECYCLE_TRUST_GUARD_MISSING",guard)
+    for forbidden in ("--clobber","pushplus_mobile.py","PUSHPLUS_TOKEN","gh release delete",
+                      "git push","titan007_join_beijing_verified.py"):
+        assert forbidden not in lifecycle_text, ("LIFECYCLE_MUTATION_OR_DELIVERY_FORBIDDEN",forbidden)
+    assert "ops/sports_lifecycle.py" in lifecycle_text
+    assert "gh release upload" in lifecycle_text
+    assert "persist-credentials: false" in lifecycle_text
 
     # No automatic 22:00 auxiliary odds scan after the 21:30 final report.
     assert ("titan007-daily-free.yml","22:00") not in all_times
