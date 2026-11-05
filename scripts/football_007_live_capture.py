@@ -164,11 +164,18 @@ def main():
     # Use collection completion as the as-of boundary; never claim a quote
     # fetched after kickoff existed at the earlier request start.
     completed=datetime.now(timezone.utc)
-    snapshot=collect(raw,completed,args.target_date)
-    snapshot["source_provenance"]["capture_started_at_utc"]=start.isoformat()
     folder=Path(args.raw_dir);folder.mkdir(parents=True,exist_ok=True)
     for key,data in raw.items():
         (folder/(key+".txt.gz")).write_bytes(gzip.compress(data,mtime=0))
+    # Archive actual source bytes before fixture filtering or model parsing:
+    # even a source format change or zero verified fixtures must not erase raw evidence.
+    (folder/"manifest.json").write_text(json.dumps({
+        "capture_started_at_utc":start.isoformat(),
+        "capture_completed_at_utc":completed.isoformat(),
+        "sources":{k:{"url":FEEDS[k],"sha256":hashlib.sha256(v).hexdigest(),
+                      "bytes":len(v)} for k,v in raw.items()}},ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+    snapshot=collect(raw,completed,args.target_date)
+    snapshot["source_provenance"]["capture_started_at_utc"]=start.isoformat()
     out=Path(args.out);out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(snapshot,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print("FOOTBALL_007_LIVE_CAPTURE",json.dumps(snapshot["source_provenance"]["coverage"],ensure_ascii=False))
