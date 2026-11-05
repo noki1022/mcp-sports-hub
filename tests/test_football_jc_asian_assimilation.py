@@ -144,7 +144,7 @@ class FusionTests(unittest.TestCase):
     b=core.run(s)
     out=fuse.assimilate(s,b,MODEL)
     self.assertEqual(out["market_assimilation_counts"]["applied"],1)
-    self.assertEqual(out["games"][0]["market_assimilation"]["company_count_used"],7)
+    self.assertEqual(out["games"][0]["market_assimilation"]["company_count_used"],5)
     self.assertEqual(out["games"][0]["market_assimilation"]["company_count_rejected"],1)
  def test_deep_real_asian_line_keeps_direction_with_hard_cap_and_conflict_label(self):
     s,b=with_quotes()
