@@ -134,6 +134,9 @@ def main():
                 mins=[int(x) for x in mm.split(",")]
             hrs=[]
             for item in hh.split(","):
+                if item=="*":
+                    hrs.extend(range(24))
+                    continue
                 parts=item.split("-")
                 hrs.extend(range(int(parts[0]),int(parts[1])+1) if len(parts)==2 else [int(item)])
             for hour in hrs:
