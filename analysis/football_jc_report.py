@@ -81,7 +81,7 @@ def market_card(key, name, market):
 def render(report,comparison=None,mode=None):
     date = esc(report.get("beijing_date"))
     phase=mode or "research"
-    tag={"final":"21:30最终评分版（已锁定）","update":"06:30动态更新｜以21:30为评分准绳"}.get(phase,"竞彩足球融合研判")
+    tag={"final":"21:30历史基准（独立保留）","update":"06:30动态更新｜21:30仅用于历史对照"}.get(phase,"竞彩足球融合研判")
     cards = []
     for game in report.get("games", []):
         title = (esc(game.get("jc_number")) + " · " + esc(game.get("league"))
