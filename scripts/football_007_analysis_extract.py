@@ -188,12 +188,6 @@ def extract(raw,game,captured_at):
         raise ValueError("ANALYSIS_HOME_TEAM_ID_MISMATCH")
     if game.get("away_team_id_007") is not None and str(game["away_team_id_007"])!=str(away_id):
         raise ValueError("ANALYSIS_AWAY_TEAM_ID_MISMATCH")
-    expected_home=game.get("home_team_id_007")
-    expected_away=game.get("away_team_id_007")
-    if expected_home is not None and str(expected_home)!=str(home_id):
-        raise ValueError("ANALYSIS_HOME_TEAM_ID_MISMATCH_WITH_SCHEDULE")
-    if expected_away is not None and str(expected_away)!=str(away_id):
-        raise ValueError("ANALYSIS_AWAY_TEAM_ID_MISMATCH_WITH_SCHEDULE")
     current=data.get("currentPoints") or {}
     if isinstance(current,dict):
         for field,expected in (("homePoints",home_id),("awayPoints",away_id)):
