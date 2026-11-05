@@ -56,8 +56,8 @@ def match_slot(slot, runs):
     expected = slot["planned"]
     candidates = [r for r in runs if r.get("name") == slot["workflow"]
                   and r.get("event") == "schedule"
-                  and expected - timedelta(minutes=5) <= when(r["created_at"])
-                  <= expected + timedelta(minutes=180)]
+                  and expected <= when(r["created_at"])
+                  <= expected + timedelta(minutes=30)]
     if not candidates:
         return None
     return min(candidates, key=lambda r: abs((when(r["created_at"]) - expected).total_seconds()))
@@ -77,6 +77,7 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
     now = now.astimezone(timezone.utc)
     scheduled = []
     found = []
+    used_run_ids = set()
     problems = []
     artifacts = release_assets(releases)
     unique_runs = {}
@@ -91,7 +92,9 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
         unique_runs[rid] = run
     filtered = list(unique_runs.values())
     for slot in expected_slots(now, horizon_hours, grace_minutes):
-        run = match_slot(slot, filtered)
+        run = match_slot(slot, [r for r in filtered if r["id"] not in used_run_ids])
+        if run is not None:
+            used_run_ids.add(run["id"])
         scheduled.append({"workflow": slot["workflow"], "beijing_slot": slot["slot_beijing"],
                           "run_id": run.get("id") if run else None})
         if run is None:
@@ -136,6 +139,7 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
               "issues": problems, "slots": scheduled,
               "limitations": [
                   "GitHub cron arrival is best effort; a missing slot is an incident, not proof no game existed",
+                  "Run-to-slot mapping is inferred from creation within 30 minutes after the slot; later runs need explicit schedule evidence",
                   "NBA archive branch existence does not prove every original run has been backed up",
                   "Release asset names do not independently attest source bytes; SHA manifests require a separate restore test",
                   "PushPlus API acceptance is not iPhone/WeChat device delivery",
