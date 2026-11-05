@@ -140,7 +140,9 @@ def parse(raw,game,received_at):
                          "main_line":j==0,
                          "initial_quote":{"source_initial_time_unavailable":True,**first},
                          "latest_quote":{"modified_at_utc":when.isoformat(),**current}})
-        if not rows:
+        if not rows or not rows[0]["main_line"]:
+            # 007 JS defines the first details row as the primary quote.
+            # Never silently promote alternate lines when it is malformed.
             invalid+=1;continue
         name_cn=str(entry.get("nameCn") or "").strip()[:80]
         name_en=str(entry.get("nameEn") or "").strip()[:80]
@@ -166,7 +168,7 @@ def collect(snapshot,raw_dir,workers=3):
     if snapshot.get("schema_version")!="football-jc-007-v1":
         raise ValueError("NOT_007_FOOTBALL_SNAPSHOT")
     games=snapshot["games"]
-    if not isinstance(games,list) or len(games)>120:
+    if not isinstance(games,list) or len(games)>250:
         raise ValueError("TOO_MANY_007_FOOTBALL_GAMES")
     raw_dir=Path(raw_dir);raw_dir.mkdir(parents=True,exist_ok=True)
     manifest_file=raw_dir/"manifest.json"
