@@ -77,6 +77,30 @@ def audit(out):
    info["endpoint_hints"]=list(dict.fromkeys(hints))[:80]
    largest=max(html.inline,key=len,default="")
    if len(largest)>50000:
+    m=re.search(r"var\s+jsonData\s*=\s*",largest)
+    if m:
+     try:
+      structured,offset=json.JSONDecoder().raw_decode(largest[m.end():].lstrip())
+      info["embedded_json_parsed"]=True
+      info["embedded_json_id"]=structured.get("scheduleId")
+      info["embedded_top_keys"]=list(structured.keys())[:60]
+      for side in ("homeMatches","awayMatches"):
+       data=(structured.get("nearMatches") or {}).get(side) or {}
+       info.setdefault("recent_schema",{})[side]={
+        "keys":list(data.keys()),
+        "team_id":data.get("teamId"),
+        "count":len(data.get("matches") or []),
+        "sample_matches":(data.get("matches") or [])[:1]}
+      for side in ("homeInjury","awayInjury"):
+       group=(structured.get("injury") or {}).get(side) or []
+       info.setdefault("injury_schema",{})[side]={"count":len(group),"sample":group[:1]}
+      vs=structured.get("vsMatches")
+      info["h2h_schema"]={"state":"NULL" if vs is None else "PRESENT",
+                           "keys":list(vs.keys()) if isinstance(vs,dict) else [],
+                           "sample":str(vs)[:1200]}
+     except (ValueError,TypeError) as exc:
+      info["embedded_json_parsed"]=False
+      info["embedded_json_error"]=str(exc)[:100]
     info["largest_inline_prefix"]=largest[:1900]
     info["largest_inline_suffix"]=largest[-1100:]
     info["largest_inline_length"]=len(largest)
