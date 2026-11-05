@@ -8,6 +8,8 @@ on:
       - 'tests/test_football_007_asian_companies.py'
       - 'tests/test_football_007_asian_real_compare.py'
       - 'analysis/football_jc_dc_shadow.py'
+      - 'analysis/football_jc_asian_assimilation.py'
+      - 'tests/test_football_jc_asian_assimilation.py'
       - 'analysis/football_jc_market_reading.py'
       - 'analysis/football_jc_euro_asian.py'
       - 'tests/test_football_jc_euro_asian.py'
@@ -65,6 +67,9 @@ jobs:
         run: |
           python3 -B -m unittest discover -s tests -p test_football_007_asian_companies.py -v
           python3 -B -m unittest discover -s tests -p test_football_007_asian_real_compare.py -v
+      - name: Validate football 007 actual Asian market assimilation invariants (PR only)
+        if: github.event_name == 'pull_request'
+        run: python3 -B -m unittest discover -s tests -p test_football_jc_asian_assimilation.py -v
       - name: Capture live 007 three JC markets and prematch form H2H injury facts
         run: |
           python3 -B scripts/football_007_live_capture.py --out football-output/football_007_snapshot.json --raw-dir football-output/raw
@@ -77,10 +82,14 @@ jobs:
       - name: Audit actual 007 mobile H2H recent-form and injury source structure
         if: github.event_name != 'schedule'
         run: python3 -B scripts/football_007_mobile_probe.py
-      - name: Analyze captured board without inventing missing form, injuries or TTG quotes
+      - name: Analyze JC 3 markets from form and directly fuse verified multi-book Asian lines
         run: |
           python3 -B analysis/football_jc_probability.py --input football-output/football_007_snapshot.json --out football-output/football_jc_forecast.json
-          python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast.json --html football-output/football_jc_mobile.html
+          python3 -B analysis/football_jc_asian_assimilation.py \
+            --snapshot football-output/football_007_snapshot.json \
+            --baseline football-output/football_jc_forecast.json \
+            --out football-output/football_jc_forecast_market.json
+          python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast_market.json --html football-output/football_jc_mobile.html
       - name: Mandatory isolated euro-to-Asian interpretation of each football JC snapshot
         run: |
           python3 -B analysis/football_jc_euro_asian.py \
