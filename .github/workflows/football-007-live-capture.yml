@@ -420,13 +420,15 @@ jobs:
           if-no-files-found: warn
 
   football-final-and-morning-push:
-    needs: [live-football, archive-football-2130-final]
-    if: always() && needs.live-football.result == 'success' && github.event_name == 'schedule' && ((github.event.schedule == '30 13 * * *' && needs.archive-football-2130-final.result == 'success') || github.event.schedule == '30 22 * * *')
+    needs: [live-football, archive-football-2130-final, archive-football-raw-release]
+    if: always() && needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && github.event_name == 'schedule' && ((github.event.schedule == '30 13 * * *' && needs.archive-football-2130-final.result == 'success') || github.event.schedule == '30 22 * * *')
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 7
     permissions:
-      contents: read
+      contents: write
     env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
       FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.FOOTBALL_PUSHPLUS_TOKEN || secrets.PUSHPLUS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
@@ -439,7 +441,42 @@ jobs:
         with:
           name: football-007-live-source-evidence
           path: football-output
+      - name: Claim exactly one immutable scheduled 21:30 or 06:30 football notification
+        id: priority_claim
+        env:
+          TRIGGER_SCHEDULE: ${{ github.event.schedule || '' }}
+        run: |
+          set -euo pipefail
+          if [ -s football-output/no_future_fixtures.txt ]; then
+            echo "FOOTBALL_VERIFIED_EMPTY_NO_NOTIFICATION"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$TRIGGER_SCHEDULE" in
+            "30 13 * * *") SLOT="2130" ;;
+            "30 22 * * *") SLOT="0630" ;;
+            *) echo "::error::UNKNOWN_FOOTBALL_PRIORITY_SCHEDULE"; exit 1 ;;
+          esac
+          echo "PRIORITY_SLOT=$SLOT" >> "$GITHUB_ENV"
+          if [ -z "$FOOTBALL_PUSHPLUS_TOKEN" ]; then
+            echo "::error::NO_FOOTBALL_PUSHPLUS_TOKEN_ARCHIVE_ONLY"
+            exit 1
+          fi
+          day="$(TZ=Asia/Shanghai date +%Y%m%d)"
+          tag="football-007-raw-$day"
+          gh release view "$tag" >/dev/null
+          claim="football-push-$day-$SLOT.claim.json"
+          if gh release view "$tag" --json assets --jq '.assets[].name' | grep -Fxq "$claim"; then
+            echo "FOOTBALL_PRIORITY_ALREADY_CLAIMED_NO_DUPLICATE_SEND $day $SLOT"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '{"schema_version":"football-priority-push-claim-v1","day":"%s","slot":"%s","run_id":"%s","status":"CLAIMED_BEFORE_API_NO_AUTO_DUPLICATE_RETRY"}\n' "$day" "$SLOT" "$GITHUB_RUN_ID" > "$claim"
+          gh release upload "$tag" "$claim"
+          echo "FOOTBALL_PRIORITY_SLOT_PRECLAIMED $day $SLOT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
       - name: Send exactly one football message per scheduled 21:30/06:30
+        if: steps.priority_claim.outputs.skip != 'true'
         run: |
           if [ -s football-output/no_future_fixtures.txt ]; then
             echo "VERIFIED_EMPTY_FOOTBALL_SOURCE_NO_PUSH_AND_NO_FAKE_FINAL"
@@ -471,6 +508,20 @@ jobs:
             --movement football-output/football_capture_movement.json \
             --html-out football-output/football_jc_sent_preview.html \
             --status-out football-output/football_jc_send_status.json --send
+      - name: Preserve API response in immutable football Release receipt
+        if: success() && steps.priority_claim.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          x=json.load(open("football-output/football_jc_send_status.json",encoding="utf-8"))
+          assert x.get("status")=="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
+          assert (x.get("api_response") or {}).get("state")=="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
+          PY
+          day="$(TZ=Asia/Shanghai date +%Y%m%d)"
+          receipt="football-push-$day-$PRIORITY_SLOT.accepted.json"
+          cp football-output/football_jc_send_status.json "$receipt"
+          gh release upload "football-007-raw-$day" "$receipt"
       - name: Preserve API response (never call it device delivery)
         if: always()
         uses: actions/upload-artifact@v4
