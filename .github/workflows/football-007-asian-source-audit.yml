@@ -1,0 +1,31 @@
+name: Football 007 real multi-company Asian odds source audit
+on:
+  pull_request:
+    paths:
+      - 'scripts/football_007_multi_company_probe.py'
+      - '.github/workflows/football-007-asian-source-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Audit only Titan007 public Asian handicap multi-company site source (no production)
+        run: |
+          python3 -B -m py_compile scripts/football_007_multi_company_probe.py
+          python3 -B scripts/football_007_multi_company_probe.py --out football-output/multi-company-source-audit
+      - name: Preserve source evidence (not model or PushPlus)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-007-asian-source-audit
+          path: football-output/multi-company-source-audit/
+          retention-days: 30
