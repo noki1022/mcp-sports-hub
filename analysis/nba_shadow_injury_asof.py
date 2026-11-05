@@ -79,16 +79,21 @@ def stage(raw, board, day, now):
                          and rec.get("source_date_matches_tip") is True
                          and rec.get("capture_before_tip_verified") is True
                          and rec.get("parsed_player_ambiguity") is False
-                         and observed is not None and observed<=now and observed<tip
-                         and all(v=="PUBLISHED" for v in states)
-                         and all(p is not None for p in players)
-                         and rec.get("quality") in PUBLISHED)
+                         and observed is not None and observed<=now and observed<tip)
             if trustworthy:
-                entry.update({"source_status":"VERIFIED_OFFICIAL_REPORT",
+                verified=[state=="PUBLISHED" and player is not None
+                          for state,player in zip(states,players)]
+                entry.update({"source_status":("VERIFIED_OFFICIAL_REPORT" if all(verified)
+                              else "PARTIAL_VERIFIED_OFFICIAL_REPORT" if any(verified)
+                              else "OFFICIAL_CONTEXT_INCOMPLETE_OR_UNVERIFIED"),
                               "official_report_et_date":rec.get("source_report_et_date"),
-                              "captured_at_utc":observed.isoformat(),
-                              "home":{"report_state":"PUBLISHED","players":players[0]},
-                              "away":{"report_state":"PUBLISHED","players":players[1]}})
+                              "captured_at_utc":observed.isoformat()})
+                for side,valid,player,state in zip(("home","away"),verified,players,states):
+                    entry[side]={"report_state":"PUBLISHED" if valid else "UNKNOWN",
+                                 "players":player if valid else [],
+                                 "source_report_state":state,
+                                 "verification_blocker":None if valid else (
+                                     "INVALID_PLAYER_ROWS" if state=="PUBLISHED" else "TEAM_REPORT_NOT_PUBLISHED")}
             else:
                 entry["source_status"]="OFFICIAL_CONTEXT_INCOMPLETE_OR_UNVERIFIED"
         rows.append(entry)
@@ -108,7 +113,9 @@ def features(current, prior, gid, now, tip):
            "status_changes":[],"core_role_minutes_verified":False,
            "core_player_impact_points":None,"injury_adjusted_probability":None,
            "injury_signal_is_observational_only":True}
-    if r["source_status"]!="VERIFIED_OFFICIAL_REPORT":return empty
+    empty["both_team_reports_verified"]=(r["source_status"]=="VERIFIED_OFFICIAL_REPORT")
+    empty["team_report_states"]={side:r[side]["report_state"] for side in ("home","away")}
+    if r["source_status"] not in ("VERIFIED_OFFICIAL_REPORT","PARTIAL_VERIFIED_OFFICIAL_REPORT"):return empty
     when=clock(r.get("captured_at_utc"))
     if when is None or not when<=now<tip:
         raise ValueError("SHADOW_INJURY_FUTURE_OR_POSTTIP")
@@ -118,8 +125,10 @@ def features(current, prior, gid, now, tip):
     if prior and prior.get("schema_version")==SCHEMA and prior.get("target_date")==current.get("target_date"):
         old={str(x.get("game_id")):x for x in prior.get("games",[])}.get(str(gid))
         previous_time=clock(old.get("captured_at_utc")) if old else None
-        if old and old.get("source_status")=="VERIFIED_OFFICIAL_REPORT" and previous_time and previous_time<when:
+        if old and old.get("source_status") in ("VERIFIED_OFFICIAL_REPORT","PARTIAL_VERIFIED_OFFICIAL_REPORT") and previous_time and previous_time<when:
             for side in ("home","away"):
+                if old[side]["report_state"]!="PUBLISHED" or r[side]["report_state"]!="PUBLISHED":
+                    continue
                 before={p["name"].casefold():p["status"] for p in old[side]["players"]}
                 for p in r[side]["players"]:
                     oldstatus=before.get(p["name"].casefold())
@@ -159,8 +168,23 @@ def self_test():
     missing=stage(None,board,"2026-11-03",now)
     assert missing["games"][0]["source_status"]=="NO_SAME_SLOT_OFFICIAL_CONTEXT"
     assert not missing["games"][0]["home"]["players"]
+    # Preserve a verified team's facts without inventing the other team's health.
+    partial=stage({**raw,"games":[{**game,"quality":"UNKNOWN_OR_UNSUBMITTED",
+        "away":{"report_state":"NOT_YET_SUBMITTED","players":[]}}]},board,"2026-11-03",now)
+    observed=features(partial,prior,"728298",now,clock(board[0]["start_time_beijing"]))
+    assert observed["source_status"]=="PARTIAL_VERIFIED_OFFICIAL_REPORT"
+    assert len(observed["home_players"])==1 and not observed["away_players"]
+    assert not observed["both_team_reports_verified"]
+    assert observed["team_report_states"]["away"]=="UNKNOWN"
+    assert len(observed["status_changes"])==1
+    assert observed["injury_adjusted_probability"] is None
+    malformed=stage({**raw,"games":[{**game,"away":{"report_state":"PUBLISHED",
+        "players":[{"name":"bad","status":"unknown"}]}}]},board,"2026-11-03",now)
+    assert malformed["games"][0]["away"]["report_state"]=="UNKNOWN"
+    assert malformed["games"][0]["home"]["report_state"]=="PUBLISHED"
     print("SHADOW_OFFICIAL_INJURY_ASOF_NO_FAKE_ROLE_NO_FUTURE_SELFTEST_PASS")
 
 if __name__=="__main__":
     if sys.argv[1:]==["--self-test"]:self_test()
     else:raise SystemExit("Use --self-test; this module is imported by the independent shadow.")
+

@@ -6,8 +6,65 @@ from datetime import datetime
 import json
 from pathlib import Path
 import re
+import random
 from zoneinfo import ZoneInfo
 import nba_dual_model_final_2130_grade as grade
+
+
+def paired_uncertainty(rows, candidate, baseline):
+    """Resample whole dates so five markets/same-day games are not independent trials.
+
+    Few dates cannot yield a credible interval; never fabricate a zero-width CI.
+    This diagnostic neither selects variants nor permits promotion.
+    """
+    dates=sorted({r['target_date'] for r in rows})
+    delta=sum(r[candidate]-r[baseline] for r in rows)/len(rows) if rows else None
+    result={'paired_mean_difference':delta,'date_clusters':len(dates),
+            'bootstrap_95_interval':None,'status':'INSUFFICIENT_INDEPENDENT_DATES'}
+    if len(dates)<5:return result
+    clusters={d:[r[candidate]-r[baseline] for r in rows if r['target_date']==d] for d in dates}
+    rng=random.Random(2130);draws=[]
+    for _ in range(2000):
+        sample=[x for d in rng.choices(dates,k=len(dates)) for x in clusters[d]]
+        draws.append(sum(sample)/len(sample))
+    draws.sort()
+    return {**result,'bootstrap_95_interval':[draws[49],draws[1949]],
+            'status':'DESCRIPTIVE_DATE_CLUSTER_BOOTSTRAP_NOT_PROMOTION'}
+
+
+def candidate_summary(results,key):
+    rows=[dict(p,target_date=r['target_date']) for r in results
+          for p in r.get('candidate_probability_pairs_including_neutral',{}).get(key,[])]
+    output={}
+    for version in sorted({p['variant_version'] for p in rows}):
+        cohort=[p for p in rows if p['variant_version']==version]
+        ids=[(p['target_date'],p['game_id']) for p in cohort]
+        if len(ids)!=len(set(ids)):raise ValueError('DUPLICATE_CANDIDATE_FIXTURE_IN_SCORE')
+        directional=[p for p in cohort if p['candidate_hit'] is not None]
+        both=[p for p in directional if p['shadow_hit'] is not None]
+        def avg(group,field):return sum(p[field] for p in group)/len(group) if group else None
+        output[version]={
+            'probability_pairs_including_neutral':len(cohort),
+            'candidate_directional_n':len(directional),
+            'candidate_neutral_n':len(cohort)-len(directional),
+            'candidate_direction_coverage':len(directional)/len(cohort),
+            'candidate_accuracy_on_issued_directions':avg(directional,'candidate_hit'),
+            'original_accuracy_on_same_candidate_directions':avg(directional,'original_hit'),
+            'both_shadow_models_directional_n':len(both),
+            'candidate_accuracy_on_both_directional':avg(both,'candidate_hit'),
+            'shadow_accuracy_on_both_directional':avg(both,'shadow_hit'),
+            'original_brier':avg(cohort,'original_brier'),
+            'shadow_brier':avg(cohort,'shadow_brier'),
+            'candidate_brier':avg(cohort,'candidate_brier'),
+            'original_log_loss':avg(cohort,'original_log_loss'),
+            'shadow_log_loss':avg(cohort,'shadow_log_loss'),
+            'candidate_log_loss':avg(cohort,'candidate_log_loss'),
+            'candidate_minus_shadow_brier':paired_uncertainty(cohort,'candidate_brier','shadow_brier'),
+            'candidate_minus_original_brier':paired_uncertainty(cohort,'candidate_brier','original_brier'),
+            'candidate_minus_shadow_log_loss':paired_uncertainty(cohort,'candidate_log_loss','shadow_log_loss'),
+            'candidate_minus_original_log_loss':paired_uncertainty(cohort,'candidate_log_loss','original_log_loss'),
+        }
+    return output
 
 
 def eligible_days(ledger, repo, through, requested=None):
@@ -24,6 +81,8 @@ def eligible_days(ledger, repo, through, requested=None):
 
 
 def summarize(results):
+    if len({r['target_date'] for r in results})!=len(results):
+        raise ValueError('DUPLICATE_FINAL_EXAM_DATE')
     output = {}
     for key in grade.KEYS:
         pairs = [dict(row, target_date=r['target_date']) for r in results
@@ -38,6 +97,7 @@ def summarize(results):
         def avg(field):
             return sum(r[field] for r in pairs)/n if n else None
         output[key] = {
+            'research_candidate_by_version':candidate_summary(results,key),
             'paired_games': n, 'independent_beijing_dates': len(dates),
             'original_hits': sum(r['original_hit'] for r in pairs),
             'shadow_hits': sum(r['shadow_hit'] for r in pairs),
