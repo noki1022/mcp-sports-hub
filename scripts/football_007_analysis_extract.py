@@ -77,7 +77,9 @@ def recent(half,team_id,cutoff,limit=5):
             if t<946684800 or t>2208988800:continue
             played=datetime.fromtimestamp(t,UTC)
         except (ValueError,KeyError,TypeError,OverflowError):continue
-        if played>=cutoff:continue
+        # 007 exposes scheduled kickoff, but not a stable final/FT flag in
+        # every nearMatches record. Avoid treating a live game as a final score.
+        if (cutoff-played).total_seconds()<3*3600:continue
         home,away=match.get("homeTeam"),match.get("awayTeam")
         if not isinstance(home,dict) or not isinstance(away,dict):continue
         hid,aid=str(home.get("id")),str(away.get("id"))
@@ -113,7 +115,8 @@ def head_to_head(h2h,home_id,away_id,cutoff,limit=5):
         try:
             when=datetime.fromtimestamp(int(m["matchTime"]),UTC)
         except (ValueError,KeyError,TypeError,OverflowError):continue
-        if when>=cutoff:continue
+        # H2H likewise needs enough time to finish before using the score.
+        if (cutoff-when).total_seconds()<3*3600:continue
         h,a=m.get("homeTeam"),m.get("awayTeam")
         if not isinstance(h,dict) or not isinstance(a,dict):continue
         ids={str(h.get("id")),str(a.get("id"))}
@@ -181,6 +184,12 @@ def extract(raw,game,captured_at):
     away_id=away.get("teamId")
     if not isinstance(home_id,int) or not isinstance(away_id,int) or home_id==away_id:
         raise ValueError("BAD_ANALYSIS_TEAM_IDS")
+    expected_home=game.get("home_team_id_007")
+    expected_away=game.get("away_team_id_007")
+    if expected_home is not None and str(expected_home)!=str(home_id):
+        raise ValueError("ANALYSIS_HOME_TEAM_ID_MISMATCH_WITH_SCHEDULE")
+    if expected_away is not None and str(expected_away)!=str(away_id):
+        raise ValueError("ANALYSIS_AWAY_TEAM_ID_MISMATCH_WITH_SCHEDULE")
     current=data.get("currentPoints") or {}
     if isinstance(current,dict):
         for field,expected in (("homePoints",home_id),("awayPoints",away_id)):
