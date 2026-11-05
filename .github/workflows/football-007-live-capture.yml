@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/football_007_live_capture.py'
       - 'analysis/football_jc_dc_shadow.py'
+      - 'analysis/football_jc_market_reading.py'
+      - 'tests/test_football_jc_market_reading.py'
       - 'tests/test_football_jc_dc_shadow.py'
       - 'analysis/football_dc_shadow.py'
       - 'tests/test_football_dc_shadow.py'
@@ -46,6 +48,9 @@ jobs:
           python3 -B -m unittest discover -s tests -p test_football_007_cp_totals.py -v
           python3 -B -m unittest discover -s tests -p test_football_007_analysis_extract.py -v
           python3 -B -m unittest discover -s tests -p test_football_jc.py -v
+      - name: Validate 007 market-reading math without touching model or collection (PR only)
+        if: github.event_name == 'pull_request'
+        run: python3 -B -m unittest discover -s tests -p test_football_jc_market_reading.py -v
       - name: Capture live 007 three JC markets and prematch form H2H injury facts
         run: |
           python3 -B scripts/football_007_live_capture.py --out football-output/football_007_snapshot.json --raw-dir football-output/raw
