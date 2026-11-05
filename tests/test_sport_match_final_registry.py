@@ -2,6 +2,7 @@
 """No-leakage point-in-time regression tests for soccer and NBA."""
 import sys
 import unittest
+from tempfile import TemporaryDirectory
 from copy import deepcopy
 from datetime import datetime,timezone,timedelta
 from pathlib import Path
@@ -95,6 +96,22 @@ class TestRegistry(unittest.TestCase):
         broken["records"][0]["markets"]["had"]["direction"]="客胜"
         with self.assertRaisesRegex(ValueError,"BUNDLE_HASH"):
             S.select([broken],iso(TIP+timedelta(minutes=1)))
+    def test_append_once_final_does_not_overwrite_late_or_second_run(self):
+        old=S.make_candidate("football",*football(BASE),123,"2130")
+        snap,new=football(TIP-timedelta(minutes=8))
+        new["games"][0]["markets"]["had"]["direction"]="客胜"
+        newest=S.make_candidate("football",snap,new,124,"0630")
+        self.assertEqual(S.publishable_final_documents([old,newest],iso(TIP+timedelta(minutes=20))),[])
+        first=S.publishable_final_documents([old,newest],iso(TIP+timedelta(hours=2)))
+        self.assertEqual(len(first),1)
+        self.assertTrue(first[0]["prematch_lock_only_no_result_source_read"])
+        with TemporaryDirectory() as folder:
+            created=S.publish_finals([old,newest],iso(TIP+timedelta(hours=2)),folder)
+            self.assertEqual(created[0]["state"],"CREATED_APPEND_ONCE")
+            repeated=S.publish_finals([old,newest],iso(TIP+timedelta(hours=4)),folder)
+            self.assertEqual(repeated[0]["state"],"ALREADY_IDENTICAL")
+            with self.assertRaisesRegex(ValueError,"IMMUTABLE_FINAL"):
+                S.publish_finals([old],iso(TIP+timedelta(hours=4)),folder)
     def test_no_result_recalculation_all_unstarted_pending(self):
         b=S.make_candidate("basketball",*nba(),3,"1200")
         s=S.select([b],iso(BASE+timedelta(hours=1)))
