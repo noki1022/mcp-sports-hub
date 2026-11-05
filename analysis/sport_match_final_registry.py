@@ -58,7 +58,13 @@ def make_candidate(sport,snapshot,forecast,run_id,slot=""):
         originals={str(x["game_id"]):x for x in snapshot["nba_cba_games"] if x.get("league")=="NBA"}
         predictions=forecast["games"]
     require(captured<=generated,"PREDICTION_BEFORE_SOURCE_CAPTURE")
-    require(len(originals)==len(predictions) and bool(originals),"BOARD_IDENTITY_OR_COUNT_MISMATCH")
+    require(len(originals)==len(predictions),"BOARD_IDENTITY_OR_COUNT_MISMATCH")
+    # A verified football source can legitimately have no future JC fixtures.
+    # Do not invent a game or fail to archive the first captured empty slate.
+    if not originals:
+        require(sport=="football" and isinstance(snapshot.get("games"),list)
+                and (snapshot.get("source_provenance") or {}).get("state")=="VERIFIED_007_FEEDS_ZERO_FUTURE_JC_FIXTURES",
+                "EMPTY_BOARD_WITHOUT_VERIFIED_SOURCE_PROOF")
     seen=set()
     records=[]
     skipped=[]
