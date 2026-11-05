@@ -1,0 +1,67 @@
+name: Football JC independent research (manual only)
+on:
+  workflow_dispatch:
+    inputs:
+      snapshot_path:
+        description: "Committed pre-match 007 football evidence JSON path, not a URL"
+        required: true
+        default: "football/fixtures/007_verified_prematch.json"
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: football-jc-research-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate-and-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run football independent isolated unit tests
+        run: |
+          python3 -B -m unittest discover -s tests -p test_football_jc.py -v
+          python3 -B -m py_compile analysis/football_jc_probability.py analysis/football_jc_report.py
+      - name: Select committed evidence without path traversal
+        id: evidence
+        env:
+          INPUT_PATH: ${{ inputs.snapshot_path }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          given=Path(os.environ['INPUT_PATH'])
+          root=Path('football/fixtures').resolve()
+          file=given.resolve()
+          if not file.is_relative_to(root) or file.suffix!='.json':
+              raise SystemExit('EVIDENCE_MUST_BE_JSON_UNDER_FOOTBALL_FIXTURES')
+          if file.exists():
+              if file.stat().st_size>12000000: raise SystemExit('EVIDENCE_TOO_LARGE')
+              with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+                  out.write('available=true\n')
+                  out.write('path='+str(file)+'\n')
+          else:
+              with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+                  out.write('available=false\n')
+              print('NO_COMMITTED_VERIFIED_007_FOOTBALL_EVIDENCE: tests only, no forecast')
+          PY
+      - name: Generate three-market research forecast and mobile report
+        if: steps.evidence.outputs.available == 'true'
+        env:
+          SNAPSHOT: ${{ steps.evidence.outputs.path }}
+        run: |
+          mkdir -p football-output
+          python3 -B analysis/football_jc_probability.py --input "$SNAPSHOT" --out football-output/football_jc_forecast.json
+          python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast.json --html football-output/football_jc_mobile.html
+      - name: Upload audited offline research artifacts (no PushPlus)
+        if: steps.evidence.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-jc-research
+          path: football-output/
+          retention-days: 30
