@@ -143,7 +143,9 @@ class FusionTests(unittest.TestCase):
     entry["source_007_home_gives_goals"]=entry["signed_home_asian_handicap"]
     b=core.run(s)
     out=fuse.assimilate(s,b,MODEL)
-    self.assertEqual(out["market_assimilation_counts"]["applied"],0)
+    self.assertEqual(out["market_assimilation_counts"]["applied"],1)
+    self.assertEqual(out["games"][0]["market_assimilation"]["company_count_used"],7)
+    self.assertEqual(out["games"][0]["market_assimilation"]["company_count_rejected"],1)
  def test_baseline_snapshot_hash_must_match(self):
     s,b=with_quotes()
     s["games"][0]["jc_number"]="周四003"
