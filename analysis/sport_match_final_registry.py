@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+from zoneinfo import ZoneInfo
+import re
 
 SCHEMA="sport-match-pregame-candidates-v1"
 FINAL_SCHEMA="sport-match-pregame-final-v1"
@@ -177,6 +179,43 @@ def select(bundles,as_of):
     output["registry_sha256"]=digest(output)
     return output
 
+def publishable_final_documents(bundles,as_of,grace_minutes=90):
+    """Only mature kickoff-time finals; stable bytes, no postgame data input."""
+    require(type(grace_minutes) is int and 0<=grace_minutes<=1440,"INVALID_FINALIZATION_GRACE")
+    now=stamp(as_of)
+    idx=select(bundles,as_of)
+    finished=[]
+    for row in idx["matched_games"]:
+        if row["state"]!="LOCKED_AFTER_KICKOFF":
+            continue
+        if (now-stamp(row["kickoff_utc"])).total_seconds()<grace_minutes*60:
+            continue  # Give delayed GitHub Actions time to archive the last pretip run.
+        require(re.fullmatch(r"[0-9]{1,20}",row["match_id"]) is not None,"UNSAFE_MATCH_ID")
+        day=stamp(row["kickoff_utc"]).astimezone(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d")
+        # No as_of time in per-match document: identical evidence = identical immutable file.
+        final={k:deepcopy(row[k]) for k in ("sport","match_id","kickoff_utc",
+             "selection_rule","capture_utc","generated_utc","lead_minutes","window",
+             "run_id","model_version","jc_number","home_team","away_team",
+             "source_snapshot_sha256","forecast_sha256","original_candidate_sha256","markets")}
+        final["schema_version"]="sport-per-match-locked-final-v1"
+        final["kickoff_beijing_day"]=day
+        final["scoring_eligible_only_with_independently_verified_final_score"]=True
+        final["prematch_lock_only_no_result_source_read"]=True
+        final["final_sha256"]=digest(final)
+        finished.append(final)
+    return finished
+
+def publish_finals(bundles,as_of,out_dir,grace_minutes=90):
+    outputs=[]
+    for final in publishable_final_documents(bundles,as_of,grace_minutes):
+        # One append-once file per sport, official match id, kickoff Beijing day.
+        directory=Path(out_dir)/final["sport"]/final["kickoff_beijing_day"]
+        path=directory/(final["sport"]+"-"+final["match_id"]+".final.json")
+        state=save_once(path,final)
+        outputs.append({"path":str(path),"state":state,"match_id":final["match_id"],
+                        "sport":final["sport"],"forecast_sha256":final["forecast_sha256"]})
+    return outputs
+
 def save_once(path,document):
     dst=Path(path)
     dst.parent.mkdir(parents=True,exist_ok=True)
@@ -203,6 +242,12 @@ def main():
     s.add_argument("--bundle-dir")
     s.add_argument("--as-of",required=True)
     s.add_argument("--out",required=True)
+    q=sub.add_parser("finalize")
+    q.add_argument("--bundle",action="append",default=[])
+    q.add_argument("--bundle-dir")
+    q.add_argument("--as-of",required=True)
+    q.add_argument("--grace-minutes",type=int,default=90)
+    q.add_argument("--out-dir",required=True)
     a=p.parse_args()
     if a.command=="emit":
         doc=make_candidate(a.sport,json.loads(Path(a.snapshot).read_text(encoding="utf-8")),
@@ -216,7 +261,11 @@ def main():
             paths+=sorted(Path(a.bundle_dir).rglob("*match_candidates.json"))
         require(bool(paths),"MISSING_SNAPSHOT_CANDIDATES")
         docs=[json.loads(x.read_text(encoding="utf-8")) for x in paths]
-        result=select(docs,a.as_of)
-        print("PER_MATCH_PRETIP_FINAL",save_once(a.out,result),len(result["matched_games"]))
+        if a.command=="finalize":
+            outputs=publish_finals(docs,a.as_of,a.out_dir,a.grace_minutes)
+            print("MATCH_FINAL_APPEND_ONLY",len(outputs),sum(x["state"]=="CREATED_APPEND_ONCE" for x in outputs))
+        else:
+            result=select(docs,a.as_of)
+            print("PER_MATCH_PRETIP_FINAL",save_once(a.out,result),len(result["matched_games"]))
 
 if __name__=="__main__":main()
