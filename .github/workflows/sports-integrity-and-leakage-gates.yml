@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
   schedule:
     # 4 times/day, UTC; audit completed slots after a 3-hour delivery grace.
-    - cron: "35 */6 * * *"
+    - cron: "35 0,6,12,18 * * *"
 permissions:
   contents: read
   actions: read
