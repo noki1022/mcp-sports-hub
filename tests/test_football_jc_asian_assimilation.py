@@ -42,7 +42,7 @@ def snapshot():
        "games":[fixture()]}
 
 def with_quotes(n=8,shift=0.36,source_diff_minutes=1,
-                line=-.5,age_hours=1,one_expired=False):
+                line=-.5,age_hours=1,one_expired=False,names=None):
     s=snapshot()
     b=core.run(s)
     baseline=b["games"][0]["goal_expectation"]
@@ -54,7 +54,7 @@ def with_quotes(n=8,shift=0.36,source_diff_minutes=1,
         modified=CAP-timedelta(hours=age_hours)
         if one_expired and i==0:modified=CAP-timedelta(hours=200)
         items.append({
-          "company_id":i+1,"name_cn":f"机构{i+1}","name_en":f"Book{i+1}",
+          "company_id":i+1,"name_cn":(names[i] if names is not None else f"机构{i+1}"),"name_en":f"Book{i+1}",
           "main":{"main_line":True,"source_odds_id":10000+i,
              "initial_quote":{"signed_home_asian_handicap":line,
                               "source_007_home_gives_goals":-line,
@@ -86,7 +86,7 @@ class FusionTests(unittest.TestCase):
     p=out["games"][0]
     self.assertEqual(out["model_version"],fuse.VERSION)
     self.assertEqual(p["market_assimilation"]["status"],"APPLIED_BOUNDED_007_REAL_ASIAN")
-    self.assertEqual(p["market_assimilation"]["company_count_used"],8)
+    self.assertEqual(p["market_assimilation"]["company_count_used"],5)
     self.assertGreater(p["goal_expectation"]["home"],base["games"][0]["goal_expectation"]["home"])
     self.assertLess(p["goal_expectation"]["away"],base["games"][0]["goal_expectation"]["away"])
     self.assertGreater(p["markets"]["had"]["probabilities"]["主胜"],base["games"][0]["markets"]["had"]["probabilities"]["主胜"])
@@ -119,7 +119,7 @@ class FusionTests(unittest.TestCase):
     b=core.run(s)
     out=fuse.assimilate(s,b,MODEL)
     self.assertEqual(out["games"][0]["market_assimilation"]["status"],"APPLIED_BOUNDED_007_REAL_ASIAN")
-    self.assertEqual(out["games"][0]["market_assimilation"]["company_count_used"],7)
+    self.assertEqual(out["games"][0]["market_assimilation"]["company_count_used"],5)
  def test_market_source_after_model_generated_does_not_look_ahead(self):
     s,b=with_quotes(source_diff_minutes=11)
     out=fuse.assimilate(s,b,MODEL)
@@ -168,6 +168,37 @@ class FusionTests(unittest.TestCase):
     b=core.run(s)
     out=fuse.assimilate(s,b,MODEL)
     self.assertEqual(out["games"][0]["market_assimilation"]["reason"],"007_ASIAN_UNVERIFIED_ENDPOINT")
+ def test_priority_007_named_macao_william_bet365_ladbrokes_five_only(self):
+    names=["普通机构A","澳门","威廉希尔","Bet365","立博","Macauslot",
+           "普通机构B","普通机构C","澳門现金网"]
+    s,b=with_quotes(n=len(names),names=names)
+    out=fuse.assimilate(s,b,MODEL)
+    info=out["games"][0]["market_assimilation"]
+    self.assertEqual(info["status"],"APPLIED_BOUNDED_007_REAL_ASIAN")
+    self.assertEqual(info["company_count_used"],5)
+    self.assertEqual(info["preferred_company_count_available"],5)
+    self.assertEqual(info["preferred_company_count_used"],5)
+    self.assertEqual(info["fallback_company_count_used"],0)
+    self.assertEqual(set(info["selected_company_ids"]),{2,3,4,5,6})
+    self.assertEqual(set(info["selected_preferred_groups"]),
+                     {"澳门","威廉","Bet365","立博"})
+    self.assertEqual(info["company_count_valid_not_selected"],4)
+    self.assertEqual(len(info["company_line_evidence"]),5)
+ def test_priority_missing_one_family_fills_to_five_from_verified_other(self):
+    names=["普通机构甲","澳门","William Hill","Bet365","普通机构乙",
+           "普通机构丙","普通机构丁"]
+    s,b=with_quotes(n=len(names),names=names)
+    info=fuse.assimilate(s,b,MODEL)["games"][0]["market_assimilation"]
+    self.assertEqual(info["preferred_company_count_used"],3)
+    self.assertEqual(info["fallback_company_count_used"],2)
+    self.assertEqual(info["company_count_used"],5)
+    self.assertEqual(set(info["selected_company_ids"]),{1,2,3,4,5})
+ def test_priority_name_keyword_english_and_chinese_aliases(self):
+    for name,group in [("澳門", "澳门"),("Macau Slots","澳门"),
+                       ("威廉希尔","威廉"),("William Hill","威廉"),
+                       ("bet365","Bet365"),("立博","立博"),("Ladbrokes","立博")]:
+        self.assertEqual(fuse._priority_group({"name_cn":name,"name_en":""}),group)
+    self.assertIsNone(fuse._priority_group({"name_cn":"普通机构","name_en":""}))
  def test_baseline_snapshot_hash_must_match(self):
     s,b=with_quotes()
     s["games"][0]["jc_number"]="周四003"
