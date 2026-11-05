@@ -6,6 +6,7 @@ on:
       - 'scripts/football_007_mobile_probe.py'
       - 'scripts/football_007_deep_probe.py'
       - 'scripts/football_007_jc_market_probe.py'
+      - 'scripts/football_007_cp_probe.py'
       - 'tests/test_football_007_live_capture.py'
       - '.github/workflows/football-007-live-capture.yml'
   workflow_dispatch:
@@ -47,6 +48,9 @@ jobs:
       - name: Inspect verified JC site scripts for total-goals market endpoints (PR only)
         if: github.event_name == 'pull_request'
         run: python3 -B scripts/football_007_jc_market_probe.py
+      - name: Audit CP Titan007 exact Jingcai markets 101–104, including TTG (PR only)
+        if: github.event_name == 'pull_request'
+        run: python3 -B scripts/football_007_cp_probe.py --out football-output/cp-audit
       - name: Analyze captured board without inventing missing form, injuries or TTG quotes
         run: |
           python3 -B analysis/football_jc_probability.py --input football-output/football_007_snapshot.json --out football-output/football_jc_forecast.json
