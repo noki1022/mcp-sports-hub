@@ -1,0 +1,138 @@
+name: NBA silent 00-06 hourly five-market as-of capture (no PushPlus)
+on:
+  schedule:
+    # UTC 16..22 => Beijing 00:00, 01:00, ... 06:00.
+    - cron: "0 16-22 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nba-silent-0000-0600-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  silent-capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Resolve actual Beijing capture day and scheduled silent slot separately
+        env:
+          SCHEDULE: ${{ github.event.schedule || '' }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          from datetime import datetime,timezone
+          from zoneinfo import ZoneInfo
+          import os,re
+          bj=datetime.now(ZoneInfo("Asia/Shanghai"))
+          expr=os.environ["SCHEDULE"]
+          match=re.fullmatch(r"0 (1[6-9]|2[0-2]) \* \* \*",expr)
+          # Manual diagnostics have no promised slot. Do not masquerade as a scheduled capture.
+          slot=f"{(int(match.group(1))+8)%24:02d}00" if match else "MANUAL"
+          print("TARGET_DATE="+bj.date().isoformat())
+          print("NIGHT_SLOT="+slot)
+          print("ACTUAL_CAPTURE_STARTED_UTC="+datetime.now(timezone.utc).isoformat())
+          PY
+      - name: Install locked numerical and injury reader dependencies
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet "numpy==2.2.6" "pdfplumber==0.11.7"
+      - name: Retrieve 007 verified NBA board with bounded retries
+        run: |
+          mkdir -p nba-silent-output
+          for attempt in 1 2 3; do
+            if python3 scripts/titan007_join_beijing_verified.py --date "$TARGET_DATE" --out nba-silent-output/joined.json --allow-schedule-only; then break; fi
+            [ "$attempt" -eq 3 ] && exit 1
+            sleep 6
+          done
+          python3 - <<'PY'
+          import json,os
+          x=json.load(open("nba-silent-output/joined.json"))
+          assert x["requested_display_date"]==os.environ["TARGET_DATE"]
+          assert isinstance(x.get("nba_cba_games"),list)
+          print("VERIFIED_NIGHT_BOARD",len(x["nba_cba_games"]))
+          PY
+      - name: Analyze market, original five markets, real 007 companies and injury before any archival
+        env:
+          MARZDATA_APP_ID: ${{ secrets.MARZDATA_APP_ID }}
+          MARZDATA_APP_SECRET: ${{ secrets.MARZDATA_APP_SECRET }}
+          MARZDATA_STATIC_EGRESS_CONFIRMED: ${{ vars.MARZDATA_STATIC_EGRESS_CONFIRMED }}
+          MARZDATA_SLOT_ORDER_CONFIRMED: ${{ vars.MARZDATA_SLOT_ORDER_CONFIRMED }}
+        run: |
+          python3 analysis/nba_prediction_adapter.py --joined nba-silent-output/joined.json --out nba-silent-output/independent.json
+          python3 analysis/nba_official_injury.py --date "$TARGET_DATE" --out nba-silent-output/injury.json || {
+            echo "OFFICIAL_INJURY_UNAVAILABLE_OBSERVATIONAL_ONLY"
+            rm -f nba-silent-output/injury.json
+          }
+          python3 analysis/nba_injury_context.py --joined nba-silent-output/joined.json --injuries nba-silent-output/injury.json --out nba-silent-output/injury_context.json
+          python3 analysis/nba_model_report.py --joined nba-silent-output/joined.json --predictions nba-silent-output/independent.json --out-json nba-silent-output/model.json --out-html nba-silent-output/model.html --injury-context nba-silent-output/injury_context.json --impact-catalog config/nba_player_impact_validated.json
+          python3 scripts/titan007_jingcai_three_market.py --joined nba-silent-output/joined.json --out nba-silent-output/jingcai.json
+          python3 scripts/optional_007_enrichment.py collect --joined nba-silent-output/joined.json --out nba-silent-output/top10.json --analysis nba-silent-output/top10_compare.json --history-root reports/top10 --status nba-silent-output/top10_status.json --timeout 120
+          python3 scripts/optional_007_enrichment.py consensus --joined nba-silent-output/joined.json --top10 nba-silent-output/top10.json --out nba-silent-output/consensus.json --status nba-silent-output/consensus_status.json --timeout 25
+          python3 analysis/nba_five_markets.py --joined nba-silent-output/joined.json --model nba-silent-output/model.json --jingcai nba-silent-output/jingcai.json --top10 nba-silent-output/top10_compare.json --consensus nba-silent-output/consensus.json --out nba-silent-output/five_base.json
+          python3 analysis/nba_injury_prerequisite.py --five nba-silent-output/five_base.json --injury nba-silent-output/injury_context.json --model nba-silent-output/model.json --out nba-silent-output/five.json
+          python3 analysis/nba_five_market_integrity_gate.py --joined nba-silent-output/joined.json --five nba-silent-output/five.json --jingcai nba-silent-output/jingcai.json --out nba-silent-output/integrity.json
+          python3 analysis/sport_match_final_registry.py emit --sport basketball --snapshot nba-silent-output/joined.json --forecast nba-silent-output/five.json --run-id "$GITHUB_RUN_ID" --slot "$NIGHT_SLOT" --out nba-silent-output/nba_match_candidates.json
+      - name: Verify all evidence hashes and do not mix completed games into pretip scoring
+        run: |
+          python3 - <<'PY'
+          import json,os,hashlib
+          from datetime import datetime,timezone
+          from pathlib import Path
+          root=Path("nba-silent-output")
+          names=sorted(p.name for p in root.iterdir() if p.is_file() and p.suffix in (".json",".html"))
+          candidates=json.loads((root/"nba_match_candidates.json").read_text())
+          integrity=json.loads((root/"integrity.json").read_text())
+          assert integrity["status"]=="PASS"
+          assert candidates["schema_version"]=="sport-match-pregame-candidates-v1"
+          assert candidates["sport"]=="basketball"
+          assert len(candidates["records"])+len(candidates["skipped"])==candidates["total_source_games"]
+          entry={"schema_version":"nba-silent-asof-evidence-v1","beijing_date":os.environ["TARGET_DATE"],
+                 "planned_slot":os.environ["NIGHT_SLOT"],"actual_capture_started_utc":os.environ["ACTUAL_CAPTURE_STARTED_UTC"],
+                 "archived_at_utc":datetime.now(timezone.utc).isoformat(),"run_id":os.environ["GITHUB_RUN_ID"],
+                 "pushplus_called":False,
+                 "files_sha256":{name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in names}}
+          (root/"manifest.json").write_text(json.dumps(entry,ensure_ascii=False,indent=2)+"\n")
+          print("NBA_SILENT_FIVE_MARKET_VALIDATED",candidates["total_source_games"],"prematch",len(candidates["records"]),"skipped-after-start",len(candidates["skipped"]))
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-silent-${{ env.TARGET_DATE }}-${{ env.NIGHT_SLOT }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: nba-silent-output/
+          retention-days: 90
+          if-no-files-found: warn
+  durable-archive:
+    needs: silent-capture
+    if: needs.silent-capture.result == 'success' && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nba-silent-*-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: nba-silent-output/
+          merge-multiple: true
+      - name: Append only immutable snapshot bundle and lightweight final-selector candidates to GitHub Release
+        run: |
+          test -s nba-silent-output/manifest.json
+          test -s nba-silent-output/nba_match_candidates.json
+          day="$(TZ=Asia/Shanghai date +%Y%m%d)"
+          tag="nba-silent-actual-$day"
+          tarfile="nba-silent-$day-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}.tar.gz"
+          candidate="nba-candidates-$day-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}.json"
+          cp nba-silent-output/nba_match_candidates.json "$candidate"
+          tar -czf "$tarfile" nba-silent-output/
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target main --title "NBA hourly silent snapshot $day" --notes "Append-once; no notification or final-score model leakage."
+          fi
+          gh release upload "$tag" "$tarfile" "$candidate"
+          echo "NBA_HOURLY_SILENT_ARCHIVED=$tag"
