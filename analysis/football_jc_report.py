@@ -85,7 +85,7 @@ def render(report,comparison=None,mode=None):
     cards = []
     for game in report.get("games", []):
         title = (esc(game.get("jc_number")) + " · " + esc(game.get("league"))
-                 + "　" + esc(game.get("home_team")) + " vs " + esc(game.get("away_team")))
+                 + "　" + esc(game.get("home_team")) + "（主） vs " + esc(game.get("away_team")) + "（客）")
         kickoff = esc(beijing_clock(game.get("kickoff_beijing")))
         quality = game.get("data_quality") or {}
         details = "近5场 " + esc(quality.get("home_recent")) + "/" + esc(quality.get("away_recent"))
