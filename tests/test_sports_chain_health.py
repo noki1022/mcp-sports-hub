@@ -129,7 +129,7 @@ class TestCrossSportHealth(unittest.TestCase):
 
     def test_priority_job_response_filename_rejects_injection_and_accepts_real_run_id(self):
         import re
-        pattern = r"[0-9]{1,20}\\.json"
+        pattern = r"[0-9]{1,20}\.json"
         self.assertIsNotNone(re.fullmatch(pattern, "42120654124.json"))
         self.assertIsNone(re.fullmatch(pattern, "../42120654124.json"))
         self.assertIsNone(re.fullmatch(pattern, "42120654124.json.tmp"))
