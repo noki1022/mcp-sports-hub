@@ -29,6 +29,11 @@ def market_card(key, name, market):
     is_research = bool(probs)
     line = (f"<strong>{direction}　{percent(market.get('direction_probability'))}</strong>"
             if is_research else "<strong>暂无有效判断</strong>")
+    if key == "ttg" and (market.get("goal_selection") or {}).get("goals"):
+        chosen = market["goal_selection"]
+        direction = esc(" / ".join(chosen["goals"]))
+        line = ("<strong>进球数推荐：" + direction + "　合计概率 "
+                + percent(chosen.get("combined_probability")) + "</strong>")
     availability = ("｜竞彩赔率未核验" if odds is None else "｜已录入竞彩赔率")
     return (f"<div style='padding:7px 0;border-top:1px solid #edf1f5;'>"
             f"<div style='font-weight:650;color:#223;'> {esc(name)}{esc(suffix)}</div>"
