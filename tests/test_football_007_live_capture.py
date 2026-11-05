@@ -39,9 +39,12 @@ class TestLive(unittest.TestCase):
   s=live.collect({"fixtures":FIX,"jc_odds":data},CAP)
   self.assertIsNone(s["games"][0]["jc_markets"]["had"])
   self.assertIsNotNone(s["games"][0]["jc_markets"]["hhad"])
- def test_no_early_zero_game_claim(self):
-  with self.assertRaisesRegex(RuntimeError,"NO_VERIFIED_FUTURE"):
-   live.collect({"fixtures":FIX,"jc_odds":ODDS},datetime(2026,11,7,tzinfo=timezone.utc))
+ def test_verified_empty_future_board_preserves_real_source_evidence(self):
+  doc=live.collect({"fixtures":FIX,"jc_odds":ODDS},datetime(2026,11,7,tzinfo=timezone.utc))
+  self.assertEqual(doc["games"],[])
+  self.assertEqual(doc["source_provenance"]["coverage"]["future_jc_fixtures"],0)
+  self.assertEqual(doc["source_provenance"]["state"],"VERIFIED_007_FEEDS_ZERO_FUTURE_JC_FIXTURES")
+  self.assertEqual(len(doc["source_provenance"]["sha256"]["fixtures"]),64)
  def test_duplicate_odds_rejected(self):
   with self.assertRaisesRegex(ValueError,"DUPLICATE"):
    live.parse_odds(ODDS+b"!"+ODDS.split(b"!")[0])
