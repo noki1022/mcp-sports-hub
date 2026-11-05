@@ -7,6 +7,12 @@ on:
       - 'tests/test_football_007_live_capture.py'
       - '.github/workflows/football-007-live-capture.yml'
   workflow_dispatch:
+  schedule:
+    # Beijing 12:00, 18:00, 21:30, 06:30; source-only, no prediction push.
+    - cron: "0 4 * * *"
+    - cron: "0 10 * * *"
+    - cron: "30 13 * * *"
+    - cron: "30 22 * * *"
 permissions:
   contents: read
 concurrency:
@@ -31,6 +37,7 @@ jobs:
         run: |
           python3 -B scripts/football_007_live_capture.py --out football-output/football_007_snapshot.json --raw-dir football-output/raw
       - name: Audit actual 007 mobile H2H recent-form and injury source structure
+        if: github.event_name != 'schedule'
         run: python3 -B scripts/football_007_mobile_probe.py
       - name: Analyze captured board without inventing missing form, injuries or TTG quotes
         run: |
@@ -43,3 +50,34 @@ jobs:
           name: football-007-live-source-evidence
           path: football-output/
           retention-days: 90
+
+  archive-football-raw-release:
+    needs: live-football
+    if: always() && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: football-007-live-source-evidence
+          path: football-output
+      - name: Persist immutable football-only raw evidence in GitHub Release assets
+        run: |
+          test -s football-output/raw/fixtures.txt.gz
+          test -s football-output/raw/jc_odds.txt.gz
+          test -s football-output/raw/manifest.json
+          bj_day="$(TZ=Asia/Shanghai date +%Y%m%d)"
+          tag="football-007-raw-$bj_day"
+          archive="football-007-raw-$bj_day-run-${{ github.run_id }}.zip"
+          zip -q -r "$archive" football-output/
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target main --title "Football 007 raw $bj_day" \
+              --notes "Independent soccer JC raw source vault. No NBA data or prediction delivery."
+          fi
+          gh release upload "$tag" "$archive"
+          echo "FOOTBALL_007_RAW_RELEASE_ARCHIVED=$tag/$archive"
