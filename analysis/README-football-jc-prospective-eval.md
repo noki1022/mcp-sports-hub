@@ -37,6 +37,7 @@
 - 赛前快照散列与两个模型的输入散列必须相同，且每场预测真正生成于开球以前。
 - 007 比赛 ID、竞彩编号、北京时间、主客球队数字 ID 全部精确匹配；禁止按球队中文译名模糊关联。
 - 赛果只接受 007 原始来源、有效 SHA256、确定的 \`FT\` 终场标记，赛果抓取时间至少晚于开球 90 分钟。
+- 除了 JSON 中的来源 SHA256，还必须提供 \`--raw-results-dir\` 下以真实 007 比赛 ID 命名的 gzip 原始响应（例如 \`3075305.html.gz\`）。逐场解压并与 JSON 的 SHA256 比对；**仅提供自称正确的散列不够，缺原文则拒绝评分**。这证明归档字节和声明一致，但终场状态与比分字段真实性仍依赖未来独立核验的 007 赛果解析器。
 - 非竞彩在售玩法不计算该市场的「命中率」。例如 007 本菲卡比赛普通胜平负缺失，则只评估让球胜平负和总进球，不将胜平负缺价视为采集失败，也不记成错盘。
 - 所有正式概率分布必须验证概率和为 1；禁止用赛果重造模型数据或篡改已有概率。
 - 单场总进球最多两项，正确计算「两项任一命中」概率与命中率。全场结果只统计常规90分钟和补时，不含加时及点球。
@@ -59,6 +60,7 @@ python3 analysis/football_jc_prospective_score.py \
   --baseline football_jc_forecast.json \
   --shadow football_dc_candidate.json \
   --results football_007_final_results.json \
+  --raw-results-dir verified-007-final-html/ \
   --out football_jc_prospective_audit.json
 \`\`\`
 
