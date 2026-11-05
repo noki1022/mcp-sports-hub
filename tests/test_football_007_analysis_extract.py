@@ -54,6 +54,10 @@ class Tests(unittest.TestCase):
   obj=source();obj["scheduleId"]=3075306
   with self.assertRaisesRegex(ValueError,"FIXTURE_ID"):
    src.extract(html(obj),GAME,CAP.isoformat())
+ def test_team_side_crosscheck(self):
+  obj=source();obj["currentPoints"]["homePoints"]["teamId"]=1078
+  with self.assertRaisesRegex(ValueError,"TEAM_SIDE_CROSSCHECK"):
+   src.extract(html(obj),GAME,CAP.isoformat())
  def test_json_strict_no_eval(self):
   bad=b"<script>var jsonData = (function(){return 1})();</script>"
   with self.assertRaises(ValueError):src.decode_json(bad,"3075305")
