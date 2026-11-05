@@ -9,7 +9,8 @@ import urllib.request
 
 URLS=["https://jc.titan007.com/schedule.aspx","https://jc.titan007.com/index.aspx",
       "https://live.titan007.com/index2in1.aspx",
-      "https://zq.titan007.com/analysis/3075305cn.htm"]
+      "https://zq.titan007.com/analysis/3075305cn.htm",
+      "https://m.titan007.com/analy/Analysis/3075305.htm"]
 KEYS=("ajax","xml","json","live","schedule","jc","odds","spf","ttg","goal","score","data","match")
 class P(HTMLParser):
  def __init__(self): super().__init__();self.scripts=[];self.links=[];self.inline=[];self.in_script=False;self.buffer=[]
@@ -83,7 +84,7 @@ def inspect(url):
    except Exception as e:print("SOURCE_RAW_ERROR",url,type(e).__name__,str(e)[:130])
   out["inline_context"]=[v[:1500] for v in parsed.inline[:5]]
   out["html_context"]=page[:1900]
-  if "/analysis/" in url:
+  if "/analysis/" in url.lower():
    out["analysis_keywords"]={}
    for word in ("近期战绩","历史交锋","对赛往绩","伤停","伤病","缺阵","球员","近期","往绩","recent","h2h","injury"):
     idx=page.lower().find(word.lower())
