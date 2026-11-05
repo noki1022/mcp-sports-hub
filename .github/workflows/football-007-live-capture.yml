@@ -257,6 +257,101 @@ jobs:
           echo "FOOTBALL_MATCH_CANDIDATES=$tag/$candidate"
 
 
+  football-daytime-push:
+    needs: [live-football, archive-football-raw-release]
+    if: needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && github.event_name == 'schedule' && github.event.schedule != '30 13 * * *' && github.event.schedule != '30 22 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.FOOTBALL_PUSHPLUS_TOKEN || secrets.PUSHPLUS_TOKEN }}
+      TRIGGER_SCHEDULE: ${{ github.event.schedule || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: football-007-live-source-evidence
+          path: football-output
+      - name: Claim exactly one daytime football notification per scheduled Beijing hour
+        id: claim
+        run: |
+          if [ -z "$FOOTBALL_PUSHPLUS_TOKEN" ]; then
+            echo "::error::Missing PushPlus token. Source archived, not delivered."
+            exit 1
+          fi
+          SLOT="$(python3 - <<'PY'
+          import os,re
+          e=os.environ["TRIGGER_SCHEDULE"]
+          m=re.fullmatch(r"0 ([4-9]|1[0-3]) \* \* \*",e)
+          if not m:raise ValueError("NOT_DAYTIME_FOOTBALL_TRIGGER")
+          print(f"{int(m.group(1))+8:02d}00")
+          PY
+          )"
+          echo "DAYTIME_SLOT=$SLOT" >> "$GITHUB_ENV"
+          export DAYTIME_SLOT="$SLOT"
+          # GitHub schedule is best-effort. Never push a stale report as if punctual.
+          if ! python3 - <<'PY'
+          from datetime import datetime,timedelta
+          from zoneinfo import ZoneInfo
+          import os,sys
+          now=datetime.now(ZoneInfo("Asia/Shanghai"))
+          slot=os.environ["DAYTIME_SLOT"]
+          expected=now.replace(hour=int(slot[:2]),minute=0,second=0,microsecond=0)
+          lag=(now-expected).total_seconds()
+          sys.exit(0 if 0<=lag<=60*60 else 2)
+          PY
+          then
+            echo "::warning::STALE_DAYTIME_CAPTURE_ARCHIVED_BUT_SUPPRESS_DELAYED_PUSH"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          day="$(TZ=Asia/Shanghai date +%Y%m%d)"
+          tag="football-007-raw-$day"
+          claim="football-push-$day-$SLOT.claim.json"
+          if gh release view "$tag" --json assets --jq '.assets[].name' | grep -Fxq "$claim"; then
+            echo "DUPLICATE_FOOTBALL_SLOT_CLAIM_ALREADY_EXISTS"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '{"schema_version":"football-push-claim-v1","slot":"%s","run_id":"%s","status":"CLAIMED_BEFORE_API_NO_DUPLICATE_RETRY"}\n' "$SLOT" "$GITHUB_RUN_ID" > "$claim"
+          # Atomic asset name uniqueness: a failed claim must fail closed.
+          gh release upload "$tag" "$claim"
+          echo "FOOTBALL_DAYTIME_SLOT_PRECLAIMED $day $SLOT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+      - name: Send phone-friendly three-play integrated forecast after source is durably archived
+        if: steps.claim.outputs.skip != 'true'
+        run: |
+          python3 -B scripts/football_jc_slot_push.py \
+            --forecast football-output/football_jc_forecast_market.json \
+            --mode daytime --daytime-slot "$DAYTIME_SLOT" \
+            --html-out football-output/football_jc_sent_preview.html \
+            --status-out football-output/football_jc_send_status.json --send
+          test -s football-output/football_jc_send_status.json
+      - name: Append PushPlus API acceptance receipt; do not confuse with iPhone delivery
+        if: success() && steps.claim.outputs.skip != 'true'
+        run: |
+          day="$(TZ=Asia/Shanghai date +%Y%m%d)"
+          tag="football-007-raw-$day"
+          receipt="football-push-$day-$DAYTIME_SLOT.accepted.json"
+          cp football-output/football_jc_send_status.json "$receipt"
+          gh release upload "$tag" "$receipt"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-daytime-send-status-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            football-output/football_jc_send_status.json
+            football-output/football_jc_sent_preview.html
+          if-no-files-found: warn
+
   football-final-and-morning-push:
     needs: [live-football, archive-football-2130-final]
     if: always() && needs.live-football.result == 'success' && github.event_name == 'schedule' && ((github.event.schedule == '30 13 * * *' && needs.archive-football-2130-final.result == 'success') || github.event.schedule == '30 22 * * *')
