@@ -7,8 +7,6 @@ import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from pathlib import Path
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 MARKETS = (("had", "竞彩胜平负"), ("hhad", "竞彩让球胜平负"), ("ttg", "竞彩总进球数"))
 
@@ -82,8 +80,6 @@ def market_card(key, name, market):
 
 def render(report,comparison=None,mode=None):
     date = esc(report.get("beijing_date"))
-    slot=report.get("analysis_slot_beijing")
-    version_label="21:30最终评分版" if slot=="2130" else "06:30最新判断（评分仍以21:30为准）" if slot=="0630" else "模型研判"
     phase=mode or "research"
     tag={"final":"21:30最终评分版（已锁定）","update":"06:30动态更新｜以21:30为评分准绳"}.get(phase,"竞彩足球融合研判")
     cards = []
@@ -104,16 +100,6 @@ def render(report,comparison=None,mode=None):
                        + "　候选比分 " + esc(score.get("home")) + ":" + esc(score.get("away")))
         else:
             context = "数据未达到建模要求：" + esc(game.get("reason", "未提供有效赛前统计"))
-        change_html=""
-        for k,label in MARKETS:
-            item=(game.get("changes_from_2130") or {}).get(k)
-            if item:
-                change_html += ("<div style='border-left:3px solid #c47d23;padding:6px;font-size:12px'>"
-                                +esc(label)+" 改判：21:30 "+esc(item["at_2130"])
-                                +" → 06:30 "+esc(item["at_0630"])
-                                +"<div>依据："+esc(item["basis"])+"</div></div>")
-        if slot=="0630" and game.get("change_from_2130_status")=="BASELINE_NOT_FOUND":
-            change_html="<div style='color:#a35d25'>21:30冻结答卷缺失，无法核对改判</div>"
         market_html = "".join(market_card(k, n, (game.get("markets") or {}).get(k) or {})
                               for k, n in MARKETS)
         cards.append(
@@ -122,14 +108,12 @@ def render(report,comparison=None,mode=None):
             + "<div style='color:#607387;font-size:12px;margin:4px 0;'>北京时间 " + kickoff + "</div>"
             + "<div style='font-size:12px;color:#566a7e;line-height:1.5;margin:5px 0;'>"
             + context + "</div>"
-            + market_html + change_html
+            + market_html
             + change_notes(comparison,str(game.get("match_id")))
             + "<div style='color:#758497;font-size:11px;margin-top:6px;'>数据质量：" + details
             + "　状态：" + esc(game.get("status")) + "</div></section>")
     if not cards:
         cards.append("<p>当前没有通过验证的 007 足球赛前数据；不生成任何虚构推荐。</p>")
-    if slot=="0630" and report.get("0630_comparison_status")!="VERIFIED_2130_REPORT":
-        cards.insert(0,"<p style='color:#a35d25'>未取得21:30冻结版本，无法核实方向变化。</p>")
     return (
         "<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -137,7 +121,7 @@ def render(report,comparison=None,mode=None):
         "<body style='font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;"
         "background:#f4f6f9;color:#24364a;margin:0;padding:12px;max-width:700px;'>"
         "<header style='padding:10px 4px;'><h1 style='font-size:20px;margin:0;'>北京时间 "
-        + date + " 竞彩足球球赛研判</h1><b>"+esc(version_label)+"</b>"
+        + date + " 竞彩足球球赛研判</h1>"
         "<div style='font-size:12px;color:#5f7082;margin-top:6px;'>"
         + esc(tag) + "｜胜平负 / 让球胜平负 / 总进球数（三玩法）</div></header>"
         + "".join(cards)
