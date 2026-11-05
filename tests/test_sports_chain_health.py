@@ -122,7 +122,7 @@ class TestCrossSportHealth(unittest.TestCase):
     def test_older_run_with_advertised_cron_cannot_be_used_for_other_slot(self):
         runs, releases = source()
         target = next(r for r in runs if r["name"] == H.NBA_DAY)
-        target["name"] = "NBA full report | slot=0 0 * * * | date=auto"
+        target["name"] = "NBA full report | slot=7 0 * * * | date=auto"
         target["path"] = ".github/workflows/titan007-three-analysis.yml"
         result = H.audit(runs, releases, BRANCH, NOW)
         self.assertGreater(result["critical_count"], 0)
