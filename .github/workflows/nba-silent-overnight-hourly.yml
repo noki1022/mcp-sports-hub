@@ -2,7 +2,13 @@ name: NBA silent 00-06 hourly five-market as-of capture (no PushPlus)
 on:
   schedule:
     # UTC 16..22 => Beijing 00:00, 01:00, ... 06:00.
-    - cron: "0 16-22 * * *"
+    - cron: "0 16 * * *"
+    - cron: "0 17 * * *"
+    - cron: "0 18 * * *"
+    - cron: "0 19 * * *"
+    - cron: "0 20 * * *"
+    - cron: "0 21 * * *"
+    - cron: "0 22 * * *"
   workflow_dispatch:
 permissions:
   contents: read
