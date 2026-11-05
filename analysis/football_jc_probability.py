@@ -208,7 +208,7 @@ def build_match(game, captured):
         "home_recent": len(home), "away_recent": len(away), "h2h": len(h2h),
         "injury_state": injury_state,
         "injury_players": len(game.get("injuries", [])),
-        "source_evidence": ("LIVE_007_RAW_SHA256_CAPTURED" if game.get("source_url") == "https://jc.titan007.com/xml/bf_jc.txt" else "007_URL_DECLARED_NOT_INDEPENDENTLY_ATTESTED"),
+        "source_evidence": "007_URL_DECLARED_NOT_INDEPENDENTLY_ATTESTED",
         "data_gaps": game.get("data_gaps", []),
         "baseline": "UNTRAINED_HEURISTIC_UNCALIBRATED"}
     if not game.get("jc_number"):
