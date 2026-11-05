@@ -4,6 +4,8 @@ from __future__ import annotations
 import argparse
 import html
 import json
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 MARKETS = (("had", "竞彩胜平负"), ("hhad", "竞彩让球胜平负"), ("ttg", "竞彩总进球数"))
@@ -16,6 +18,40 @@ def esc(v):
 def percent(p):
     return "—" if p is None else f"{100 * float(p):.1f}%"
 
+
+def beijing_clock(raw):
+    try:
+        t=datetime.fromisoformat(str(raw).replace("Z","+00:00"))
+        if t.tzinfo is None:return "时间待核"
+        return t.astimezone(ZoneInfo("Asia/Shanghai")).strftime("%m月%d日 %H:%M")
+    except (ValueError,TypeError):
+        return "时间待核"
+
+def signed_home(n):
+    return "主"+(f"{n:+d}" if type(n) is int else "盘口待核")
+
+def direction_label(key,direction,handicap=None):
+    if key=="ttg":
+        if isinstance(direction,(tuple,list)):return " / ".join(direction)
+        return str(direction or "无有效判断")
+    if key=="hhad":
+        return str(direction or "无有效判断")+"（"+signed_home(handicap)+"）"
+    return str(direction or "无有效判断")
+
+def change_notes(comparison,mid):
+    if not comparison:return ""
+    item=next((x for x in comparison.get("games",[]) if x.get("match_id")==mid),None)
+    if not item:return ""
+    lines=[]
+    for change in item.get("changes",[]):
+        key=change["market"]
+        name=dict(MARKETS)[key]
+        old=direction_label(key,change["old"],change.get("old_home_handicap"))
+        new=direction_label(key,change["new"],change.get("new_home_handicap"))
+        lines.append("<div style='padding:6px 8px;background:#fff5e8;border-radius:6px;margin-top:5px;'>"
+                     "<b>06:30变更｜"+esc(name)+"</b>　21:30 "+esc(old)+" → 现在 <b>"+esc(new)+
+                     "</b><div style='font-size:12px;color:#80552d;'>依据："+esc(change["basis"])+"</div></div>")
+    return "".join(lines)
 
 def market_card(key, name, market):
     status = market.get("status", "UNAVAILABLE")
@@ -42,13 +78,15 @@ def market_card(key, name, market):
             f"<div style='font-size:11px;color:#8592a2;margin-top:2px;'>{esc(status)}{esc(availability)}</div></div>")
 
 
-def render(report):
+def render(report,comparison=None,mode=None):
     date = esc(report.get("beijing_date"))
+    phase=mode or "research"
+    tag={"final":"21:30最终评分版（已锁定）","update":"06:30动态更新｜以21:30为评分准绳"}.get(phase,"竞彩足球融合研判")
     cards = []
     for game in report.get("games", []):
         title = (esc(game.get("jc_number")) + " · " + esc(game.get("league"))
                  + "　" + esc(game.get("home_team")) + " vs " + esc(game.get("away_team")))
-        kickoff = esc(game.get("kickoff_beijing"))
+        kickoff = esc(beijing_clock(game.get("kickoff_beijing")))
         quality = game.get("data_quality") or {}
         details = "近5场 " + esc(quality.get("home_recent")) + "/" + esc(quality.get("away_recent"))
         listed = quality.get("injury_listed_players_unconfirmed")
@@ -71,6 +109,7 @@ def render(report):
             + "<div style='font-size:12px;color:#566a7e;line-height:1.5;margin:5px 0;'>"
             + context + "</div>"
             + market_html
+            + change_notes(comparison,str(game.get("match_id")))
             + "<div style='color:#758497;font-size:11px;margin-top:6px;'>数据质量：" + details
             + "　状态：" + esc(game.get("status")) + "</div></section>")
     if not cards:
@@ -84,7 +123,7 @@ def render(report):
         "<header style='padding:10px 4px;'><h1 style='font-size:20px;margin:0;'>北京时间 "
         + date + " 竞彩足球球赛研判</h1>"
         "<div style='font-size:12px;color:#5f7082;margin-top:6px;'>"
-        "仅竞彩：胜平负 · 让球胜平负 · 总进球数｜独立研究版</div></header>"
+        + esc(tag) + "｜胜平负 / 让球胜平负 / 总进球数（三玩法）</div></header>"
         + "".join(cards)
         + "<footer style='font-size:12px;color:#738196;line-height:1.6;margin:12px 3px;'>"
         "模型尚未完成真实赛前样本回测和概率校准；方向和概率不代表盈利保证。"
@@ -96,6 +135,8 @@ def render(report):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--forecast", required=True)
+    p.add_argument("--comparison")
+    p.add_argument("--mode",choices=("final","update","research"),default="research")
     p.add_argument("--html", default="football_jc_mobile.html")
     a = p.parse_args()
     data = json.loads(Path(a.forecast).read_text(encoding="utf-8"))
@@ -103,7 +144,9 @@ def main():
         raise SystemExit("NOT_FOOTBALL_JC_FORECAST")
     dest = Path(a.html)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(render(data), encoding="utf-8")
+    comparison=json.loads(Path(a.comparison).read_text(encoding="utf-8")) if a.comparison else None
+    if a.mode=="update" and comparison is None:raise SystemExit("0630_COMPARISON_REQUIRED")
+    dest.write_text(render(data,comparison,a.mode), encoding="utf-8")
     print("FOOTBALL_JC_MOBILE_REPORT", len(data.get("games", [])))
 
 
