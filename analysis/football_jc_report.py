@@ -81,7 +81,7 @@ def render(report):
         + "".join(cards)
         + "<footer style='font-size:12px;color:#738196;line-height:1.6;margin:12px 3px;'>"
         "模型尚未完成真实赛前样本回测和概率校准；方向和概率不代表盈利保证。"
-        "未核验的伤停、竞彩赔率或让球数必须明确标注；不使用皇冠盘口。"
+        "未核验的伤停、竞彩赔率或让球数必须明确标注；仅输出竞彩足球三玩法。"
         "采集时间 " + esc(report.get("captured_at_utc")) + "</footer></body></html>"
     )
 
