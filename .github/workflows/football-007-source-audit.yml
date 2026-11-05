@@ -1,0 +1,22 @@
+name: Audit public 007 football JC source (research)
+on:
+  pull_request:
+    paths:
+      - 'scripts/football_007_probe.py'
+      - '.github/workflows/football-007-source-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probe 007 public soccer pages and linked Javascript (no private endpoints)
+        run: python3 -B scripts/football_007_probe.py
