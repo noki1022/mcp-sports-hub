@@ -42,7 +42,7 @@ class TestPhoneReport(unittest.TestCase):
         self.assertIn("周五314",html)
         self.assertIn("110:100",html)
         self.assertIn("实际：",html)
-        self.assertIn("客赢盘",html)
+        self.assertIn("主赢盘",html)
         self.assertIn("（主-5.5）",html)
         self.assertIn("21:30留档不重复计分",html)
         for k in H.MARKET_ORDER["basketball"]:
