@@ -1,0 +1,24 @@
+name: Football 007 mobile Asian data endpoint audit
+on:
+  pull_request:
+    paths:
+      - 'scripts/football_007_asian_endpoint_probe.py'
+      - '.github/workflows/football-007-asian-endpoint-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect-json:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Confirm mobile 007 Asian source params and list real company/line/water field shapes
+        run: |
+          python3 -B -m py_compile scripts/football_007_asian_endpoint_probe.py
+          python3 -B scripts/football_007_asian_endpoint_probe.py
