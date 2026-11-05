@@ -197,10 +197,13 @@ def build_match(game, captured):
     home = validate_history(game.get("home_last5", []), asof, "HOME_FORM")[:5]
     away = validate_history(game.get("away_last5", []), asof, "AWAY_FORM")[:5]
     h2h = validate_history(game.get("h2h", []), asof, "H2H")[:5]
-    injuries = injury_effect(game.get("injuries", []), captured, kickoff)
     injury_state = game.get("injury_report_state", "UNVERIFIED")
     if injury_state not in ("VERIFIED", "UNVERIFIED", "UNAVAILABLE"):
         raise ValueError("INVALID_INJURY_REPORT_STATE")
+    reported_injuries = game.get("injuries", [])
+    if injury_state != "VERIFIED" and reported_injuries:
+        raise ValueError("UNVERIFIED_INJURIES_CANNOT_CHANGE_PROBABILITIES")
+    injuries = injury_effect(reported_injuries, captured, kickoff)
     base["data_quality"] = {
         "home_recent": len(home), "away_recent": len(away), "h2h": len(h2h),
         "injury_state": injury_state,
