@@ -9,6 +9,8 @@ on:
       - 'tests/test_football_007_asian_real_compare.py'
       - 'analysis/football_jc_asian_assimilation.py'
       - 'analysis/football_jc_final_2130.py'
+      - 'analysis/sport_match_final_registry.py'
+      - 'tests/test_sport_match_final_registry.py'
       - 'analysis/football_jc_single_final_review.py'
       - 'tests/test_football_jc_single_final_review.py'
       - 'analysis/football_jc_report.py'
@@ -31,10 +33,11 @@ on:
       - '.github/workflows/football-007-live-capture.yml'
   workflow_dispatch:
   schedule:
-    # Beijing 12:00, 18:00, 21:30 FINAL, 06:30 UPDATED; football-only.
-    - cron: "0 4 * * *"
-    - cron: "0 10 * * *"
+    # UTC: Beijing 12:00-21:00 hourly, 21:30 baseline, 00:00-06:00 silent, 06:30 update.
+    # Every slot captures independently; prior-day history missing never blocks first capture.
+    - cron: "0 4-13 * * *"
     - cron: "30 13 * * *"
+    - cron: "0 16-22 * * *"
     - cron: "30 22 * * *"
 permissions:
   contents: read
@@ -75,6 +78,9 @@ jobs:
       - name: Verify 21:30-only three-market football review and iPhone settled layout
         if: github.event_name == 'pull_request'
         run: python3 -B -m unittest discover -s tests -p test_football_jc_single_final_review.py -v
+      - name: Validate first capture and per-game football / NBA pretip final selection
+        if: github.event_name == 'pull_request'
+        run: python3 -B -m unittest discover -s tests -p test_sport_match_final_registry.py -v
       - name: Test one-model 21:30 lock and next-morning comparison
         if: github.event_name == 'pull_request'
         run: |
@@ -100,6 +106,15 @@ jobs:
             --baseline football-output/football_jc_forecast.json \
             --out football-output/football_jc_forecast_market.json
           python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast_market.json --html football-output/football_jc_mobile.html
+      - name: Store timestamp-hashed per-match candidates independently of 21:30 baseline
+        run: |
+          python3 -B analysis/sport_match_final_registry.py emit \
+            --sport football \
+            --snapshot football-output/football_007_snapshot.json \
+            --forecast football-output/football_jc_forecast_market.json \
+            --run-id '${{ github.run_id }}' \
+            --slot "$(TZ=Asia/Shanghai date +%H%M)" \
+            --out football-output/football_match_candidates.json
       - name: Freeze only scheduled Beijing 21:30 as sole football grading source
         if: github.event_name == 'schedule' && github.event.schedule == '30 13 * * *'
         run: |
@@ -213,8 +228,13 @@ jobs:
             gh release create "$tag" --target main --title "Football 007 raw $bj_day" \
               --notes "Independent soccer JC raw source vault. No NBA data or prediction delivery."
           fi
-          gh release upload "$tag" "$archive"
+          # Index candidates separately without unpacking the heavy raw vault later.
+          # Both filenames include run attempt; never --clobber an earlier source.
+          candidate="football-007-candidates-$bj_day-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}.json"
+          cp football-output/football_match_candidates.json "$candidate"
+          gh release upload "$tag" "$archive" "$candidate"
           echo "FOOTBALL_007_RAW_RELEASE_ARCHIVED=$tag/$archive"
+          echo "FOOTBALL_MATCH_CANDIDATES=$tag/$candidate"
 
 
   football-final-and-morning-push:
