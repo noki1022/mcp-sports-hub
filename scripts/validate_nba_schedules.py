@@ -20,6 +20,7 @@ workflows={
  "0 10 * * *","15 10 * * *","30 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *"],
  "nba-priority-2130.yml":["30 13 * * *","40 13 * * *"],
  "titan007-final-hourly.yml":[],
+ "sports-per-match-finalizer.yml":["25 * * * *"],
  "nba-silent-overnight-hourly.yml":["0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *"],
  "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
  # Complete allowlist: every scheduled workflow must be declared here.
@@ -154,6 +155,10 @@ def main():
     assert "pushplus_mobile.py" not in silent and "FOOTBALL_PUSHPLUS_TOKEN" not in silent
     assert "actions/upload-artifact@v4" in silent and "gh release upload" in silent
     assert "sport_match_final_registry.py emit" in silent
+    finalizer=(ROOT/".github/workflows/sports-per-match-finalizer.yml").read_text()
+    assert "sport_match_final_registry.py finalize" in finalizer
+    assert "pushplus_mobile.py" not in finalizer and "--clobber" not in finalizer
+    assert "gh release upload" in finalizer and "cmp" in finalizer
     # No automatic 22:00 auxiliary odds scan after the 21:30 final report.
     assert ("titan007-daily-free.yml","22:00") not in all_times
     assert ("nba-full-chain-e2e.yml","04:00") in all_times
