@@ -24,6 +24,8 @@ on:
     # Retry opportunities when GitHub drops/delays the 12:00 scheduled event.
     - cron: "15 4 * * *"
     - cron: "30 4 * * *"
+    # New Beijing 13:00 full-board capture, analysis and push.
+    - cron: "0 5 * * *"
     # Beijing 14:00 full-board report, plus delayed recovery triggers.
     - cron: "0 6 * * *"
     - cron: "15 6 * * *"
@@ -32,9 +34,15 @@ on:
     - cron: "0 7 * * *"
     - cron: "15 7 * * *"
     - cron: "30 7 * * *"
+    # Newly requested 16:00 / 17:00 complete reviews.
+    - cron: "0 8 * * *"
+    - cron: "0 9 * * *"
     - cron: "0 10 * * *"
     - cron: "15 10 * * *"
     - cron: "30 10 * * *"
+    # Newly requested 19:00 / 20:00 complete reviews.
+    - cron: "0 11 * * *"
+    - cron: "0 12 * * *"
     - cron: "0 13 * * *"
 permissions:
   contents: write
@@ -350,6 +358,15 @@ jobs:
           assert x["validation_state"]=="RESEARCH_ONLY_PENDING_CHRONOLOGICAL_OOS"
           print("DYNAMIC_FIVE_MARKET_SHADOW_GATE_PASS",x.get("status","OK_SHADOW"),x["game_count"])
           PY
+      - name: Hash original per-match five-play NBA predictions with immutable pretip timestamps
+        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
+        run: |
+          python3 analysis/sport_match_final_registry.py emit \
+            --sport basketball \
+            --snapshot titan007_three_joined.json \
+            --forecast nba_five_market_forecast.json \
+            --run-id "$GITHUB_RUN_ID" --slot "$REPORT_SLOT" \
+            --out nba_match_candidates.json
       - name: Generate mandatory NBA spread and total research verdicts from ten institutions
         if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
         run: |
@@ -410,7 +427,7 @@ jobs:
           if [ "$count" -gt 0 ]; then
             dir="reports/daily/${TARGET_DATE}/${REPORT_SLOT}"
             mkdir -p "$dir"
-            cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json titan007_three_decision.json titan007_three_movement.json nba_two_market_forecast.json nba_market_consensus.json nba_five_market_forecast.json nba_model_analysis.json nba_jingcai_three_market.json nba_injury_context.json nba_dynamic_five_market_shadow.json "$dir"/
+            cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json titan007_three_decision.json titan007_three_movement.json nba_two_market_forecast.json nba_market_consensus.json nba_five_market_forecast.json nba_model_analysis.json nba_jingcai_three_market.json nba_injury_context.json nba_dynamic_five_market_shadow.json nba_match_candidates.json "$dir"/
             git config user.name github-actions[bot]
             git config user.email 41898282+github-actions[bot]@users.noreply.github.com
             git add "$dir"
