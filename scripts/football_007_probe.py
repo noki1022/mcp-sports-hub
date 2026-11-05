@@ -66,6 +66,20 @@ def inspect(url):
                      list(dict.fromkeys(m for m in matches if any(k in m.lower() for k in KEYS)))[:30]})
    except Exception as e:scripts.append({"url":link,"error":type(e).__name__+":"+str(e)[:120]})
   out["scripts"]=scripts
+  for js_url in out["script_urls"]:
+   if "/js/football.js" in js_url or "/js/common.js" in js_url:
+    try:
+     body,_,_=fetch(js_url)
+     keys=("function loadData()", "function OddsListInit(", "function ScheduleListInit(", "scheduleDay:", "scheduleDay =", "function getOddsData(", "function getData(")
+     for key in keys:
+      i=body.find(key)
+      if i>=0:print("SOURCE_JS_DETAIL",js_url,key,repr(body[max(0,i-180):i+3000]))
+    except Exception as e:print("SOURCE_JS_DETAIL_ERROR",type(e).__name__)
+  for url in ("https://jc.titan007.com/xml/bf_jc.txt", "https://jc.titan007.com/xml/odds_jc.txt"):
+   try:
+    raw,digest,final=fetch(url)
+    print("SOURCE_RAW_SAMPLE",json.dumps({"url":final,"sha256":digest,"length":len(raw),"sample":raw[:2400]},ensure_ascii=False))
+   except Exception as e:print("SOURCE_RAW_ERROR",url,type(e).__name__,str(e)[:130])
   out["inline_context"]=[v[:1500] for v in parsed.inline[:5]]
   out["html_context"]=page[:1900]
  except Exception as e:out.update(http="ERROR",error=type(e).__name__+":"+str(e)[:200])
