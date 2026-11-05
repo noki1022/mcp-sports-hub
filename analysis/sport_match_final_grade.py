@@ -128,6 +128,7 @@ def basketball_grade(finals,scores,day):
     for item in per:
         f=byid[item["game_id"]]
         item["pregame_candidate_sha256"]=f["original_candidate_sha256"]
+        item["kickoff_utc"]=f["kickoff_utc"]
         for k,v in item["markets"].items():
             totals[k][v["outcome"]]+=1
     return per,totals
