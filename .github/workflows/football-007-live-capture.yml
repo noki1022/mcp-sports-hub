@@ -9,6 +9,8 @@ on:
       - 'tests/test_football_007_asian_real_compare.py'
       - 'analysis/football_jc_asian_assimilation.py'
       - 'analysis/football_jc_final_2130.py'
+      - 'analysis/football_jc_single_final_review.py'
+      - 'tests/test_football_jc_single_final_review.py'
       - 'analysis/football_jc_report.py'
       - 'tests/test_football_jc_final_2130.py'
       - 'scripts/football_jc_slot_push.py'
@@ -70,6 +72,9 @@ jobs:
       - name: Validate football 007 actual Asian market assimilation invariants (PR only)
         if: github.event_name == 'pull_request'
         run: python3 -B -m unittest discover -s tests -p test_football_jc_asian_assimilation.py -v
+      - name: Verify 21:30-only three-market football review and iPhone settled layout
+        if: github.event_name == 'pull_request'
+        run: python3 -B -m unittest discover -s tests -p test_football_jc_single_final_review.py -v
       - name: Test one-model 21:30 lock and next-morning comparison
         if: github.event_name == 'pull_request'
         run: python3 -B -m unittest discover -s tests -p test_football_jc_final_2130.py -v
