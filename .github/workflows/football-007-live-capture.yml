@@ -152,18 +152,23 @@ jobs:
           BJ_PREV="$(TZ=Asia/Shanghai date -d 'yesterday' +%Y%m%d)"
           tag="football-jc-final-$BJ_PREV"
           mkdir -p football-output/locked
-          gh release download "$tag" --pattern "football_jc_final_2130.json" --dir football-output/locked --clobber
-          test -s football-output/locked/football_jc_final_2130.json
-          python3 -B analysis/football_jc_final_2130.py --mode compare \
-            --locked football-output/locked/football_jc_final_2130.json \
-            --snapshot football-output/football_007_snapshot.json \
-            --forecast football-output/football_jc_forecast_market.json \
-            --out football-output/football_jc_0630_vs_2130.json
-          python3 -B analysis/football_jc_report.py --mode update \
-            --forecast football-output/football_jc_forecast_market.json \
-            --comparison football-output/football_jc_0630_vs_2130.json \
-            --html football-output/football_jc_mobile.html
-          test -s football-output/football_jc_0630_vs_2130.json
+          if gh release download "$tag" --pattern "football_jc_final_2130.json" --dir football-output/locked \
+              && test -s football-output/locked/football_jc_final_2130.json; then
+            python3 -B analysis/football_jc_final_2130.py --mode compare \
+              --locked football-output/locked/football_jc_final_2130.json \
+              --snapshot football-output/football_007_snapshot.json \
+              --forecast football-output/football_jc_forecast_market.json \
+              --out football-output/football_jc_0630_vs_2130.json
+            python3 -B analysis/football_jc_report.py --mode update \
+              --forecast football-output/football_jc_forecast_market.json \
+              --comparison football-output/football_jc_0630_vs_2130.json \
+              --html football-output/football_jc_mobile.html
+          else
+            echo "::warning::21:30 reference missing; 06:30 independent forecast still deliverable without a fake comparison."
+            python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast_market.json \
+              --html football-output/football_jc_mobile.html
+            echo "0630_PREVIOUS_REFERENCE_MISSING" > football-output/0630_baseline_missing.txt
+          fi
       - name: Mandatory isolated euro-to-Asian interpretation of each football JC snapshot
         run: |
           python3 -B analysis/football_jc_euro_asian.py \
@@ -211,8 +216,8 @@ jobs:
             exit 1
           fi
           gh release create "$tag" football-output/football_jc_final_2130.json \
-            --target main --title "Football 21:30 official scoring final $BJ_DAY" \
-            --notes "Football JC single final. Keep unmodified for grading. Never replace with 06:30."
+            --target main --title "Football 21:30 historical baseline $BJ_DAY" \
+            --notes "Immutable 21:30 comparison baseline. Actual official score grading must use each match's latest verified pretip final."
           echo "FOOTBALL_SINGLE_FINAL_ARCHIVED=$tag"
 
   archive-football-raw-release:
@@ -282,14 +287,21 @@ jobs:
             LOCK="football-output/football_jc_final_2130.json"
             MODE="final"
             EXTRA=()
-          else
+          elif [ -s football-output/locked/football_jc_final_2130.json ] \
+            && [ -s football-output/football_jc_0630_vs_2130.json ]; then
             LOCK="football-output/locked/football_jc_final_2130.json"
             MODE="update"
             EXTRA=(--comparison football-output/football_jc_0630_vs_2130.json)
+          else
+            LOCK=""
+            MODE="morning-standalone"
+            EXTRA=()
           fi
+          ARGS=()
+          if [ -n "$LOCK" ]; then ARGS+=(--locked "$LOCK"); fi
           python3 -B scripts/football_jc_slot_push.py \
             --forecast football-output/football_jc_forecast_market.json \
-            --locked "$LOCK" --mode "$MODE" "${EXTRA[@]}" \
+            --mode "$MODE" "${ARGS[@]}" "${EXTRA[@]}" \
             --html-out football-output/football_jc_sent_preview.html \
             --status-out football-output/football_jc_send_status.json --send
       - name: Preserve API response (never call it device delivery)
