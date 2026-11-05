@@ -248,11 +248,15 @@ def build_match(game, captured):
     home_lambda = 0.35 * 1.40 + 0.65 * math.sqrt(max(0.10, home_gf) * max(0.10, away_ga))
     away_lambda = 0.35 * 1.15 + 0.65 * math.sqrt(max(0.10, away_gf) * max(0.10, home_ga))
     if h2h:
-        h2h_home = weighted(h2h, 0, captured)
-        h2h_away = weighted(h2h, 1, captured)
-        w = min(0.12, len(h2h) * 0.024)
-        home_lambda = (1 - w) * home_lambda + w * h2h_home
-        away_lambda = (1 - w) * away_lambda + w * h2h_away
+        # Ancient H2H (sometimes >10 years old) decays below the effective
+        # threshold. Do not multiply an expectation by None or discard the game.
+        h2h_recent = [row for row in h2h if (captured - row[0]).days <= 1095]
+        h2h_home = weighted(h2h_recent, 0, captured)
+        h2h_away = weighted(h2h_recent, 1, captured)
+        if h2h_home is not None and h2h_away is not None:
+            w = min(0.12, len(h2h_recent) * 0.024)
+            home_lambda = (1 - w) * home_lambda + w * h2h_home
+            away_lambda = (1 - w) * away_lambda + w * h2h_away
     home_lambda = max(0.15, min(4.5, home_lambda + injuries["home_attack"] + injuries["away_conceded"]))
     away_lambda = max(0.15, min(4.5, away_lambda + injuries["away_attack"] + injuries["home_conceded"]))
     had, hhad, ttg, top = distribution(home_lambda, away_lambda, handicap)
