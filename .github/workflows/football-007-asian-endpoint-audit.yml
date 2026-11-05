@@ -1,9 +1,5 @@
 name: Football 007 mobile Asian data endpoint audit
 on:
-  pull_request:
-    paths:
-      - 'scripts/football_007_asian_endpoint_probe.py'
-      - '.github/workflows/football-007-asian-endpoint-audit.yml'
   workflow_dispatch:
 permissions:
   contents: read
