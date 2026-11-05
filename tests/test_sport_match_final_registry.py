@@ -20,7 +20,7 @@ def football(t=BASE,tip=TIP):
           "source_sha256":S.digest(snap),"captured_at_utc":iso(t),
           "generated_at_utc":iso(t+timedelta(minutes=1)),
           "games":[{"match_id":"3075305","jc_number":"周四010",
-                    "home_team":"甲","away_team":"乙",
+                    "home_team":"甲","away_team":"乙","kickoff_beijing":iso(tip),
                     "markets":{"had":{"direction":"主胜"},"hhad":{"direction":"让负"},
                                "ttg":{"goal_selection":{"goals":["2球","3球"]}}}}]}
     return snap,pred
