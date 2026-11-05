@@ -1,5 +1,10 @@
 name: Football JC independent research (manual only)
 on:
+  pull_request:
+    paths:
+      - 'analysis/football_jc_*.py'
+      - 'tests/test_football_jc.py'
+      - '.github/workflows/football-jc-research.yml'
   workflow_dispatch:
     inputs:
       snapshot_path:
@@ -30,7 +35,7 @@ jobs:
       - name: Select committed evidence without path traversal
         id: evidence
         env:
-          INPUT_PATH: ${{ inputs.snapshot_path }}
+          INPUT_PATH: ${{ inputs.snapshot_path || 'football/fixtures/007_verified_prematch.json' }}
         run: |
           python3 - <<'PY'
           import os
