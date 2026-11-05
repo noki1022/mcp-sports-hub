@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'scripts/football_007_live_capture.py'
+      - 'analysis/football_dc_shadow.py'
+      - 'tests/test_football_dc_shadow.py'
       - 'scripts/football_007_analysis_extract.py'
       - 'tests/test_football_007_analysis_extract.py'
       - 'scripts/football_007_mobile_probe.py'
@@ -42,6 +44,7 @@ jobs:
           python3 -B -m unittest discover -s tests -p test_football_007_cp_totals.py -v
           python3 -B -m unittest discover -s tests -p test_football_007_analysis_extract.py -v
           python3 -B -m unittest discover -s tests -p test_football_jc.py -v
+          python3 -B -m unittest discover -s tests -p test_football_dc_shadow.py -v
       - name: Capture live 007 three JC markets and prematch form H2H injury facts
         run: |
           python3 -B scripts/football_007_live_capture.py --out football-output/football_007_snapshot.json --raw-dir football-output/raw
@@ -52,6 +55,9 @@ jobs:
         run: |
           python3 -B analysis/football_jc_probability.py --input football-output/football_007_snapshot.json --out football-output/football_jc_forecast.json
           python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast.json --html football-output/football_jc_mobile.html
+      - name: Produce independent football Dixon-Coles challenger (shadow only, no notification)
+        run: |
+          python3 -B analysis/football_dc_shadow.py predict --snapshot football-output/football_007_snapshot.json --baseline football-output/football_jc_forecast.json --out football-output/football_dc_shadow.json
       - name: Upload 007 source audit and research outputs, never push basketball or football
         if: always()
         uses: actions/upload-artifact@v4
