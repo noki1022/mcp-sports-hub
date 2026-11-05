@@ -14,9 +14,10 @@ risk checks are separate from the desire to emit one observable direction.
 """
 from __future__ import annotations
 import argparse,json,math,re
-from datetime import datetime,timezone
+from datetime import date as iso_date, datetime,timezone
 from pathlib import Path
 from nba_market_consensus import selection_context
+from sports_dynamic_inputs import nba_paths, read_history
 
 MARKETS=("JINGCAI_WIN","JINGCAI_HANDICAP","JINGCAI_TOTAL","CROWN_HANDICAP","CROWN_TOTAL")
 LABELS={"JINGCAI_WIN":"竞彩胜负","JINGCAI_HANDICAP":"竞彩让分","JINGCAI_TOTAL":"竞彩大小分",
@@ -78,7 +79,7 @@ def selection(market,diff,line,price=None,observed_at=None,source=None,status="O
             "source":source,"source_id":source_id,"captured_at_utc":observed_at,
             "note":"冻结研究方向；不等于经历史验证的投注优势"}
 
-def make(joined,model,jc,top10,consensus=None):
+def make(joined,model,jc,top10,consensus=None,history=None):
     date=joined.get("requested_display_date")
     board=idx([g for g in joined.get("nba_cba_games",[]) if g.get("league")=="NBA"])
     preds=idx(model.get("games",[]))
@@ -213,6 +214,18 @@ def make(joined,model,jc,top10,consensus=None):
                 margin, total, n(p.get("margin_sigma")), n(p.get("total_sigma")),
                 consensus_market)
 
+        dynamic=nba_paths(consensus or {},history or [],consensus_rows.get(gid,{}) or {"game_id":gid},p)
+        spread_path=dynamic.get("full_spread",{}); total_path=dynamic.get("full_total",{})
+        implied_margin=spread_path.get("current_center"); implied_total=total_path.get("current_center")
+        joint={"injury_adjustment_status":(p.get("injury_adjustment") or {}).get("status","NOT_PROVIDED"),
+               "injury_cause_not_inferred_from_odds":True,"probability_uplift_not_validated":True}
+        if implied_margin is not None and implied_total is not None:
+            joint.update(market_implied_home_points=(implied_total+implied_margin)/2,
+                         market_implied_away_points=(implied_total-implied_margin)/2)
+        dynamic["joint_score_context"]=joint
+        for market in MARKETS:
+            kind="full_total" if market.endswith("TOTAL") else "full_spread"
+            selected[market]["dynamic_market_path"]=dynamic.get(kind,{"status":"NO_VALID_PATH"})
         assert set(selected)==set(MARKETS)
         rows.append({"game_id":gid,"nba_game_id":g.get("nba_game_id"),
           "jingcai_number":label if verified else None,
@@ -221,6 +234,7 @@ def make(joined,model,jc,top10,consensus=None):
           "home_team":g.get("home_team"),"away_team":g.get("away_team"),
           "tipoff_beijing":g.get("start_time_beijing"),
           "model_margin_home_minus_away":margin,"model_total":total,
+          "dynamic_market_analysis":dynamic,
           "markets":selected})
     return {"schema_version":"nba-five-markets-v1",
       "target_date":date,"board_capture_utc":joined.get("captured_at_utc"),
@@ -357,13 +371,18 @@ def self_test():
 
 if __name__=="__main__":
     a=argparse.ArgumentParser()
+    a.add_argument("--history-root",default="reports/daily")
     a.add_argument("--joined");a.add_argument("--model");a.add_argument("--jingcai");a.add_argument("--top10");a.add_argument("--consensus");a.add_argument("--out");a.add_argument("--self-test",action="store_true")
     v=a.parse_args()
     if v.self_test:self_test()
     else:
         if not all((v.joined,v.model,v.jingcai,v.top10,v.out)):raise SystemExit("REQUIRED_INPUT_MISSING")
         def load(p):return json.loads(Path(p).read_text(encoding="utf-8"))
-        o=make(load(v.joined),load(v.model),load(v.jingcai),load(v.top10),
-               load(v.consensus) if v.consensus else None)
+        board=load(v.joined)
+        cohort=iso_date.fromisoformat(board["requested_display_date"]).isoformat()
+        o=make(board,load(v.model),load(v.jingcai),load(v.top10),
+               load(v.consensus) if v.consensus else None,
+               read_history(Path(v.history_root)/cohort,"nba_market_consensus.json"))
         Path(v.out).write_text(json.dumps(o,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         print("NBA_FIVE_MARKETS_PRODUCED",json.dumps({"games":o["game_count"],"counts":o["ready_counts"]},ensure_ascii=False))
+

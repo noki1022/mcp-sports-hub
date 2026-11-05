@@ -34,9 +34,11 @@ from urllib.parse import urlsplit, parse_qs
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 import football_jc_probability as core
 import football_jc_euro_asian as euro
+from sports_market_path import describe, risk_multiplier
+from sports_dynamic_inputs import read_history
 
-VERSION="football-jc-poisson-asian-assimilation-v2"
-ASSIMILATION="007_AH_PREFERRED_5_BOOKMAKER_MAIN_LINES_BOUNDED_V2"
+VERSION="football-jc-poisson-asian-assimilation-v3"
+ASSIMILATION="007_AH_PREFERRED_5_BOOKMAKER_TEMPORAL_RISK_V3"
 SOURCE_VERSION="football-jc-poisson-research-v1"
 MAX_SNAPSHOT_BYTES=20_000_000
 MIN_COMPANIES=5
@@ -309,7 +311,35 @@ def _redo_forecast(game,row,new_lh,new_la):
     row["top_score"]={"home":top[0],"away":top[1]}
     return row
 
-def assimilate(snapshot,original,model_at=None):
+def football_path(game,row,current,history,captured,model_at):
+    """Re-invert old prices at today's SAME independent total and baseline.
+
+    This separates market movement from a changed team/lineup expectation.
+    Only verified old raw snapshots, never old model predictions, are inputs.
+    """
+    def point(e):
+        return {"at":e["source_captured_at_utc"],"quotes":[
+            {"company_id":q["company_id"],"value":e["baseline_home"]-e["baseline_away"]+q["inferred_difference_shift"]}
+            for q in e["bookmaker_evidence"]]}
+    points=[]
+    for doc in history:
+        try:
+            if doc.get("schema_version")!="football-jc-007-v1":continue
+            old_at=_safetime(doc["captured_at_utc"])
+            if old_at>=captured or (captured-old_at).total_seconds()>172800:continue
+            games=[g for g in doc.get("games",[]) if str(g.get("match_id"))==str(game["match_id"])]
+            if len(games)!=1:continue
+            previous=games[0]
+            if any(previous.get(k)!=game.get(k) for k in ("home_team","away_team","kickoff_beijing")):continue
+            evidence,_=_market_evidence(previous,row,old_at,model_at)
+            if evidence is not None and _safetime(evidence["source_captured_at_utc"])<_safetime(current["source_captured_at_utc"]):
+                points.append(point(evidence))
+        except (ValueError,TypeError,KeyError,OverflowError):continue
+    points.append(point(current))
+    return describe(points,asof=model_at.isoformat(),kickoff=game["kickoff_beijing"],tolerance=.005)
+
+
+def assimilate(snapshot,original,model_at=None,history=None):
     """Preserve original forecast separately; return a new market-aware report."""
     if snapshot.get("schema_version")!="football-jc-007-v1":
         raise ValueError("NOT_FOOTBALL_007_SNAPSHOT")
@@ -355,9 +385,11 @@ def assimilate(snapshot,original,model_at=None):
             row["market_assimilation"]={"status":"NO_CHANGE","reason":reason}
             counts["left_independent"]+=1
             continue
+        path=football_path(game,row,evidence,history or [],captured,model_at)
+        attenuation=risk_multiplier(path)
         shift=evidence["median_unshrunk_difference_shift"]
         applied=max(-MAX_APPLIED_DIFFERENCE_GOALS,
-                    min(MAX_APPLIED_DIFFERENCE_GOALS,BASE_SHRINKAGE*shift))
+                    min(MAX_APPLIED_DIFFERENCE_GOALS,BASE_SHRINKAGE*shift))*attenuation
         h,a=evidence["baseline_home"],evidence["baseline_away"]
         new_h,new_a=_goals_at_shift(h,a,applied)
         if abs((new_h+new_a)-(h+a))>1e-9:
@@ -366,6 +398,8 @@ def assimilate(snapshot,original,model_at=None):
         # Record old expectation and exact update for reproducible comparison.
         row["market_assimilation"]={
             "status":"APPLIED_BOUNDED_007_REAL_ASIAN",
+            "dynamic_market_path":path,
+            "dynamic_risk_multiplier":attenuation,
             "assumptions":"UNTRAINED_HEURISTIC_MARKET_UPDATE_NOT_CALIBRATED",
             "source_sha256":evidence["source_sha256"],
             "source_captured_at_utc":evidence["source_captured_at_utc"],
@@ -401,6 +435,7 @@ def assimilate(snapshot,original,model_at=None):
 
 def cli():
     p=argparse.ArgumentParser()
+    p.add_argument("--history-root",default="football-history")
     p.add_argument("--snapshot",required=True)
     p.add_argument("--baseline",required=True)
     p.add_argument("--out",required=True)
@@ -409,9 +444,11 @@ def cli():
         data=Path(path).read_bytes()
         if len(data)>MAX_SNAPSHOT_BYTES:raise ValueError("OVERSIZED_FOOTBALL_DOCUMENT")
         return json.loads(data)
-    report=assimilate(read(args.snapshot),read(args.baseline))
+    report=assimilate(read(args.snapshot),read(args.baseline),
+                      history=read_history(args.history_root,"football_007_snapshot*.json"))
     target=Path(args.out);target.parent.mkdir(parents=True,exist_ok=True)
     target.write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print("FOOTBALL_REAL_007_ASIAN_FUSED",json.dumps(report["market_assimilation_counts"],
                                                 ensure_ascii=False),"research not calibrated")
 if __name__=="__main__":cli()
+
