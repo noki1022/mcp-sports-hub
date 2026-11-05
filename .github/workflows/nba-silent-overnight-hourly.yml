@@ -61,7 +61,30 @@ jobs:
           assert isinstance(x.get("nba_cba_games"),list)
           print("VERIFIED_NIGHT_BOARD",len(x["nba_cba_games"]))
           PY
+      - name: Verify source-backed zero NBA off-day before any probability inference
+        id: offday
+        run: |
+          COUNT="$(python3 -c 'import json;print(sum(g.get("league")=="NBA" for g in json.load(open("nba-silent-output/joined.json")).get("nba_cba_games",[])))')"
+          if [ "$COUNT" = "0" ]; then
+            python3 scripts/nba_verified_offday.py --joined nba-silent-output/joined.json --target "$TARGET_DATE" --probe
+            python3 - <<'PY'
+          import os,json,hashlib
+          from pathlib import Path
+          p=Path("nba-silent-output/joined.json")
+          result={"schema_version":"nba-night-verified-offday-v1",
+                  "target_date":os.environ["TARGET_DATE"],
+                  "planned_slot":os.environ["NIGHT_SLOT"],
+                  "joined_source_sha256":hashlib.sha256(p.read_bytes()).hexdigest(),
+                  "independent_official_zero_game_confirmation":True,
+                  "models_and_pushplus_not_invoked":True}
+          Path("nba-silent-output/verified_offday.json").write_text(json.dumps(result,sort_keys=True)+"\n")
+          PY
+            echo "verified=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "verified=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Analyze market, original five markets, real 007 companies and injury before any archival
+        if: steps.offday.outputs.verified != 'true'
         env:
           MARZDATA_APP_ID: ${{ secrets.MARZDATA_APP_ID }}
           MARZDATA_APP_SECRET: ${{ secrets.MARZDATA_APP_SECRET }}
@@ -83,6 +106,7 @@ jobs:
           python3 analysis/nba_five_market_integrity_gate.py --joined nba-silent-output/joined.json --five nba-silent-output/five.json --jingcai nba-silent-output/jingcai.json --out nba-silent-output/integrity.json
           python3 analysis/sport_match_final_registry.py emit --sport basketball --snapshot nba-silent-output/joined.json --forecast nba-silent-output/five.json --run-id "$GITHUB_RUN_ID" --slot "$NIGHT_SLOT" --out nba-silent-output/nba_match_candidates.json
       - name: Verify all evidence hashes and do not mix completed games into pretip scoring
+        if: steps.offday.outputs.verified != 'true'
         run: |
           python3 - <<'PY'
           import json,os,hashlib
@@ -103,6 +127,22 @@ jobs:
                  "files_sha256":{name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in names}}
           (root/"manifest.json").write_text(json.dumps(entry,ensure_ascii=False,indent=2)+"\n")
           print("NBA_SILENT_FIVE_MARKET_VALIDATED",candidates["total_source_games"],"prematch",len(candidates["records"]),"skipped-after-start",len(candidates["skipped"]))
+          PY
+      - name: Archive real zero-game NBA capture without fake five-market forecasts
+        if: steps.offday.outputs.verified == 'true'
+        run: |
+          python3 - <<'PY'
+          import json,os,hashlib
+          from pathlib import Path
+          root=Path("nba-silent-output")
+          files={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in root.glob("*.json")}
+          doc={"schema_version":"nba-silent-asof-evidence-v1",
+               "beijing_date":os.environ["TARGET_DATE"],"planned_slot":os.environ["NIGHT_SLOT"],
+               "run_id":os.environ["GITHUB_RUN_ID"],"verified_offday":True,
+               "pushplus_called":False,"no_five_market_forecast_generated":True,
+               "files_sha256":files}
+          (root/"manifest.json").write_text(json.dumps(doc,ensure_ascii=False,indent=2)+"\n")
+          print("NBA_VERIFIED_NIGHT_OFFDAY_NO_FAKE_PICKS")
           PY
       - if: always()
         uses: actions/upload-artifact@v4
@@ -130,15 +170,21 @@ jobs:
       - name: Append only immutable snapshot bundle and lightweight final-selector candidates to GitHub Release
         run: |
           test -s nba-silent-output/manifest.json
-          test -s nba-silent-output/nba_match_candidates.json
+          test -s nba-silent-output/joined.json
           day="$(TZ=Asia/Shanghai date +%Y%m%d)"
           tag="nba-silent-actual-$day"
           tarfile="nba-silent-$day-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}.tar.gz"
-          candidate="nba-candidates-$day-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}.json"
-          cp nba-silent-output/nba_match_candidates.json "$candidate"
           tar -czf "$tarfile" nba-silent-output/
           if ! gh release view "$tag" >/dev/null 2>&1; then
             gh release create "$tag" --target main --title "NBA hourly silent snapshot $day" --notes "Append-once; no notification or final-score model leakage."
           fi
+          if [ -s nba-silent-output/verified_offday.json ]; then
+            gh release upload "$tag" "$tarfile"
+            echo "NBA_VERIFIED_OFFDAY_RAW_ARCHIVED_NO_FAKE_CANDIDATES=$tag"
+            exit 0
+          fi
+          test -s nba-silent-output/nba_match_candidates.json
+          candidate="nba-candidates-$day-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}.json"
+          cp nba-silent-output/nba_match_candidates.json "$candidate"
           gh release upload "$tag" "$tarfile" "$candidate"
           echo "NBA_HOURLY_SILENT_ARCHIVED=$tag"
