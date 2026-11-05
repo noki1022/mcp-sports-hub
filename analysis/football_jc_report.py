@@ -51,7 +51,9 @@ def render(report):
         kickoff = esc(game.get("kickoff_beijing"))
         quality = game.get("data_quality") or {}
         details = "近5场 " + esc(quality.get("home_recent")) + "/" + esc(quality.get("away_recent"))
-        details += "　历史交锋 " + esc(quality.get("h2h")) + "　伤停 " + esc(quality.get("injury_state"))
+        listed = quality.get("injury_listed_players_unconfirmed")
+        detail_injury = ("007伤停名单 "+esc(listed)+"人（出场待核实）") if isinstance(listed,int) and listed>0 else "伤停待核实"
+        details += "　历史交锋 " + esc(quality.get("h2h")) + "　" + detail_injury
         expectations = game.get("goal_expectation") or {}
         score = game.get("top_score") or {}
         if expectations:

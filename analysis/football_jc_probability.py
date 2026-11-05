@@ -208,7 +208,9 @@ def build_match(game, captured):
         "home_recent": len(home), "away_recent": len(away), "h2h": len(h2h),
         "injury_state": injury_state,
         "injury_players": len(game.get("injuries", [])),
-        "source_evidence": "007_URL_DECLARED_NOT_INDEPENDENTLY_ATTESTED",
+        "injury_listed_players_unconfirmed": len(game.get("injury_source_facts", [])),
+        "analysis_source_status": game.get("analysis_source_status", "NOT_PROVIDED"),
+        "source_evidence": ("LIVE_007_ANALYSIS_MATCH_ID_SHA_VERIFIED" if game.get("analysis_source_status") == "007_EMBEDDED_JSON_VALIDATED" else "007_URL_DECLARED_NOT_INDEPENDENTLY_ATTESTED"),
         "data_gaps": game.get("data_gaps", []),
         "baseline": "UNTRAINED_HEURISTIC_UNCALIBRATED"}
     if not game.get("jc_number"):
@@ -312,7 +314,9 @@ def run(snapshot):
         "market_scope": list(MARKETS),
         "model_status": "RESEARCH_NOT_VALIDATED",
         "source_status": (
-            "LIVE_007_PARTIAL_FIXTURE_AND_THREE_MARKETS_FORM_INJURIES_MISSING"
+            "LIVE_007_THREE_MARKETS_RECENT_FORM_H2H_WITH_INJURY_AVAILABILITY_UNVERIFIED"
+            if (snapshot.get("source_provenance") or {}).get("state") == "LIVE_007_PUBLIC_FIXTURE_HAD_HHAD_TTG_PARTIAL" and (snapshot.get("source_provenance") or {}).get("analysis_coverage", {}).get("parsed", 0)>0
+            else "LIVE_007_THREE_MARKETS_FORM_INJURIES_MISSING"
             if (snapshot.get("source_provenance") or {}).get("state") == "LIVE_007_PUBLIC_FIXTURE_HAD_HHAD_TTG_PARTIAL"
             else "LIVE_007_PARTIAL_FIXTURE_AND_TWO_MARKETS"
             if (snapshot.get("source_provenance") or {}).get("state") == "LIVE_007_PUBLIC_FIXTURE_AND_HAD_HHAD_ONLY"

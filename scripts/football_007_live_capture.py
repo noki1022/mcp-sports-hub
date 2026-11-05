@@ -19,6 +19,7 @@ import urllib.request
 from zoneinfo import ZoneInfo
 
 import football_007_cp_totals as cp_ttg
+import football_007_analysis_extract as analysis_007
 
 BJ=ZoneInfo("Asia/Shanghai")
 FEEDS={"fixtures":"https://jc.titan007.com/xml/bf_jc.txt",
@@ -122,6 +123,8 @@ def parse_fixtures(raw,odds,captured,target=None):
         jc=odds.get(mid,{})
         games.append({
             "match_id":mid,"jc_number":jcnum,"league":leagues.get(c[5],"未核实联赛"),
+            "home_team_id_007":int(c[7]) if c[7].isdigit() else None,
+            "away_team_id_007":int(c[9]) if c[9].isdigit() else None,
             "home_team":home,"away_team":away,
             "kickoff_beijing":tip.isoformat(),
             "source_url":FEEDS["fixtures"],
@@ -187,6 +190,67 @@ def collect(raw_map,captured,target=None):
                                  "coverage":coverage},
             "games":games}
 
+
+def enrich_analysis(snapshot,folder):
+    """Attempt each future 007 game once. A blocked page never blocks live odds."""
+    coverage={"attempted":0,"raw_saved":0,"parsed":0,"home_recent_ge3":0,
+              "away_recent_ge3":0,"both_recent5":0,
+              "h2h_with_results":0,"injury_fact_matches":0,
+              "injury_fact_players":0,"source_failures":0}
+    manifest_path=folder/"manifest.json"
+    manifest=json.loads(manifest_path.read_text(encoding="utf-8"))
+    games=snapshot["games"]
+    for game in games[:40]:
+        mid=game["match_id"]
+        if datetime.fromisoformat(game["kickoff_beijing"]).astimezone(timezone.utc)<=datetime.now(timezone.utc):
+            game["analysis_source_status"]="SKIPPED_AFTER_KICKOFF"
+            continue
+        coverage["attempted"]+=1
+        try:
+            raw=analysis_007.get_page(mid)
+            sha=hashlib.sha256(raw).hexdigest()
+            (folder/("analysis_"+mid+".html.gz")).write_bytes(gzip.compress(raw,mtime=0))
+            coverage["raw_saved"]+=1
+            observed=datetime.now(timezone.utc).isoformat()
+            manifest["sources"]["analysis_"+mid]={
+                "url":analysis_007.MOBILE_ROOT+mid+".htm",
+                "sha256":sha,"bytes":len(raw),"captured_at_utc":observed}
+            detail=analysis_007.extract(raw,game,observed)
+            for key in ("home_last5","away_last5","h2h","injury_source_facts",
+                        "injury_report_state","injuries"):
+                game[key]=detail[key]
+            game["analysis_source_evidence"]=detail["source_evidence"]
+            game["analysis_source_status"]="007_EMBEDDED_JSON_VALIDATED"
+            gaps=game["data_gaps"]
+            if len(game["home_last5"])>=3 and len(game["away_last5"])>=3:
+                if "RECENT_FIVE_NOT_YET_PARSED" in gaps:gaps.remove("RECENT_FIVE_NOT_YET_PARSED")
+                coverage["both_recent5"]+=1
+            if "H2H_NOT_YET_PARSED" in gaps:gaps.remove("H2H_NOT_YET_PARSED")
+            if not game["h2h"]:gaps.append("H2H_EMPTY_OR_NOT_LISTED")
+            if "INJURIES_NOT_YET_VERIFIED" in gaps:
+                gaps.remove("INJURIES_NOT_YET_VERIFIED")
+            if game["injury_source_facts"]:
+                gaps.append("INJURY_PLAYER_AVAILABILITY_AND_EXPECTED_MINUTES_UNCONFIRMED")
+            else:
+                gaps.append("NO_VERIFIED_INJURY_AVAILABILITY_REPORT")
+            coverage["parsed"]+=1
+            coverage["home_recent_ge3"]+=int(len(game["home_last5"])>=3)
+            coverage["away_recent_ge3"]+=int(len(game["away_last5"])>=3)
+            coverage["h2h_with_results"]+=int(bool(game["h2h"]))
+            coverage["injury_fact_matches"]+=int(bool(game["injury_source_facts"]))
+            coverage["injury_fact_players"]+=len(game["injury_source_facts"])
+        except (OSError,ValueError,TypeError,KeyError,RuntimeError) as exc:
+            coverage["source_failures"]+=1
+            game["analysis_source_status"]="UNAVAILABLE_"+type(exc).__name__
+            game["analysis_source_error"]=str(exc)[:130]
+    for game in games[40:]:
+        game["analysis_source_status"]="NOT_ATTEMPTED_PER_RUN_CAP"
+    manifest["capture_completed_at_utc"]=datetime.now(timezone.utc).isoformat()
+    manifest_path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    snapshot["source_provenance"]["analysis_coverage"]=coverage
+    snapshot["source_provenance"]["analysis_feature_status"]="PARTIAL_INJURY_AVAILABILITY_UNVERIFIED"
+    return coverage
+
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--target-date",default=None,help="Beijing kickoff date YYYY-MM-DD, optional")
@@ -216,6 +280,10 @@ def main():
                       "bytes":len(v)} for k,v in raw.items()}},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     snapshot=collect(raw,completed,args.target_date)
     snapshot["source_provenance"]["capture_started_at_utc"]=start.isoformat()
+    feature_coverage=enrich_analysis(snapshot,folder)
+    snapshot["captured_at_utc"]=datetime.now(timezone.utc).isoformat()
+    snapshot["source_provenance"]["capture_completed_at_utc"]=snapshot["captured_at_utc"]
+    print("FOOTBALL_007_ANALYSIS_FEATURE_CAPTURE",json.dumps(feature_coverage,ensure_ascii=False))
     out=Path(args.out);out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(snapshot,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print("FOOTBALL_007_LIVE_CAPTURE",json.dumps(snapshot["source_provenance"]["coverage"],ensure_ascii=False))
