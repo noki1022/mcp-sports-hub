@@ -141,7 +141,7 @@ def chronological_assignments(slots, runs):
     edges = []
     for i, slot in enumerate(slots):
         planned = slot["planned"]
-         for run in runs:
+        for run in runs:
             if canonical_workflow(run) != slot["workflow"] or run.get("event") != "schedule":
                 continue
             if type(run.get("id")) is not int:
