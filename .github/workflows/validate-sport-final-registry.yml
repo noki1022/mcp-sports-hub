@@ -1,0 +1,32 @@
+name: Validate per-game pretip final registry (football + NBA)
+on:
+  pull_request:
+    paths:
+      - 'analysis/sport_match_final_registry.py'
+      - 'tests/test_sport_match_final_registry.py'
+      - 'scripts/nba_fixed_slot_gate.py'
+      - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/nba-priority-0630.yml'
+      - '.github/workflows/nba-priority-2130.yml'
+      - '.github/workflows/football-007-live-capture.yml'
+      - '.github/workflows/validate-sport-final-registry.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test actual chronological final selection, no result leakage, market coverage
+        run: python3 -B -m unittest discover -s tests -p test_sport_match_final_registry.py -v
+      - name: Verify NBA delivery slot mapping and dedup invariants
+        run: python3 -B scripts/nba_fixed_slot_gate.py --self-test
+      - name: Compile exact modified Python modules
+        run: python3 -B -m py_compile analysis/sport_match_final_registry.py scripts/nba_fixed_slot_gate.py
