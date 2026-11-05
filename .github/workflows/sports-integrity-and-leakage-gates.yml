@@ -1,0 +1,69 @@
+name: Sports NBA and football chain integrity plus no-leakage gates
+on:
+  pull_request:
+    paths:
+      - 'scripts/sports_chain_health.py'
+      - 'analysis/sports_point_in_time_admission.py'
+      - 'tests/test_sports_chain_health.py'
+      - 'tests/test_sports_point_in_time_admission.py'
+      - '.github/workflows/sports-integrity-and-leakage-gates.yml'
+  workflow_dispatch:
+  schedule:
+    # 4 times/day, UTC; audit completed slots after a 3-hour delivery grace.
+    - cron: "35 */6 * * *"
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: sports-chain-audit-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate timestamp, leak, embargo and actual-run evidence contracts
+        run: |
+          python3 -B -m unittest discover -s tests -p test_sports_point_in_time_admission.py -v
+          python3 -B -m unittest discover -s tests -p test_sports_chain_health.py -v
+          python3 -B -m py_compile scripts/sports_chain_health.py analysis/sports_point_in_time_admission.py
+      - name: Retrieve actual scheduled workflow runs and archive state read-only
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p audit-input audit-output
+          # Never use "latest" GitHub Actions artifacts as evidence.
+          for page in 1 2 3 4; do
+            gh api "/repos/$GITHUB_REPOSITORY/actions/runs?event=schedule&per_page=100&page=$page" \
+              > "audit-input/runs-$page.json"
+          done
+          gh api "/repos/$GITHUB_REPOSITORY/releases?per_page=100" > audit-input/releases.json
+          gh api "/repos/$GITHUB_REPOSITORY/branches/archive/nba-market-captures" \
+            > audit-input/nba-archive-branch.json
+      - name: Produce strict shared NBA/football scheduled-capture and raw-evidence scorecard
+        if: github.event_name != 'pull_request'
+        run: |
+          python3 -B scripts/sports_chain_health.py \
+            --runs-page audit-input/runs-1.json \
+            --runs-page audit-input/runs-2.json \
+            --runs-page audit-input/runs-3.json \
+            --runs-page audit-input/runs-4.json \
+            --releases audit-input/releases.json \
+            --archive-branch audit-input/nba-archive-branch.json \
+            --out audit-output/sports-chain-health.json --strict
+      - name: Keep read-only diagnostic report, even when the audit detects missing runs
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sports-cross-chain-health-${{ github.run_id }}-${{ github.run_attempt }}
+          path: audit-output/sports-chain-health.json
+          if-no-files-found: warn
+          retention-days: 90
