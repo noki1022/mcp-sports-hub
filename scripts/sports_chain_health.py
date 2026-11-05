@@ -87,7 +87,7 @@ def advertised_cron(run):
         value = run.get(key)
         if not isinstance(value, str):
             continue
-        match = re.search(r"\\bslot=(\\d{1,2} \\d{1,2} \\* \\* \\*)", value)
+        match = re.search(r"\bslot=(\d{1,2} \d{1,2} \* \* \*)", value)
         if match:
             return match.group(1)
     return None
