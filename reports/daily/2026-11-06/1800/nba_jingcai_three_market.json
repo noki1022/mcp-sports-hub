@@ -1,0 +1,260 @@
+{
+  "schema_version": "007-jingcai-three-market-source-audit-v1",
+  "target_date": "2026-11-06",
+  "captured_at_utc": "2026-11-05T10:00:31.695749+00:00",
+  "inspected_at_utc": "2026-11-05T10:00:38.109019+00:00",
+  "pricing_source": "007_USER_CONFIRMED_JINGCAI_REFERENCE",
+  "source_status": {
+    "WIN_LOSE": {
+      "type_id": "111",
+      "url": "https://jc.titan007.com/xml/odds_jc_lq.txt",
+      "status": "AVAILABLE_007_XML_REFERENCE",
+      "live_pricing_rows": 6,
+      "reason": "USER_CONFIRMED_007_JINGCAI_REFERENCE",
+      "matched_games": 2
+    },
+    "HANDICAP_WIN_LOSE": {
+      "type_id": "112",
+      "url": "https://jc.titan007.com/xml/odds_jc_lq.txt",
+      "status": "AVAILABLE_007_XML_REFERENCE",
+      "live_pricing_rows": 7,
+      "reason": "USER_CONFIRMED_007_JINGCAI_REFERENCE",
+      "matched_games": 2
+    },
+    "TOTAL": {
+      "type_id": "114",
+      "url": "https://jc.titan007.com/xml/odds_jc_lq.txt",
+      "status": "AVAILABLE_007_XML_REFERENCE",
+      "live_pricing_rows": 7,
+      "reason": "USER_CONFIRMED_007_JINGCAI_REFERENCE",
+      "matched_games": 2
+    }
+  },
+  "games": [
+    {
+      "game_id": "728905",
+      "nba_game_id": "401909936",
+      "home_team": "菲尼克斯太阳",
+      "away_team": "奥兰多魔术",
+      "markets": {
+        "WIN_LOSE": {
+          "status": "AWAITING_CANONICAL_XML_AUDIT",
+          "line": null,
+          "home_odds": null,
+          "away_odds": null,
+          "reason": "CANONICAL_007_XML_FEED_IS_CHECKED_BELOW"
+        },
+        "HANDICAP_WIN_LOSE": {
+          "status": "AWAITING_CANONICAL_XML_AUDIT",
+          "line": null,
+          "home_odds": null,
+          "away_odds": null,
+          "reason": "CANONICAL_007_XML_FEED_IS_CHECKED_BELOW"
+        },
+        "TOTAL": {
+          "status": "AWAITING_CANONICAL_XML_AUDIT",
+          "line": null,
+          "home_odds": null,
+          "away_odds": null,
+          "reason": "CANONICAL_007_XML_FEED_IS_CHECKED_BELOW"
+        }
+      }
+    },
+    {
+      "game_id": "728906",
+      "nba_game_id": "401909937",
+      "home_team": "金州勇士",
+      "away_team": "迈阿密热火",
+      "markets": {
+        "WIN_LOSE": {
+          "status": "AWAITING_CANONICAL_XML_AUDIT",
+          "line": null,
+          "home_odds": null,
+          "away_odds": null,
+          "reason": "CANONICAL_007_XML_FEED_IS_CHECKED_BELOW"
+        },
+        "HANDICAP_WIN_LOSE": {
+          "status": "AWAITING_CANONICAL_XML_AUDIT",
+          "line": null,
+          "home_odds": null,
+          "away_odds": null,
+          "reason": "CANONICAL_007_XML_FEED_IS_CHECKED_BELOW"
+        },
+        "TOTAL": {
+          "status": "AWAITING_CANONICAL_XML_AUDIT",
+          "line": null,
+          "home_odds": null,
+          "away_odds": null,
+          "reason": "CANONICAL_007_XML_FEED_IS_CHECKED_BELOW"
+        }
+      }
+    }
+  ],
+  "game_count": 2,
+  "verified_games_with_all_three": 2,
+  "model_fusion_enabled": false,
+  "jingcai_return_calculation_enabled": false,
+  "direction_slot_order_verified": false,
+  "status": "AVAILABLE_007_XML_REFERENCE_DIRECTION_SLOTS_PENDING",
+  "alternate_provider_status": {
+    "provider": "MARZDATA_THIRD_PARTY_NOT_OFFICIAL",
+    "documentation": "https://doc.marzdata.cn/api-252526119",
+    "credentials_present": false,
+    "status": "NOT_CONFIGURED",
+    "matched_games": 0,
+    "three_market_games": 0,
+    "slot_order_confirmed": false
+  },
+  "jc_007_public_odds_shadow": {
+    "status": "AVAILABLE_007_USER_CONFIRMED_REFERENCE_DIRECTION_SLOTS_PENDING",
+    "source": "https://jc.titan007.com/xml/odds_jc_lq.txt",
+    "captured_at_utc": "2026-11-05T10:00:40.496795+00:00",
+    "nba_coverage": {
+      "win_lose": 2,
+      "handicap": 2,
+      "total": 2
+    },
+    "all_three_market_games": 2,
+    "games": [
+      {
+        "game_id": "728905",
+        "nba_game_id": "401909936",
+        "home_team": "菲尼克斯太阳",
+        "away_team": "奥兰多魔术",
+        "tipoff_beijing": "2026-11-06T10:00+08:00",
+        "markets": {
+          "win_lose": {
+            "status": "OBSERVED",
+            "data": {
+              "opening": {
+                "first_side": 1.7,
+                "second_side": 1.7
+              },
+              "current": {
+                "first_side": 1.6,
+                "second_side": 1.81
+              },
+              "line_or_odds_changed": true
+            }
+          },
+          "handicap": {
+            "status": "OBSERVED",
+            "data": {
+              "opening": {
+                "line": -1.5,
+                "first_side": 1.81,
+                "second_side": 1.6
+              },
+              "current": {
+                "line": -1.5,
+                "first_side": 1.65,
+                "second_side": 1.75
+              },
+              "line_or_odds_changed": true
+            }
+          },
+          "total": {
+            "status": "OBSERVED",
+            "data": {
+              "opening": {
+                "line": 223.5,
+                "first_side": 1.66,
+                "second_side": 1.74
+              },
+              "current": {
+                "line": 223.5,
+                "first_side": 1.66,
+                "second_side": 1.74
+              },
+              "line_or_odds_changed": false
+            }
+          }
+        }
+      },
+      {
+        "game_id": "728906",
+        "nba_game_id": "401909937",
+        "home_team": "金州勇士",
+        "away_team": "迈阿密热火",
+        "tipoff_beijing": "2026-11-06T11:00+08:00",
+        "markets": {
+          "win_lose": {
+            "status": "OBSERVED",
+            "data": {
+              "opening": {
+                "first_side": 1.4,
+                "second_side": 2.15
+              },
+              "current": {
+                "first_side": 1.25,
+                "second_side": 2.64
+              },
+              "line_or_odds_changed": true
+            }
+          },
+          "handicap": {
+            "status": "OBSERVED",
+            "data": {
+              "opening": {
+                "line": -3.5,
+                "first_side": 1.65,
+                "second_side": 1.75
+              },
+              "current": {
+                "line": -6.5,
+                "first_side": 1.65,
+                "second_side": 1.75
+              },
+              "line_or_odds_changed": true
+            }
+          },
+          "total": {
+            "status": "OBSERVED",
+            "data": {
+              "opening": {
+                "line": 238.5,
+                "first_side": 1.7,
+                "second_side": 1.7
+              },
+              "current": {
+                "line": 236.5,
+                "first_side": 1.66,
+                "second_side": 1.74
+              },
+              "line_or_odds_changed": true
+            }
+          }
+        }
+      }
+    ],
+    "official_fixed_bonus_verified": false,
+    "007_jingcai_reference_user_confirmed": true,
+    "direction_slot_order_verified": false,
+    "eligible_for_model_fusion": false
+  },
+  "jc_007_match_numbers": {
+    "source": "https://jc.titan007.com/xml/bf_jc_lq.txt",
+    "target_date_beijing": "2026-11-06",
+    "status": "JC_MATCH_NUMBER_AUDIT",
+    "verified": 2,
+    "user_confirmed": 0,
+    "numbered_total": 2,
+    "total_games": 2,
+    "games": {
+      "728905": {
+        "game_id": "728905",
+        "status": "VERIFIED_JC_NUMBER",
+        "label": "周四306",
+        "match_no": "306",
+        "reason": null
+      },
+      "728906": {
+        "game_id": "728906",
+        "status": "VERIFIED_JC_NUMBER",
+        "label": "周四307",
+        "match_no": "307",
+        "reason": null
+      }
+    }
+  }
+}
