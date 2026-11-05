@@ -195,6 +195,7 @@ def evaluate(snapshot,baseline,shadow,finals,evidence_dir):
                 excluded["OFFICIAL_JC_HANDICAP_UNAVAILABLE"]+=1
                 continue
             market_rows={}
+            selected_goals={}
             for tag,pred in (("baseline",pred0[mid]),("shadow",pred1[mid])):
                 probs=probability_vector((pred.get("markets") or {}).get(key),labels)
                 if probs is None:continue
@@ -205,10 +206,13 @@ def evaluate(snapshot,baseline,shadow,finals,evidence_dir):
                     picks=((pred["markets"][key].get("goal_selection") or {}).get("goals"))
                     if isinstance(picks,list) and 1<=len(picks)<=2 and len(set(picks))==len(picks):
                         if all(x in TTG for x in picks):
-                            pair_double[tag].append({"mid":mid,"hit":int(labels[truth] in picks)})
+                            selected_goals[tag]=int(labels[truth] in picks)
             if len(market_rows)==2:
                 for tag in ("baseline","shadow"):
                     paired[key][tag].append(market_rows[tag])
+                if key=="ttg" and len(selected_goals)==2:
+                    for tag in ("baseline","shadow"):
+                        pair_double[tag].append({"mid":mid,"hit":selected_goals[tag]})
             row["markets"][key]={"result":labels[truth],
                                  "both_models_scored":len(market_rows)==2}
         processed.append(row)
@@ -230,7 +234,8 @@ def evaluate(snapshot,baseline,shadow,finals,evidence_dir):
                       "final_manifest_sha256":sha_object(finals),
                       "prematch_captured_at_utc":snapshot["captured_at_utc"],
                       "finals_captured_at_utc":finals["captured_at_utc"]},
-        "verified_result_count":len(processed),
+        "contract_accepted_result_count":len(processed),
+        "final_score_semantic_verification":"REQUIRES_INDEPENDENT_007_FINAL_STATUS_PARSER",
         "unmatched_final_count":excluded.get("FINAL_MATCH_NOT_IN_THIS_PREMATCH_SNAPSHOT",0),
         "exclusions":dict(excluded),
         "markets":summary,
@@ -254,6 +259,6 @@ def cli():
     path=Path(a.out)
     path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    print("FOOTBALL_JC_PROSPECTIVE_SCORE",result["verified_result_count"],
+    print("FOOTBALL_JC_PROSPECTIVE_SCORE",result["contract_accepted_result_count"],
           "matches, no production promotion or push")
 if __name__=="__main__":cli()
