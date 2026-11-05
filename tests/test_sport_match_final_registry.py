@@ -65,6 +65,11 @@ class TestRegistry(unittest.TestCase):
         a=S.select([before,late,before],iso(TIP+timedelta(hours=1)))["matched_games"][0]
         self.assertEqual(a["run_id"],"123")
         self.assertEqual(a["valid_candidate_count"],1)
+    def test_refuse_nonfused_football_baseline_as_canonical_final(self):
+        snapshot,forecast=football()
+        forecast["model_version"]="football-jc-poisson-research-v1"
+        with self.assertRaisesRegex(ValueError,"ONLY_FUSED"):
+            S.make_candidate("football",snapshot,forecast,125,"2130")
     def test_bad_football_source_digest_blocks(self):
         snap,pred=football()
         snap["games"][0]["home_team"]="错"
