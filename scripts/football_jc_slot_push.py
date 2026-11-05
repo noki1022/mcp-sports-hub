@@ -14,7 +14,7 @@ import football_jc_report as report
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from pushplus_mobile import send
 
-def prepare(forecast,mode,lock=None,comparison=None):
+def prepare(forecast,mode,lock=None,comparison=None,daytime_slot=None):
     if forecast.get("model_version")!=final.FUSED_VERSION:
         raise ValueError("MUST_SEND_SINGLE_INTEGRATED_FOOTBALL_MODEL")
     if not forecast.get("games"):
@@ -24,7 +24,7 @@ def prepare(forecast,mode,lock=None,comparison=None):
             raise ValueError("MUST_HAVE_FROZEN_FINAL")
         if final.sha(forecast)!=lock.get("final_forecast_sha256"):
             raise ValueError("FROZEN_FINAL_FORECAST_CONTENT_MISMATCH")
-        label="21:30最终评分版"
+        label="21:30历史基准答卷"
     elif mode=="update":
         if not isinstance(lock,dict) or lock.get("schema_version")!=final.VERSION:
             raise ValueError("MUST_COMPARE_TO_ORIGINAL_FROZEN_FINAL")
@@ -34,17 +34,28 @@ def prepare(forecast,mode,lock=None,comparison=None):
             raise ValueError("0630_WRONG_FINAL_COMPARISON")
         if final.sha(forecast)!=comparison.get("current_forecast_sha256"):
             raise ValueError("0630_CURRENT_FORECAST_MISMATCH")
-        label="06:30更新｜21:30为评分依据"
+        label="06:30更新｜对比21:30历史基准"
+    elif mode=="morning-standalone":
+        if lock is not None or comparison is not None:
+            raise ValueError("MISSING_BASELINE_MODE_CANNOT_PRETEND_LOCKED")
+        label="06:30赛前研判｜21:30基准缺失，不能对照"
+    elif mode=="daytime":
+        if lock is not None or comparison is not None:
+            raise ValueError("DAYTIME_MUST_NOT_READ_YESTERDAY_BASELINE")
+        if daytime_slot not in tuple(f"{h:02d}00" for h in range(12,22)):
+            raise ValueError("UNRECOGNIZED_DAYTIME_CAPTURE_SLOT")
+        label=daytime_slot[:2]+":00赛前研判"
     else:raise ValueError("INVALID_FOOTBALL_SEND_SLOT")
     title="北京时间"+str(forecast.get("beijing_date"))+" 足球球赛研判｜"+label
-    html=report.render(forecast,comparison,mode)
+    html=report.render(forecast,comparison,mode if mode in ("final","update") else "research")
     return {"title":title,"html":html}
 
 def cli():
     ap=argparse.ArgumentParser()
     ap.add_argument("--forecast",required=True)
-    ap.add_argument("--locked",required=True)
-    ap.add_argument("--mode",required=True,choices=("final","update"))
+    ap.add_argument("--locked")
+    ap.add_argument("--mode",required=True,choices=("final","update","daytime","morning-standalone"))
+    ap.add_argument("--daytime-slot")
     ap.add_argument("--comparison")
     ap.add_argument("--html-out",required=True)
     ap.add_argument("--status-out",required=True)
@@ -54,9 +65,10 @@ def cli():
         b=Path(p).read_bytes()
         if len(b)>25_000_000:raise ValueError("FOOTBALL_PUSH_INPUT_TOO_LARGE")
         return json.loads(b)
-    forecast,lock=read(a.forecast),read(a.locked)
+    forecast=read(a.forecast)
+    lock=read(a.locked) if a.locked else None
     comparison=read(a.comparison) if a.comparison else None
-    payload=prepare(forecast,a.mode,lock,comparison)
+    payload=prepare(forecast,a.mode,lock,comparison,a.daytime_slot)
     out=Path(a.html_out);out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(payload["html"],encoding="utf-8")
     status={"status":"PREVIEW_ONLY","slot":a.mode,
