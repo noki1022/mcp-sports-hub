@@ -58,10 +58,16 @@ def inspect(url):
    try:
     js,digest,actual=fetch(link)
     matches=re.findall(r"""(?:(?:https?:)?//[^"'<>\s]{4,100}|[\w/.-]{4,100}\.(?:ashx|aspx|json|xml)(?:\?[^"'<>\s]{0,80})?)""",js,flags=re.I)
-    scripts.append({"url":actual,"sha256":digest,"length":len(js),"endpoint_hints":
+    contexts=[]
+    for keyword in ("oddsData.aspx","JcResult.aspx","oddsChange.aspx","LoadData","loadData","MatchData","matchData","var game","getData","getMatch"):
+     i=js.find(keyword)
+     if i>=0:contexts.append({"key":keyword,"snippet":js[max(0,i-300):i+500]})
+    scripts.append({"url":actual,"sha256":digest,"length":len(js),"contexts":contexts[:9],"endpoint_hints":
                      list(dict.fromkeys(m for m in matches if any(k in m.lower() for k in KEYS)))[:30]})
    except Exception as e:scripts.append({"url":link,"error":type(e).__name__+":"+str(e)[:120]})
   out["scripts"]=scripts
+  out["inline_context"]=[v[:1500] for v in parsed.inline[:5]]
+  out["html_context"]=page[:1900]
  except Exception as e:out.update(http="ERROR",error=type(e).__name__+":"+str(e)[:200])
  return out
 
