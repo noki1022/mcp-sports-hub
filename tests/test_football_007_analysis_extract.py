@@ -54,6 +54,10 @@ class Tests(unittest.TestCase):
   obj=source();obj["scheduleId"]=3075306
   with self.assertRaisesRegex(ValueError,"FIXTURE_ID"):
    src.extract(html(obj),GAME,CAP.isoformat())
+ def test_crosscheck_against_independent_fixture_team_ids(self):
+  changed=dict(GAME,home_team_id_007=999,away_team_id_007=1078)
+  with self.assertRaisesRegex(ValueError,"HOME_TEAM_ID_VS_FIXTURE"):
+   src.extract(html(source()),changed,CAP.isoformat())
  def test_team_side_crosscheck(self):
   obj=source();obj["currentPoints"]["homePoints"]["teamId"]=1078
   with self.assertRaisesRegex(ValueError,"TEAM_SIDE_CROSSCHECK"):
