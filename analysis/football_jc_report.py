@@ -53,6 +53,39 @@ def change_notes(comparison,mid):
                      "</b><div style='font-size:12px;color:#80552d;'>依据："+esc(change["basis"])+"</div></div>")
     return "".join(lines)
 
+def movement_notes(movement,mid,forecast_capture):
+    if not movement:return ""
+    if movement.get("schema_version")!="football-007-asof-hourly-movement-v1":
+        raise ValueError("UNVERIFIED_FOOTBALL_MOVEMENT_SCHEMA")
+    item=next((x for x in movement.get("games",[]) if str(x.get("match_id"))==str(mid)),None)
+    if not item:return ""
+    if item.get("current_capture_utc")!=forecast_capture:
+        raise ValueError("MOVEMENT_FROM_DIFFERENT_007_CAPTURE")
+    if item.get("status")=="FIRST_VERIFIED_OBSERVATION_NO_PREVIOUS_SNAPSHOT":
+        return "<div style='font-size:12px;color:#6b7280'>首次有效抓取：暂无上一时点可比，正常建立基准。</div>"
+    labels={"MODEL_DIRECTION_REVERSED":"模型方向反转",
+            "OFFICIAL_JC_ODDS_MOVED":"竞彩赔率变动",
+            "MODEL_PROBABILITY_MOVEMENT_PP":"模型概率更新",
+            "JC_HANDICAP_CHANGED":"竞彩让球改线",
+            "CONFIRMED_INJURY_PLAYER_IDS":"核实伤停名单变化",
+            "007_ASIAN_COMPANIES_FUSION_MARGIN_SHIFT":"多家亚洲盘口影响变化",
+            "MODEL_EXPECTED_GOALS_HOME":"主队进球预期调整",
+            "MODEL_EXPECTED_GOALS_AWAY":"客队进球预期调整"}
+    texts=[]
+    for change in item.get("changes",[]):
+        kind=change.get("kind")
+        if kind not in labels:continue
+        market=dict(MARKETS).get(change.get("market"),"")
+        if kind=="MODEL_DIRECTION_REVERSED":
+            detail="（"+str(change.get("before"))+"→"+str(change.get("after"))+"）"
+        elif kind=="JC_HANDICAP_CHANGED":
+            detail="（主"+str(change.get("before"))+"→"+str(change.get("after"))+"）"
+        else:detail=""
+        texts.append(market+labels[kind]+detail)
+        if len(texts)==3:break
+    if not texts:return ""
+    return "<div style='font-size:12px;color:#495f79;padding:5px 0'>与上次抓取相比：" + esc("；".join(texts)) + "</div>"
+
 def market_card(key, name, market):
     status = market.get("status", "UNAVAILABLE")
     probs = market.get("probabilities") or {}
@@ -78,7 +111,7 @@ def market_card(key, name, market):
             f"<div style='font-size:11px;color:#8592a2;margin-top:2px;'>{esc(status)}{esc(availability)}</div></div>")
 
 
-def render(report,comparison=None,mode=None):
+def render(report,comparison=None,mode=None,movement=None):
     date = esc(report.get("beijing_date"))
     phase=mode or "research"
     tag={"final":"21:30历史基准（独立保留）","update":"06:30动态更新｜21:30仅用于历史对照"}.get(phase,"竞彩足球融合研判")
@@ -110,6 +143,7 @@ def render(report,comparison=None,mode=None):
             + context + "</div>"
             + market_html
             + change_notes(comparison,str(game.get("match_id")))
+            + movement_notes(movement,str(game.get("match_id")),report.get("captured_at_utc"))
             + "<div style='color:#758497;font-size:11px;margin-top:6px;'>数据质量：" + details
             + "　状态：" + esc(game.get("status")) + "</div></section>")
     if not cards:
@@ -136,6 +170,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--forecast", required=True)
     p.add_argument("--comparison")
+    p.add_argument("--movement")
     p.add_argument("--mode",choices=("final","update","research"),default="research")
     p.add_argument("--html", default="football_jc_mobile.html")
     a = p.parse_args()
@@ -146,7 +181,8 @@ def main():
     dest.parent.mkdir(parents=True, exist_ok=True)
     comparison=json.loads(Path(a.comparison).read_text(encoding="utf-8")) if a.comparison else None
     if a.mode=="update" and comparison is None:raise SystemExit("0630_COMPARISON_REQUIRED")
-    dest.write_text(render(data,comparison,a.mode), encoding="utf-8")
+    movement=json.loads(Path(a.movement).read_text(encoding="utf-8")) if a.movement else None
+    dest.write_text(render(data,comparison,a.mode,movement), encoding="utf-8")
     print("FOOTBALL_JC_MOBILE_REPORT", len(data.get("games", [])))
 
 
