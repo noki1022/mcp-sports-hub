@@ -127,6 +127,50 @@ class TestCrossSportHealth(unittest.TestCase):
         result = H.audit(runs, releases, BRANCH, NOW)
         self.assertGreater(result["critical_count"], 0)
 
+    def test_overnight_full_reports_are_expected(self):
+        slots = list(H.expected_slots(NOW, 24, 180))
+        full = [s for s in slots if s["workflow"] == H.NBA_DAY]
+        self.assertTrue(any(s["planned"].astimezone(H.BJ).strftime("%H:%M") == "00:30"
+                            for s in full))
+        self.assertTrue(any(s["planned"].astimezone(H.BJ).strftime("%H:%M") == "03:30"
+                            for s in full))
+
+    def test_overnight_retry_cron_matches_canonical_report(self):
+        slots = list(H.expected_slots(NOW, 24, 180))
+        slot = next(s for s in slots if s["workflow"] == H.NBA_DAY and
+                    s["planned"].astimezone(H.BJ).strftime("%H:%M") == "00:30")
+        retry = slot["planned"] + timedelta(minutes=15)
+        run = {"id": 991, "event": "schedule",
+               "path": ".github/workflows/titan007-three-analysis.yml",
+               "name": f"NBA full report | slot={retry.minute} {retry.hour} * * * | date=auto",
+               "created_at": (retry + timedelta(minutes=55)).isoformat(),
+               "status": "completed", "conclusion": "success"}
+        self.assertEqual(H.declared_slot_match(slot, run), 55)
+        allocated = H.chronological_assignments([slot], [run])
+        self.assertEqual(allocated[0][0]["id"], 991)
+
+    def test_2130_retry_cron_matches_only_2130(self):
+        slots = list(H.expected_slots(NOW, 24, 180))
+        slot = next(s for s in slots if s["workflow"] == H.NBA_2130)
+        retry = slot["planned"] + timedelta(minutes=10)
+        run = {"id": 992, "event": "schedule",
+               "path": ".github/workflows/nba-priority-2130.yml",
+               "name": f"NBA priority | cron={retry.minute} {retry.hour} * * *",
+               "created_at": (retry + timedelta(minutes=65)).isoformat(),
+               "status": "completed", "conclusion": "success"}
+        self.assertEqual(H.declared_slot_match(slot, run), 65)
+
+    def test_wrong_day_cron_cannot_be_relabelled_as_overnight(self):
+        slots = list(H.expected_slots(NOW, 24, 180))
+        slot = next(s for s in slots if s["workflow"] == H.NBA_DAY and
+                    s["planned"].astimezone(H.BJ).strftime("%H:%M") == "03:30")
+        run = {"id": 993, "event": "schedule",
+               "path": ".github/workflows/titan007-three-analysis.yml",
+               "name": "NBA full report | slot=0 4 * * * | date=auto",
+               "created_at": (slot["planned"] + timedelta(minutes=40)).isoformat(),
+               "status": "completed", "conclusion": "success"}
+        self.assertIsNone(H.declared_slot_match(slot, run))
+
     def test_naive_time_rejected(self):
         with self.assertRaisesRegex(ValueError, "NAIVE_TIMESTAMP"):
             H.when("2026-11-06T12:00:00")
