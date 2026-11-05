@@ -28,3 +28,15 @@ for term in ("对赛往绩","近期战绩","伤停情况","伤病","停赛","数
     if i>=0:
         snippet=re.sub(r"\s+"," ",page[max(0,i-650):i+2600])
         print("FOOTBALL_007_MOBILE_ANALYSIS_CONTEXT",term,json.dumps(snippet,ensure_ascii=False))
+
+for script_url in ("https://m.titan007.com/script/DetailLive.js?ver=9",
+                   "https://m.titan007.com/script/live.js?ver=4"):
+    try:
+        request=urllib.request.Request(script_url,headers={"User-Agent":"Mozilla/5.0"})
+        with urllib.request.urlopen(request,timeout=15) as response:
+            js=response.read(450001).decode("utf-8","replace")
+        for token in ("against", "Injury", "injury", "hn", "nearMatch", "AnalysisObj", ".ashx", ".aspx", "getMatchData", "getNear"):
+            i=js.find(token)
+            if i>=0:
+                print("FOOTBALL_007_MOBILE_LINKED_JS",script_url,token,json.dumps(re.sub(r"\s+"," ",js[max(0,i-180):i+700]),ensure_ascii=False))
+    except Exception as e:print("FOOTBALL_007_MOBILE_LINKED_JS_ERROR",script_url,type(e).__name__)
