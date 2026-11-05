@@ -161,7 +161,11 @@ def main():
     if args.target_date:datetime.strptime(args.target_date,"%Y-%m-%d")
     start=datetime.now(timezone.utc)
     raw={k:fetch(v) for k,v in FEEDS.items()}
-    snapshot=collect(raw,start,args.target_date)
+    # Use collection completion as the as-of boundary; never claim a quote
+    # fetched after kickoff existed at the earlier request start.
+    completed=datetime.now(timezone.utc)
+    snapshot=collect(raw,completed,args.target_date)
+    snapshot["source_provenance"]["capture_started_at_utc"]=start.isoformat()
     folder=Path(args.raw_dir);folder.mkdir(parents=True,exist_ok=True)
     for key,data in raw.items():
         (folder/(key+".txt.gz")).write_bytes(gzip.compress(data,mtime=0))
