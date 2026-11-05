@@ -45,7 +45,6 @@ class TestPhoneReport(unittest.TestCase):
         self.assertIn("客赢盘",html)
         self.assertIn("（主-5.5）",html)
         self.assertIn("21:30留档不重复计分",html)
-        self.assertIn("5个",html.replace("5个","5个") if False else "5个") if False else None
         for k in H.MARKET_ORDER["basketball"]:
             self.assertIn(H.MARKET_NAMES[k],html)
     def test_football_escapes_any_html_in_team_names(self):
