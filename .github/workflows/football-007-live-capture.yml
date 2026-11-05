@@ -14,8 +14,6 @@ on:
       - 'analysis/football_jc_report.py'
       - 'tests/test_football_jc_final_2130.py'
       - 'scripts/football_jc_slot_push.py'
-      - 'analysis/football_jc_single_review.py'
-      - 'tests/test_football_jc_single_review.py'
       - 'tests/test_football_jc_asian_assimilation.py'
       - 'analysis/football_jc_market_reading.py'
       - 'analysis/football_jc_euro_asian.py'
@@ -81,7 +79,6 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           python3 -B -m unittest discover -s tests -p test_football_jc_final_2130.py -v
-          python3 -B -m unittest discover -s tests -p test_football_jc_single_review.py -v
           python3 -B -m py_compile analysis/football_jc_report.py scripts/football_jc_slot_push.py
       - name: Capture live 007 three JC markets and prematch form H2H injury facts
         run: |
