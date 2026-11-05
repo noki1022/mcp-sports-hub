@@ -117,6 +117,23 @@ class TestRegistry(unittest.TestCase):
             self.assertEqual(repeated[0]["state"],"ALREADY_IDENTICAL")
             with self.assertRaisesRegex(ValueError,"IMMUTABLE_FINAL"):
                 S.publish_finals([old],iso(TIP+timedelta(hours=4)),folder)
+    def test_verified_football_zero_fixture_first_capture_does_not_fail_archive(self):
+        snap,pred=football()
+        snap["games"]=[]
+        snap["source_provenance"]={"state":"VERIFIED_007_FEEDS_ZERO_FUTURE_JC_FIXTURES"}
+        pred["games"]=[]
+        pred["source_sha256"]=S.digest(snap)
+        bundle=S.make_candidate("football",snap,pred,9100,"1200")
+        self.assertEqual(bundle["total_source_games"],0)
+        self.assertEqual(bundle["records"],[])
+        self.assertEqual(bundle["skipped"],[])
+        self.assertEqual(S.select([bundle],iso(TIP))["matched_games"],[])
+        self.assertEqual(S.publishable_final_documents([bundle],iso(TIP+timedelta(hours=5))),[])
+        bad=deepcopy(snap)
+        bad["source_provenance"]["state"]="UNVERIFIED"
+        pred["source_sha256"]=S.digest(bad)
+        with self.assertRaisesRegex(ValueError,"EMPTY_BOARD_WITHOUT"):
+            S.make_candidate("football",bad,pred,9101,"1200")
     def test_no_result_recalculation_all_unstarted_pending(self):
         b=S.make_candidate("basketball",*nba(),3,"1200")
         s=S.select([b],iso(BASE+timedelta(hours=1)))
