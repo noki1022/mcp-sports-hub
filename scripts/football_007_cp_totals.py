@@ -27,8 +27,8 @@ class Rows(HTMLParser):
     def handle_starttag(self,tag,attrs):
         a=dict(attrs)
         if tag=="form":self.forms.append(a)
-        if tag=="tr":
-            if self.row is not None:raise ValueError("NESTED_TTG_ROWS")
+        if tag=="tr" and re.fullmatch(r"row_\d{5,12}",a.get("id","")):
+            if self.row is not None:raise ValueError("NESTED_TTG_MATCH_ROWS")
             self.row={"attrs":a,"cells":[]}
         if tag in ("td","th") and self.row is not None:
             if self.cell is not None:raise ValueError("NESTED_TTG_CELL")
@@ -92,7 +92,7 @@ def odds_tuple(cells,bet_id):
 def parse_cp_ttg(raw):
     page=decode(raw)
     parsed=Rows();parsed.feed(page)
-    if not any("typeID=103" in str(x.get("action","")).lower().replace("typeid=","typeID=")
+    if not any("typeid=103" in str(x.get("action","")).lower()
                for x in parsed.forms):
         raise ValueError("CP_PAGE_NOT_TTG_TYPE_103")
     result={}
