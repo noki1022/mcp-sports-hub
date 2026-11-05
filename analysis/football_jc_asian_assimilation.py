@@ -40,7 +40,7 @@ MAX_SNAPSHOT_BYTES=20_000_000
 MIN_COMPANIES=5
 MAX_SOURCE_OFFSET_SECONDS=900
 MAX_QUOTE_AGE_HOURS=72
-SEARCH_SHIFT_GOALS=1.0
+SEARCH_SHIFT_GOALS=4.0
 MAX_APPLIED_DIFFERENCE_GOALS=0.30
 BASE_SHRINKAGE=0.25
 MAX_TTG_DISAGREEMENT=1e-6
@@ -171,9 +171,11 @@ def _market_evidence(game,original,captured,model_at):
                 continue
             target=inv_home/margin
             shift,fully_bracketed=_infer_shift(h,a,ln,target)
-            if not fully_bracketed:
-                continue
+            # Even if fixed independent total-goals makes a market line
+            # impossible to match, the direction remains grounded in
+            # the observed two-way 007 price. Only a bounded shift is used.
             evidence.append({"company_id":cid,"line":ln,
+                             "inversion_fully_bracketed":fully_bracketed,
                              "target_home_conditional":round(target,6),
                              "inferred_difference_shift":shift,
                              "quote_age_hours":round(age,2)})
@@ -188,6 +190,12 @@ def _market_evidence(game,original,captured,model_at):
         return None,"ASIAN_BOOKMAKER_SHIFTS_TOO_DISPERSED"
     median=statistics.median(x["inferred_difference_shift"] for x in retained)
     dispersion=statistics.median(abs(x["inferred_difference_shift"]-median) for x in retained)
+    unbracketed=sum(not x["inversion_fully_bracketed"] for x in retained)
+    if unbracketed>=MIN_COMPANIES:
+        # Only accept a saturated directional signal when all valid main
+        # bookmaker lines point to the same side of the independent model.
+        if any(x["inferred_difference_shift"]*median<0 for x in retained):
+            return None,"UNBRACKETED_ASIAN_DIRECTION_CONFLICT"
     if dispersion>.33:
         return None,"ASIAN_MARKET_DISAGREEMENT_TOO_HIGH"
     return {
@@ -198,6 +206,7 @@ def _market_evidence(game,original,captured,model_at):
         "companies_rejected":len(companies)-len(retained),
         "median_unshrunk_difference_shift":median,
         "median_absolute_deviation":dispersion,
+        "unbracketed_company_count":unbracketed,
         "bookmaker_evidence":retained,
         "baseline_home":h,"baseline_away":a
     },"SOURCE_VERIFIED"
@@ -292,6 +301,9 @@ def assimilate(snapshot,original,model_at=None):
             "estimated_unshrunk_home_minus_away_goals_shift":round(shift,4),
             "applied_home_minus_away_goals_shift":round(2*(new_h-h),4),
             "market_dispersion_mad":round(evidence["median_absolute_deviation"],4),
+            "market_vs_independent_total_conflict":evidence["unbracketed_company_count"]>0,
+            "inversion_not_exact_company_count":evidence["unbracketed_company_count"],
+            "inversion_method":("SATURATED_DIRECTIONAL_ONLY_AT_FIXED_TOTAL" if evidence["unbracketed_company_count"] else "FULLY_BRACKETED_AH_PRICE_INVERSION"),
             "independent_expected_goals":{"home":h,"away":a},
             "adjusted_expected_goals":{"home":round(new_h,4),"away":round(new_a,4)},
             "company_line_evidence":evidence["bookmaker_evidence"],
