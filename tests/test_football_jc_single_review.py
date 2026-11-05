@@ -25,7 +25,7 @@ def pair():
            "probabilities":{"让胜":.2,"让平":.4,"让负":.4},"jc_odds":[4,3,1.8]},
          "ttg":{"direction":"3球","goal_selection":{"goals":["2球","3球"]},
            "probabilities":{"0球":.02,"1球":.1,"2球":.25,"3球":.25,"4球":.2,"5球":.1,"6球":.05,"7+球":.03},
-           "jc_odds":[10,7,4,3,5,7,10,20]}}]}
+           "jc_odds":[10,7,4,3,5,7,10,20]}}}]}
  lock={"schema_version":lockmod.VERSION,"no_shadow_model":True,
        "slot_beijing_date":"2026-11-05","scored_only_from_this_frozen_forecast":True,
        "final_forecast_sha256":lockmod.sha(forecast),
