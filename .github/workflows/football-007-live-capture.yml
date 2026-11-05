@@ -11,6 +11,7 @@ on:
       - 'analysis/football_jc_final_2130.py'
       - 'analysis/football_jc_report.py'
       - 'tests/test_football_jc_final_2130.py'
+      - 'scripts/football_jc_slot_push.py'
       - 'tests/test_football_jc_asian_assimilation.py'
       - 'analysis/football_jc_market_reading.py'
       - 'analysis/football_jc_euro_asian.py'
@@ -208,3 +209,52 @@ jobs:
           gh release upload "$tag" "$archive"
           echo "FOOTBALL_007_RAW_RELEASE_ARCHIVED=$tag/$archive"
 
+
+  football-final-and-morning-push:
+    needs: [live-football, archive-football-2130-final]
+    if: always() && needs.live-football.result == 'success' && github.event_name == 'schedule' && ((github.event.schedule == '30 13 * * *' && needs.archive-football-2130-final.result == 'success') || github.event.schedule == '30 22 * * *')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.FOOTBALL_PUSHPLUS_TOKEN || secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: football-007-live-source-evidence
+          path: football-output
+      - name: Send exactly one football message per scheduled 21:30/06:30
+        run: |
+          if [ -z "$FOOTBALL_PUSHPLUS_TOKEN" ]; then
+            echo "::error::Missing FOOTBALL_PUSHPLUS_TOKEN or PUSHPLUS_TOKEN; forecast is still archived, but notification NOT delivered"
+            exit 1
+          fi
+          if [ "${{ github.event.schedule }}" = '30 13 * * *' ]; then
+            LOCK="football-output/football_jc_final_2130.json"
+            MODE="final"
+            EXTRA=()
+          else
+            LOCK="football-output/locked/football_jc_final_2130.json"
+            MODE="update"
+            EXTRA=(--comparison football-output/football_jc_0630_vs_2130.json)
+          fi
+          python3 -B scripts/football_jc_slot_push.py \
+            --forecast football-output/football_jc_forecast_market.json \
+            --locked "$LOCK" --mode "$MODE" "${EXTRA[@]}" \
+            --html-out football-output/football_jc_sent_preview.html \
+            --status-out football-output/football_jc_send_status.json --send
+      - name: Preserve API response (never call it device delivery)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-jc-send-status
+          path: football-output/football_jc_send_status.json
+          retention-days: 30
+          if-no-files-found: warn
