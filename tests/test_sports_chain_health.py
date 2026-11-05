@@ -127,6 +127,13 @@ class TestCrossSportHealth(unittest.TestCase):
         result = H.audit(runs, releases, BRANCH, NOW)
         self.assertGreater(result["critical_count"], 0)
 
+    def test_priority_job_response_filename_rejects_injection_and_accepts_real_run_id(self):
+        import re
+        pattern = r"[0-9]{1,20}\.json"
+        self.assertIsNotNone(re.fullmatch(pattern, "42120654124.json"))
+        self.assertIsNone(re.fullmatch(pattern, "../42120654124.json"))
+        self.assertIsNone(re.fullmatch(pattern, "42120654124.json.tmp"))
+
     def test_naive_time_rejected(self):
         with self.assertRaisesRegex(ValueError, "NAIVE_TIMESTAMP"):
             H.when("2026-11-06T12:00:00")

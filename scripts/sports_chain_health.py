@@ -279,7 +279,7 @@ def main():
     priority_jobs = {}
     if args.priority_jobs_dir:
         for filename in sorted(Path(args.priority_jobs_dir).glob("*.json")):
-            if not re.fullmatch(r"[0-9]{1,20}\\.json", filename.name):
+            if not re.fullmatch(r"[0-9]{1,20}\.json", filename.name):
                 raise ValueError("UNEXPECTED_PRIORITY_JOBS_FILENAME")
             data = json.loads(filename.read_text(encoding="utf-8"))
             if not isinstance(data, dict) or not isinstance(data.get("jobs"), list):
