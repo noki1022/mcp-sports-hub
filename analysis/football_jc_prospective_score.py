@@ -8,6 +8,7 @@ The scoring date and prediction capture time must precede verified FT results.
 """
 from __future__ import annotations
 import argparse
+import gzip
 import hashlib
 import json
 import math
@@ -39,7 +40,9 @@ def _sha(s):
         raise ValueError("UNVERIFIED_RAW_007_FINAL_HASH")
     return s
 
-def validate_results(payload):
+def validate_results(payload,raw_evidence):
+    if not isinstance(raw_evidence,dict):
+        raise ValueError("RAW_007_FINALS_REQUIRED_BEFORE_SCORING")
     if payload.get("schema_version")!="football-007-final-results-v1":
         raise ValueError("BAD_007_RESULT_SCHEMA")
     rows=payload.get("results")
@@ -54,6 +57,13 @@ def validate_results(payload):
             raise ValueError("MISSING_OR_DUPLICATE_007_FINAL_ID")
         _source(r.get("source_url"))
         _sha(r.get("source_sha256"))
+        # A self-reported hash is NOT evidence. Require the actual archived
+        # 007 raw response and verify its SHA256 before accepting any result.
+        raw=raw_evidence.get(match_id)
+        if not isinstance(raw,bytes) or len(raw)>2_000_000:
+            raise ValueError("MISSING_ARCHIVED_007_FINAL_BYTES")
+        if hashlib.sha256(raw).hexdigest()!=r["source_sha256"]:
+            raise ValueError("ARCHIVED_007_FINAL_SHA_MISMATCH")
         tip=utc(r["kickoff_beijing"])
         observed=utc(r["result_observed_at_utc"])
         if observed <= tip or (observed-tip).total_seconds()<90*60:
@@ -180,9 +190,9 @@ def ttg_dual(row,true_index):
         return None
     return int(LABELS["ttg"][true_index] in goals)
 
-def audit(snapshot,baseline,shadow,results):
+def audit(snapshot,baseline,shadow,results,raw_evidence=None):
     asof,digest=assert_sources(snapshot,baseline,shadow)
-    final=validate_results(results)
+    final=validate_results(results,raw_evidence)
     eligible=0
     scored={"baseline":{k:[] for k in LABELS},
             "shadow":{k:[] for k in LABELS}}
@@ -275,7 +285,7 @@ def audit(snapshot,baseline,shadow,results):
 
 def cli():
     p=argparse.ArgumentParser()
-    for k in ("snapshot","baseline","shadow","results","out"):
+    for k in ("snapshot","baseline","shadow","results","raw-results-dir","out"):
         p.add_argument("--"+k,required=True)
     args=p.parse_args()
     def read(name):
@@ -283,7 +293,24 @@ def cli():
         if len(raw)>15_000_000:
             raise ValueError("INPUT_TOO_LARGE_"+name.upper())
         return json.loads(raw)
-    output=audit(read("snapshot"),read("baseline"),read("shadow"),read("results"))
+    results=read("results")
+    raw_root=Path(args.raw_results_dir)
+    raw={}
+    if not raw_root.is_dir():
+        raise ValueError("RAW_007_FINAL_DIR_NOT_FOUND")
+    for item in results.get("results",[]):
+        mid=str(item.get("match_id") or "")
+        if not re.fullmatch(r"\d{4,10}",mid):
+            raise ValueError("INVALID_RAW_FINAL_MATCH_ID")
+        path=raw_root/(mid+".html.gz")
+        if not path.is_file() or path.stat().st_size>1_000_000:
+            raise ValueError("RAW_007_FINAL_ARCHIVE_NOT_FOUND_OR_TOO_LARGE")
+        with gzip.open(path,"rb") as file:
+            body=file.read(2_000_001)
+        if len(body)>2_000_000:
+            raise ValueError("RAW_007_FINAL_HTML_TOO_LARGE")
+        raw[mid]=body
+    output=audit(read("snapshot"),read("baseline"),read("shadow"),results,raw)
     dest=Path(args.out);dest.parent.mkdir(parents=True,exist_ok=True)
     dest.write_text(json.dumps(output,ensure_ascii=False,indent=2)+"\n","utf-8")
     print("FOOTBALL_PROSPECTIVE_SCORE",output["status"],"verified",output["verified_joined_games"],
