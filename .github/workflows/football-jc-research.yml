@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'analysis/football_jc_*.py'
+      - 'scripts/football_007_probe.py'
       - 'tests/test_football_jc.py'
       - '.github/workflows/football-jc-research.yml'
   workflow_dispatch:
@@ -32,6 +33,8 @@ jobs:
         run: |
           python3 -B -m unittest discover -s tests -p test_football_jc.py -v
           python3 -B -m py_compile analysis/football_jc_probability.py analysis/football_jc_report.py
+      - name: Audit live 007 public football sources for actual JC endpoints
+        run: python3 -B scripts/football_007_probe.py
       - name: Select committed evidence without path traversal
         id: evidence
         env:
