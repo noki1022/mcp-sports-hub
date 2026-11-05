@@ -114,10 +114,12 @@ def freeze(snapshot,forecast,scheduled_day,now=None):
     slot=datetime(day.year,day.month,day.day,21,30,tzinfo=BJ).astimezone(timezone.utc)
     if now<slot or (now-slot).total_seconds()>MAX_DELAY*60:
         raise ValueError("OUTSIDE_BEIJING_2130_SCHEDULED_FINAL_WINDOW")
-    if captured<slot-timedelta(minutes=2) or generated>now+timedelta(minutes=2):
+    # Scheduled GitHub Actions can begin late; use the actual timestamp,
+    # allow up to 120 minutes after slot but never use a pre-slot report.
+    if captured<slot or generated>now+timedelta(minutes=2):
         raise ValueError("NOT_LIVE_2130_SOURCE_WINDOW")
-    if generated<slot:
-        raise ValueError("FORECAST_GENERATED_BEFORE_FINAL_SLOT")
+    if generated<slot or generated>=slot+timedelta(minutes=MAX_DELAY):
+        raise ValueError("FORECAST_OUTSIDE_FINAL_SLOT_WINDOW")
     games=[source_facts(g) for g in snapshot["games"]]
     return {"schema_version":VERSION,"slot_beijing_date":scheduled_day,
        "scheduled_slot_beijing":slot.astimezone(BJ).isoformat(),
