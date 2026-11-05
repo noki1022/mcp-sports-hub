@@ -111,6 +111,19 @@ def make_candidate(sport,snapshot,forecast,run_id,slot=""):
             "planned_slot_beijing":str(slot),"model_version":forecast.get("model_version") or forecast.get("schema_version"),
             "source_snapshot_sha256":digest(snapshot),"forecast_sha256":digest(forecast),
             "markets":checked}
+        if sport=="football":
+            # Lightweight immutable evidence for point-in-time movement;
+            # complete raw response remains in the 007 original archive.
+            injury_list=orig.get("injuries") or []
+            record["evidence"]={
+                "injury_report_state":orig.get("injury_report_state"),
+                "verified_absence_ids":sorted(str(x.get("player_id")) for x in injury_list
+                   if isinstance(x,dict) and x.get("status")=="VERIFIED" and x.get("player_id") is not None),
+                "goal_expectation":deepcopy(row.get("goal_expectation")),
+                "market_assimilation":deepcopy(row.get("market_assimilation")),
+                "data_quality":deepcopy(row.get("data_quality")),
+                "analysis_status":row.get("status"),
+            }
         record["record_sha256"]=digest(record)
         records.append(record)
     require(len(seen)==len(originals),"MISSING_FIXTURE_FORECAST")
