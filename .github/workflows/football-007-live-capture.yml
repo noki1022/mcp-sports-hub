@@ -259,7 +259,7 @@ jobs:
 
   football-daytime-push:
     needs: [live-football, archive-football-raw-release]
-    if: needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && github.event_name == 'schedule' && github.event.schedule != '30 13 * * *' && github.event.schedule != '30 22 * * *'
+    if: needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && github.event_name == 'schedule' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *"]'), github.event.schedule)
     runs-on: ubuntu-latest
     timeout-minutes: 6
     permissions:
