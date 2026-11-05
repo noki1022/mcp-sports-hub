@@ -13,6 +13,7 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 import hashlib,json,math
+from statistics import median
 import nba_multibook_crossplay_signals as BOOK
 import nba_shadow_injury_asof as INJ
 
@@ -51,21 +52,18 @@ def quote_movement(previous,now,kind):
     if not previous or previous.get("status")!="CONSENSUS_AVAILABLE" or (
         now.get("status")!="CONSENSUS_AVAILABLE"):
         return missing
-    old={str(r.get("company_id")):r for r in previous.get("quotes",[])
-         if not r.get("excluded_as_line_outlier")}
-    new={str(r.get("company_id")):r for r in now.get("quotes",[])
-         if not r.get("excluded_as_line_outlier")}
+    # Share duplicate-company quarantine with the robust candidate.
+    old=BOOK.books(previous,datetime.max.replace(tzinfo=timezone.utc))
+    new=BOOK.books(now,datetime.max.replace(tzinfo=timezone.utc))
     matched=[]
     for cid in sorted(set(old)&set(new)):
-        a,b=old[cid],new[cid]
-        ta,tb=clock(a.get("source_capture_utc")),clock(b.get("source_capture_utc"))
-        x,y=n(a.get("line")),n(b.get("line"))
+        x,ta=old[cid];y,tb=new[cid]
         if ta and tb and ta<tb and x is not None and y is not None:
             matched.append(y-x)
     if len(matched)<MIN_COMPANIES:
         return {**missing,"same_book_count":len(matched)}
     up=sum(d>0 for d in matched);down=sum(d<0 for d in matched)
-    meanchange=n(now.get("median_line"))-n(previous.get("median_line"))
+    meanchange=median(matched)
     if not math.isfinite(meanchange):return missing
     direction=("RISING" if meanchange>0 and up>=MIN_COMPANIES and
                up/len(matched)>=.6 else "FALLING" if meanchange<0 and
@@ -251,3 +249,4 @@ def main():
     Path(a.out).write_text(json.dumps(obj,ensure_ascii=False,indent=2,sort_keys=True)+"\n")
     print("INDEPENDENT_SHADOW_NEW_PREDICTION_FROZEN",obj["target_date"],obj["slot"],obj["game_count"])
 if __name__=="__main__":main()
+

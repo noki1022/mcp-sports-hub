@@ -1,58 +1,39 @@
-# Shadow model — actual performance and five-play audit (2026-11-02)
+# Independent shadow: actual frozen performance (2026-11-05)
 
-**Purpose: score the ability to predict NBA win, handicap cover and total over/under, NOT to find institutional price differences, betting EV or ROI.** This is a research scorecard, not a claim of production model uplift.
+## Current production and scoring contract
 
-## A. Historical three-play market-stage research (score verified)
+Original model remains the only PushPlus forecast. The independent market shadow runs after each accepted capture, without original model predictions or final scores mounted in its inference sandbox. Both models' actual 21:30 answers are sealed before tip in audit/dual-model-slot-evidence. Only these immutable final exams are scored. The old 18:00-specific shadow and grading entry points were removed; earlier documentation describing them is superseded.
 
-Data: 1,312 distinct independently completed NBA games from 2024–25 with source-defined opening/closing cross-book consensus stages, but WITHOUT bookmaker original quote update timestamps. 604 earliest games for fit, 328 chronologically later games for coefficient selection, 380 further games for retrospective later evaluation (2025-03-08 to 2025-06-22). This period has previously been explored, NOT a fresh untouched prospective holdout.
+## Actual prospective results
 
-| Metric | Independent graded / correct | Direction accuracy | Earlier market baseline | Shadow historical Brier | Baseline Brier |
-|---|---:|---:|---|---:|---:|
-| Moneyline | 267 correct out of 379 non-tie forecasts | 70.45% | Opening odds market (not existing team model) | 0.19471062 | 0.19786754 |
-| Spread (at historical OPEN line) | 169 / 288 | 58.68% | An uninformed 50/50, **NOT** bookmaker or production model | 0.24352969 | 0.25000000 |
-| Totals (at historical OPEN line) | 197 / 344 | 57.27% | An uninformed 50/50, **NOT** bookmaker or production model | 0.24108672 | 0.25000000 |
+Source: [real frozen ledger scoring run](https://github.com/noki1022/mcp-sports-hub/actions/runs/42010763862), job 127188899191. Graded Beijing dates: 2026-11-03 and 2026-11-05; **29 independent fixtures, 2 dates**. No historical model inference or training was performed to create these scores. Same-game and same-line original/shadow direction pairs exclude neutral shadow forecasts; probability scores include neutral 50% predictions. Missing original direct markets are not fabricated.
 
-Baseline and shadow moneyline non-tie sample denominators differ. Strictly apples-to-apples 374 paired non-tie games: **opening-market correct 264/374 (70.59%) vs shadow correct 263/374 (70.32%)**. The shadow's directional hit rate was **not better**, although Brier was numerically lower. Neither proves model superiority.
+| Market | Original correct / directional pairs | Shadow correct / same pairs | Probability pairs | Neutral shadow | Original Brier | Shadow Brier |
+|---|---:|---:|---:|---:|---:|---:|
+| JINGCAI_WIN | 16/27 | 18/27 | 27 | 0 | 0.228817 | 0.218301 |
+| JINGCAI_HANDICAP | 13/27 | 16/27 | 29 | 2 | 0.246959 | 0.242080 |
+| JINGCAI_TOTAL | 16/27 | 18/27 | 29 | 2 | 0.247254 | 0.235393 |
+| CROWN_HANDICAP | 4/7 | 4/7 | 29 | 22 | 0.253292 | 0.248961 |
+| CROWN_TOTAL | 4/12 | 5/12 | 29 | 17 | 0.249256 | 0.250446 |
 
-Spread and totals baselines always have p=0.5 and thus do NOT issue a directional prediction. There is no valid **original real team model vs new postmarket shadow** paired result for these historical 380 games, and none of those aggregate numbers are 007 Jingcai/ID3 Crown five-market prospective accuracy.
+Lower Brier is better. Crown total is worse on this cohort; Crown direction coverage is low. Two dates do not establish stable improvement or an 80% hit rate.
 
-**Open/close stage time ambiguity**: The above model sees spread/total closing movements without independently proved exact capture time before a user's decision. Its historical scores are hypothesis-generating only, not timestamp-certified prospective trading or final model calibration.
+## Existing robust multibook candidate
 
-## B. Actual 007 Nov 3 2026 future slate — newly generated shadow
+The separately precommitted ROBUST_MULTIBOOK candidate has only **14 frozen fixtures from one date** available in these archives. Its mean Brier differences versus the independent median baseline are -0.000375 (JC win), -0.000515 (JC handicap), +0.000188 (JC total), -0.000446 (Crown handicap), -0.000390 (Crown total). JC total worsened; all apparent differences are small. It must not be promoted based on this result. Neutral candidate forecasts are now included in proper scores, with directional denominators and coverage shown separately.
 
-Latest PR CI created a new model invocation after real saved source capture for 15 individual NBA fixtures and 75 original target play slots. 8 probability entries changed, **all eight are totals (JC and Crown in four games)**, and only **one directional prediction changed**:
+Cumulative evaluation keeps candidate versions separate, rejects duplicated dates/fixtures and reports Brier/log loss against both the original and independent baseline on the exact same cohort. Date-cluster bootstrap intervals are deliberately null until at least five independent dates; even a later descriptive interval does not authorize model promotion. The new feature v2 has **no newly settled prospective results yet**. Existing v1 results are not relabeled as v2 gains.
 
-| Home vs away | Market | Original P(Over) | New P(Over) | Direction after |
-|---|---|---:|---:|---|
-| NY Knicks vs Brooklyn Nets | JC totals | 53.98% | 51.60% | Over, unchanged |
-| NY Knicks vs Brooklyn Nets | Crown totals | 53.98% | 51.60% | Over, unchanged |
-| San Antonio Spurs vs Utah Jazz | JC totals | 53.35% | 55.72% | Over, unchanged |
-| San Antonio Spurs vs Utah Jazz | Crown totals | 49.26% | 51.64% | **Under -> Over** |
-| Houston Rockets vs Boston Celtics | JC totals | 64.07% | 63.51% | Over, unchanged |
-| Houston Rockets vs Boston Celtics | Crown totals | 68.75% | 68.22% | Over, unchanged |
-| Denver Nuggets vs Portland Trail Blazers | JC totals | 50.18% | 52.56% | Over, unchanged |
-| Denver Nuggets vs Portland Trail Blazers | Crown totals | 58.32% | 60.63% | Over, unchanged |
+## November 5 improvements
 
-No independent official Final outcomes for Nov 3 yet, so real new shadow-vs-baseline match/market **paired n=0, graded n=0, confirmed uplift unavailable**. The two originally unobserved JC moneyline quotes remain absent; do not infer JC odds. Real team model moneyline values still exist separately. Zero historical or newer quote prices are invented.
+- Compute market movement from matched-company deltas. Two changing group medians previously allowed company mix to suppress/reverse a genuine trend. Duplicate company IDs are quarantined. Preserve the unpaired group change only as a diagnostic.
+- Retain a verified team's official injury players when the other team is unpublished or malformed. Mark the other side UNKNOWN and both-team readiness false. Future, wrong-date and ambiguous source guards remain; no missing report is interpreted as healthy.
+- Preserve one original and one independent model. No new pseudo-models, arbitrary probability boosts, scheduler change or duplicate push.
 
-Research CI: https://github.com/noki1022/mcp-sports-hub/actions/runs/41433509059
+Injury features remain observational: core-role impact and adjusted probability are null until valid independent numerical evidence exists. Historical studies and role/minute evidence are not a calibrated live injury effect. Current source parsing does not preserve game-date columns from multi-day official injury PDFs, so a prior-report-date allowance cannot safely be enabled by merely relaxing date checks; that remains a separately testable source-provenance gap.
 
-## C. Promotion and reporting
+## Historical evidence boundary
 
-The new research model remains **draft PR only** until automatic postreport frozen artifact delivery and later independent official score grading are proven. No actual production fusion, no revised PushPlus forecasts, no claim that historical model has outperformed the existing team's five real direct plays.
+The earlier 1,312-game 2024–25 study used source-defined opening/closing consensus without independently verified bookmaker quote-update timestamps. Its 380-game later evaluation was previously examined, not an untouched prospective holdout. On 374 paired directional moneyline games, opening market hit 264/374 and historical shadow hit 263/374. Those numbers must not be mixed with the actual 2026 frozen 21:30 cohort above.
 
-Performance panel must always include: **original games / real scored games / five per-market correct/graded and Brier / baseline vs candidate on the exact same line / number of frozen before kickoff / no quote or missing injury exclusions / a truthful result if no game is yet final**. Never substitute the mere count of adjusted probabilities for hits.
-
-## D. Actual accepted 18:00 source -> newly generated postmarket forecasts
-
-On 2026-11-02 19:24 Beijing (UTC 11:24:37), the real GitHub research job independently generated a NEW complete 15 NBA games x 5 direct markets = 75 forecasts, after checking the genuine original 18:00 successful PushPlus marker from run 41425286650. Eight first-side model probabilities changed, precisely one direction flipped, and two direct official Jingcai moneyline offers remained unavailable. No scores were known and no production probability or PushPlus output was modified.
-
-Actual genuine run: https://github.com/noki1022/mcp-sports-hub/actions/runs/41436593663
-
-Upon merger of PR #231, the separate research-only workflow nba-postmarket-shadow-auto.yml is triggered by the SUCCESSFUL original full-board 007 analysis workflow completion on main. It checks actual successful 18:00 report marker and matching source run ID, no stale or posttip quotes, original file hashes, correct teams, all five JC/ID3 thresholds and signed spread. It uploads only the immutable pretip candidate and original model bridge with 90-day artifact retention; no odds fetch, no duplicate PushPlus, no main branch writing.
-
-The separately allowlisted research-only daily 23:25 Beijing workflow nba-shadow-prospective-final-grade.yml checks independent official NBA Final settlements. It downloads ONLY the EARLIEST genuine immutable main-branch pretip shadow artifact for that exact date, validates GitHub run timestamps, original source digests, full game/line identity and individual forecasts. Only then it scores each originally frozen and newly frozen direct JC and Crown ID3 prediction on the exact same game and line. It produces actual correct/graded and Brier per market with zero live fusion. A missed or incomplete final remains ungraded; there is no claim of positive prospective model lift until independently settled future games accumulate.
-
-One isolated postgame research-score-only schedule is explicitly allowlisted in scripts/validate_nba_schedules.py. Existing original live PushPlus, Cloudflare, odds collection and pretip 12:00/18:00/21:30 run times are unchanged. The previously explored historical market-stage results do not establish incremental improvement against current production.
-
-Future numeric model promotion remains blocked pending at least 100 independent completed fixtures on each of the five direct market targets, at least 24 separate Beijing dates, statistically credible same-game paired forecast-score improvement, verified original model inputs and additional truly untouched chronological prospective outcomes. No automatic promotion exists.
+Production promotion remains disabled. Existing requirements include at least 100 independent completed fixtures per target market, at least 24 dates, credible paired probability and direction improvement, verified injury inputs and untouched prospective evaluation. Raw archived answers are never rewritten.

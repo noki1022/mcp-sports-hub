@@ -20,7 +20,7 @@ SPREAD_SIGMA=15.55
 TOTAL_SIGMA=19.47
 MIN_BOOKS=3
 MAX_PAST_SNAPSHOTS=18
-SCHEMA="nba-shadow-independent-multibook-candidate-v1"
+SCHEMA="nba-shadow-independent-multibook-candidate-v2"
 
 def stamp(value):
     if not isinstance(value,str):return None
@@ -106,10 +106,12 @@ def movement(older,newer,oldtime,newtime):
     old=books(older,oldtime)
     new=books(newer,newtime)
     pairs=[]
+    paired_ids=[]
     for cid in sorted(old.keys() & new.keys()):
         a,at=old[cid];b,bt=new[cid]
         if at<bt:
             pairs.append(b-a)
+            paired_ids.append(cid)
     if len(pairs)<MIN_BOOKS:
         result["same_company_pairs"]=len(pairs)
         return result
@@ -118,7 +120,10 @@ def movement(older,newer,oldtime,newtime):
     changed=up+dn
     consensus_diff=number(newer.get("median_line"))
     initial=number(older.get("median_line"))
-    median_delta=(consensus_diff-initial if consensus_diff is not None and initial is not None else None)
+    composition_delta=(consensus_diff-initial if consensus_diff is not None and initial is not None else None)
+    # A changing company mix must not reverse/suppress a genuine paired move.
+    # Use the median of same-company deltas, not two unrelated group medians.
+    median_delta=median(pairs)
     dominant=max(up,dn)
     frac_all=dominant/len(pairs)
     frac_movers=dominant/changed if changed else None
@@ -131,6 +136,9 @@ def movement(older,newer,oldtime,newtime):
     return {**result,"same_company_pairs":len(pairs),"increased":up,
             "decreased":dn,"unchanged":unchanged,
             "median_change":round(median_delta,5) if median_delta is not None else None,
+            "unpaired_consensus_change":composition_delta,
+            "paired_company_ids":paired_ids,
+            "composition_change_excluded_from_signal":True,
             "agreement_among_all":round(frac_all,5),
             "agreement_among_movers":round(frac_movers,5) if frac_movers is not None else None,
             "market_signal":signal}
@@ -243,9 +251,23 @@ def selftest():
     m=movement(a,b,stamp("2026-11-02T09:02:00Z"),t)
     assert m["market_signal"]=="BROAD_FALLING"
     assert m["same_company_pairs"]==5 and m["decreased"]==5
+    # Three identical companies all strengthen HOME, but departing high-line
+    # companies make the unrelated group medians move in the opposite direction.
+    from copy import deepcopy
+    old=market(5,"2026-11-02T09:00:00Z")
+    new=market(6,"2026-11-02T13:30:00Z")
+    old['median_line']=10;new['median_line']=6
+    paired=movement(old,new,stamp("2026-11-02T09:02:00Z"),t)
+    assert paired['median_change']==1 and paired['unpaired_consensus_change']==-4
+    assert paired['market_signal']=='BROAD_RISING'
+    unchanged=deepcopy(new)
+    for q in unchanged['quotes']:q['line']-=1
+    unchanged['median_line']=20
+    assert movement(old,unchanged,stamp("2026-11-02T09:02:00Z"),t)['market_signal']=='UNCHANGED'
     # Never allow the opposite price slot or home/away reversal to leak.
     a["quotes"][0]["company_id"]="2"
     assert len(books(a,t))==3
     assert not movement(a,b,t,t)["same_company_pairs"]
     print("NBA_INDEPENDENT_007_MULTIBOOK_CROSSPLAY_FEATURE_SELFTEST_PASS")
 if __name__=="__main__":selftest()
+

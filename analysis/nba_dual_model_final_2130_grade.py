@@ -103,6 +103,7 @@ def score(orig,cand,proof,settlement):
     by={k:[] for k in KEYS}
     probability_pairs={k:[] for k in KEYS}
     candidate_pairs={k:[] for k in KEYS}
+    candidate_probability_pairs={k:[] for k in KEYS}
     rejected={}
     for gid,g in original.items():
         s=shadow[gid];finished=scores.get(gid)
@@ -175,6 +176,13 @@ def score(orig,cand,proof,settlement):
                     expected=SIDES[key][0] if q>.5 else SIDES[key][1] if q<.5 else "TIE"
                     if expected!=research.get("direction"):
                         raise ValueError("RESEARCH_MULTIBOOK_PROBABILITY_DIRECTION_CONFLICT")
+                    candidate_probability_pairs[key].append({
+                        **pair,"variant_version":cand.get("multibook_candidate_version","UNVERSIONED"),
+                        "candidate_direction":expected,
+                        "candidate_first_side_probability":q,
+                        "candidate_hit":int(expected==SIDES[key][1-y]) if expected!="TIE" else None,
+                        "candidate_brier":(q-y)**2,
+                        "candidate_log_loss":-math.log(q if y else 1-q)})
                     if expected!="TIE":
                         candidate_pairs[key].append({
                             "game_id":gid,"same_line_as_original_and_shadow":True,
@@ -224,6 +232,7 @@ def score(orig,cand,proof,settlement):
         "source_final":"ORIGINAL_PUSHED_2130_AND_INDEPENDENT_SHADOW_2130_ONLY",
         "five_market_by_market":final,
         "probability_pairs_including_neutral":probability_pairs,
+        "candidate_probability_pairs_including_neutral":candidate_probability_pairs,
         "neutral_probabilities_are_scored_not_discarded":True,
         "multibook_research_candidate_paired_vs_original_and_shadow":trial,
         "candidate_is_not_official_second_model_answer":True,

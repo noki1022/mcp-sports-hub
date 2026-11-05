@@ -264,6 +264,31 @@ def run():
         assert neutral_summary['neutral_shadow_count']==1
         assert neutral_summary['shadow_brier']==.25
         assert neutral_summary['shadow_accuracy'] is None
+        # Candidate 50% probabilities must contribute to proper scores, while
+        # neither counting as directional losses nor inflating direction coverage.
+        neutral['games'][0]['research_model_candidates']={'ROBUST_MULTIBOOK':{
+            'CROWN_HANDICAP':dict(neutral['games'][0]['markets']['CROWN_HANDICAP'])}}
+        neutral['multibook_candidate_version']='test-v2'
+        scored_neutral=GR.score(original,neutral,{},truth)
+        stats=BACKLOG.summarize([scored_neutral])['five_markets']['CROWN_HANDICAP'][
+            'research_candidate_by_version']['test-v2']
+        assert stats['candidate_brier']==.25 and stats['candidate_neutral_n']==1
+        assert stats['candidate_accuracy_on_issued_directions'] is None
+        assert stats['candidate_direction_coverage']==0
+        assert stats['candidate_minus_shadow_brier']['bootstrap_95_interval'] is None
+        assert stats['candidate_minus_shadow_brier']['status']=='INSUFFICIENT_INDEPENDENT_DATES'
+        try:BACKLOG.summarize([result,result])
+        except ValueError as ex:assert 'DUPLICATE_FINAL_EXAM_DATE' in str(ex)
+        else:raise AssertionError('REPEATED_EXAM_COUNTED_TWICE')
+        clusters=[{'target_date':str(i),'a':i/10,'b':.5} for i in range(6)]
+        ci=BACKLOG.paired_uncertainty(clusters,'a','b')
+        assert ci==BACKLOG.paired_uncertainty(clusters,'a','b')
+        assert ci['bootstrap_95_interval'][0]<=ci['paired_mean_difference']<=ci['bootstrap_95_interval'][1]
+        # Model versions remain distinct even when frozen on different dates.
+        separate=copy.deepcopy(scored_neutral);separate['target_date']='2026-11-04'
+        separate['candidate_probability_pairs_including_neutral']['CROWN_HANDICAP'][0]['variant_version']='test-v3'
+        versions=BACKLOG.summarize([scored_neutral,separate])['five_markets']['CROWN_HANDICAP']['research_candidate_by_version']
+        assert set(versions)=={'test-v2','test-v3'}
         assert result["five_market_by_market"]["JINGCAI_WIN"]["original_hits"]==1
         assert result["five_market_by_market"]["JINGCAI_TOTAL"]["original_hits"]==0
         assert result["five_market_by_market"]["CROWN_HANDICAP"]["original_hits"]==0
