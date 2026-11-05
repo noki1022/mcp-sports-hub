@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'analysis/sport_match_final_registry.py'
+      - 'scripts/football_jc_capture_slot.py'
       - 'analysis/sport_match_final_grade.py'
       - 'tests/test_sport_match_final_grade.py'
       - 'tests/test_sport_match_final_registry.py'
@@ -32,5 +33,7 @@ jobs:
         run: python3 -B -m unittest discover -s tests -p test_sport_match_final_grade.py -v
       - name: Verify NBA delivery slot mapping and dedup invariants
         run: python3 -B scripts/nba_fixed_slot_gate.py --self-test
+      - name: Validate actual versus planned football 21:30 and 06:30 schedule labels
+        run: python3 -B scripts/football_jc_capture_slot.py --self-test
       - name: Compile exact modified Python modules
         run: python3 -B -m py_compile analysis/sport_match_final_registry.py analysis/sport_match_final_grade.py scripts/nba_fixed_slot_gate.py
