@@ -4,6 +4,10 @@ on:
     paths:
       - 'scripts/football_007_live_capture.py'
       - 'analysis/football_jc_dc_shadow.py'
+      - 'analysis/football_jc_market_reading.py'
+      - 'analysis/football_jc_euro_asian.py'
+      - 'tests/test_football_jc_euro_asian.py'
+      - 'tests/test_football_jc_market_reading.py'
       - 'tests/test_football_jc_dc_shadow.py'
       - 'analysis/football_dc_shadow.py'
       - 'tests/test_football_dc_shadow.py'
@@ -46,6 +50,12 @@ jobs:
           python3 -B -m unittest discover -s tests -p test_football_007_cp_totals.py -v
           python3 -B -m unittest discover -s tests -p test_football_007_analysis_extract.py -v
           python3 -B -m unittest discover -s tests -p test_football_jc.py -v
+      - name: Validate mandatory European-to-Asian handicap and Asian quarter settlement (PR only)
+        if: github.event_name == 'pull_request'
+        run: python3 -B -m unittest discover -s tests -p test_football_jc_euro_asian.py -v
+      - name: Validate 007 market-reading math without touching model or collection (PR only)
+        if: github.event_name == 'pull_request'
+        run: python3 -B -m unittest discover -s tests -p test_football_jc_market_reading.py -v
       - name: Capture live 007 three JC markets and prematch form H2H injury facts
         run: |
           python3 -B scripts/football_007_live_capture.py --out football-output/football_007_snapshot.json --raw-dir football-output/raw
@@ -56,6 +66,13 @@ jobs:
         run: |
           python3 -B analysis/football_jc_probability.py --input football-output/football_007_snapshot.json --out football-output/football_jc_forecast.json
           python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast.json --html football-output/football_jc_mobile.html
+      - name: Mandatory isolated euro-to-Asian interpretation of each football JC snapshot
+        run: |
+          python3 -B analysis/football_jc_euro_asian.py \
+            --snapshot football-output/football_007_snapshot.json \
+            --baseline football-output/football_jc_forecast.json \
+            --out football-output/football_jc_euro_asian.json
+          test -s football-output/football_jc_euro_asian.json
       - name: Upload 007 source audit and research outputs, never push basketball or football
         if: always()
         uses: actions/upload-artifact@v4

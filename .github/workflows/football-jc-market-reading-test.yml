@@ -1,0 +1,29 @@
+name: Football 007 JC market reading research (isolated tests)
+on:
+  pull_request:
+    paths:
+      - 'analysis/football_jc_market_reading.py'
+      - 'analysis/football_jc_euro_asian.py'
+      - 'tests/test_football_jc_euro_asian.py'
+      - 'tests/test_football_jc_market_reading.py'
+      - '.github/workflows/football-jc-market-reading-test.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-market-reading:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run independent 007 JC odds interpretation and safety tests
+        run: |
+          python3 -B -m unittest discover -s tests -p test_football_jc_market_reading.py -v
+          python3 -B -m unittest discover -s tests -p test_football_jc_euro_asian.py -v
+          python3 -B -m py_compile analysis/football_jc_market_reading.py analysis/football_jc_euro_asian.py
+          echo "FOOTBALL_JC_MARKET_READING_TESTED_NO_NBA_NO_PUSH_NO_MODEL_PROMOTION"
