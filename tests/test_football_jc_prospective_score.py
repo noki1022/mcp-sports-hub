@@ -71,7 +71,7 @@ class TestProspectiveScore(unittest.TestCase):
         return score.evaluate(self.s,self.b,self.d,self.f,self.tmp.name)
     def test_three_jc_market_scores_and_two_goals(self):
         output=self.runscore()
-        self.assertEqual(output["verified_result_count"],1)
+        self.assertEqual(output["contract_accepted_result_count"],1)
         self.assertTrue(output["no_profit_or_true_out_of_sample_claim"])
         self.assertFalse(output["production_eligible"])
         self.assertFalse(output["pushplus_allowed"])
@@ -124,12 +124,12 @@ class TestProspectiveScore(unittest.TestCase):
     def test_future_generated_report_is_not_graded(self):
         self.d["created_at_utc"]=(KICK+timedelta(seconds=1)).isoformat()
         out=self.runscore()
-        self.assertEqual(out["verified_result_count"],0)
+        self.assertEqual(out["contract_accepted_result_count"],0)
         self.assertEqual(out["exclusions"]["MODEL_REPORT_NOT_FROZEN_BEFORE_KICKOFF"],1)
     def test_no_final_results_yields_zero_no_success_claim(self):
         self.f["games"]=[]
         out=self.runscore()
-        self.assertEqual(out["verified_result_count"],0)
+        self.assertEqual(out["contract_accepted_result_count"],0)
         self.assertTrue(out["insufficient_if_below_100_paired_matches"])
     def test_duplicate_final_id_rejected(self):
         self.f["games"].append(deepcopy(self.f["games"][0]))
