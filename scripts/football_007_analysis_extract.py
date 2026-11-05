@@ -181,6 +181,12 @@ def extract(raw,game,captured_at):
     away_id=away.get("teamId")
     if not isinstance(home_id,int) or not isinstance(away_id,int) or home_id==away_id:
         raise ValueError("BAD_ANALYSIS_TEAM_IDS")
+    current=data.get("currentPoints") or {}
+    if isinstance(current,dict):
+        for field,expected in (("homePoints",home_id),("awayPoints",away_id)):
+            row=current.get(field) or {}
+            if isinstance(row,dict) and row.get("teamId") is not None and str(row["teamId"])!=str(expected):
+                raise ValueError("ANALYSIS_TEAM_SIDE_CROSSCHECK_FAILED")
     latest=min(kickoff,captured)
     hform,hstatus=recent(home,home_id,latest)
     aform,astatus=recent(away,away_id,latest)
