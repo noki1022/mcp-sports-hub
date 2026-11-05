@@ -59,6 +59,11 @@ class TestFootballJc(unittest.TestCase):
             self.assertEqual(len(p), size)
             self.assertAlmostEqual(sum(p.values()), 1., places=5)
         self.assertEqual(row["data_quality"]["home_recent"], 5)
+        goals = row["markets"]["ttg"]["goal_selection"]
+        self.assertGreaterEqual(len(goals["goals"]), 1)
+        self.assertLessEqual(len(goals["goals"]), 2)
+        self.assertEqual(len(goals["goals"]), len(set(goals["goals"])))
+        self.assertAlmostEqual(goals["combined_probability"], sum(goals["individual_probabilities"]), places=5)
 
     def test_injury_matters(self):
         without = game()
@@ -122,6 +127,8 @@ class TestFootballJc(unittest.TestCase):
         self.assertNotIn("<script>", page)
         self.assertIn("竞彩让球胜平负", page)
         self.assertIn("竞彩总进球数", page)
+        self.assertIn("进球数推荐：", page)
+        self.assertIn("合计概率", page)
         self.assertNotIn("皇冠", page)
 
     def test_empty_is_not_a_claim_of_zero_fixtures(self):
