@@ -147,7 +147,9 @@ def collect(raw_map,captured,target=None):
         raise ValueError("CAPTURE_TIMESTAMP_REQUIRED")
     odds=parse_odds(raw_map["jc_odds"])
     games,coverage=parse_fixtures(raw_map["fixtures"],odds,captured,target)
-    if not games:raise RuntimeError("NO_VERIFIED_FUTURE_JC_FIXTURES_DO_NOT_PUSH")
+    # No future games in a successfully parsed 007 source is NOT a broken fetch.
+    # Keep the whole raw evidence + a zero-game manifest, with no fake picks.
+    verified_empty=not games
     cp_state="CP_TTG_NOT_CAPTURED"
     if "cp_ttg" in raw_map:
         try:
@@ -183,7 +185,9 @@ def collect(raw_map,captured,target=None):
     return {"schema_version":"football-jc-007-v1",
             "beijing_date":target or captured.astimezone(BJ).date().isoformat(),
             "captured_at_utc":captured.astimezone(timezone.utc).isoformat(),
-            "source_provenance":{"state":("LIVE_007_PUBLIC_FIXTURE_HAD_HHAD_TTG_PARTIAL" if coverage["ttg_with_price"] else "LIVE_007_PUBLIC_FIXTURE_AND_HAD_HHAD_ONLY"),
+            "source_provenance":{"state":("VERIFIED_007_FEEDS_ZERO_FUTURE_JC_FIXTURES" if verified_empty else
+                                      "LIVE_007_PUBLIC_FIXTURE_HAD_HHAD_TTG_PARTIAL" if coverage["ttg_with_price"] else
+                                      "LIVE_007_PUBLIC_FIXTURE_AND_HAD_HHAD_ONLY"),
                                  "cp_ttg_status":cp_state,
                                  "urls":{**FEEDS,**({"cp_ttg":cp_ttg.CP_TTG_URL} if "cp_ttg" in raw_map else {})},
                                  "sha256":{k:hashlib.sha256(v).hexdigest() for k,v in raw_map.items()},
