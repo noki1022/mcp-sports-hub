@@ -18,7 +18,7 @@ def football():
   markets={"had":{"direction":"主胜","jc_odds":[1.8,3.3,4.0]},
            "hhad":{"direction":"让负","signed_home_handicap":-1,"jc_odds":[1.8,3.3,4.0]},
            "ttg":{"goal_selection":{"goals":["2球","3球"]},"jc_odds":[3.0]*8}}
-  forecast={"model_version":"football-jc-poisson-asian-assimilation-v2",
+  forecast={"model_version":__import__("football_jc_asian_assimilation").VERSION,
            "source_sha256":R.digest(snapshot),"captured_at_utc":iso(T),
            "generated_at_utc":iso(T+timedelta(minutes=1)),
            "games":[{"match_id":"3075305","jc_number":"周四010","home_team":"甲",
