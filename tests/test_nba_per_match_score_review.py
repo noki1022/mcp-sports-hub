@@ -17,7 +17,6 @@ class TestAudit(unittest.TestCase):
   r=P.write_report(self.root,DAY,self.scores,self.root/"out")
   self.assertTrue(r["ready_for_one_daily_review_push"])
   self.assertTrue((self.root/"out/review.json").exists())
-  self.assertIn("110",str(P.review(self.root,DAY,self.scores)["scorecard"])) if False else None
  def test_one_missing_official_game_blocks_publication(self):
   all_games={**self.scores,"999":{"completed":True,"home_points":99,"away_points":100}}
   r=P.write_report(self.root,DAY,all_games,self.root/"out")
