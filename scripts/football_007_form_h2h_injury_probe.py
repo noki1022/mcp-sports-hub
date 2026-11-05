@@ -75,6 +75,16 @@ def audit(out):
      if any(k in u.lower() for k in ("analy","analysis","match","team","near","injur","hist","detail","data","lineup","member")):
       hints.append(u[:180])
    info["endpoint_hints"]=list(dict.fromkeys(hints))[:80]
+   largest=max(html.inline,key=len,default="")
+   if len(largest)>50000:
+    info["largest_inline_prefix"]=largest[:1900]
+    info["largest_inline_suffix"]=largest[-1100:]
+    info["largest_inline_length"]=len(largest)
+    for token in ('"nearMatches"','"vsMatches"','"injury"','"homeInjury"','"homeMatches"','"awayMatches"'):
+     pos=largest.find(token)
+     if pos>=0:
+      info.setdefault("largest_inline_data_keys",{})[token]={"offset":pos,
+          "before":largest[max(0,pos-700):pos+150]}
    for target in ("AnalysisObj","analysisData","nearMatchDiv","againstDiv","injuryData","Injury","NearMatch","getNear","getAgainst","getInjury","XMLHttpRequest","ajax","dataList","api/"):
     entries=[]
     for segment in html.inline:
