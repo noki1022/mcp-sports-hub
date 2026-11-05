@@ -108,10 +108,10 @@ def render(report):
         home=str(row.get("home_team") or "主队待核")
         away=str(row.get("away_team") or "客队待核")
         tip=clock(row.get("kickoff_utc") or row.get("tipoff_beijing"))
-        out.append("<section style='margin:9px 0;padding:11px;background:white;",
+        out.extend(["<section style='margin:9px 0;padding:11px;background:white;",
                    "border:1px solid #dae2eb;border-radius:11px'>",
                    "<b>"+E(title)+"　"+E(home)+"（主） vs "+E(away)+"（客）</b>",
-                   "<div style='font-size:12px;color:#66798c'>"+E(tip)+"　比分 <b>"+E(score)+"</b></div>")
+                   "<div style='font-size:12px;color:#66798c'>"+E(tip)+"　比分 <b>"+E(score)+"</b></div>"])
         markets=row.get("markets") or {}
         for m in MARKET_ORDER[sport]:
             x=markets.get(m) or {}
@@ -123,9 +123,9 @@ def render(report):
             if status=="MISS":
                 actual=actual_market(sport,m,x,h,a)
                 extra="　实际："+str(actual or "赛果方向待核")+"｜比分"+score
-            out.append("<div style='padding:5px 0;border-top:1px solid #ebeff4'>",
+            out.extend(["<div style='padding:5px 0;border-top:1px solid #ebeff4'>",
                        E(MARKET_NAMES[m])+"　"+E(verdict)+"　",
-                       "<b>"+E(label)+"</b>"+E(extra)+"</div>")
+                       "<b>"+E(label)+"</b>"+E(extra)+"</div>"])
         out.append("</section>")
     out.append("<p style='font-size:11px;color:#687b8e'>仅回测已封存的赛前判断；缺失、走盘和未核实赛果均不计入方向命中率。</p></body></html>")
     return "".join(out)
