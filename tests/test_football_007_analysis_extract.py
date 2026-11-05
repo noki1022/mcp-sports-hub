@@ -58,6 +58,24 @@ class Tests(unittest.TestCase):
   obj=source();obj["currentPoints"]["homePoints"]["teamId"]=1078
   with self.assertRaisesRegex(ValueError,"TEAM_SIDE_CROSSCHECK"):
    src.extract(html(obj),GAME,CAP.isoformat())
+ def test_fixture_team_id_inconsistency_rejected(self):
+  game=dict(GAME,home_team_id_007=1078,away_team_id_007=35)
+  with self.assertRaisesRegex(ValueError,"HOME_TEAM_ID_MISMATCH"):
+   src.extract(html(source()),game,CAP.isoformat())
+ def test_fixture_ids_correctly_verified(self):
+  game=dict(GAME,home_team_id_007=35,away_team_id_007=1078)
+  result=src.extract(html(source()),game,CAP.isoformat())
+  self.assertEqual(len(result["home_last5"]),5)
+ def test_ongoing_match_score_does_not_enter_form(self):
+  obj=source()
+  obj["nearMatches"]["homeMatches"]["matches"][0]["matchTime"]=str(int((CAP-timedelta(minutes=40)).timestamp()))
+  row=src.extract(html(obj),GAME,CAP.isoformat())
+  self.assertEqual(len(row["home_last5"]),4)
+ def test_ongoing_match_score_does_not_enter_h2h(self):
+  obj=source()
+  obj["vsMatches"]["matches"][0]["matchTime"]=str(int((CAP-timedelta(minutes=40)).timestamp()))
+  row=src.extract(html(obj),GAME,CAP.isoformat())
+  self.assertEqual(row["h2h"],[])
  def test_json_strict_no_eval(self):
   bad=b"<script>var jsonData = (function(){return 1})();</script>"
   with self.assertRaises(ValueError):src.decode_json(bad,"3075305")
