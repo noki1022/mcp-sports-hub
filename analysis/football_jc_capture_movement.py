@@ -74,6 +74,7 @@ def compare(current,history):
             first+=1
             rows.append({"match_id":mid,"jc_number":g.get("jc_number"),
                          "status":"FIRST_VERIFIED_OBSERVATION_NO_PREVIOUS_SNAPSHOT",
+                         "current_capture_utc":g["capture_utc"],
                          "current_generated_utc":g["generated_utc"],
                          "has_valid_pregame_analysis":True,"changes":[]})
             continue
