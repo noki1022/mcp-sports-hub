@@ -48,6 +48,38 @@ jobs:
           gh api "/repos/$GITHUB_REPOSITORY/releases?per_page=100" > audit-input/releases.json
           gh api "/repos/$GITHUB_REPOSITORY/branches/archive/nba-market-captures" \
             > audit-input/nba-archive-branch.json
+      - name: Inspect actual priority PushPlus jobs, including skipped sends
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p audit-input/priority-jobs
+          python3 - <<'PY' > audit-input/priority-run-ids.txt
+          import json
+          from datetime import datetime,timezone,timedelta
+          from pathlib import Path
+          import sys
+          sys.path.insert(0,"scripts")
+          import sports_chain_health as h
+          runs=[]
+          for f in sorted(Path("audit-input").glob("runs-*.json")):
+              runs.extend(json.loads(f.read_text())["workflow_runs"])
+          now=datetime.now(timezone.utc)
+          slots=list(h.expected_slots(now,24,180))
+          grouped=h.chronological_assignments(slots,runs)
+          ids=sorted({run["id"] for ix,(run,_) in grouped.items()
+                      if slots[ix]["workflow"] in h.PRIORITY
+                      and slots[ix]["planned"].astimezone(h.BJ).strftime("%H:%M")
+                      in ("21:30","06:30")})
+          for rid in ids[:16]:
+              print(rid)
+          PY
+          while IFS= read -r id; do
+            [ -n "$id" ] || continue
+            gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100" \
+              > "audit-input/priority-jobs/$id.json"
+          done < audit-input/priority-run-ids.txt
       - name: Produce strict shared NBA/football scheduled-capture and raw-evidence scorecard
         if: github.event_name != 'pull_request'
         run: |
@@ -58,6 +90,7 @@ jobs:
             --runs-page audit-input/runs-4.json \
             --releases audit-input/releases.json \
             --archive-branch audit-input/nba-archive-branch.json \
+            --priority-jobs-dir audit-input/priority-jobs \
             --out audit-output/sports-chain-health.json --strict
       - name: Keep read-only diagnostic report, even when the audit detects missing runs
         if: always() && github.event_name != 'pull_request'
