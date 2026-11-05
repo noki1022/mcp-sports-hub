@@ -263,7 +263,7 @@ def _fit_production_model(rows, target_day):
     }
     return fits, calibration, metadata
 
-def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_day):
+def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_day, *, context_cache=None):
     missing = [k for k in MIN_TARGET_FIELDS if not fixture.get(k)]
     target_day = _iso_day(fixture.get("date"))
     if missing or target_day is None:
@@ -275,8 +275,15 @@ def _prediction_for_fixture(fixture, games, fits, calibration, feature_cutoff_da
     if not isinstance(fixture.get("home"), str) or not isinstance(fixture.get("away"), str):
         return {"game_id": fixture.get("game_id"), "status": "DISABLED",
                 "reasons": ["CANONICAL_TEAM_IDS_REQUIRED"]}
-    hist, pairs = _history_before(games, target_day)
-    ratings = _elo_before(games, target_day)
+    # Shared only inside one generate() call: each fresh capture still loads
+    # and fits its own source history. Different target days cannot share state.
+    if context_cache is None:
+        context_cache = {}
+    if target_day not in context_cache:
+        hist, pairs = _history_before(games, target_day)
+        ratings = _elo_before(games, target_day)
+        context_cache[target_day] = (hist, pairs, ratings)
+    hist, pairs, ratings = context_cache[target_day]
     synthetic = {
         "date": target_day.isoformat(), "home": fixture["home"], "away": fixture["away"],
         "season": fixture.get("season", "unknown"),
@@ -411,6 +418,7 @@ def generate(board):
     fits, calibration, production = _fit_production_model(rows, cutoff_day)
     tuning = {"production_fixed_alpha": 100.0, "selection_source": "previous_development_only"}
     cal_through = calibration["_calibrated_through"]
+    context_cache = {}
     output = {
         "schema_version": "nba-independent-predictions-v1",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -437,7 +445,8 @@ def generate(board):
             "sample": calibration["_sample"],
         },
         "predictions": [
-            _prediction_for_fixture(x, games, fits, calibration, feature_cutoff_day)
+            _prediction_for_fixture(x, games, fits, calibration, feature_cutoff_day,
+                                    context_cache=context_cache)
             for x in fixtures
         ],
         "decision": "NO_BET",
@@ -489,3 +498,4 @@ if __name__ == "__main__":
         Path(args.out).write_text(json.dumps(generate(board), ensure_ascii=False, indent=2),
                                   encoding="utf-8")
         print(json.dumps({"out": args.out, "decision": "NO_BET"}, ensure_ascii=False))
+
