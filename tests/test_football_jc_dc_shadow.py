@@ -125,6 +125,6 @@ class ShadowTests(unittest.TestCase):
         model=dc.exponential_strength_fit(rows,CAP)
         self.assertIsNotNone(dc.expected_goals(model,"1","2"))
         self.assertIsNone(dc.expected_goals(model,"10001","10002"))
-        self.assertEqual(dc.choose_rho(rows,CAP)[1]["status"],"INSUFFICIENT_HISTORICAL_SPLIT")
+        self.assertEqual(dc.choose_rho(rows,CAP)[1]["status"],"INSUFFICIENT_UNIQUE_CHRONOLOGICAL_VALIDATION")
 if __name__=="__main__":
     unittest.main()
