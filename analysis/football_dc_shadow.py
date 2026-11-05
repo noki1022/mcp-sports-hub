@@ -137,7 +137,9 @@ def fit_profile(samples: Any, asof: str):
     # at the boundary kickoff together, never split one match's market snapshots.
     split = int(len(rows)*0.80)
     boundary = rows[split][0]
-    train = [r for r in rows if r[0] < boundary]
+    # Only include training labels that were already known BEFORE the first
+    # holdout kickoff; otherwise the train/validation split leaks outcomes.
+    train = [r for r in rows if r[0] < boundary and r[1] < boundary]
     hold = [r for r in rows if r[0] >= boundary]
     if len(train)<200 or len(hold)<50:raise ValueError("INSUFFICIENT_TEMPORAL_TRAIN_TEST_SPLIT")
     def safe_metric(group, rho):
