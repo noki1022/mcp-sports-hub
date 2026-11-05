@@ -259,17 +259,26 @@ jobs:
           test -s football-output/raw/manifest.json
           bj_day="$(TZ=Asia/Shanghai date +%Y%m%d)"
           tag="football-007-raw-$bj_day"
-          archive="football-007-raw-$bj_day-run-${{ github.run_id }}.zip"
+          archive="football-007-raw-$bj_day-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}.zip"
           zip -q -r "$archive" football-output/
           if ! gh release view "$tag" >/dev/null 2>&1; then
             gh release create "$tag" --target main --title "Football 007 raw $bj_day" \
               --notes "Independent soccer JC raw source vault. No NBA data or prediction delivery."
           fi
-          # Index candidates separately without unpacking the heavy raw vault later.
-          # Both filenames include run attempt; never --clobber an earlier source.
-          candidate="football-007-candidates-$bj_day-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}.json"
-          cp football-output/football_match_candidates.json "$candidate"
-          gh release upload "$tag" "$archive" "$candidate"
+          # Archive complete and incomplete runs alike: raw bytes are useful
+          # precisely when a parser or model contract fails. Never invent picks.
+          files=("$archive")
+          if [ -s football-output/football_match_candidates.json ]; then
+            candidate="football-007-candidates-$bj_day-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}.json"
+            cp football-output/football_match_candidates.json "$candidate"
+            files+=("$candidate")
+          else
+            error="football-007-incomplete-$bj_day-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}.json"
+            printf '{"schema_version":"football-raw-only-failed-analysis-v1","run_id":"%s","reason":"RAW_EVIDENCE_SAVED_BUT_NO_VERIFIED_FORECAST","no_pregame_prediction_generated":true}\n' "$GITHUB_RUN_ID" > "$error"
+            files+=("$error")
+            echo "::warning::FOOTBALL_RAW_PRESERVED_ANALYSIS_INCOMPLETE_NO_PREDICTIONS"
+          fi
+          gh release upload "$tag" "${files[@]}"
           echo "FOOTBALL_007_RAW_RELEASE_ARCHIVED=$tag/$archive"
           echo "FOOTBALL_MATCH_CANDIDATES=$tag/$candidate"
 
