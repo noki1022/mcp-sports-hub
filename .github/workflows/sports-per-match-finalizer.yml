@@ -1,0 +1,107 @@
+name: Football + NBA immutable per-match latest valid pretip finals
+on:
+  schedule:
+    # Every hour after candidate archives have had time to finish.
+    - cron: "25 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sports-latest-pretip-final-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  freeze-per-match:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Retrieve only small SHA-protected candidate assets, not large raw archive zips
+        run: |
+          mkdir -p registry-inputs/football registry-inputs/basketball
+          for offset in 0 1 2 3; do
+            day="$(TZ=Asia/Shanghai date -d "-$offset days" +%Y%m%d)"
+            football_tag="football-007-raw-$day"
+            nba_tag="nba-silent-actual-$day"
+            if gh release view "$football_tag" >/dev/null 2>&1; then
+              mkdir -p "registry-inputs/football/$day"
+              if gh release view "$football_tag" --json assets --jq '.assets[].name' | grep -q '^football-007-candidates-'; then
+                gh release download "$football_tag" --pattern 'football-007-candidates-*.json' --dir "registry-inputs/football/$day"
+              fi
+            fi
+            if gh release view "$nba_tag" >/dev/null 2>&1; then
+              mkdir -p "registry-inputs/basketball/$day"
+              if gh release view "$nba_tag" --json assets --jq '.assets[].name' | grep -q '^nba-candidates-'; then
+                gh release download "$nba_tag" --pattern 'nba-candidates-*.json' --dir "registry-inputs/basketball/$day"
+              fi
+            fi
+            target="$(TZ=Asia/Shanghai date -d "-$offset days" +%Y-%m-%d)"
+            if [ -d "reports/daily/$target" ]; then
+              find "reports/daily/$target" -mindepth 2 -maxdepth 2 -name nba_match_candidates.json -type f -print | while read -r file; do
+                slot="$(basename "$(dirname "$file")")"
+                mkdir -p "registry-inputs/basketball/$day"
+                cp "$file" "registry-inputs/basketball/$day/$slot-main-day-$day-match_candidates.json"
+              done
+            fi
+          done
+          count="$(find registry-inputs/ -type f -name '*.json' | wc -l)"
+          echo "CANDIDATE_BUNDLES=$count"
+          echo "CANDIDATE_BUNDLES=$count" >> "$GITHUB_ENV"
+      - name: Build stable per-match finals only after kickoff plus 90 minute archive grace
+        run: |
+          mkdir -p match-finals
+          if [ "$CANDIDATE_BUNDLES" -eq 0 ]; then
+            echo "NO_CAPTURE_SOURCE_CANDIDATES_FOR_LAST_FOUR_DAYS"
+            exit 0
+          fi
+          python3 -B analysis/sport_match_final_registry.py finalize \
+            --bundle-dir registry-inputs/ \
+            --as-of "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --grace-minutes 90 --out-dir match-finals
+      - name: Upload only new append-once per-game finals; never use postgame data or overwrite
+        run: |
+          count=0
+          if [ -d match-finals ]; then
+            while IFS= read -r -d '' file; do
+              sport="$(basename "$(dirname "$(dirname "$file")")")"
+              day="$(basename "$(dirname "$file")")"
+              if [[ ! "$sport" =~ ^(football|basketball)$ || ! "$day" =~ ^[0-9]{8}$ ]]; then
+                echo "::error::INVALID_FINAL_ARCHIVE_PATH"; exit 1
+              fi
+              tag="sport-pregame-final-$sport-$day"
+              name="$(basename "$file")"
+              if ! gh release view "$tag" >/dev/null 2>&1; then
+                gh release create "$tag" --target main --title "$sport immutable per-game pretip finals $day" \
+                  --notes "Pre-kickoff SHA-anchored predictions only. Actual results are scored separately. No overwrite."
+              fi
+              if gh release view "$tag" --json assets --jq '.assets[].name' | grep -Fxq "$name"; then
+                mkdir -p "existing-final/$sport/$day"
+                gh release download "$tag" --pattern "$name" --dir "existing-final/$sport/$day"
+                cmp "$file" "existing-final/$sport/$day/$name" || {
+                  echo "::error::FINAL_CONFLICT_REQUIRES_AUDIT $sport $day $name"; exit 1;
+                }
+                echo "IDEMPOTENT_SAME_FINAL $sport $day $name"
+              else
+                gh release upload "$tag" "$file"
+                echo "APPEND_ONLY_MATCH_FINAL $sport $day $name"
+                count=$((count + 1))
+              fi
+            done < <(find match-finals -name '*.final.json' -type f -print0 | sort -z)
+          fi
+          echo "NEW_MATCH_FINALS=$count"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sports-per-match-final-index-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: match-finals/
+          if-no-files-found: warn
+          retention-days: 90
