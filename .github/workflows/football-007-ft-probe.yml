@@ -1,0 +1,22 @@
+name: Football 007 fulltime source forensic check
+on:
+  pull_request:
+    paths:
+      - 'scripts/football_007_ft_probe.py'
+      - '.github/workflows/football-007-ft-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Inspect 007 match status and score schema no inference
+        run: python3 -B scripts/football_007_ft_probe.py
