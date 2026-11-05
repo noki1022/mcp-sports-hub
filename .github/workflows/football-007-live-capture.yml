@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'scripts/football_007_live_capture.py'
+      - 'analysis/football_jc_dc_shadow.py'
+      - 'tests/test_football_jc_dc_shadow.py'
       - 'analysis/football_dc_shadow.py'
       - 'tests/test_football_dc_shadow.py'
       - 'scripts/football_007_analysis_extract.py'
@@ -96,3 +98,42 @@ jobs:
           fi
           gh release upload "$tag" "$archive"
           echo "FOOTBALL_007_RAW_RELEASE_ARCHIVED=$tag/$archive"
+
+  # Independent challenger: consumes the audited artifact after collection.
+  # Never changes the NBA/CBA runtime, existing JC main probability report,
+  # source archive, or any PushPlus delivery.
+  football-dc-shadow:
+    needs: live-football
+    if: needs.live-football.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate shadow model only (no third-party runtime packages)
+        run: |
+          python3 -B -m unittest discover -s tests -p test_football_jc_dc_shadow.py -v
+          python3 -B -m py_compile analysis/football_jc_dc_shadow.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: football-007-live-source-evidence
+          path: football-output/
+      - name: Run independent Dixon-Coles candidate on 007 prematch evidence
+        run: |
+          test -s football-output/football_007_snapshot.json
+          python3 -B analysis/football_jc_dc_shadow.py \
+            --snapshot football-output/football_007_snapshot.json \
+            --analysis-dir football-output/raw \
+            --out football-shadow/football_dc_candidate.json
+      - name: Upload candidate-only research output (no PushPlus)
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-dc-shadow-model
+          path: football-shadow/
+          retention-days: 90
