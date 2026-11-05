@@ -66,8 +66,8 @@ def make_candidate(sport,snapshot,forecast,run_id,slot=""):
         seen.add(mid)
         orig=originals[mid]
         tip=stamp(orig["kickoff_beijing" if sport=="football" else "start_time_beijing"])
-        require(stamp(row["kickoff_beijing"])==tip if row.get("kickoff_beijing") else sport=="football",
-                "PREDICTION_TIPOFF_DRIFT")
+        row_tip=row.get("kickoff_beijing" if sport=="football" else "tipoff_beijing")
+        require(row_tip is not None and stamp(row_tip)==tip,"PREDICTION_TIPOFF_DRIFT")
         for field in ("home_team","away_team"):
             require(bool(orig.get(field)) and orig.get(field)==row.get(field),"HOME_AWAY_IDENTITY_DRIFT")
         if sport=="football":
