@@ -390,6 +390,7 @@ jobs:
           python3 -B scripts/football_jc_slot_push.py \
             --forecast football-output/football_jc_forecast_market.json \
             --mode daytime --daytime-slot "$DAYTIME_SLOT" \
+            --movement football-output/football_capture_movement.json \
             --html-out football-output/football_jc_sent_preview.html \
             --status-out football-output/football_jc_send_status.json --send
           test -s football-output/football_jc_send_status.json
@@ -459,6 +460,7 @@ jobs:
           python3 -B scripts/football_jc_slot_push.py \
             --forecast football-output/football_jc_forecast_market.json \
             --mode "$MODE" "${ARGS[@]}" "${EXTRA[@]}" \
+            --movement football-output/football_capture_movement.json \
             --html-out football-output/football_jc_sent_preview.html \
             --status-out football-output/football_jc_send_status.json --send
       - name: Preserve API response (never call it device delivery)
