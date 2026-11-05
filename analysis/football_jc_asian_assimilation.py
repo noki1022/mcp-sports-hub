@@ -120,7 +120,7 @@ def _infer_shift(home,away,asian_line,conditional_home):
 def _priority_group(company):
     """Match actual 007 bookmaker names, not guessed institution IDs."""
     name=" ".join(str(company.get(k) or "") for k in ("name_cn","name_en"))
-    compact=re.sub(r"[\\s._\\-·（）()]+","",name).casefold()
+    compact=re.sub(r"[\W_]+","",name.casefold())
     for group in PREFERRED_GROUPS:
         if any(alias.casefold() in compact for alias in PREFERRED_ALIASES[group]):
             return group
