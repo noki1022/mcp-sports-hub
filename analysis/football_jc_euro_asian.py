@@ -16,6 +16,7 @@ from datetime import datetime,timezone
 import hashlib
 import json
 import math
+from functools import lru_cache
 from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
@@ -79,10 +80,17 @@ def outcome_units(home_score,away_score,home_line):
 def asian_fair(score_grid,home_line):
     win=loss=refund=0.
     half_win=half_loss=0.
+    win_event=0.
+    # Settlement depends only on goal difference, not the absolute score.
+    # Validate once and reuse within this grid; source quotes are never cached.
+    split_line(home_line)
+    differences={h-a for h,row in enumerate(score_grid) for a in range(len(row))}
+    units={d:outcome_units(max(d,0),max(-d,0),home_line) for d in differences}
     for h,row in enumerate(score_grid):
         for a,p in enumerate(row):
-            w,l,r=outcome_units(h,a,home_line)
+            w,l,r=units[h-a]
             win+=p*w;loss+=p*l;refund+=p*r
+            if w>0:win_event+=p
             if w==.5 and r==.5:half_win+=p
             if l==.5 and r==.5:half_loss+=p
     if win<=1e-10 or loss<=1e-10:
@@ -99,23 +107,30 @@ def asian_fair(score_grid,home_line):
         "home_stake_fraction_win":round(win,7),
         "home_stake_fraction_loss":round(loss,7),
         "home_stake_fraction_refund":round(refund,7),
-        "home_full_or_half_win_event_probability":round(sum(p for h,row in enumerate(score_grid)
-            for a,p in enumerate(row) if outcome_units(h,a,home_line)[0]>0),7),
+        "home_full_or_half_win_event_probability":round(win_event,7),
         "home_half_win_probability":round(half_win,7),
         "home_half_loss_probability":round(half_loss,7),
         "settlement_components":list(split_line(home_line)),
         "observed_market_quote":False,
     }
 
+@lru_cache(maxsize=4096)
+def _fit_outcomes(lh,la):
+    # Immutable mathematical kernel only. No fixtures, odds, timestamps,
+    # injuries or model outputs enter this bounded process-local cache.
+    return tuple(outcome_three(grid(lh,la)))
+
 def fit_1x2(target):
-    if len(target)!=3 or abs(sum(target)-1)>1e-5:
+    if (len(target)!=3 or any(isinstance(x,bool) or not isinstance(x,(int,float))
+            or not math.isfinite(x) or not 0<=x<=1 for x in target)
+            or abs(sum(target)-1)>1e-5):
         raise ValueError("INVALID_1X2_PROBABILITY")
     # Bounded numerical fit: target has two degrees of freedom, same as the
     # independent-Poisson lambdas. Non-Poisson odds may not fit exactly.
     best=None
     for lh in (.35,.65,.95,1.25,1.55,1.9,2.3,2.9,3.7,4.4):
         for la in (.35,.65,.95,1.25,1.55,1.9,2.3,2.9,3.7,4.4):
-            p=outcome_three(grid(lh,la))
+            p=_fit_outcomes(lh,la)
             err=sum((x-y)**2 for x,y in zip(p,target))
             if best is None or err<best[0]:best=(err,lh,la)
     for step in (.4,.2,.08,.03,.01,.003):
@@ -124,11 +139,11 @@ def fit_1x2(target):
             for j in (-2,-1,0,1,2):
                 lh=min(4.5,max(.15,old[1]+step*i))
                 la=min(4.5,max(.15,old[2]+step*j))
-                p=outcome_three(grid(lh,la))
+                p=_fit_outcomes(lh,la)
                 err=sum((x-y)**2 for x,y in zip(p,target))
                 if err<best[0]:best=(err,lh,la)
     _,lh,la=best
-    p=outcome_three(grid(lh,la))
+    p=list(_fit_outcomes(lh,la))
     max_pp=100*max(abs(x-y) for x,y in zip(p,target))
     return lh,la,p,max_pp
 
@@ -277,3 +292,4 @@ def cli():
     path.write_text(json.dumps(data,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print("FOOTBALL_007_EURO_ASIAN",data["converted_count"],"/",data["game_count"],"theoretical conversions",data["source"],"no push")
 if __name__=="__main__":cli()
+

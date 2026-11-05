@@ -1,0 +1,28 @@
+name: Sports compute invariance and cache freshness
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_independent_predictions.py'
+      - 'analysis/football_jc_euro_asian.py'
+      - 'analysis/football_jc_asian_assimilation.py'
+      - 'tests/test_sports_compute_efficiency.py'
+      - '.github/workflows/sports-compute-efficiency.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy==2.3.5
+      - run: |
+          python -m unittest discover -s tests -p test_sports_compute_efficiency.py -v
+          python -m unittest discover -s tests -p test_football_jc_euro_asian.py -v
+          python -m unittest discover -s tests -p test_football_jc_asian_assimilation.py -v
