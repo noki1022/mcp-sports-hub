@@ -59,7 +59,8 @@ jobs:
         run: |
           python3 -B analysis/sport_match_final_grade.py \
             --final-root per-match-finals --sport basketball --day "$DAY_COMPACT" \
-            --results official_completed_scores.json --out nba_permatch_review.json
+            --results official_completed_scores.json --out nba_permatch_review.json \
+            --html nba_permatch_review_iphone.html
           python3 - <<'PY'
           import json
           x=json.load(open("nba_permatch_review.json"))
@@ -76,5 +77,6 @@ jobs:
           name: nba-verified-permatch-review-${{ inputs.beijing_day }}-${{ github.run_id }}
           path: |
             nba_permatch_review.json
+            nba_permatch_review_iphone.html
           retention-days: 90
           if-no-files-found: warn
