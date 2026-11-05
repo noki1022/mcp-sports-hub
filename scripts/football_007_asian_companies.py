@@ -80,9 +80,15 @@ def quote(details,first):
         return prefix+name[0].upper()+name[1:] if prefix else name
     # These are the actual 007 JSON keys in the source:
     h=details.get(field("homeOdds"))
-    g=details.get(field("drawOdds"))
     a=details.get(field("awayOdds"))
-    if h is None or g is None or a is None:
+    if h is None or a is None:
+        return None
+    # Verified in Titan007's own letgoalOverunderData.js renderer:
+    # (oddsObj.drawOdds == undefined ? 0 : Goal2GoalCn(...)).
+    # The source OMITS the handicap key for a true level-ball (0) market.
+    # Only apply the zero convention when BOTH real water quotes are present.
+    g=details.get(field("drawOdds"),0)
+    if g is None:
         return None
     return {"home_water":hk(h),"away_water":hk(a),**line(g)}
 
