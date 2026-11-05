@@ -36,6 +36,12 @@ SENDER_NAMES = (
     "Push full-board priority analysis to iPhone",
     "Push full-board priority analysis to iPhone before morning",
 )
+# Source-backed rollout anchors: PR #269 introduced the football hourly and NBA
+# silent schedules at 2026-11-05 16:50:11 UTC; PR #273 introduced the new
+# run-attempt raw naming at 16:56:08 UTC. Earlier missing slots must not be
+# called a failed production cron, while older exact-run archives still count.
+HOURLY_ROLLOUT_UTC = datetime(2026, 11, 5, 16, 50, 11, tzinfo=timezone.utc)
+FOOTBALL_ATTEMPT_ARCHIVE_UTC = datetime(2026, 11, 5, 16, 56, 8, tzinfo=timezone.utc)
 SCHEMA = "sports-cross-chain-actual-evidence-audit-v1"
 
 
@@ -64,6 +70,13 @@ def expected_slots(now, horizon_hours=24, grace_minutes=180):
         for hour, minute, workflow in schedule:
             planned = datetime(day.year, day.month, day.day, hour, minute, tzinfo=BJ)
             instant = planned.astimezone(timezone.utc)
+            # Keep the old 21:30/06:30 football schedule; the new hourly
+            # football + silent-NBA obligations only started after PR #269.
+            if workflow == FOOTBALL and (hour, minute) not in ((21, 30), (6, 30)):
+                if instant < HOURLY_ROLLOUT_UTC:
+                    continue
+            if workflow == NBA_SILENT and instant < HOURLY_ROLLOUT_UTC:
+                continue
             if now - timedelta(hours=horizon_hours) <= instant <= now - timedelta(minutes=grace_minutes):
                 yield {"workflow": workflow, "slot_beijing": planned.isoformat(), "planned": instant}
 
@@ -240,7 +253,16 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
             day = when(run["created_at"]).astimezone(BJ).strftime("%Y%m%d")
             expected_prefix = f"football-007-raw-{day}-run-{run['id']}-attempt-"
             names = artifacts.get("football-007-raw-" + day, set())
-            if not any(n.startswith(expected_prefix) and n.endswith(".zip") for n in names):
+            attempt_named = any(n.startswith(expected_prefix) and n.endswith(".zip") for n in names)
+            legacy_name = f"football-007-raw-{day}-run-{run['id']}.zip"
+            legacy_exact = (when(run["created_at"]) < FOOTBALL_ATTEMPT_ARCHIVE_UTC
+                            and legacy_name in names)
+            if not attempt_named and legacy_exact:
+                problems.append({"severity": "warning", "code": "FOOTBALL_LEGACY_RAW_ARCHIVE_FORMAT",
+                                 "workflow": FOOTBALL, "slot": slot["slot_beijing"],
+                                 "run_id": run["id"], "release_tag": "football-007-raw-" + day,
+                                 "asset": legacy_name})
+            elif not attempt_named:
                 problems.append({"severity": "critical", "code": "FOOTBALL_ORIGINAL_RAW_NOT_ARCHIVED",
                                  "workflow": FOOTBALL, "slot": slot["slot_beijing"],
                                  "run_id": run["id"], "release_tag": "football-007-raw-" + day})
