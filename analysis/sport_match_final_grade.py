@@ -150,11 +150,78 @@ def result(sport,day,rows,counters):
     report["review_sha256"]=registry.digest(report)
     return report
 
+def render_iphone(report):
+    """One compact scored answer per fixture, for both sports without restating raw feeds."""
+    from html import escape as esc
+    sport=report["sport"]
+    market_names={
+      "had":"竞彩胜平负","hhad":"竞彩让球胜平负","ttg":"竞彩总进球数",
+      "JINGCAI_WIN":"竞彩胜负","JINGCAI_HANDICAP":"竞彩让分",
+      "JINGCAI_TOTAL":"竞彩大小分","CROWN_HANDICAP":"皇冠让分",
+      "CROWN_TOTAL":"皇冠大小分",
+    }
+    title=("NBA 五玩法" if sport=="basketball" else "足球竞彩三玩法")
+    day=report["beijing_day"]
+    html=["<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'>",
+          "<meta name='viewport' content='width=device-width, initial-scale=1'>",
+          "</head><body style='margin:auto;padding:12px;max-width:560px;",
+          "font:14px/1.55 -apple-system,BlinkMacSystemFont,Arial,sans-serif;color:#26364b'>",
+          "<h2 style='font-size:19px;margin:0 0 6px'>北京时间 "+esc(day)+" "+title+"复盘</h2>",
+          "<div style='font-size:12px;color:#64748b;margin-bottom:10px'>",
+          "只评价每场最后一次有效赛前冻结版；21:30仅用于历史对比。走盘与未入样不计命中率。</div>"]
+    for key,stats in report["summary"].items():
+        ratio=(f'{stats["hit_rate"]*100:.1f}%（{stats["hits"]}/{stats["graded"]}）'
+               if stats["graded"] else "暂无有效样本")
+        more=(f'　走盘{stats["pushes"]}' if stats["pushes"] else "")
+        more+=(f'　未入样{stats["excluded"]}' if stats["excluded"] else "")
+        more+=(f'　待核{stats["unsettled"]}' if stats["unsettled"] else "")
+        html.append("<div style='padding:5px 0;border-bottom:1px solid #e5e9ef'><b>"+
+                    esc(market_names[key])+"</b>　<b>"+esc(ratio)+"</b>"+
+                    esc(more)+"</div>")
+    for game in report["matches"]:
+        score=game.get("actual_score")
+        if isinstance(score,dict):
+            hs,aw=score.get("home"),score.get("away")
+        else:
+            hs,aw=game.get("home_points"),game.get("away_points")
+        scores=(f"{hs}:{aw}" if type(hs) is int and type(aw) is int else "待核实")
+        idx=game.get("jingcai_number") or game.get("jc_number") or "编号待核"
+        html.append("<section style='padding:10px;margin:10px 0;border-radius:10px;",
+                    "border:1px solid #dbe3ee'><b>"+esc(str(idx))+"　"+
+                    esc(str(game.get("home_team") or "主队待核"))+"（主） vs "+
+                    esc(str(game.get("away_team") or "客队待核"))+"（客）</b>",
+                    "<div style='color:#65768a;font-size:12px'>最终比分（主:客）："+
+                    esc(scores)+"</div>")
+        for key,market in game["markets"].items():
+            status=market.get("outcome",market.get("status","UNSETTLED"))
+            desc={"HIT":"命中","MISS":"未中","PUSH":"走盘",
+                  "UNSETTLED":"待核实"}.get(status,"未入样")
+            choice=market.get("direction")
+            if isinstance(choice,list): choice="/".join(map(str,choice))
+            choice=str(choice or "暂无有效判断")
+            sign=market.get("signed_home_handicap",market.get("official_home_handicap"))
+            if key.endswith(("HANDICAP","hhad")) and isinstance(sign,(int,float)):
+                choice+=f"（主{sign:+g}）"
+            if key.endswith("TOTAL") and isinstance(market.get("line"),(int,float)):
+                choice+=f"（总分{market['line']:g}）"
+            extra=""
+            if status=="MISS":
+                actual=market.get("actual")
+                extra=(" 实际："+str(actual) if actual is not None else "")+"　赛果："+scores
+            html.append("<div style='padding:5px 0;border-top:1px solid #ecf0f5'>"+
+                        esc(market_names[key])+"　"+esc(choice)+"　<b>"+esc(desc)+"</b>"+
+                        esc(extra)+"</div>")
+        html.append("</section>")
+    html.append("<div style='font-size:11px;color:#64748b'>未核实赛果不评分；",
+                "历史赔率或开赛后的模型计算不能反向修改本报告。</div></body></html>")
+    return "".join(html)
+
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--final-root",required=True);p.add_argument("--sport",required=True,choices=tuple(LABELS))
     p.add_argument("--day",required=True);p.add_argument("--results",required=True)
     p.add_argument("--raw-dir");p.add_argument("--out",required=True)
+    p.add_argument("--html")
     a=p.parse_args()
     finals=load_finals(a.final_root,a.sport,a.day)
     if not finals:raise ValueError("NO_SEALED_PER_MATCH_FINALS_NO_SCORECARD")
@@ -169,6 +236,10 @@ def main():
     report=result(a.sport,a.day,rows,totals)
     Path(a.out).parent.mkdir(parents=True,exist_ok=True)
     Path(a.out).write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    if a.html:
+        dest=Path(a.html)
+        dest.parent.mkdir(parents=True,exist_ok=True)
+        dest.write_text(render_iphone(report),encoding="utf-8")
     print("VERIFIED_PER_MATCH_REVIEW",a.sport,[(k,x["graded"]) for k,x in report["summary"].items()])
 
 if __name__=="__main__":main()
