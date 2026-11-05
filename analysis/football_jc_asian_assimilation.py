@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import math
+import re
 from pathlib import Path
 import statistics
 import sys
@@ -34,10 +35,19 @@ import football_jc_probability as core
 import football_jc_euro_asian as euro
 
 VERSION="football-jc-poisson-asian-assimilation-v2"
-ASSIMILATION="007_AH_COMPANY_MAIN_LINES_BOUNDED_ROBUST_GOAL_DIFFERENCE_V1"
+ASSIMILATION="007_AH_PREFERRED_5_BOOKMAKER_MAIN_LINES_BOUNDED_V2"
 SOURCE_VERSION="football-jc-poisson-research-v1"
 MAX_SNAPSHOT_BYTES=20_000_000
 MIN_COMPANIES=5
+MAX_SELECTED_COMPANIES=5
+PREFERRED_GROUPS=("澳门","威廉","Bet365","立博")
+# The 007 source may expose English book names instead of Chinese labels.
+PREFERRED_ALIASES={
+    "澳门":("澳门","澳門","澳彩","macau","macao","macauslot"),
+    "威廉":("威廉","williamhill","william"),
+    "Bet365":("bet365","365"),
+    "立博":("立博","ladbrokes","ladbroke"),
+}
 MAX_SOURCE_OFFSET_SECONDS=900
 MAX_QUOTE_AGE_HOURS=72
 SEARCH_SHIFT_GOALS=4.0
@@ -105,6 +115,44 @@ def _infer_shift(home,away,asian_line,conditional_home):
         if q<conditional_home:low=mid
         else:high=mid
     return (low+high)/2,True
+
+def _priority_group(company):
+    """Match actual 007 bookmaker names, not guessed institution IDs."""
+    name=" ".join(str(company.get(k) or "") for k in ("name_cn","name_en"))
+    compact=re.sub(r"[\\s._\\-·（）()]+","",name).casefold()
+    for group in PREFERRED_GROUPS:
+        if any(alias.casefold() in compact for alias in PREFERRED_ALIASES[group]):
+            return group
+    return None
+
+def _select_company_evidence(valid):
+    """Use up to five unique institutions; prefer four requested families.
+
+    Pick one company from each available preferred family first, then other
+    valid preferred company IDs. If fewer than five, fill with the freshest
+    validated ordinary companies. Never double-count alternate lines.
+    """
+    preferred=[x for x in valid if x["preferred_group"] is not None]
+    others=[x for x in valid if x["preferred_group"] is None]
+    def order(item):
+        return (item["quote_age_hours"],item["company_id"])
+    picked=[]
+    used=set()
+    for group in PREFERRED_GROUPS:
+        matching=sorted((x for x in preferred if x["preferred_group"]==group),key=order)
+        if matching:
+            item=matching[0]
+            picked.append(item)
+            used.add(item["company_id"])
+    for item in sorted((x for x in preferred if x["company_id"] not in used),key=order):
+        if len(picked)>=MAX_SELECTED_COMPANIES:break
+        picked.append(item)
+        used.add(item["company_id"])
+    for item in sorted(others,key=order):
+        if len(picked)>=MAX_SELECTED_COMPANIES:break
+        picked.append(item)
+        used.add(item["company_id"])
+    return picked
 
 def _market_evidence(game,original,captured,model_at):
     """Return market evidence or a reason for leaving the model unchanged."""
@@ -174,7 +222,11 @@ def _market_evidence(game,original,captured,model_at):
             # Even if fixed independent total-goals makes a market line
             # impossible to match, the direction remains grounded in
             # the observed two-way 007 price. Only a bounded shift is used.
-            evidence.append({"company_id":cid,"line":ln,
+            evidence.append({"company_id":cid,
+                             "company_name_cn":str(company.get("name_cn") or "")[:80],
+                             "company_name_en":str(company.get("name_en") or "")[:80],
+                             "preferred_group":_priority_group(company),
+                             "line":ln,
                              "inversion_fully_bracketed":fully_bracketed,
                              "target_home_conditional":round(target,6),
                              "inferred_difference_shift":shift,
@@ -183,11 +235,17 @@ def _market_evidence(game,original,captured,model_at):
             continue
     if len(evidence)<MIN_COMPANIES:
         return None,"INSUFFICIENT_VALID_ASIAN_COMPANIES"
-    raw_shifts=[x["inferred_difference_shift"] for x in evidence]
-    center=statistics.median(raw_shifts)
-    retained=[x for x in evidence if abs(x["inferred_difference_shift"]-center)<=0.5]
-    if len(retained)<MIN_COMPANIES:
+    preferred_valid=[x for x in evidence if x["preferred_group"] is not None]
+    # Evaluate outliers relative to the preferred group when it has enough
+    # observations, rather than letting unrelated books veto its consensus.
+    center_pool=preferred_valid if len(preferred_valid)>=3 else evidence
+    center=statistics.median(x["inferred_difference_shift"] for x in center_pool)
+    inliers=[x for x in evidence if abs(x["inferred_difference_shift"]-center)<=0.5]
+    if len(inliers)<MIN_COMPANIES:
         return None,"ASIAN_BOOKMAKER_SHIFTS_TOO_DISPERSED"
+    retained=_select_company_evidence(inliers)
+    if len(retained)<MIN_COMPANIES:
+        return None,"INSUFFICIENT_SELECTED_ASIAN_COMPANIES"
     median=statistics.median(x["inferred_difference_shift"] for x in retained)
     dispersion=statistics.median(abs(x["inferred_difference_shift"]-median) for x in retained)
     unbracketed=sum(not x["inversion_fully_bracketed"] for x in retained)
@@ -203,7 +261,14 @@ def _market_evidence(game,original,captured,model_at):
         "source_captured_at_utc":source_at.isoformat(),
         "companies_total":len(companies),
         "companies_used":len(retained),
-        "companies_rejected":len(companies)-len(retained),
+        "companies_rejected":len(companies)-len(evidence),
+        "companies_valid_not_selected":len(evidence)-len(retained),
+        "preferred_companies_available":len(preferred_valid),
+        "preferred_companies_used":sum(x["preferred_group"] is not None for x in retained),
+        "fallback_companies_used":sum(x["preferred_group"] is None for x in retained),
+        "selected_company_ids":[x["company_id"] for x in retained],
+        "selected_preferred_groups":[x["preferred_group"] for x in retained if x["preferred_group"] is not None],
+        "company_selection_policy":"MACAU_WILLIAMHILL_BET365_LADBROKES_FIRST_MAX_5_UNIQUE_COMPANIES",
         "median_unshrunk_difference_shift":median,
         "median_absolute_deviation":dispersion,
         "unbracketed_company_count":unbracketed,
@@ -298,6 +363,13 @@ def assimilate(snapshot,original,model_at=None):
             "company_count_total":evidence["companies_total"],
             "company_count_used":evidence["companies_used"],
             "company_count_rejected":evidence["companies_rejected"],
+            "company_count_valid_not_selected":evidence["companies_valid_not_selected"],
+            "preferred_company_count_available":evidence["preferred_companies_available"],
+            "preferred_company_count_used":evidence["preferred_companies_used"],
+            "fallback_company_count_used":evidence["fallback_companies_used"],
+            "selected_company_ids":evidence["selected_company_ids"],
+            "selected_preferred_groups":evidence["selected_preferred_groups"],
+            "company_selection_policy":evidence["company_selection_policy"],
             "estimated_unshrunk_home_minus_away_goals_shift":round(shift,4),
             "applied_home_minus_away_goals_shift":round(2*(new_h-h),4),
             "market_dispersion_mad":round(evidence["median_absolute_deviation"],4),
