@@ -16,7 +16,7 @@
 
 `.github/workflows/sports-integrity-and-leakage-gates.yml` 每六小时审计最近成熟时段的 GitHub 真实 schedule runs 和足球按 run ID 命名的 Release zip，同时核对 NBA 长期存档分支存在性。报告为 `sports-cross-chain-health.json`。该审计不调用赔率源、不触发推送、不改动模型权重，也不能仅靠成功徽章证明消息投递或原始内容字节正确。
 
-默认匹配窗口为计划时点后 30 分钟，超时被视为需要排查的缺失，不把更晚别的时段运行误归于本时段。所有缺失以 CRITICAL 失败，让 Actions 看板可见。足球 Release 仍需另行按 SHA256 解压验证；NBA 存档须逐 run 对账，不能仅检查分支存在。
+新版优先使用 GitHub workflow path 与运行名称里明确的 UTC cron 时间；旧名称动态运行也能识别。审计将延迟不超过 180 分钟的执行纳入候选，全局一条 run 只匹配一个时段；**15 分钟以上延迟会产生警告**，无明确 cron 的延迟时段会标记为推断，不把 Action `success` 视为推送成功。21:30、06:30 额外读取作业步骤结果，记录已执行/跳过/失败；即使发送步骤成功，仍需要原始 PushPlus API 回执和手机实际接收证据。所有真实缺失以 CRITICAL 失败，让 Actions 看板可见。足球 Release 仍需另行按 SHA256 解压验证；NBA 存档须逐 run 对账，不能仅检查分支存在。
 
 ## 训练样本准入（研究，暂不接入在线模型）
 

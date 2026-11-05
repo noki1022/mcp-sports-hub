@@ -21,6 +21,21 @@ NBA_SILENT = "NBA silent 00-06 hourly five-market as-of capture (no PushPlus)"
 NBA_2130 = "NBA PRIORITY 21:30 Beijing pre-cutoff report"
 NBA_0630 = "NBA PRIORITY 06:30 Beijing morning full report"
 RUN_NAMES = frozenset((FOOTBALL, NBA_DAY, NBA_SILENT, NBA_2130, NBA_0630))
+PATH_TO_WORKFLOW = {
+    ".github/workflows/football-007-live-capture.yml": FOOTBALL,
+    ".github/workflows/titan007-three-analysis.yml": NBA_DAY,
+    ".github/workflows/nba-silent-overnight-hourly.yml": NBA_SILENT,
+    ".github/workflows/nba-priority-2130.yml": NBA_2130,
+    ".github/workflows/nba-priority-0630.yml": NBA_0630,
+}
+PRIORITY = frozenset((FOOTBALL, NBA_2130, NBA_0630))
+MAX_SCHEDULE_LATENESS_MINUTES = 180
+SENDER_NAMES = (
+    "Send phone-friendly three-play integrated forecast",
+    "Send exactly one football message per scheduled",
+    "Push full-board priority analysis to iPhone",
+    "Push full-board priority analysis to iPhone before morning",
+)
 SCHEMA = "sports-cross-chain-actual-evidence-audit-v1"
 
 
@@ -52,15 +67,86 @@ def expected_slots(now, horizon_hours=24, grace_minutes=180):
                 yield {"workflow": workflow, "slot_beijing": planned.isoformat(), "planned": instant}
 
 
-def match_slot(slot, runs):
-    expected = slot["planned"]
-    candidates = [r for r in runs if r.get("name") == slot["workflow"]
-                  and r.get("event") == "schedule"
-                  and expected <= when(r["created_at"])
-                  <= expected + timedelta(minutes=30)]
-    if not candidates:
-        return None
-    return min(candidates, key=lambda r: abs((when(r["created_at"]) - expected).total_seconds()))
+def canonical_workflow(run):
+    """Actions run 'name' may be dynamic (NBA slot) or stale after workflow rename."""
+    path = run.get("path")
+    if isinstance(path, str):
+        return PATH_TO_WORKFLOW.get(path.split("@", 1)[0])
+    # Only older / synthetic records lacking a canonical workflow path use names.
+    name = run.get("name")
+    if name in RUN_NAMES:
+        return name
+    if isinstance(name, str) and name.startswith("NBA full report | slot="):
+        return NBA_DAY
+    return None
+
+
+def advertised_cron(run):
+    """Read only the real dynamic NBA run-name's slot, never derive from start time."""
+    for key in ("name", "display_title"):
+        value = run.get(key)
+        if not isinstance(value, str):
+            continue
+        match = re.search(r"\bslot=(\d{1,2} \d{1,2} \* \* \*)", value)
+        if match:
+            return match.group(1)
+    return None
+
+
+def chronological_assignments(slots, runs):
+    """Global minimum-delay matching; never steal an adjacent hourly run.
+
+    A run with an advertised UTC cron must match that exact slot. For workflows
+    without trigger-cron metadata, we infer within 180m and flag lateness.
+    """
+    edges = []
+    for i, slot in enumerate(slots):
+        planned = slot["planned"]
+        expected_cron = f"{planned.minute} {planned.hour} * * *"
+        for run in runs:
+            if canonical_workflow(run) != slot["workflow"] or run.get("event") != "schedule":
+                continue
+            if type(run.get("id")) is not int:
+                continue
+            lag = (when(run["created_at"]) - planned).total_seconds() / 60
+            if not 0 <= lag <= MAX_SCHEDULE_LATENESS_MINUTES:
+                continue
+            declared = advertised_cron(run)
+            if declared is not None and declared != expected_cron:
+                continue
+            edges.append((0 if declared else 1, lag, i, run["id"]))
+    allocated = {}
+    claimed = set()
+    by_id = {r["id"]: r for r in runs}
+    for _, lag, index, rid in sorted(edges):
+        if index not in allocated and rid not in claimed:
+            allocated[index] = (by_id[rid], round(lag, 2))
+            claimed.add(rid)
+    return allocated
+
+
+def priority_send_evidence(run, jobs):
+    """Return API step evidence, not a claim that a phone actually received it."""
+    if jobs is None:
+        return "JOB_STEPS_NOT_QUERIED"
+    if not isinstance(jobs, list):
+        raise ValueError("INVALID_PRIORITY_JOBS")
+    found = []
+    for job in jobs:
+        if not isinstance(job, dict):
+            raise ValueError("INVALID_PRIORITY_JOB")
+        for step in job.get("steps") or []:
+            if any(str(step.get("name", "")).startswith(prefix) for prefix in SENDER_NAMES):
+                found.append(step.get("conclusion"))
+    if not found:
+        return "NO_SEND_STEP_FOUND"
+    if "success" in found:
+        return "SEND_STEP_SUCCESS_API_STATUS_REQUIRES_RECEIPT"
+    if "failure" in found:
+        return "SEND_STEP_FAILED"
+    if "skipped" in found:
+        return "SEND_STEP_SKIPPED"
+    return "SEND_STEP_INCOMPLETE"
 
 
 def release_assets(releases):
@@ -73,44 +159,53 @@ def release_assets(releases):
     return data
 
 
-def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=180):
+def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=180,
+          priority_jobs=None):
     now = now.astimezone(timezone.utc)
-    scheduled = []
-    found = []
-    used_run_ids = set()
-    problems = []
+    slots = sorted(expected_slots(now, horizon_hours, grace_minutes),
+                   key=lambda x: (x["planned"], x["workflow"]))
+    scheduled, found, problems, push_evidence = [], [], [], []
     artifacts = release_assets(releases)
     unique_runs = {}
     for run in runs:
-        if run.get("event") != "schedule" or run.get("name") not in RUN_NAMES:
+        if not isinstance(run, dict) or run.get("event") != "schedule":
             continue
         rid = run.get("id")
         if type(rid) is not int or not isinstance(run.get("created_at"), str):
             continue
+        if canonical_workflow(run) is None:
+            continue
         if rid in unique_runs and unique_runs[rid] != run:
             raise ValueError("CONFLICTING_GITHUB_RUN_ID")
         unique_runs[rid] = run
-    filtered = list(unique_runs.values())
-    for slot in expected_slots(now, horizon_hours, grace_minutes):
-        run = match_slot(slot, [r for r in filtered if r["id"] not in used_run_ids])
-        if run is not None:
-            used_run_ids.add(run["id"])
+    assigned = chronological_assignments(slots, list(unique_runs.values()))
+    for i, slot in enumerate(slots):
+        allocation = assigned.get(i)
+        run = allocation[0] if allocation else None
+        lag = allocation[1] if allocation else None
         scheduled.append({"workflow": slot["workflow"], "beijing_slot": slot["slot_beijing"],
-                          "run_id": run.get("id") if run else None})
+                          "run_id": run.get("id") if run else None,
+                          "schedule_delay_minutes": lag,
+                          "cron_verified_from_run_name": bool(run and advertised_cron(run))})
         if run is None:
             problems.append({"severity": "critical", "code": "SCHEDULED_RUN_NOT_OBSERVED",
                              "workflow": slot["workflow"], "slot": slot["slot_beijing"]})
             continue
         found.append(run["id"])
-        state = run.get("status")
-        conclusion = run.get("conclusion")
+        state, conclusion = run.get("status"), run.get("conclusion")
         if state != "completed" or conclusion != "success":
             problems.append({"severity": "critical", "code": "RUN_NOT_SUCCESSFUL",
                              "workflow": slot["workflow"], "slot": slot["slot_beijing"],
                              "run_id": run["id"], "state": state, "conclusion": conclusion})
+        if lag > 15:
+            problems.append({"severity": "warning", "code": "RUN_TRIGGERED_LATE",
+                             "workflow": slot["workflow"], "slot": slot["slot_beijing"],
+                             "run_id": run["id"], "delay_minutes": lag})
+        if lag > 30 and not advertised_cron(run):
+            problems.append({"severity": "warning", "code": "SLOT_INFERRED_FROM_TIME_NOT_CRON",
+                             "workflow": slot["workflow"], "slot": slot["slot_beijing"],
+                             "run_id": run["id"], "delay_minutes": lag})
         if slot["workflow"] == FOOTBALL and state == "completed":
-            # Original raw Release asset has the actual run ID; never infer its
-            # existence from a workflow's 'success' badge or an old daily zip.
             day = when(run["created_at"]).astimezone(BJ).strftime("%Y%m%d")
             expected_prefix = f"football-007-raw-{day}-run-{run['id']}-attempt-"
             names = artifacts.get("football-007-raw-" + day, set())
@@ -118,34 +213,42 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
                 problems.append({"severity": "critical", "code": "FOOTBALL_ORIGINAL_RAW_NOT_ARCHIVED",
                                  "workflow": FOOTBALL, "slot": slot["slot_beijing"],
                                  "run_id": run["id"], "release_tag": "football-007-raw-" + day})
-    # Freshness of the long-lived independent NBA branch is not proof of
-    # per-game completeness. Treat missing branch as an integrity failure,
-    # and a stale commit as a warning (genuine NBA off-days are possible).
+        if slot["workflow"] in PRIORITY and slot["planned"].astimezone(BJ).strftime("%H:%M") in ("21:30","06:30"):
+            jobs = (priority_jobs or {}).get(str(run["id"]))
+            proof = priority_send_evidence(run, jobs)
+            push_evidence.append({"workflow": slot["workflow"], "beijing_slot": slot["slot_beijing"],
+                                  "run_id": run["id"], "api_step_state": proof,
+                                  "device_delivery": "NOT_VERIFIED"})
+            if proof in ("SEND_STEP_FAILED", "SEND_STEP_SKIPPED", "NO_SEND_STEP_FOUND"):
+                problems.append({"severity": "warning", "code": "PRIORITY_PUSH_NOT_CONFIRMED",
+                                 "workflow": slot["workflow"], "slot": slot["slot_beijing"],
+                                 "run_id": run["id"], "api_step_state": proof})
     branch_sha = None
     if isinstance(archive_branch, dict):
         branch_sha = ((archive_branch.get("commit") or {}).get("sha") or None)
     if not isinstance(branch_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", branch_sha):
         problems.append({"severity": "critical", "code": "NBA_LONG_TERM_RAW_BRANCH_UNAVAILABLE"})
-    covered = len(scheduled)
     critical = sum(p["severity"] == "critical" for p in problems)
-    report = {"schema_version": SCHEMA, "checked_at_utc": now.isoformat(),
-              "timezone": "Asia/Shanghai", "window_hours": horizon_hours,
-              "grace_minutes": grace_minutes, "expected_slots": covered,
-              "observed_slots": covered - sum(p["code"] == "SCHEDULED_RUN_NOT_OBSERVED" for p in problems),
-              "observed_distinct_run_ids": len(set(found)),
-              "nba_archive_branch_head": branch_sha,
-              "football_raw_release_tags_examined": sorted(artifacts),
-              "critical_count": critical, "status": "CRITICAL" if critical else "OK",
-              "issues": problems, "slots": scheduled,
-              "limitations": [
-                  "GitHub cron arrival is best effort; a missing slot is an incident, not proof no game existed",
-                  "Run-to-slot mapping is inferred from creation within 30 minutes after the slot; later runs need explicit schedule evidence",
-                  "NBA archive branch existence does not prove every original run has been backed up",
-                  "Release asset names do not independently attest source bytes; SHA manifests require a separate restore test",
-                  "PushPlus API acceptance is not iPhone/WeChat device delivery",
-                  "Only source-verifiable completed games may enter model scoring",
-              ]}
-    return report
+    warnings = sum(p["severity"] == "warning" for p in problems)
+    covered = len(scheduled)
+    return {"schema_version": SCHEMA, "checked_at_utc": now.isoformat(),
+            "timezone": "Asia/Shanghai", "window_hours": horizon_hours,
+            "grace_minutes": grace_minutes, "expected_slots": covered,
+            "observed_slots": len(found), "observed_distinct_run_ids": len(set(found)),
+            "nba_archive_branch_head": branch_sha,
+            "football_raw_release_tags_examined": sorted(artifacts),
+            "critical_count": critical, "warning_count": warnings,
+            "status": "CRITICAL" if critical else "WARNING" if warnings else "OK",
+            "issues": problems, "slots": scheduled, "priority_delivery_evidence": push_evidence,
+            "limitations": [
+                "Actual schedule trigger expression is unavailable for non-dynamic GitHub runs; time-only association can be ambiguous",
+                "A completed/green run does NOT prove model, push or review steps actually executed",
+                "A successful send step is not a handset receipt; inspect verified API response and phone delivery separately",
+                "GitHub cron can be late or absent; a missing run is not proof of an off-day",
+                "NBA archive branch existence does not prove every original run was backed up",
+                "Release asset names do not verify original bytes; SHA manifests require a separate restore test",
+                "Official results and sealed predictions are required for scoring; no inferred FT data",
+            ]}
 
 
 def main():
@@ -153,6 +256,7 @@ def main():
     p.add_argument("--runs-page", action="append", required=True)
     p.add_argument("--releases", required=True)
     p.add_argument("--archive-branch", required=True)
+    p.add_argument("--priority-jobs-dir")
     p.add_argument("--out", required=True)
     p.add_argument("--now-utc")
     p.add_argument("--horizon-hours", type=int, default=24)
@@ -172,7 +276,17 @@ def main():
     if not isinstance(releases, list):
         raise ValueError("BAD_RELEASE_LIST")
     now = when(args.now_utc) if args.now_utc else datetime.now(timezone.utc)
-    result = audit(runs, releases, branch, now, args.horizon_hours, args.grace_minutes)
+    priority_jobs = {}
+    if args.priority_jobs_dir:
+        for filename in sorted(Path(args.priority_jobs_dir).glob("*.json")):
+            if not re.fullmatch(r"[0-9]{1,20}\\.json", filename.name):
+                raise ValueError("UNEXPECTED_PRIORITY_JOBS_FILENAME")
+            data = json.loads(filename.read_text(encoding="utf-8"))
+            if not isinstance(data, dict) or not isinstance(data.get("jobs"), list):
+                raise ValueError("BAD_PRIORITY_JOB_RESPONSE")
+            priority_jobs[filename.stem] = data["jobs"]
+    result = audit(runs, releases, branch, now, args.horizon_hours, args.grace_minutes,
+                   priority_jobs)
     path = Path(args.out)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")

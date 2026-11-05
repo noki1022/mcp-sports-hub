@@ -63,6 +63,70 @@ class TestCrossSportHealth(unittest.TestCase):
         result = H.audit(runs+[copy.deepcopy(runs[0])], releases, BRANCH, NOW)
         self.assertEqual(result["critical_count"], 0)
         self.assertEqual(result["observed_distinct_run_ids"], len(runs))
+    def test_dynamic_nba_full_report_name_matches_canonical_workflow_path(self):
+        runs, releases = source()
+        target = next(r for r in runs if r["name"] == H.NBA_DAY)
+        target["name"] = "NBA full report | slot=0 4 * * * | date=auto"
+        target["display_title"] = target["name"]
+        target["path"] = ".github/workflows/titan007-three-analysis.yml"
+        # The exact targeted slot could differ by day; use its actual planned clock.
+        slot = next(s for s in H.expected_slots(NOW, 24, 180)
+                    if s["workflow"] == H.NBA_DAY and
+                    0 <= (H.when(target["created_at"]) - s["planned"]).total_seconds() <= 1800)
+        target["name"] = "NBA full report | slot=" + (
+            f"{slot['planned'].minute} {slot['planned'].hour} * * *") + " | date=auto"
+        target["display_title"] = target["name"]
+        result = H.audit(runs, releases, BRANCH, NOW)
+        self.assertEqual(result["critical_count"], 0)
+
+    def test_workflow_rename_does_not_hide_football_real_capture(self):
+        runs, releases = source()
+        target = next(r for r in runs if r["name"] == H.FOOTBALL)
+        target["name"] = "Football 007 live JC capture + isolated analysis (no delivery)"
+        target["path"] = ".github/workflows/football-007-live-capture.yml"
+        result = H.audit(runs, releases, BRANCH, NOW)
+        self.assertEqual(result["critical_count"], 0)
+
+    def test_delayed_run_not_duplicated_across_slots(self):
+        runs, releases = source()
+        target = next(r for r in runs if r["name"] == H.NBA_DAY)
+        # 50-minute delay beyond the next slot: can be matched only once.
+        target["created_at"] = (H.when(target["created_at"]) +
+                                timedelta(minutes=50)).isoformat()
+        result = H.audit(runs, releases, BRANCH, NOW)
+        self.assertLessEqual(result["observed_distinct_run_ids"], len(runs))
+        self.assertEqual(len({x["run_id"] for x in result["slots"] if x["run_id"]}),
+                         result["observed_distinct_run_ids"])
+
+    def test_priority_step_skipped_is_not_confirmed_push(self):
+        runs, releases = source()
+        target = next(r for r in runs if r["name"] == H.NBA_2130)
+        job_map = {str(target["id"]): [{"steps": [
+            {"name": "Preflight Beijing cutoff", "conclusion": "success"},
+            {"name": "Push full-board priority analysis to iPhone before 22:00",
+             "conclusion": "skipped"},
+        ]}]}
+        result = H.audit(runs, releases, BRANCH, NOW, priority_jobs=job_map)
+        evidence = [x for x in result["priority_delivery_evidence"]
+                    if x["run_id"] == target["id"]][0]
+        self.assertEqual(evidence["api_step_state"], "SEND_STEP_SKIPPED")
+        self.assertEqual(evidence["device_delivery"], "NOT_VERIFIED")
+        self.assertIn("PRIORITY_PUSH_NOT_CONFIRMED", [x["code"] for x in result["issues"]])
+
+    def test_successful_send_step_is_not_phone_delivery(self):
+        state = H.priority_send_evidence({}, [{"steps": [{
+            "name": "Send exactly one football message per scheduled 21:30/06:30",
+            "conclusion": "success"}]}])
+        self.assertEqual(state, "SEND_STEP_SUCCESS_API_STATUS_REQUIRES_RECEIPT")
+
+    def test_older_run_with_advertised_cron_cannot_be_used_for_other_slot(self):
+        runs, releases = source()
+        target = next(r for r in runs if r["name"] == H.NBA_DAY)
+        target["name"] = "NBA full report | slot=7 0 * * * | date=auto"
+        target["path"] = ".github/workflows/titan007-three-analysis.yml"
+        result = H.audit(runs, releases, BRANCH, NOW)
+        self.assertGreater(result["critical_count"], 0)
+
     def test_naive_time_rejected(self):
         with self.assertRaisesRegex(ValueError, "NAIVE_TIMESTAMP"):
             H.when("2026-11-06T12:00:00")
