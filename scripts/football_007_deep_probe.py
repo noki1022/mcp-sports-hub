@@ -26,7 +26,11 @@ def fetch(url):
   if len(raw)>900000:raise ValueError("TOO_LARGE")
   if (urlparse(r.url).hostname or "").endswith("titan007.com") is False:raise ValueError("EXTERNAL_REDIRECT")
   return raw.decode("utf-8","replace")
-html=fetch(URL)
+try:
+ html=fetch(URL)
+except Exception as exc:
+ print("DEEPPROBE_ACCESS_BLOCKED",type(exc).__name__,str(exc)[:150])
+ raise SystemExit(0)
 parser=Html();parser.feed(html)
 print("DEEPMETA",json.dumps({"html_chars":len(html),"scripts":len(parser.scripts),
  "inline":len(parser.inline),"inline_lengths":[len(x) for x in parser.inline],
