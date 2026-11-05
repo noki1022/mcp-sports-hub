@@ -58,7 +58,7 @@ except (ValueError,TypeError) as exc:
  print("ASIAN_ENDPOINT_JSON_INVALID",type(exc).__name__);raise SystemExit(0)
 if not isinstance(obj,dict):
  print("ASIAN_ENDPOINT_WRONG_SHAPE",type(obj).__name__);raise SystemExit(0)
-report={"keys":list(obj),"company_count":len(obj.get("companies") or []),"status":obj.get("status")}
+report={"keys":list(obj),"scheduleId":obj.get("scheduleId"),"matchTime":obj.get("matchTime"),"company_count":len(obj.get("companies") or []),"company_ids":[x.get("companyId") for x in obj.get("companies") or []],"status":obj.get("status")}
 for c in (obj.get("companies") or [])[:5]:
  if not isinstance(c,dict):continue
  report.setdefault("sample_companies",[]).append({
