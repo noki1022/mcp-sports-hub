@@ -14,7 +14,7 @@ import football_jc_report as report
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from pushplus_mobile import send
 
-def prepare(forecast,mode,lock=None,comparison=None,daytime_slot=None):
+def prepare(forecast,mode,lock=None,comparison=None,daytime_slot=None,movement=None):
     if forecast.get("model_version")!=final.FUSED_VERSION:
         raise ValueError("MUST_SEND_SINGLE_INTEGRATED_FOOTBALL_MODEL")
     if not forecast.get("games"):
@@ -47,7 +47,7 @@ def prepare(forecast,mode,lock=None,comparison=None,daytime_slot=None):
         label=daytime_slot[:2]+":00赛前研判"
     else:raise ValueError("INVALID_FOOTBALL_SEND_SLOT")
     title="北京时间"+str(forecast.get("beijing_date"))+" 足球球赛研判｜"+label
-    html=report.render(forecast,comparison,mode if mode in ("final","update") else "research")
+    html=report.render(forecast,comparison,mode if mode in ("final","update") else "research",movement)
     return {"title":title,"html":html}
 
 def cli():
@@ -57,6 +57,7 @@ def cli():
     ap.add_argument("--mode",required=True,choices=("final","update","daytime","morning-standalone"))
     ap.add_argument("--daytime-slot")
     ap.add_argument("--comparison")
+    ap.add_argument("--movement")
     ap.add_argument("--html-out",required=True)
     ap.add_argument("--status-out",required=True)
     ap.add_argument("--send",action="store_true")
@@ -68,7 +69,8 @@ def cli():
     forecast=read(a.forecast)
     lock=read(a.locked) if a.locked else None
     comparison=read(a.comparison) if a.comparison else None
-    payload=prepare(forecast,a.mode,lock,comparison,a.daytime_slot)
+    movement=read(a.movement) if a.movement else None
+    payload=prepare(forecast,a.mode,lock,comparison,a.daytime_slot,movement)
     out=Path(a.html_out);out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(payload["html"],encoding="utf-8")
     status={"status":"PREVIEW_ONLY","slot":a.mode,
