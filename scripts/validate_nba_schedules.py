@@ -46,6 +46,8 @@ workflows={
  # monitoring, no PushPlus, no modification of original forecasts.
  "nba-injury-live-roster-feature-freeze.yml":["10 18 * * *"]
 }
+# Football has its own independent schedule and never shares NBA slot/delivery logic.
+football_schedule={"football-007-live-capture.yml":["0 4 * * *","0 10 * * *","30 13 * * *","30 22 * * *"]}
 def load(path):
     obj=yaml.safe_load(path.read_text())
     if not isinstance(obj,dict):raise AssertionError(str(path))
@@ -66,10 +68,20 @@ def main():
         if on.get("schedule"):
             scheduled_names.add(path.name)
     expected_scheduled_names={name for name,crons in workflows.items() if crons}
-    assert scheduled_names==expected_scheduled_names,(
+    allowed_scheduled_names=expected_scheduled_names|set(football_schedule)
+    assert scheduled_names==allowed_scheduled_names,(
         "UNREVIEWED_OR_MISSING_SCHEDULED_WORKFLOW",
-        sorted(scheduled_names-expected_scheduled_names),
-        sorted(expected_scheduled_names-scheduled_names))
+        sorted(scheduled_names-allowed_scheduled_names),
+        sorted(allowed_scheduled_names-scheduled_names))
+    for name,expected in football_schedule.items():
+        football=load(ROOT/".github/workflows"/name)
+        event=football.get("on",football.get(True,{}))
+        actual=[x["cron"] for x in event.get("schedule",[])]
+        assert actual==expected,("FOOTBALL_CRON_CHANGED",actual,expected)
+        content=(ROOT/".github/workflows"/name).read_text()
+        for forbidden in ("titan007_join_beijing_verified.py","nba_priority_","nba_five_market","pushplus_mobile.py","scheduler/worker.mjs"):
+            assert forbidden not in content,("FOOTBALL_NBA_PIPELINE_CROSS_LINK",forbidden)
+        assert "FOOTBALL_PUSHPLUS_TOKEN" not in content, "RAW_COLLECTION_MUST_NOT_PUSH"
     full=load(ROOT/'.github/workflows/titan007-three-analysis.yml')
     guarded={'Archive analysis in repository',
              'Validate cross-artifact delivery contract before PushPlus',
