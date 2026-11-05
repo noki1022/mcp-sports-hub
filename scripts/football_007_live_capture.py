@@ -101,6 +101,8 @@ def parse_fixtures(raw,odds,captured,target=None):
     leagues=league_map(decoded)
     games=[]
     seen=set()
+    future_source_rows=0
+    rejected_future_identifiers=0
     for record in sections[1].split("!"):
         if not record.strip():continue
         c=record.strip().split("^")
@@ -112,12 +114,14 @@ def parse_fixtures(raw,odds,captured,target=None):
         tip=timestamp(c[1])
         if tip.astimezone(timezone.utc)<=captured:continue
         if target and tip.date().isoformat()!=target:continue
+        future_source_rows+=1
         jcnum=c[4].strip()
         home=c[8].split(",")[0].strip()
         away=c[10].split(",")[0].strip()
         if not home or not away or not re.fullmatch(r"周[一二三四五六日天]\d{3}",jcnum):
-            # Preserve a rejected source as a quality error rather than assign
-            # guessed game number or reverse teams.
+            # Never disguise an upstream future row with an invalid JC number
+            # or team identity as a verified zero-fixture day.
+            rejected_future_identifiers+=1
             continue
         if not c[5].isdigit():raise ValueError("INVALID_007_LEAGUE_ID")
         jc=odds.get(mid,{})
@@ -136,7 +140,10 @@ def parse_fixtures(raw,odds,captured,target=None):
             "data_gaps":["RECENT_FIVE_NOT_YET_PARSED","H2H_NOT_YET_PARSED",
                          "INJURIES_NOT_YET_VERIFIED","JC_TTG_ODDS_NOT_IN_PUBLIC_FEED"]})
     games.sort(key=lambda g:(g["kickoff_beijing"],g["match_id"]))
-    return games,{"total_fixture_ids":len(seen),"future_jc_fixtures":len(games),
+    return games,{"total_fixture_ids":len(seen),
+                  "future_source_rows_before_identity_filter":future_source_rows,
+                  "rejected_future_identity_rows":rejected_future_identifiers,
+                  "future_jc_fixtures":len(games),
                   "odds_fixture_ids":len(odds),
                   "had_with_price":sum(bool(g["jc_markets"]["had"]) for g in games),
                   "hhad_with_price":sum(bool((g["jc_markets"]["hhad"] or {}).get("odds")) for g in games),
@@ -149,6 +156,8 @@ def collect(raw_map,captured,target=None):
     games,coverage=parse_fixtures(raw_map["fixtures"],odds,captured,target)
     # No future games in a successfully parsed 007 source is NOT a broken fetch.
     # Keep the whole raw evidence + a zero-game manifest, with no fake picks.
+    if not games and coverage["future_source_rows_before_identity_filter"]>0:
+        raise RuntimeError("007_FUTURE_ROWS_EXIST_BUT_NO_VERIFIED_JC_IDENTITY__DO_NOT_TREAT_AS_OFFDAY")
     verified_empty=not games
     cp_state="CP_TTG_NOT_CAPTURED"
     if "cp_ttg" in raw_map:
