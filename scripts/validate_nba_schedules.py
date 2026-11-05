@@ -81,7 +81,15 @@ def main():
         content=(ROOT/".github/workflows"/name).read_text()
         for forbidden in ("titan007_join_beijing_verified.py","nba_priority_","nba_five_market","pushplus_mobile.py","scheduler/worker.mjs"):
             assert forbidden not in content,("FOOTBALL_NBA_PIPELINE_CROSS_LINK",forbidden)
-        assert "FOOTBALL_PUSHPLUS_TOKEN" not in content, "RAW_COLLECTION_MUST_NOT_PUSH"
+        # Football collection is source-only; delivery is a separate gated job.
+        # This preserves the existing NBA isolation and avoids leaking a token
+        # to collection/archival tasks.
+        jobs=football.get("jobs") or {}
+        for name,job in jobs.items():
+            if name=="football-final-and-morning-push":
+                assert job.get("needs") is not None, "FOOTBALL_PUSH_MUST_WAIT_FOR_FROZEN_ARTIFACT"
+                continue
+            assert "FOOTBALL_PUSHPLUS_TOKEN" not in str(job), "RAW_COLLECTION_MUST_NOT_PUSH"
     full=load(ROOT/'.github/workflows/titan007-three-analysis.yml')
     guarded={'Archive analysis in repository',
              'Validate cross-artifact delivery contract before PushPlus',
