@@ -120,6 +120,8 @@ class TestFootballJc(unittest.TestCase):
         row = core.run(snap([g]))["games"][0]
         self.assertEqual(row["status"], "INSUFFICIENT_FORM")
         self.assertTrue(all(row["markets"][k]["direction"] is None for k in core.MARKETS))
+        self.assertEqual(row["markets"]["had"]["jc_odds"], [2.00, 3.15, 3.65])
+        self.assertEqual(row["markets"]["hhad"]["signed_home_handicap"], -1)
 
     def test_report_escaped_and_no_crown(self):
         g = game()
