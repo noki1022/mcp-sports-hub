@@ -258,7 +258,7 @@ def main():
     else:
         paths=[Path(x) for x in a.bundle]
         if a.bundle_dir:
-            paths+=sorted(Path(a.bundle_dir).rglob("*match_candidates.json"))
+            paths+=sorted(Path(a.bundle_dir).rglob("*.json"))
         require(bool(paths),"MISSING_SNAPSHOT_CANDIDATES")
         docs=[json.loads(x.read_text(encoding="utf-8")) for x in paths]
         if a.command=="finalize":
