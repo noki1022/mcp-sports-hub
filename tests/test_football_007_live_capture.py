@@ -35,7 +35,7 @@ class TestLive(unittest.TestCase):
   self.assertEqual(s["source_provenance"]["coverage"]["ttg_with_price"],0)
   self.assertEqual(s["games"][0]["injury_report_state"],"UNAVAILABLE")
  def test_missing_had_not_fabricated(self):
-  data=ODDS.replace(b"1.18^5.30^9.65",b"^^^")
+  data=ODDS.replace(b"1.18^5.30^9.65",b"^^")
   s=live.collect({"fixtures":FIX,"jc_odds":data},CAP)
   self.assertIsNone(s["games"][0]["jc_markets"]["had"])
   self.assertIsNotNone(s["games"][0]["jc_markets"]["hhad"])
