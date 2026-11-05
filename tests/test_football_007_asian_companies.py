@@ -74,9 +74,21 @@ class TestAsian007(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"QUARTER"):
             a.line(.7)
         self.assertEqual(a.line(-.25)["signed_home_asian_handicap"],.25)
-    def test_missing_first_quote_not_assumed(self):
+    def test_missing_handicap_key_means_flat_line_when_both_waters_exist(self):
+        # Source JS explicitly prints 0 when the handicap key is undefined.
+        flat=row(1)
+        for item in flat["details"]:
+            item.pop("firstDrawOdds",None)
+            item.pop("drawOdds",None)
+        got=a.parse(source([flat]),game(),CAP)
+        book=got["companies"][0]["main"]
+        self.assertEqual(book["initial_quote"]["signed_home_asian_handicap"],0)
+        self.assertEqual(book["latest_quote"]["signed_home_asian_handicap"],0)
+        self.assertEqual(got["company_count"],1)
+    def test_missing_either_water_is_not_fabricated(self):
         bad=row(1)
-        for item in bad["details"]:item.pop("firstDrawOdds")
+        for item in bad["details"]:
+            item.pop("firstHomeOdds",None)
         with self.assertRaisesRegex(ValueError,"NO_VALID"):
             a.parse(source([bad]),game(),CAP)
     def test_equal_home_away_sign_not_jc_integer_market(self):
