@@ -1,0 +1,29 @@
+name: Football Titan007 form H2H injury source audit
+on:
+  pull_request:
+    paths:
+      - 'scripts/football_007_form_h2h_injury_probe.py'
+      - '.github/workflows/football-analysis-source-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Audit live 007 football form recent five H2H and injury page links
+        run: python3 -B scripts/football_007_form_h2h_injury_probe.py football-output/analysis-source-audit
+      - name: Archive source evidence for offline parser engineering
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-007-form-h2h-injury-source-audit
+          path: football-output/analysis-source-audit/
+          retention-days: 30
