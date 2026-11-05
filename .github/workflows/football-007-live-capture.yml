@@ -4,6 +4,11 @@ on:
     paths:
       - 'scripts/football_007_live_capture.py'
       - 'scripts/football_007_mobile_probe.py'
+      - 'scripts/football_007_deep_probe.py'
+      - 'scripts/football_007_jc_market_probe.py'
+      - 'scripts/football_007_cp_probe.py'
+      - 'scripts/football_007_cp_totals.py'
+      - 'tests/test_football_007_cp_totals.py'
       - 'tests/test_football_007_live_capture.py'
       - '.github/workflows/football-007-live-capture.yml'
   workflow_dispatch:
@@ -32,6 +37,7 @@ jobs:
       - name: Validate 007 real fixture and official odds record contracts offline
         run: |
           python3 -B -m unittest discover -s tests -p test_football_007_live_capture.py -v
+          python3 -B -m unittest discover -s tests -p test_football_007_cp_totals.py -v
           python3 -B -m unittest discover -s tests -p test_football_jc.py -v
       - name: Capture actual public 007 soccer schedule and JC 1X2 / integer handicap
         run: |

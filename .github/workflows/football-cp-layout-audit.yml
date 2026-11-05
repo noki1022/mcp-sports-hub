@@ -1,0 +1,22 @@
+name: Football CP 007 TTG HTML row layout audit
+on:
+  pull_request:
+    paths:
+      - 'scripts/football_007_cp_layout_probe.py'
+      - '.github/workflows/football-cp-layout-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect-cp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Inspect source-linked 007 total-goals rows without altering basketball or football schedules
+        run: python3 -B scripts/football_007_cp_layout_probe.py

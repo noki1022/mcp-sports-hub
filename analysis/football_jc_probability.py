@@ -311,7 +311,12 @@ def run(snapshot):
         "game_count": len(results), "games": results,
         "market_scope": list(MARKETS),
         "model_status": "RESEARCH_NOT_VALIDATED",
-        "source_status": ("LIVE_007_PARTIAL_FIXTURE_AND_TWO_MARKETS" if (snapshot.get("source_provenance") or {}).get("state") == "LIVE_007_PUBLIC_FIXTURE_AND_HAD_HHAD_ONLY" else "SNAPSHOT_PROVIDED_NO_LIVE_007_CAPTURE_VERIFICATION"),
+        "source_status": (
+            "LIVE_007_PARTIAL_FIXTURE_AND_THREE_MARKETS_FORM_INJURIES_MISSING"
+            if (snapshot.get("source_provenance") or {}).get("state") == "LIVE_007_PUBLIC_FIXTURE_HAD_HHAD_TTG_PARTIAL"
+            else "LIVE_007_PARTIAL_FIXTURE_AND_TWO_MARKETS"
+            if (snapshot.get("source_provenance") or {}).get("state") == "LIVE_007_PUBLIC_FIXTURE_AND_HAD_HHAD_ONLY"
+            else "SNAPSHOT_PROVIDED_NO_LIVE_007_CAPTURE_VERIFICATION"),
         "no_claim_of_backtested_accuracy": True,
     }
 

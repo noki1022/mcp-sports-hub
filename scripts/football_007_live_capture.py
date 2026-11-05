@@ -18,6 +18,8 @@ import time
 import urllib.request
 from zoneinfo import ZoneInfo
 
+import football_007_cp_totals as cp_ttg
+
 BJ=ZoneInfo("Asia/Shanghai")
 FEEDS={"fixtures":"https://jc.titan007.com/xml/bf_jc.txt",
        "jc_odds":"https://jc.titan007.com/xml/odds_jc.txt"}
@@ -143,11 +145,44 @@ def collect(raw_map,captured,target=None):
     odds=parse_odds(raw_map["jc_odds"])
     games,coverage=parse_fixtures(raw_map["fixtures"],odds,captured,target)
     if not games:raise RuntimeError("NO_VERIFIED_FUTURE_JC_FIXTURES_DO_NOT_PUSH")
+    cp_state="CP_TTG_NOT_CAPTURED"
+    if "cp_ttg" in raw_map:
+        try:
+            cp_rows,cp_stats=cp_ttg.parse_cp_ttg(raw_map["cp_ttg"])
+            matched=0
+            for game in games:
+                odds8,state=cp_ttg.join_fixture(game,cp_rows)
+                game["cp_ttg_source_status"]=state
+                if odds8 is not None:
+                    game["jc_markets"]["ttg"]=odds8
+                    game["data_gaps"].remove("JC_TTG_ODDS_NOT_IN_PUBLIC_FEED")
+                    # Same 007 fixture id, JC sale number and exact kickoff were validated.
+                    cp_match=cp_rows[game["match_id"]]
+                    game["cp_ttg_source"]={
+                        "url":cp_ttg.CP_TTG_URL,"cp_bet_id":cp_match["cp_bet_id"],
+                        "cp_can_sale":cp_match["can_sale"],
+                        "cp_home_team":cp_match["home_team_cp"],
+                        "cp_away_team":cp_match["away_team_cp"],
+                        "team_name_exact_match":(
+                            game["home_team"]==cp_match["home_team_cp"] and
+                            game["away_team"]==cp_match["away_team_cp"])}
+                    matched+=1
+                else:
+                    game["data_gaps"].append(state)
+            cp_state="CP_TTG_PARSED_AND_ID_NUMBER_TIME_JOINED"
+            coverage["cp_page_rows"]=cp_stats["rows_seen"]
+            coverage["cp_eight_quotes"]=cp_stats["eight_quotes"]
+            coverage["ttg_with_price"]=matched
+        except (ValueError,TypeError,KeyError) as exc:
+            cp_state="CP_TTG_PARSE_REJECTED:"+type(exc).__name__+":"+str(exc)[:100]
+            for game in games:
+                game["cp_ttg_source_status"]=cp_state
     return {"schema_version":"football-jc-007-v1",
             "beijing_date":target or captured.astimezone(BJ).date().isoformat(),
             "captured_at_utc":captured.astimezone(timezone.utc).isoformat(),
-            "source_provenance":{"state":"LIVE_007_PUBLIC_FIXTURE_AND_HAD_HHAD_ONLY",
-                                 "urls":FEEDS,
+            "source_provenance":{"state":("LIVE_007_PUBLIC_FIXTURE_HAD_HHAD_TTG_PARTIAL" if coverage["ttg_with_price"] else "LIVE_007_PUBLIC_FIXTURE_AND_HAD_HHAD_ONLY"),
+                                 "cp_ttg_status":cp_state,
+                                 "urls":{**FEEDS,**({"cp_ttg":cp_ttg.CP_TTG_URL} if "cp_ttg" in raw_map else {})},
                                  "sha256":{k:hashlib.sha256(v).hexdigest() for k,v in raw_map.items()},
                                  "coverage":coverage},
             "games":games}
@@ -161,23 +196,29 @@ def main():
     if args.target_date:datetime.strptime(args.target_date,"%Y-%m-%d")
     start=datetime.now(timezone.utc)
     raw={k:fetch(v) for k,v in FEEDS.items()}
+    try:
+        raw["cp_ttg"]=cp_ttg.fetch_cp_ttg()
+    except (OSError,ValueError,RuntimeError) as exc:
+        print("FOOTBALL_CP_TTG_FETCH_UNAVAILABLE",type(exc).__name__,str(exc)[:180])
     # Use collection completion as the as-of boundary; never claim a quote
     # fetched after kickoff existed at the earlier request start.
     completed=datetime.now(timezone.utc)
     folder=Path(args.raw_dir);folder.mkdir(parents=True,exist_ok=True)
     for key,data in raw.items():
-        (folder/(key+".txt.gz")).write_bytes(gzip.compress(data,mtime=0))
+        ext=".html.gz" if key=="cp_ttg" else ".txt.gz"
+        (folder/(key+ext)).write_bytes(gzip.compress(data,mtime=0))
     # Archive actual source bytes before fixture filtering or model parsing:
     # even a source format change or zero verified fixtures must not erase raw evidence.
     (folder/"manifest.json").write_text(json.dumps({
         "capture_started_at_utc":start.isoformat(),
         "capture_completed_at_utc":completed.isoformat(),
-        "sources":{k:{"url":FEEDS[k],"sha256":hashlib.sha256(v).hexdigest(),
-                      "bytes":len(v)} for k,v in raw.items()}},ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+        "sources":{k:{"url":(cp_ttg.CP_TTG_URL if k=="cp_ttg" else FEEDS[k]),"sha256":hashlib.sha256(v).hexdigest(),
+                      "bytes":len(v)} for k,v in raw.items()}},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     snapshot=collect(raw,completed,args.target_date)
     snapshot["source_provenance"]["capture_started_at_utc"]=start.isoformat()
     out=Path(args.out);out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(snapshot,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print("FOOTBALL_007_LIVE_CAPTURE",json.dumps(snapshot["source_provenance"]["coverage"],ensure_ascii=False))
+    print("FOOTBALL_CP_TTG_STATUS",snapshot["source_provenance"]["cp_ttg_status"])
 
 if __name__=="__main__":main()
