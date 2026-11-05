@@ -1,0 +1,32 @@
+name: Football 007 fulltime raw-source status audit (no results scored)
+on:
+  pull_request:
+    paths:
+      - 'scripts/football_007_ft_source_audit.py'
+      - 'tests/test_football_007_ft_source_audit.py'
+      - '.github/workflows/football-007-ft-source-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  read-only-ft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate observed-only 007 status and score field inspection
+        run: python3 -B -m unittest discover -s tests -p test_football_007_ft_source_audit.py -v
+      - name: Inspect actual current 007 public result states, do not infer FT from unknown codes
+        run: python3 -B scripts/football_007_ft_source_audit.py
+      - name: Preserve full raw 007 response and observed status map for schema confirmation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-007-ft-read-only-evidence
+          path: football-ft-source-audit/
+          retention-days: 30
