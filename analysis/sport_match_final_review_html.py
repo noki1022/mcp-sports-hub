@@ -15,7 +15,7 @@ MARKET_NAMES={
  "had":"竞彩胜平负","hhad":"竞彩让球胜平负","ttg":"竞彩总进球数",
  "JINGCAI_WIN":"竞彩胜负","JINGCAI_HANDICAP":"竞彩让分胜负",
  "JINGCAI_TOTAL":"竞彩大小分","CROWN_HANDICAP":"皇冠让分","CROWN_TOTAL":"皇冠大小分"}
-SPORT_NAMES={"football":"竞彩足球","basketball":"NBA/CBA 篮球"}
+SPORT_NAMES={"football":"竞彩足球","basketball":"NBA 篮球"}
 MARKET_ORDER={
  "football":("had","hhad","ttg"),
  "basketball":("JINGCAI_WIN","JINGCAI_HANDICAP","JINGCAI_TOTAL","CROWN_HANDICAP","CROWN_TOTAL")}
