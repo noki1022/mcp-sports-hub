@@ -67,11 +67,10 @@ jobs:
           from pathlib import Path
           import sys
           sys.path.insert(0,'analysis')
-          from nba_007_durable_capture_archive import WORKFLOWS
+          from nba_007_durable_capture_archive import WORKFLOWS,canonical_workflow_name
           name=os.environ['SOURCE_NAME']
-          prefix=WORKFLOWS.get(name)
-          if not prefix:
-              raise SystemExit('UNRECOGNIZED_ORIGINAL_CAPTURE_WORKFLOW')
+          # GitHub workflow_run.name may be an explicitly validated dynamic run-name.
+          prefix=WORKFLOWS[canonical_workflow_name(name)]
           listing=json.loads((Path(os.environ['RUNNER_TEMP'])/'source-artifacts.json').read_text())
           matched=[a['name'] for a in listing.get('artifacts',[])
                    if not a.get('expired') and a['name'].startswith(prefix)]

@@ -26,6 +26,25 @@ WORKFLOWS = {
     "Titan007 NBA/CBA final one-hour report": "titan007-final-window-",
     "Free Titan007 NBA and CBA daily odds report": "titan007-basketball-daily-",
 }
+# GitHub workflow_run.name can be the run-name (dynamic title), not the
+# static workflow name from "on.workflow_run.workflows". Never trust an arbitrary
+# title: permit only the exact full-board prefix, validated slot and date.
+_FULL_REPORT_TITLE = re.compile(
+    r"^NBA full report \| slot=([A-Za-z0-9*/,\- ]{1,72}) \| date=(auto|\d{4}-\d{2}-\d{2})$"
+)
+
+def canonical_workflow_name(name: str) -> str:
+    if name in WORKFLOWS:
+        return name
+    match = _FULL_REPORT_TITLE.fullmatch(str(name))
+    if match is None:
+        raise ValueError("UNRECOGNIZED_ORIGINAL_CAPTURE_WORKFLOW")
+    slot = match.group(1)
+    if not (re.fullmatch(r"\d{4}|ONCE(?:-[A-Z0-9-]{1,40})?", slot)
+            or re.fullmatch(r"(?:[0-9*/,-]+ ){4}[0-9*/,-]+", slot)):
+        raise ValueError("UNVERIFIED_ORIGINAL_REPORT_SLOT")
+    return "Titan007 scheduled full-board NBA analysis and PushPlus delivery"
+
 MAX_FILES = 750
 MAX_ONE_FILE = 12 * 1024 * 1024
 MAX_TOTAL = 85 * 1024 * 1024
@@ -170,7 +189,7 @@ def add_file(root: Path, source: Path, logical: str, output: Path, entries: list
 
 def source_files(path: Path, mode: str, workflow_name: str | None = None):
     if mode == "artifact":
-        prefix = WORKFLOWS.get(workflow_name or "")
+        prefix = WORKFLOWS.get(canonical_workflow_name(workflow_name or ""))
         if not prefix:
             raise ValueError("UNSUPPORTED_ORIGINAL_WORKFLOW_NAME")
         folders = [x for x in path.iterdir()
@@ -232,7 +251,7 @@ def artifact_day(source: Path, sources, workflow_name: str):
     No-game/preflight runs may contain diagnostics but no typed market board.
     Their exact bytes are still useful evidence, not a training sample.
     """
-    prefix = WORKFLOWS[workflow_name]
+    prefix = WORKFLOWS[canonical_workflow_name(workflow_name)]
     dates = set()
     for path, _ in sources:
         folder = path.relative_to(source).parts[0]
@@ -298,8 +317,7 @@ def write_manifest(output: Path, *, workflow_name: str, run_id: str,
 def archive_artifact(source: Path, archive_root: Path, workflow_name: str,
                      run_id: str, attempt: str, conclusion: str,
                      fallback_day: str | None = None):
-    if workflow_name not in WORKFLOWS:
-        raise ValueError("WORKFLOW_NOT_ALLOWED")
+    workflow_name = canonical_workflow_name(workflow_name)
     if not IDENT.fullmatch(str(run_id)) or not IDENT.fullmatch(str(attempt)):
         raise ValueError("INVALID_GITHUB_RUN_ID_OR_ATTEMPT")
     source=source.resolve()
@@ -431,7 +449,20 @@ def selftest():
         (artifact/"nba_market_consensus.json").write_text(json.dumps({
             "target_date":"2026-11-03","games":[{"game_id":"728298",
                                                    "markets":{}}]}))
-        out=archive_artifact(root/"a",root/"b",list(WORKFLOWS)[0],
+        assert canonical_workflow_name("NBA full report | slot=0 13 * * * | date=auto") == list(WORKFLOWS)[0]
+        assert canonical_workflow_name("NBA full report | slot=2100 | date=2026-11-06") == list(WORKFLOWS)[0]
+        for forged in ("NBA full report | slot=2100 | date=auto EXTRA",
+                       "NBA full report | slot=WHAT | date=auto",
+                       "NBA full report | slot=2100 | date=wrong",
+                       "Other NBA workflow | slot=2100 | date=auto"):
+            try:
+                canonical_workflow_name(forged)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("UNTRUSTED_DYNAMIC_WORKFLOW_TITLE_ACCEPTED")
+        out=archive_artifact(root/"a",root/"b",
+                             "NBA full report | slot=0 13 * * * | date=auto",
                              "123456","1","failure")
         assert out is not None
         manifest=json.loads((out/"manifest.json").read_text())

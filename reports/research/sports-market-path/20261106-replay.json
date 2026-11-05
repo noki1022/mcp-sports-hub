@@ -1,0 +1,292 @@
+{
+  "mode": "RETROSPECTIVE_INPUT_REPLAY_NOT_A_NEW_PREMATCH_FORECAST",
+  "accuracy_claim": false,
+  "input_cohort": "2026-11-06",
+  "analysis_asof": "2026-11-05T13:31:34.171756+00:00",
+  "sources": [
+    {
+      "repository_path": "reports/daily/2026-11-06/1200/nba_market_consensus.json",
+      "canonical_json_sha256": "ba007dfc2eea1d1ae004922f88abd7cb286dcf808f0fdfd0a310623c34bde4e1"
+    },
+    {
+      "repository_path": "reports/daily/2026-11-06/1400/nba_market_consensus.json",
+      "canonical_json_sha256": "a91d0993ccd5a2df8b09442c56f1bbd3d7fd3d2601a424f0f73f4e81ed9a5c4e"
+    },
+    {
+      "repository_path": "reports/daily/2026-11-06/1500/nba_market_consensus.json",
+      "canonical_json_sha256": "27b923811656a4efb07f119e5adea025f3994da0b1e4e98ebf487ae477517af4"
+    },
+    {
+      "repository_path": "reports/daily/2026-11-06/1800/nba_market_consensus.json",
+      "canonical_json_sha256": "69d50e1436a9311a9d687a476a76bfa35e9c0d82adaa417fbc22374dbdbcdb8c"
+    },
+    {
+      "repository_path": "reports/daily/2026-11-06/2100/nba_market_consensus.json",
+      "canonical_json_sha256": "02330a81f278f9428b3d4bc454d604442702503203ce7e79d1d063848fd86035"
+    },
+    {
+      "repository_path": "reports/daily/2026-11-06/2130/nba_market_consensus.json",
+      "canonical_json_sha256": "2faf36b51721090e8bdeffaefef03cf03f08f6891ecbaf587e4235b59b9942cf"
+    }
+  ],
+  "games": [
+    {
+      "game_id": "728905",
+      "home_team": "菲尼克斯太阳",
+      "away_team": "奥兰多魔术",
+      "path": {
+        "full_spread": {
+          "status": "FALLING",
+          "snapshots": 5,
+          "rejected": 0,
+          "company_count": 10,
+          "current_center": 1.2106009346088689,
+          "current_mad": 0.2696323610702323,
+          "latest_at": "2026-11-05T13:31:34.171756+00:00",
+          "age_seconds": 0.0,
+          "span_hours": 7.507675558888889,
+          "matched_first_last_companies": 6,
+          "net_change_same_books": -0.4288103531465797,
+          "last_change_same_books": 0.0,
+          "last_move_breadth": 0.0,
+          "last_change_per_hour": 0.0,
+          "last_gap_hours": 0.5016583158333333,
+          "reversals": 0,
+          "changed_intervals": 4,
+          "path": [
+            {
+              "at": "2026-11-05T07:00:48.023780+00:00",
+              "matched": 5,
+              "delta": -0.3796675091289399,
+              "hours": 0.9948566766666667,
+              "breadth": 0.8,
+              "changed": 4,
+              "coverage_churn": 0.375
+            },
+            {
+              "at": "2026-11-05T10:00:58.245960+00:00",
+              "matched": 7,
+              "delta": -0.10444566191266502,
+              "hours": 3.0028394944444448,
+              "breadth": 0.5714285714285714,
+              "changed": 5,
+              "coverage_churn": 0.30000000000000004
+            },
+            {
+              "at": "2026-11-05T13:01:28.201819+00:00",
+              "matched": 10,
+              "delta": 0.0,
+              "hours": 3.008321071944444,
+              "breadth": 0.0,
+              "changed": 4,
+              "coverage_churn": 0.0
+            },
+            {
+              "at": "2026-11-05T13:31:34.171756+00:00",
+              "matched": 10,
+              "delta": 0.0,
+              "hours": 0.5016583158333333,
+              "breadth": 0.0,
+              "changed": 1,
+              "coverage_churn": 0.0
+            }
+          ],
+          "snapshots_are_not_independent_samples": true,
+          "scale": "MODEL_DEPENDENT_IMPLIED_HOME_MARGIN",
+          "current_model_mean": 0.6684263926899323,
+          "market_minus_model": 0.5421745419189365
+        },
+        "full_total": {
+          "status": "STABLE",
+          "snapshots": 5,
+          "rejected": 0,
+          "company_count": 10,
+          "current_center": 223.08193579944867,
+          "current_mad": 0.17228343991335748,
+          "latest_at": "2026-11-05T13:31:34.171756+00:00",
+          "age_seconds": 0.0,
+          "span_hours": 7.507675558888889,
+          "matched_first_last_companies": 6,
+          "net_change_same_books": -0.30390481740886344,
+          "last_change_same_books": 0.0,
+          "last_move_breadth": 0.0,
+          "last_change_per_hour": 0.0,
+          "last_gap_hours": 0.5016583158333333,
+          "reversals": 0,
+          "changed_intervals": 4,
+          "path": [
+            {
+              "at": "2026-11-05T07:00:48.023780+00:00",
+              "matched": 6,
+              "delta": 0.0,
+              "hours": 0.9948566766666667,
+              "breadth": 0.0,
+              "changed": 3,
+              "coverage_churn": 0.25
+            },
+            {
+              "at": "2026-11-05T10:00:58.245960+00:00",
+              "matched": 8,
+              "delta": 0.0,
+              "hours": 3.0028394944444448,
+              "breadth": 0.0,
+              "changed": 5,
+              "coverage_churn": 0.19999999999999996
+            },
+            {
+              "at": "2026-11-05T13:01:28.201819+00:00",
+              "matched": 10,
+              "delta": -0.008623060758282008,
+              "hours": 3.008321071944444,
+              "breadth": 0.0,
+              "changed": 8,
+              "coverage_churn": 0.0
+            },
+            {
+              "at": "2026-11-05T13:31:34.171756+00:00",
+              "matched": 10,
+              "delta": 0.0,
+              "hours": 0.5016583158333333,
+              "breadth": 0.0,
+              "changed": 1,
+              "coverage_churn": 0.0
+            }
+          ],
+          "snapshots_are_not_independent_samples": true,
+          "scale": "MODEL_DEPENDENT_IMPLIED_TOTAL",
+          "current_model_mean": 226.39766730964743,
+          "market_minus_model": -3.3157315101987592
+        }
+      }
+    },
+    {
+      "game_id": "728906",
+      "home_team": "金州勇士",
+      "away_team": "迈阿密热火",
+      "path": {
+        "full_spread": {
+          "status": "RISING",
+          "snapshots": 5,
+          "rejected": 0,
+          "company_count": 10,
+          "current_center": 7.302222830956333,
+          "current_mad": 0.19777716904366738,
+          "latest_at": "2026-11-05T13:31:34.171756+00:00",
+          "age_seconds": 0.0,
+          "span_hours": 7.507675558888889,
+          "matched_first_last_companies": 5,
+          "net_change_same_books": 2.6816440158473025,
+          "last_change_same_books": 0.0,
+          "last_move_breadth": 0.0,
+          "last_change_per_hour": 0.0,
+          "last_gap_hours": 0.5016583158333333,
+          "reversals": 0,
+          "changed_intervals": 4,
+          "path": [
+            {
+              "at": "2026-11-05T07:00:48.023780+00:00",
+              "matched": 5,
+              "delta": 2.5,
+              "hours": 0.9948566766666667,
+              "breadth": 1.0,
+              "changed": 5,
+              "coverage_churn": 0.4444444444444444
+            },
+            {
+              "at": "2026-11-05T10:00:58.245960+00:00",
+              "matched": 9,
+              "delta": 0.0,
+              "hours": 3.0028394944444448,
+              "breadth": 0.0,
+              "changed": 4,
+              "coverage_churn": 0.09999999999999998
+            },
+            {
+              "at": "2026-11-05T13:01:28.201819+00:00",
+              "matched": 10,
+              "delta": 0.0,
+              "hours": 3.008321071944444,
+              "breadth": 0.0,
+              "changed": 6,
+              "coverage_churn": 0.0
+            },
+            {
+              "at": "2026-11-05T13:31:34.171756+00:00",
+              "matched": 10,
+              "delta": 0.0,
+              "hours": 0.5016583158333333,
+              "breadth": 0.0,
+              "changed": 3,
+              "coverage_churn": 0.0
+            }
+          ],
+          "snapshots_are_not_independent_samples": true,
+          "scale": "MODEL_DEPENDENT_IMPLIED_HOME_MARGIN",
+          "current_model_mean": 3.9393765012861266,
+          "market_minus_model": 3.362846329670206
+        },
+        "full_total": {
+          "status": "FALLING",
+          "snapshots": 5,
+          "rejected": 0,
+          "company_count": 10,
+          "current_center": 235.17162478965653,
+          "current_mad": 0.11415938314247853,
+          "latest_at": "2026-11-05T13:31:34.171756+00:00",
+          "age_seconds": 0.0,
+          "span_hours": 7.507675558888889,
+          "matched_first_last_companies": 5,
+          "net_change_same_books": -2.6080821022760574,
+          "last_change_same_books": 0.0,
+          "last_move_breadth": 0.0,
+          "last_change_per_hour": 0.0,
+          "last_gap_hours": 0.5016583158333333,
+          "reversals": 0,
+          "changed_intervals": 4,
+          "path": [
+            {
+              "at": "2026-11-05T07:00:48.023780+00:00",
+              "matched": 5,
+              "delta": -2.0,
+              "hours": 0.9948566766666667,
+              "breadth": 1.0,
+              "changed": 5,
+              "coverage_churn": 0.4444444444444444
+            },
+            {
+              "at": "2026-11-05T10:00:58.245960+00:00",
+              "matched": 9,
+              "delta": 0.0,
+              "hours": 3.0028394944444448,
+              "breadth": 0.0,
+              "changed": 4,
+              "coverage_churn": 0.09999999999999998
+            },
+            {
+              "at": "2026-11-05T13:01:28.201819+00:00",
+              "matched": 10,
+              "delta": -0.06462823406413065,
+              "hours": 3.008321071944444,
+              "breadth": 0.5,
+              "changed": 5,
+              "coverage_churn": 0.0
+            },
+            {
+              "at": "2026-11-05T13:31:34.171756+00:00",
+              "matched": 10,
+              "delta": 0.0,
+              "hours": 0.5016583158333333,
+              "breadth": 0.0,
+              "changed": 2,
+              "coverage_churn": 0.0
+            }
+          ],
+          "snapshots_are_not_independent_samples": true,
+          "scale": "MODEL_DEPENDENT_IMPLIED_TOTAL",
+          "current_model_mean": 234.24258122560246,
+          "market_minus_model": 0.9290435640540693
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+name: Sports multi-snapshot market dynamics
+on:
+  pull_request:
+    paths:
+      - 'analysis/sports_market_path.py'
+      - 'analysis/sports_dynamic_inputs.py'
+      - 'analysis/nba_five_markets.py'
+      - 'analysis/football_jc_asian_assimilation.py'
+      - 'scripts/restore_football_market_history.py'
+      - 'tests/test_sports_market_path.py'
+      - '.github/workflows/sports-market-path.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m unittest discover -s tests -p test_sports_market_path.py -v
+          python -m unittest discover -s tests -p test_football_jc_asian_assimilation.py -v
+          python analysis/nba_five_markets.py --self-test
+          python analysis/nba_market_consensus.py --self-test
