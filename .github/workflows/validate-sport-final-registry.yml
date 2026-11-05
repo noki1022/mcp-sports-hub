@@ -5,6 +5,7 @@ on:
       - 'analysis/sport_match_final_registry.py'
       - 'analysis/football_jc_capture_movement.py'
       - 'tests/test_football_jc_capture_movement.py'
+      - 'tests/test_football_final_push_guards.py'
       - 'scripts/football_jc_capture_slot.py'
       - 'analysis/sport_match_final_grade.py'
       - 'analysis/nba_per_match_score_review.py'
@@ -43,6 +44,8 @@ jobs:
         run: python3 -B -m unittest discover -s tests -p test_nba_per_match_score_review.py -v
       - name: Verify first football capture and real hourly model, odds, injury and handicap changes
         run: python3 -B -m unittest discover -s tests -p test_football_jc_capture_movement.py -v
+      - name: Verify football 21:30 and 06:30 raw-vault-before-push and duplicate suppression
+        run: python3 -B -m unittest discover -s tests -p test_football_final_push_guards.py -v
       - name: Verify NBA delivery slot mapping and dedup invariants
         run: python3 -B scripts/nba_fixed_slot_gate.py --self-test
       - name: Validate actual versus planned football 21:30 and 06:30 schedule labels
