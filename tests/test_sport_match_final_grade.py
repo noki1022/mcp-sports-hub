@@ -83,6 +83,33 @@ class GradeTest(unittest.TestCase):
     del score["1001"]["tip_beijing"]
     with self.assertRaisesRegex(ValueError,"TIPOFF"):
       G.basketball_grade([f],score,"20261106")
+  def test_phone_scorecard_renders_five_markets_and_verified_final(self):
+    frozen=nba()
+    scores={"1001":{"completed":True,"home_points":112,"away_points":100,
+            "tip_beijing":iso(TIP),"home_abbr":"ATL","away_abbr":"MIA"}}
+    rows,counts=G.basketball_grade([frozen],scores,"20261106")
+    html=G.render_iphone(G.result("basketball","20261106",rows,counts))
+    self.assertIn("112:100",html)
+    self.assertIn("皇冠让分",html)
+    self.assertIn("竞彩大小分",html)
+    self.assertIn("周五314",html)
+    self.assertIn("只评价每场最后一次有效赛前冻结版",html)
+    self.assertNotIn("<script",html)
+  def test_phone_scorecard_escapes_source_team_names(self):
+    frozen=nba()
+    frozen["home_team"]="<script>foo</script>"
+    # Rendering is safe even for a source later rejected by the integrity gate.
+    fake=G.result("basketball","20261106",[{
+       "game_id":"142","home_team":"<script>alert(1)</script>",
+       "away_team":"迈阿密热火","jingcai_number":"周五314",
+       "home_points":None,"away_points":None,
+       "markets":{key:{"outcome":"UNSETTLED","direction":None}
+                  for key in G.LABELS["basketball"]}}],{
+       key:__import__("collections").Counter({"UNSETTLED":1})
+       for key in G.LABELS["basketball"]})
+    html=G.render_iphone(fake)
+    self.assertNotIn("<script",html)
+    self.assertIn("&lt;script&gt;",html)
   def test_unsettled_not_miss_or_false_accuracy(self):
     f=nba()
     rows,counters=G.basketball_grade([f],{},"20261106")
