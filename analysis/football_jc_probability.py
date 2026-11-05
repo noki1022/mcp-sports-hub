@@ -208,15 +208,35 @@ def build_match(game, captured):
         "home_recent": len(home), "away_recent": len(away), "h2h": len(h2h),
         "injury_state": injury_state,
         "injury_players": len(game.get("injuries", [])),
-        "source_evidence": "007_URL_DECLARED_NOT_INDEPENDENTLY_ATTESTED",
+        "source_evidence": ("LIVE_007_RAW_SHA256_CAPTURED" if game.get("source_url") == "https://jc.titan007.com/xml/bf_jc.txt" else "007_URL_DECLARED_NOT_INDEPENDENTLY_ATTESTED"),
+        "data_gaps": game.get("data_gaps", []),
         "baseline": "UNTRAINED_HEURISTIC_UNCALIBRATED"}
     if not game.get("jc_number"):
         base["data_quality"]["jc_number"] = "MISSING_DO_NOT_INVENT"
+    markets = game.get("jc_markets") or {}
+    if not isinstance(markets, dict):
+        raise ValueError("INVALID_JC_MARKETS")
+    had_odds = markets.get("had")
+    ttg_odds = markets.get("ttg")
+    hhad_raw = markets.get("hhad")
+    handicap, hhad_odds = None, None
+    if hhad_raw is not None:
+        if not isinstance(hhad_raw, dict):
+            raise ValueError("INVALID_HHAD_MARKET")
+        handicap_value = number(hhad_raw["signed_home_handicap"], -12, 12)
+        if not handicap_value.is_integer():
+            raise ValueError("JC_HHAD_MUST_BE_INTEGER_GOALS")
+        handicap = int(handicap_value)
+        hhad_odds = hhad_raw.get("odds")
     if len(home) < 3 or len(away) < 3:
         base.update(status="INSUFFICIENT_FORM", reason="NEED_AT_LEAST_THREE_AUTHENTIC_PREGAME_RESULTS_PER_TEAM")
         for key in MARKETS:
+            known_odds = {"had": had_odds, "hhad": hhad_odds, "ttg": ttg_odds}[key]
             base["markets"][key] = {"status": "UNAVAILABLE_FORM_INSUFFICIENT",
-                                    "direction": None, "probabilities": None}
+                                    "direction": None, "probabilities": None,
+                                    "jc_odds": known_odds}
+            if key == "hhad":
+                base["markets"][key]["signed_home_handicap"] = handicap
         return base
     # Transparent low-complexity research model, not a claim of trained Elo/xG.
     # Geometric mean of attacking and opposing defense strength, with an
@@ -233,21 +253,6 @@ def build_match(game, captured):
         away_lambda = (1 - w) * away_lambda + w * h2h_away
     home_lambda = max(0.15, min(4.5, home_lambda + injuries["home_attack"] + injuries["away_conceded"]))
     away_lambda = max(0.15, min(4.5, away_lambda + injuries["away_attack"] + injuries["home_conceded"]))
-    markets = game.get("jc_markets") or {}
-    if not isinstance(markets, dict):
-        raise ValueError("INVALID_JC_MARKETS")
-    had_odds = markets.get("had")
-    ttg_odds = markets.get("ttg")
-    hhad_raw = markets.get("hhad")
-    handicap, hhad_odds = None, None
-    if hhad_raw is not None:
-        if not isinstance(hhad_raw, dict):
-            raise ValueError("INVALID_HHAD_MARKET")
-        handicap_value = number(hhad_raw["signed_home_handicap"], -12, 12)
-        if not handicap_value.is_integer():
-            raise ValueError("JC_HHAD_MUST_BE_INTEGER_GOALS")
-        handicap = int(handicap_value)
-        hhad_odds = hhad_raw.get("odds")
     had, hhad, ttg, top = distribution(home_lambda, away_lambda, handicap)
     goal_rank = sorted(zip(TTG, ttg), key=lambda item: item[1], reverse=True)
     # Up to TWO exact JC total-goal buckets, not an invented over/under line.
@@ -306,7 +311,7 @@ def run(snapshot):
         "game_count": len(results), "games": results,
         "market_scope": list(MARKETS),
         "model_status": "RESEARCH_NOT_VALIDATED",
-        "source_status": "SNAPSHOT_PROVIDED_NO_LIVE_007_CAPTURE_VERIFICATION",
+        "source_status": ("LIVE_007_PARTIAL_FIXTURE_AND_TWO_MARKETS" if (snapshot.get("source_provenance") or {}).get("state") == "LIVE_007_PUBLIC_FIXTURE_AND_HAD_HHAD_ONLY" else "SNAPSHOT_PROVIDED_NO_LIVE_007_CAPTURE_VERIFICATION"),
         "no_claim_of_backtested_accuracy": True,
     }
 
