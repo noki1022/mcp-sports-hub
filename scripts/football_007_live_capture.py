@@ -160,6 +160,7 @@ def collect(raw_map,captured,target=None):
                     cp_match=cp_rows[game["match_id"]]
                     game["cp_ttg_source"]={
                         "url":cp_ttg.CP_TTG_URL,"cp_bet_id":cp_match["cp_bet_id"],
+                        "cp_can_sale":cp_match["can_sale"],
                         "cp_home_team":cp_match["home_team_cp"],
                         "cp_away_team":cp_match["away_team_cp"],
                         "team_name_exact_match":(
