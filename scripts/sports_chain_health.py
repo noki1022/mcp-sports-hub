@@ -59,6 +59,7 @@ def expected_slots(now, horizon_hours=24, grace_minutes=180):
         schedule += [(h, 0, FOOTBALL) for h in range(7)]
         schedule += [(h, 0, NBA_DAY) for h in range(12, 22)]
         schedule += [(21, 30, NBA_2130), (6, 30, NBA_0630)]
+        schedule += [(0, 30, NBA_DAY), (3, 30, NBA_DAY)]
         schedule += [(h, 0, NBA_SILENT) for h in range(7)]
         for hour, minute, workflow in schedule:
             planned = datetime(day.year, day.month, day.day, hour, minute, tzinfo=BJ)
@@ -87,9 +88,37 @@ def advertised_cron(run):
         value = run.get(key)
         if not isinstance(value, str):
             continue
-        match = re.search(r"\bslot=(\d{1,2} \d{1,2} \* \* \*)", value)
+        match = re.search(r"\b(?:slot|cron)=(\d{1,2} \d{1,2} \* \* \*)", value)
         if match:
             return match.group(1)
+    return None
+
+
+def trigger_candidates(slot):
+    """Actual UTC retry crons that belong to a single canonical Beijing slot."""
+    planned = slot["planned"]
+    local = planned.astimezone(BJ)
+    if slot["workflow"] == NBA_DAY:
+        if (local.hour, local.minute) in ((0, 30), (3, 30)):
+            return [planned + timedelta(minutes=m) for m in (0, 15, 30)]
+        if local.minute == 0 and local.hour in (12, 14, 15, 18):
+            return [planned + timedelta(minutes=m) for m in (0, 15, 30)]
+    if slot["workflow"] == NBA_2130:
+        return [planned, planned + timedelta(minutes=10)]
+    return [planned]
+
+
+def declared_slot_match(slot, run):
+    """Explicit UTC cron must match its canonical slot, including retry triggers."""
+    declared = advertised_cron(run)
+    if declared is None:
+        return None
+    created = when(run["created_at"])
+    for trigger in trigger_candidates(slot):
+        expression = f"{trigger.minute} {trigger.hour} * * *"
+        delay = (created - trigger).total_seconds() / 60
+        if expression == declared and 0 <= delay <= MAX_SCHEDULE_LATENESS_MINUTES:
+            return round(delay, 2)
     return None
 
 
@@ -102,17 +131,19 @@ def chronological_assignments(slots, runs):
     edges = []
     for i, slot in enumerate(slots):
         planned = slot["planned"]
-        expected_cron = f"{planned.minute} {planned.hour} * * *"
         for run in runs:
             if canonical_workflow(run) != slot["workflow"] or run.get("event") != "schedule":
                 continue
             if type(run.get("id")) is not int:
                 continue
             lag = (when(run["created_at"]) - planned).total_seconds() / 60
-            if not 0 <= lag <= MAX_SCHEDULE_LATENESS_MINUTES:
+            if lag < 0:
                 continue
             declared = advertised_cron(run)
-            if declared is not None and declared != expected_cron:
+            if declared is not None:
+                if declared_slot_match(slot, run) is None:
+                    continue
+            elif lag > MAX_SCHEDULE_LATENESS_MINUTES:
                 continue
             edges.append((0 if declared else 1, lag, i, run["id"]))
     allocated = {}
