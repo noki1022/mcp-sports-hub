@@ -146,6 +146,28 @@ class FusionTests(unittest.TestCase):
     self.assertEqual(out["market_assimilation_counts"]["applied"],1)
     self.assertEqual(out["games"][0]["market_assimilation"]["company_count_used"],7)
     self.assertEqual(out["games"][0]["market_assimilation"]["company_count_rejected"],1)
+ def test_deep_real_asian_line_keeps_direction_with_hard_cap_and_conflict_label(self):
+    s,b=with_quotes()
+    for c in s["games"][0]["asian_007"]["companies"]:
+        q=c["main"]["latest_quote"]
+        q["signed_home_asian_handicap"]=-3.5
+        q["source_007_home_gives_goals"]=3.5
+        q["home_water"]["hong_kong_net"]=.9
+        q["away_water"]["hong_kong_net"]=.9
+    b=core.run(s)
+    out=fuse.assimilate(s,b,MODEL)
+    e=out["games"][0]["market_assimilation"]
+    self.assertEqual(e["status"],"APPLIED_BOUNDED_007_REAL_ASIAN")
+    self.assertTrue(e["market_vs_independent_total_conflict"])
+    self.assertEqual(e["inversion_method"],"SATURATED_DIRECTIONAL_ONLY_AT_FIXED_TOTAL")
+    self.assertLessEqual(abs(e["applied_home_minus_away_goals_shift"]),.30)
+    self.assertGreater(e["applied_home_minus_away_goals_shift"],0)
+ def test_untrusted_asian_hostname_rejected(self):
+    s,b=with_quotes()
+    s["games"][0]["asian_007"]["source_url"]="https://other.example/redirect?to=m.titan007.com/HandicapDataInterface.ashx?scheid=3075305"
+    b=core.run(s)
+    out=fuse.assimilate(s,b,MODEL)
+    self.assertEqual(out["games"][0]["market_assimilation"]["reason"],"007_ASIAN_UNVERIFIED_ENDPOINT")
  def test_baseline_snapshot_hash_must_match(self):
     s,b=with_quotes()
     s["games"][0]["jc_number"]="周四003"
