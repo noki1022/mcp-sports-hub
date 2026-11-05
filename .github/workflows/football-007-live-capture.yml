@@ -1,4 +1,4 @@
-name: Football 007 live JC capture + isolated analysis (no delivery)
+name: Football JC unified analysis, 21:30 locked final, 06:30 update
 on:
   pull_request:
     paths:
@@ -7,16 +7,15 @@ on:
       - 'analysis/football_007_asian_real_compare.py'
       - 'tests/test_football_007_asian_companies.py'
       - 'tests/test_football_007_asian_real_compare.py'
-      - 'analysis/football_jc_dc_shadow.py'
       - 'analysis/football_jc_asian_assimilation.py'
+      - 'analysis/football_jc_final_2130.py'
+      - 'analysis/football_jc_report.py'
+      - 'tests/test_football_jc_final_2130.py'
       - 'tests/test_football_jc_asian_assimilation.py'
       - 'analysis/football_jc_market_reading.py'
       - 'analysis/football_jc_euro_asian.py'
       - 'tests/test_football_jc_euro_asian.py'
       - 'tests/test_football_jc_market_reading.py'
-      - 'tests/test_football_jc_dc_shadow.py'
-      - 'analysis/football_dc_shadow.py'
-      - 'tests/test_football_dc_shadow.py'
       - 'scripts/football_007_analysis_extract.py'
       - 'tests/test_football_007_analysis_extract.py'
       - 'scripts/football_007_mobile_probe.py'
@@ -29,7 +28,7 @@ on:
       - '.github/workflows/football-007-live-capture.yml'
   workflow_dispatch:
   schedule:
-    # Beijing 12:00, 18:00, 21:30, 06:30; source-only, no prediction push.
+    # Beijing 12:00, 18:00, 21:30 FINAL, 06:30 UPDATED; football-only.
     - cron: "0 4 * * *"
     - cron: "0 10 * * *"
     - cron: "30 13 * * *"
@@ -42,7 +41,7 @@ concurrency:
 jobs:
   live-football:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -70,6 +69,9 @@ jobs:
       - name: Validate football 007 actual Asian market assimilation invariants (PR only)
         if: github.event_name == 'pull_request'
         run: python3 -B -m unittest discover -s tests -p test_football_jc_asian_assimilation.py -v
+      - name: Test one-model 21:30 lock and next-morning comparison
+        if: github.event_name == 'pull_request'
+        run: python3 -B -m unittest discover -s tests -p test_football_jc_final_2130.py -v
       - name: Capture live 007 three JC markets and prematch form H2H injury facts
         run: |
           python3 -B scripts/football_007_live_capture.py --out football-output/football_007_snapshot.json --raw-dir football-output/raw
@@ -90,6 +92,40 @@ jobs:
             --baseline football-output/football_jc_forecast.json \
             --out football-output/football_jc_forecast_market.json
           python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast_market.json --html football-output/football_jc_mobile.html
+      - name: Freeze only scheduled Beijing 21:30 as sole football grading source
+        if: github.event_name == 'schedule' && github.event.schedule == '30 13 * * *'
+        run: |
+          BJ_DAY="$(TZ=Asia/Shanghai date +%Y-%m-%d)"
+          python3 -B analysis/football_jc_final_2130.py --mode freeze \
+            --snapshot football-output/football_007_snapshot.json \
+            --forecast football-output/football_jc_forecast_market.json \
+            --day "$BJ_DAY" \
+            --out football-output/football_jc_final_2130.json
+          python3 -B analysis/football_jc_report.py --mode final \
+            --forecast football-output/football_jc_forecast_market.json \
+            --html football-output/football_jc_mobile.html
+          test -s football-output/football_jc_final_2130.json
+      - name: Retrieve immutable previous-day 21:30 football answer and compare at 06:30
+        if: github.event_name == 'schedule' && github.event.schedule == '30 22 * * *'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          BJ_PREV="$(TZ=Asia/Shanghai date -d 'yesterday' +%Y%m%d)"
+          tag="football-jc-final-$BJ_PREV"
+          mkdir -p football-output/locked
+          gh release download "$tag" --pattern "football_jc_final_2130.json" --dir football-output/locked --clobber
+          test -s football-output/locked/football_jc_final_2130.json
+          python3 -B analysis/football_jc_final_2130.py --mode compare \
+            --locked football-output/locked/football_jc_final_2130.json \
+            --snapshot football-output/football_007_snapshot.json \
+            --forecast football-output/football_jc_forecast_market.json \
+            --out football-output/football_jc_0630_vs_2130.json
+          python3 -B analysis/football_jc_report.py --mode update \
+            --forecast football-output/football_jc_forecast_market.json \
+            --comparison football-output/football_jc_0630_vs_2130.json \
+            --html football-output/football_jc_mobile.html
+          test -s football-output/football_jc_0630_vs_2130.json
       - name: Mandatory isolated euro-to-Asian interpretation of each football JC snapshot
         run: |
           python3 -B analysis/football_jc_euro_asian.py \
@@ -104,13 +140,42 @@ jobs:
             --theoretical football-output/football_jc_euro_asian.json \
             --out football-output/football_007_asian_real_compare.json
           test -s football-output/football_007_asian_real_compare.json
-      - name: Upload 007 source audit and research outputs, never push basketball or football
+      - name: Upload 007 audited football reports and frozen decisions
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: football-007-live-source-evidence
           path: football-output/
           retention-days: 90
+
+  archive-football-2130-final:
+    needs: live-football
+    if: needs.live-football.result == 'success' && github.event_name == 'schedule' && github.event.schedule == '30 13 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: football-007-live-source-evidence
+          path: football-output
+      - name: Create immutable 21:30 final asset (never overwrite)
+        run: |
+          test -s football-output/football_jc_final_2130.json
+          BJ_DAY="$(TZ=Asia/Shanghai date +%Y%m%d)"
+          tag="football-jc-final-$BJ_DAY"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "FINAL_ALREADY_FROZEN_NO_OVERWRITE=$tag"
+            exit 1
+          fi
+          gh release create "$tag" football-output/football_jc_final_2130.json \
+            --target main --title "Football 21:30 official scoring final $BJ_DAY" \
+            --notes "Football JC single final. Keep unmodified for grading. Never replace with 06:30."
+          echo "FOOTBALL_SINGLE_FINAL_ARCHIVED=$tag"
 
   archive-football-raw-release:
     needs: live-football
@@ -143,46 +208,3 @@ jobs:
           gh release upload "$tag" "$archive"
           echo "FOOTBALL_007_RAW_RELEASE_ARCHIVED=$tag/$archive"
 
-  # Independent challenger: consumes the audited artifact after collection.
-  # Never changes the NBA/CBA runtime, existing JC main probability report,
-  # source archive, or any PushPlus delivery.
-  football-dc-shadow:
-    needs: live-football
-    if: needs.live-football.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 7
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Validate shadow model only (no third-party runtime packages)
-        run: |
-          python3 -B -m unittest discover -s tests -p test_football_jc_dc_shadow.py -v
-          python3 -B -m unittest discover -s tests -p test_football_dc_shadow.py -v
-          python3 -B -m py_compile analysis/football_jc_dc_shadow.py
-      - uses: actions/download-artifact@v4
-        with:
-          name: football-007-live-source-evidence
-          path: football-output/
-      - name: Run independent Dixon-Coles candidate on 007 prematch evidence
-        run: |
-          test -s football-output/football_007_snapshot.json
-          python3 -B analysis/football_jc_dc_shadow.py \
-            --snapshot football-output/football_007_snapshot.json \
-            --analysis-dir football-output/raw \
-            --out football-shadow/football_dc_candidate.json
-          python3 -B analysis/football_dc_shadow.py predict \
-            --snapshot football-output/football_007_snapshot.json \
-            --baseline football-output/football_jc_forecast.json \
-            --out football-shadow/football_dc_strict_calibration.json
-      - name: Upload candidate-only research output (no PushPlus)
-        uses: actions/upload-artifact@v4
-        with:
-          name: football-dc-shadow-model
-          path: football-shadow/
-          retention-days: 90
