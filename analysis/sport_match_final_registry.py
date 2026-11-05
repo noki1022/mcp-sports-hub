@@ -159,7 +159,10 @@ def select(bundles,as_of):
         else:
             window="EARLIER_VALID_PRETIP"
         chosen.append({
-            "sport":key[0],"match_id":key[1],"kickoff_utc":latest["kickoff_utc"],
+            "sport":key[0],"match_id":key[1],
+            "official_game_id":latest["official_game_id"],
+            "home_id":latest["home_id"],"away_id":latest["away_id"],
+            "kickoff_utc":latest["kickoff_utc"],
             "state":"LOCKED_AFTER_KICKOFF" if now>=tip else "PENDING_MAY_STILL_CHANGE",
             "selection_rule":"LATEST_ACTUALLY_GENERATED_VERIFIED_PRETIP",
             "capture_utc":latest["capture_utc"],"generated_utc":latest["generated_utc"],
@@ -193,7 +196,8 @@ def publishable_final_documents(bundles,as_of,grace_minutes=90):
         require(re.fullmatch(r"[0-9]{1,20}",row["match_id"]) is not None,"UNSAFE_MATCH_ID")
         day=stamp(row["kickoff_utc"]).astimezone(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d")
         # No as_of time in per-match document: identical evidence = identical immutable file.
-        final={k:deepcopy(row[k]) for k in ("sport","match_id","kickoff_utc",
+        final={k:deepcopy(row[k]) for k in ("sport","match_id","official_game_id",
+             "home_id","away_id","kickoff_utc",
              "selection_rule","capture_utc","generated_utc","lead_minutes","window",
              "run_id","model_version","jc_number","home_team","away_team",
              "source_snapshot_sha256","forecast_sha256","original_candidate_sha256","markets")}
