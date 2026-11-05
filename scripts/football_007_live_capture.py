@@ -123,6 +123,8 @@ def parse_fixtures(raw,odds,captured,target=None):
         jc=odds.get(mid,{})
         games.append({
             "match_id":mid,"jc_number":jcnum,"league":leagues.get(c[5],"未核实联赛"),
+            "home_team_id_007":int(c[7]) if c[7].isdigit() else None,
+            "away_team_id_007":int(c[9]) if c[9].isdigit() else None,
             "home_team":home,"away_team":away,
             "kickoff_beijing":tip.isoformat(),
             "source_url":FEEDS["fixtures"],
