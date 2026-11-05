@@ -29,6 +29,7 @@ import re
 from pathlib import Path
 import statistics
 import sys
+from urllib.parse import urlsplit, parse_qs
 
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 import football_jc_probability as core
@@ -165,7 +166,15 @@ def _market_evidence(game,original,captured,model_at):
         return None,"WRONG_007_ASIAN_SCHEMA"
     if str(market.get("match_id"))!=str(game["match_id"]):
         return None,"007_ASIAN_MATCH_ID_MISMATCH"
-    if "m.titan007.com/HandicapDataInterface.ashx?scheid=" not in str(market.get("source_url")):
+    source_url=str(market.get("source_url") or "")
+    parsed=urlsplit(source_url)
+    params=parse_qs(parsed.query,keep_blank_values=True)
+    if (parsed.scheme!="https" or parsed.hostname!="m.titan007.com"
+        or parsed.path!="/HandicapDataInterface.ashx"
+        or params.get("scheid")!=[str(game["match_id"])]
+        or params.get("type")!=["1"]
+        or params.get("oddskind")!=["0"]
+        or params.get("isHalf")!=["0"]):
         return None,"007_ASIAN_UNVERIFIED_ENDPOINT"
     digest=market.get("sha256")
     if not isinstance(digest,str) or len(digest)!=64 or any(c not in "0123456789abcdef" for c in digest):
@@ -176,9 +185,10 @@ def _market_evidence(game,original,captured,model_at):
         return None,"007_ASIAN_AFTER_MODEL_OR_KICKOFF"
     if not -MAX_SOURCE_OFFSET_SECONDS <= (source_at-captured).total_seconds() <= MAX_SOURCE_OFFSET_SECONDS:
         return None,"007_ASIAN_SNAPSHOT_NOT_SAME_CAPTURE_WINDOW"
-    if "source_match_time_utc" in market:
-        if abs((_safetime(market["source_match_time_utc"])-kickoff).total_seconds())>180:
-            return None,"007_ASIAN_DIFFERENT_KICKOFF"
+    if not market.get("source_match_time_utc"):
+        return None,"007_ASIAN_MISSING_SOURCE_MATCH_TIME"
+    if abs((_safetime(market["source_match_time_utc"])-kickoff).total_seconds())>180:
+        return None,"007_ASIAN_DIFFERENT_KICKOFF"
     companies=market.get("companies")
     if not isinstance(companies,list) or len(companies)>100:
         return None,"INVALID_ASIAN_COMPANY_LIST"
