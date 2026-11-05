@@ -21,6 +21,8 @@ workflows={
  "nba-priority-2130.yml":["30 13 * * *","40 13 * * *"],
  "titan007-final-hourly.yml":[],
  "sports-per-match-finalizer.yml":["25 * * * *"],
+ # Cross-sport read-only run/archive audit; no odds collector or PushPlus.
+ "sports-integrity-and-leakage-gates.yml":["35 0,6,12,18 * * *"],
  "nba-per-match-final-review-audit.yml":["20 15 * * *"],
  "nba-silent-overnight-hourly.yml":["0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *"],
  "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
