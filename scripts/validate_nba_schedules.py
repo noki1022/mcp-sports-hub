@@ -14,12 +14,15 @@ ROOT=Path(__file__).resolve().parents[1]
 workflows={
  "titan007-three-analysis.yml": ["30 16 * * *","45 16 * * *","0 17 * * *",
  "30 19 * * *","45 19 * * *","0 20 * * *",
- "0 4 * * *","15 4 * * *","30 4 * * *",
+ "0 4 * * *","15 4 * * *","30 4 * * *","0 5 * * *",
  "0 6 * * *","15 6 * * *","30 6 * * *",
- "0 7 * * *","15 7 * * *","30 7 * * *",
- "0 10 * * *","15 10 * * *","30 10 * * *","0 13 * * *"],
+ "0 7 * * *","15 7 * * *","30 7 * * *","0 8 * * *","0 9 * * *",
+ "0 10 * * *","15 10 * * *","30 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *"],
  "nba-priority-2130.yml":["30 13 * * *","40 13 * * *"],
  "titan007-final-hourly.yml":[],
+ "sports-per-match-finalizer.yml":["25 * * * *"],
+ "nba-per-match-final-review-audit.yml":["20 15 * * *"],
+ "nba-silent-overnight-hourly.yml":["0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *"],
  "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
  # Complete allowlist: every scheduled workflow must be declared here.
  # Post-21:30 jobs are bounded delivery recovery or official-FINAL settlement,
@@ -47,7 +50,7 @@ workflows={
  "nba-injury-live-roster-feature-freeze.yml":["10 18 * * *"]
 }
 # Football has its own independent schedule and never shares NBA slot/delivery logic.
-football_schedule={"football-007-live-capture.yml":["0 4 * * *","0 10 * * *","30 13 * * *","30 22 * * *"]}
+football_schedule={"football-007-live-capture.yml":["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","30 13 * * *","0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *","30 22 * * *"]}
 def load(path):
     obj=yaml.safe_load(path.read_text())
     if not isinstance(obj,dict):raise AssertionError(str(path))
@@ -81,7 +84,18 @@ def main():
         content=(ROOT/".github/workflows"/name).read_text()
         for forbidden in ("titan007_join_beijing_verified.py","nba_priority_","nba_five_market","pushplus_mobile.py","scheduler/worker.mjs"):
             assert forbidden not in content,("FOOTBALL_NBA_PIPELINE_CROSS_LINK",forbidden)
-        assert "FOOTBALL_PUSHPLUS_TOKEN" not in content, "RAW_COLLECTION_MUST_NOT_PUSH"
+        # Football collection is source-only; delivery is a separate gated job.
+        # This preserves the existing NBA isolation and avoids leaking a token
+        # to collection/archival tasks.
+        jobs=football.get("jobs") or {}
+        for name,job in jobs.items():
+            if name in ("football-final-and-morning-push","football-daytime-push"):
+                assert job.get("needs") is not None, "FOOTBALL_PUSH_MUST_WAIT_FOR_CAPTURED_ARTIFACT"
+                if name=="football-daytime-push":
+                    assert "archive-football-raw-release" in str(job["needs"])
+                    assert "CLAIMED_BEFORE_API_NO_DUPLICATE_RETRY" in str(job)
+                continue
+            assert "FOOTBALL_PUSHPLUS_TOKEN" not in str(job), "RAW_COLLECTION_MUST_NOT_PUSH"
     full=load(ROOT/'.github/workflows/titan007-three-analysis.yml')
     guarded={'Archive analysis in repository',
              'Validate cross-artifact delivery contract before PushPlus',
@@ -124,6 +138,9 @@ def main():
                 mins=[int(x) for x in mm.split(",")]
             hrs=[]
             for item in hh.split(","):
+                if item=="*":
+                    hrs.extend(range(24))
+                    continue
                 parts=item.split("-")
                 hrs.extend(range(int(parts[0]),int(parts[1])+1) if len(parts)==2 else [int(item)])
             for hour in hrs:
@@ -137,6 +154,25 @@ def main():
     assert ("titan007-three-analysis.yml","03:30") in all_times
     assert ("titan007-three-analysis.yml","18:00") in all_times
     assert ("titan007-three-analysis.yml","06:00") not in all_times
+    for h in range(12,22):
+        assert ("titan007-three-analysis.yml",f"{h:02d}:00") in all_times
+    for h in range(7):
+        assert ("nba-silent-overnight-hourly.yml",f"{h:02d}:00") in all_times
+    silent=(ROOT/".github/workflows/nba-silent-overnight-hourly.yml").read_text()
+    assert "pushplus_mobile.py" not in silent and "FOOTBALL_PUSHPLUS_TOKEN" not in silent
+    assert "actions/upload-artifact@v4" in silent and "gh release upload" in silent
+    assert "sport_match_final_registry.py emit" in silent
+    finalizer=(ROOT/".github/workflows/sports-per-match-finalizer.yml").read_text()
+    assert "sport_match_final_registry.py finalize" in finalizer
+    assert "pushplus_mobile.py" not in finalizer and "--clobber" not in finalizer
+    assert "gh release upload" in finalizer and "cmp" in finalizer
+    audit=(ROOT/".github/workflows/nba-per-match-final-review-audit.yml").read_text()
+    assert "nba_per_match_score_review.py" in audit
+    assert "--official-cohort" in audit and "scores_for" in audit
+    assert "pushplus_mobile.py" not in audit and "PUSHPLUS_TOKEN" not in audit
+    assert "gh release upload" in audit and "cmp" in audit
+    assert "actions/upload-artifact@v4" in audit
+
     # No automatic 22:00 auxiliary odds scan after the 21:30 final report.
     assert ("titan007-daily-free.yml","22:00") not in all_times
     assert ("nba-full-chain-e2e.yml","04:00") in all_times
