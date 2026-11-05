@@ -10,6 +10,8 @@ on:
       - 'analysis/football_jc_asian_assimilation.py'
       - 'analysis/football_jc_final_2130.py'
       - 'analysis/sport_match_final_registry.py'
+      - 'analysis/football_jc_capture_movement.py'
+      - 'tests/test_football_jc_capture_movement.py'
       - 'scripts/football_jc_capture_slot.py'
       - 'tests/test_sport_match_final_registry.py'
       - 'analysis/football_jc_single_final_review.py'
@@ -135,6 +137,31 @@ jobs:
             --run-id '${{ github.run_id }}' \
             --slot "$PLANNED_SLOT" \
             --out football-output/football_match_candidates.json
+      - name: Restore only archived prior 007 football candidates; first capture is valid without history
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p football-output/prior-candidates
+          for offset in 0 1; do
+            day="$(TZ=Asia/Shanghai date -d "-$offset days" +%Y%m%d)"
+            tag="football-007-raw-$day"
+            if gh release view "$tag" >/dev/null 2>&1; then
+              if gh release view "$tag" --json assets --jq '.assets[].name' | grep -q '^football-007-candidates-'; then
+                mkdir -p "football-output/prior-candidates/$day"
+                gh release download "$tag" --pattern 'football-007-candidates-*.json' \
+                  --dir "football-output/prior-candidates/$day"
+              fi
+            fi
+          done
+      - name: Compare each model against actual previous 007 snapshot (no backfilled postkickoff data)
+        run: |
+          python3 -B analysis/football_jc_capture_movement.py \
+            --current football-output/football_match_candidates.json \
+            --history-dir football-output/prior-candidates \
+            --out football-output/football_capture_movement.json
       - name: Freeze only scheduled Beijing 21:30 as sole football grading source
         if: github.event_name == 'schedule' && github.event.schedule == '30 13 * * *'
         run: |
