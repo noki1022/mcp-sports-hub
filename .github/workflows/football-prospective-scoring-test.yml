@@ -1,0 +1,25 @@
+name: Football independent prospective scoring contract (tests only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/football_jc_prospective_score.py'
+      - 'tests/test_football_jc_prospective_score.py'
+      - '.github/workflows/football-prospective-scoring-test.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate independent football only score pairing, SHA evidence, anti-lookahead
+        run: |
+          python3 -B -m unittest discover -s tests -p test_football_jc_prospective_score.py -v
+          python3 -B -m py_compile analysis/football_jc_prospective_score.py
