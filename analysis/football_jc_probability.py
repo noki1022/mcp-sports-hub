@@ -249,6 +249,13 @@ def build_match(game, captured):
         handicap = int(handicap_value)
         hhad_odds = hhad_raw.get("odds")
     had, hhad, ttg, top = distribution(home_lambda, away_lambda, handicap)
+    goal_rank = sorted(zip(TTG, ttg), key=lambda item: item[1], reverse=True)
+    # Up to TWO exact JC total-goal buckets, not an invented over/under line.
+    chosen = goal_rank[:2] if goal_rank[1][1] >= 0.10 else goal_rank[:1]
+    goal_recommendation = {"goals": [label for label, _ in chosen],
+                           "individual_probabilities": [round(p, 6) for _, p in chosen],
+                           "combined_probability": round(sum(p for _, p in chosen), 6),
+                           "selection_rule": "TOP_TWO_IF_SECOND_AT_LEAST_10_PERCENT"}
     base.update(status="RESEARCH_READY", goal_expectation={
         "home": round(home_lambda, 3), "away": round(away_lambda, 3)},
         top_score={"home": top[0], "away": top[1]},
@@ -257,7 +264,8 @@ def build_match(game, captured):
             "had": market_result(HAD, had, had_odds),
             "hhad": {**market_result(HHAD, hhad, hhad_odds),
                      "signed_home_handicap": handicap},
-            "ttg": market_result(TTG, ttg, ttg_odds)
+            "ttg": {**market_result(TTG, ttg, ttg_odds),
+                    "goal_selection": goal_recommendation}
         })
     return base
 
