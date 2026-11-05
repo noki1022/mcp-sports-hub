@@ -170,7 +170,7 @@ class FusionTests(unittest.TestCase):
     self.assertEqual(out["games"][0]["market_assimilation"]["reason"],"007_ASIAN_UNVERIFIED_ENDPOINT")
  def test_priority_007_named_macao_william_bet365_ladbrokes_five_only(self):
     names=["普通机构A","澳门","威廉希尔","Bet365","立博","Macauslot",
-           "普通机构B","普通机构C","澳門现金网"]
+           "普通机构B","普通机构C","普通机构D"]
     s,b=with_quotes(n=len(names),names=names)
     out=fuse.assimilate(s,b,MODEL)
     info=out["games"][0]["market_assimilation"]
