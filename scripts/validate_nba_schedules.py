@@ -14,12 +14,13 @@ ROOT=Path(__file__).resolve().parents[1]
 workflows={
  "titan007-three-analysis.yml": ["30 16 * * *","45 16 * * *","0 17 * * *",
  "30 19 * * *","45 19 * * *","0 20 * * *",
- "0 4 * * *","15 4 * * *","30 4 * * *",
+ "0 4 * * *","15 4 * * *","30 4 * * *","0 5 * * *",
  "0 6 * * *","15 6 * * *","30 6 * * *",
- "0 7 * * *","15 7 * * *","30 7 * * *",
- "0 10 * * *","15 10 * * *","30 10 * * *","0 13 * * *"],
+ "0 7 * * *","15 7 * * *","30 7 * * *","0 8 * * *","0 9 * * *",
+ "0 10 * * *","15 10 * * *","30 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *"],
  "nba-priority-2130.yml":["30 13 * * *","40 13 * * *"],
  "titan007-final-hourly.yml":[],
+ "nba-silent-overnight-hourly.yml":["0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *"],
  "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
  # Complete allowlist: every scheduled workflow must be declared here.
  # Post-21:30 jobs are bounded delivery recovery or official-FINAL settlement,
@@ -47,7 +48,7 @@ workflows={
  "nba-injury-live-roster-feature-freeze.yml":["10 18 * * *"]
 }
 # Football has its own independent schedule and never shares NBA slot/delivery logic.
-football_schedule={"football-007-live-capture.yml":["0 4 * * *","0 10 * * *","30 13 * * *","30 22 * * *"]}
+football_schedule={"football-007-live-capture.yml":["0 4-13 * * *","30 13 * * *","0 16-22 * * *","30 22 * * *"]}
 def load(path):
     obj=yaml.safe_load(path.read_text())
     if not isinstance(obj,dict):raise AssertionError(str(path))
@@ -145,6 +146,14 @@ def main():
     assert ("titan007-three-analysis.yml","03:30") in all_times
     assert ("titan007-three-analysis.yml","18:00") in all_times
     assert ("titan007-three-analysis.yml","06:00") not in all_times
+    for h in range(12,22):
+        assert ("titan007-three-analysis.yml",f"{h:02d}:00") in all_times
+    for h in range(7):
+        assert ("nba-silent-overnight-hourly.yml",f"{h:02d}:00") in all_times
+    silent=(ROOT/".github/workflows/nba-silent-overnight-hourly.yml").read_text()
+    assert "pushplus_mobile.py" not in silent and "FOOTBALL_PUSHPLUS_TOKEN" not in silent
+    assert "actions/upload-artifact@v4" in silent and "gh release upload" in silent
+    assert "sport_match_final_registry.py emit" in silent
     # No automatic 22:00 auxiliary odds scan after the 21:30 final report.
     assert ("titan007-daily-free.yml","22:00") not in all_times
     assert ("nba-full-chain-e2e.yml","04:00") in all_times
