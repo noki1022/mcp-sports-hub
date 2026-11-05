@@ -28,7 +28,7 @@ def football():
 def nba():
   snap={"requested_display_date":"2026-11-06","captured_at_utc":iso(T),
        "nba_cba_games":[{"league":"NBA","game_id":"142","nba_game_id":"1001",
-                          "home_team":"甲","away_team":"乙","start_time_beijing":iso(TIP)}]}
+                          "home_team":"亚特兰大老鹰","away_team":"迈阿密热火","start_time_beijing":iso(TIP)}]}
   sides={"JINGCAI_WIN":("HOME_WIN",None,None),
    "JINGCAI_HANDICAP":("HOME_COVER",5.5,5.5),
    "JINGCAI_TOTAL":("OVER",205,None),
@@ -40,7 +40,7 @@ def nba():
   forecast={"schema_version":"nba-five-markets-v1","target_date":"2026-11-06",
             "analysis_generated_at_utc":iso(T+timedelta(minutes=1)),
             "games":[{"game_id":"142","nba_game_id":"1001","jingcai_number":"周五314",
-                      "home_team":"甲","away_team":"乙","tipoff_beijing":iso(TIP),
+                      "home_team":"亚特兰大老鹰","away_team":"迈阿密热火","tipoff_beijing":iso(TIP),
                       "markets":markets}]}
   bundle=R.make_candidate("basketball",snap,forecast,456,"2130")
   return R.publishable_final_documents([bundle],iso(TIP+timedelta(hours=2)))[0]
@@ -65,10 +65,24 @@ class GradeTest(unittest.TestCase):
     self.assertEqual(G.result("football","20261106",rows,counters)["summary"]["ttg"]["graded"],1)
   def test_nba_five_market_original_scorecard(self):
     f=nba()
-    rows,counters=G.basketball_grade([f],{"1001":{"completed":True,"home_points":112,"away_points":100}},"20261106")
+    rows,counters=G.basketball_grade([f],{"1001":{"completed":True,"home_points":112,"away_points":100,
+      "tip_beijing":iso(TIP),"home_abbr":"ATL","away_abbr":"MIA"}},"20261106")
     self.assertEqual(len(rows[0]["markets"]),5)
     self.assertEqual(sum(counters[k]["HIT"] for k in G.LABELS["basketball"]),5)
     self.assertEqual(rows[0]["pregame_candidate_sha256"],f["original_candidate_sha256"])
+  def test_nba_reject_swapped_final_and_wrong_tip(self):
+    f=nba()
+    score={"1001":{"completed":True,"home_points":112,"away_points":100,
+           "tip_beijing":iso(TIP),"home_abbr":"MIA","away_abbr":"ATL"}}
+    with self.assertRaisesRegex(ValueError,"SWAPPED"):
+      G.basketball_grade([f],score,"20261106")
+    score["1001"]["home_abbr"]="ATL";score["1001"]["away_abbr"]="MIA"
+    score["1001"]["tip_beijing"]=iso(TIP+timedelta(hours=2))
+    with self.assertRaisesRegex(ValueError,"TIPOFF"):
+      G.basketball_grade([f],score,"20261106")
+    del score["1001"]["tip_beijing"]
+    with self.assertRaisesRegex(ValueError,"TIPOFF"):
+      G.basketball_grade([f],score,"20261106")
   def test_unsettled_not_miss_or_false_accuracy(self):
     f=nba()
     rows,counters=G.basketball_grade([f],{},"20261106")
