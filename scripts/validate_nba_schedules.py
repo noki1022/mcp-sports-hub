@@ -88,8 +88,11 @@ def main():
         # to collection/archival tasks.
         jobs=football.get("jobs") or {}
         for name,job in jobs.items():
-            if name=="football-final-and-morning-push":
-                assert job.get("needs") is not None, "FOOTBALL_PUSH_MUST_WAIT_FOR_FROZEN_ARTIFACT"
+            if name in ("football-final-and-morning-push","football-daytime-push"):
+                assert job.get("needs") is not None, "FOOTBALL_PUSH_MUST_WAIT_FOR_CAPTURED_ARTIFACT"
+                if name=="football-daytime-push":
+                    assert "archive-football-raw-release" in str(job["needs"])
+                    assert "CLAIMED_BEFORE_API_NO_DUPLICATE_RETRY" in str(job)
                 continue
             assert "FOOTBALL_PUSHPLUS_TOKEN" not in str(job), "RAW_COLLECTION_MUST_NOT_PUSH"
     full=load(ROOT/'.github/workflows/titan007-three-analysis.yml')
