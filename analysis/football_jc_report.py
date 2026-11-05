@@ -34,7 +34,7 @@ def market_card(key, name, market):
         direction = esc(" / ".join(chosen["goals"]))
         line = ("<strong>进球数推荐：" + direction + "　合计概率 "
                 + percent(chosen.get("combined_probability")) + "</strong>")
-    availability = ("｜竞彩赔率未核验" if odds is None else "｜已录入竞彩赔率")
+    availability = ("｜竞彩赔率缺失" if odds is None else "｜竞彩赔率 " + "/".join(esc(v) for v in odds))
     return (f"<div style='padding:7px 0;border-top:1px solid #edf1f5;'>"
             f"<div style='font-weight:650;color:#223;'> {esc(name)}{esc(suffix)}</div>"
             f"<div style='font-size:15px;color:#172a40;margin-top:3px;'>{line}</div>"
@@ -87,7 +87,7 @@ def render(report):
         + "<footer style='font-size:12px;color:#738196;line-height:1.6;margin:12px 3px;'>"
         "模型尚未完成真实赛前样本回测和概率校准；方向和概率不代表盈利保证。"
         "未核验的伤停、竞彩赔率或让球数必须明确标注；仅输出竞彩足球三玩法。"
-        "采集时间 " + esc(report.get("captured_at_utc")) + "</footer></body></html>"
+        "采集时间 " + esc(report.get("captured_at_utc")) + "　来源状态：" + esc(report.get("source_status")) + "</footer></body></html>"
     )
 
 
