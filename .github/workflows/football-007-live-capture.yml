@@ -420,13 +420,15 @@ jobs:
           if-no-files-found: warn
 
   football-final-and-morning-push:
-    needs: [live-football, archive-football-2130-final]
-    if: always() && needs.live-football.result == 'success' && github.event_name == 'schedule' && ((github.event.schedule == '30 13 * * *' && needs.archive-football-2130-final.result == 'success') || github.event.schedule == '30 22 * * *')
+    needs: [live-football, archive-football-raw-release, archive-football-2130-final]
+    if: always() && needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && github.event_name == 'schedule' && ((github.event.schedule == '30 13 * * *' && needs.archive-football-2130-final.result == 'success') || github.event.schedule == '30 22 * * *')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: read
+      contents: write
     env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
       FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.FOOTBALL_PUSHPLUS_TOKEN || secrets.PUSHPLUS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
@@ -439,7 +441,55 @@ jobs:
         with:
           name: football-007-live-source-evidence
           path: football-output
+      - name: Claim immutable football 21:30 or 06:30 slot after raw archive, before API
+        id: claim
+        run: |
+          if [ -s football-output/no_future_fixtures.txt ]; then
+            echo "VERIFIED_EMPTY_FOOTBALL_NO_PUSH_KEEP_ARCHIVE"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -z "$FOOTBALL_PUSHPLUS_TOKEN" ]; then
+            echo "::error::Missing football PushPlus token, no slot claimed"
+            exit 1
+          fi
+          case "${{ github.event.schedule }}" in
+            "30 13 * * *") SLOT="2130"; HOUR=21; MINUTE=30 ;;
+            "30 22 * * *") SLOT="0630"; HOUR=6; MINUTE=30 ;;
+            *) echo "::error::UNKNOWN_FOOTBALL_FINAL_SCHEDULE"; exit 1 ;;
+          esac
+          export HOUR MINUTE
+          echo "FINAL_SLOT=$SLOT" >> "$GITHUB_ENV"
+          # A delayed GitHub cron must not masquerade as an on-time final.
+          if ! python3 - <<'PY'
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          import os,sys
+          now=datetime.now(ZoneInfo("Asia/Shanghai"))
+          expected=now.replace(hour=int(os.environ["HOUR"]),minute=int(os.environ["MINUTE"]),second=0,microsecond=0)
+          lag=(now-expected).total_seconds()
+          sys.exit(0 if 0<=lag<=3600 else 2)
+          PY
+          then
+            echo "::warning::STALE_FOOTBALL_FINAL_CAPTURE_ARCHIVED_NO_PUSH"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          day="$(TZ=Asia/Shanghai date +%Y%m%d)"
+          tag="football-007-raw-$day"
+          claim="football-push-$day-$SLOT.claim.json"
+          if gh release view "$tag" --json assets --jq '.assets[].name' | grep -Fxq "$claim"; then
+            echo "ALREADY_CLAIMED_FOOTBALL_FINAL_SLOT_NO_DUPLICATE"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '{"schema_version":"football-push-claim-v1","slot":"%s","run_id":"%s","status":"CLAIMED_BEFORE_API_NO_DUPLICATE_RETRY"}\n' "$SLOT" "$GITHUB_RUN_ID" > "$claim"
+          # Release asset name collision is a fail-closed guard on rerun.
+          gh release upload "$tag" "$claim"
+          echo "FOOTBALL_FINAL_SLOT_CLAIMED $day $SLOT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
       - name: Send exactly one football message per scheduled 21:30/06:30
+        if: steps.claim.outputs.skip != 'true'
         run: |
           if [ -s football-output/no_future_fixtures.txt ]; then
             echo "VERIFIED_EMPTY_FOOTBALL_SOURCE_NO_PUSH_AND_NO_FAKE_FINAL"
@@ -471,6 +521,15 @@ jobs:
             --movement football-output/football_capture_movement.json \
             --html-out football-output/football_jc_sent_preview.html \
             --status-out football-output/football_jc_send_status.json --send
+      - name: Append final PushPlus API acceptance receipt to immutable football raw archive
+        if: success() && steps.claim.outputs.skip != 'true'
+        run: |
+          test -s football-output/football_jc_send_status.json
+          day="$(TZ=Asia/Shanghai date +%Y%m%d)"
+          tag="football-007-raw-$day"
+          receipt="football-push-$day-$FINAL_SLOT.accepted.json"
+          cp football-output/football_jc_send_status.json "$receipt"
+          gh release upload "$tag" "$receipt"
       - name: Preserve API response (never call it device delivery)
         if: always()
         uses: actions/upload-artifact@v4
