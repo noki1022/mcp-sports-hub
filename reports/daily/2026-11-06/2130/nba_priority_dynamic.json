@@ -1,0 +1,51 @@
+{
+  "schema_version": "nba-hourly-dynamic-review-v1",
+  "target_date": "2026-11-06",
+  "captured_at_utc": "2026-11-05T13:31:09.436655+00:00",
+  "games": [
+    {
+      "game_id": "728905",
+      "home_team": "菲尼克斯太阳",
+      "away_team": "奥兰多魔术",
+      "display_clock": "10:00",
+      "status": "STABLE_OR_MINOR_MOVE",
+      "previous_at_utc": "2026-11-05T13:01:04.917289+00:00",
+      "history_captures": 5,
+      "spread_observation": "距上次采样30.1分钟，盘口未变0分；样本不足，无法识别连续趋势",
+      "total_observation": "距上次采样30.1分钟，盘口未变0分；样本不足，无法识别连续趋势",
+      "model_total_mean": 226.39766730964743,
+      "current_total_line": 222.5,
+      "total_model_market_gap": 3.9,
+      "flags": [
+        "INJURY_CONTEXT_UNKNOWN"
+      ],
+      "assessment": "仅为观察性判断；盘口方向、水位槽位和市场融合权重未核验，不改变独立模型概率。",
+      "probability_revised": false,
+      "decision": "NO_BET"
+    },
+    {
+      "game_id": "728906",
+      "home_team": "金州勇士",
+      "away_team": "迈阿密热火",
+      "display_clock": "11:00",
+      "status": "LINE_MOVE",
+      "previous_at_utc": "2026-11-05T13:01:04.917289+00:00",
+      "history_captures": 5,
+      "spread_observation": "距上次采样30.1分钟，盘口上涨1分；最近报价走势出现反转",
+      "total_observation": "距上次采样30.1分钟，盘口未变0分；最近报价持续下行",
+      "model_total_mean": 234.24258122560246,
+      "current_total_line": 235.5,
+      "total_model_market_gap": -1.26,
+      "flags": [
+        "SIGNIFICANT_MARKET_MOVEMENT",
+        "TREND_REVERSAL",
+        "INJURY_CONTEXT_UNKNOWN"
+      ],
+      "assessment": "仅为观察性判断；盘口方向、水位槽位和市场融合权重未核验，不改变独立模型概率。",
+      "probability_revised": false,
+      "decision": "NO_BET"
+    }
+  ],
+  "decision": "NO_BET",
+  "independent_model_reweighted": false
+}
