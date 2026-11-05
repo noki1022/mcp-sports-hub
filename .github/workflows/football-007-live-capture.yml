@@ -10,6 +10,7 @@ on:
       - 'analysis/football_jc_asian_assimilation.py'
       - 'analysis/football_jc_final_2130.py'
       - 'analysis/sport_match_final_registry.py'
+      - 'scripts/football_jc_capture_slot.py'
       - 'tests/test_sport_match_final_registry.py'
       - 'analysis/football_jc_single_final_review.py'
       - 'tests/test_football_jc_single_final_review.py'
@@ -122,23 +123,17 @@ jobs:
             --out football-output/football_jc_forecast_market.json
           python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast_market.json --html football-output/football_jc_mobile.html
       - name: Store timestamp-hashed per-match candidates independently of 21:30 baseline
+        env:
+          FOOTBALL_SCHEDULE_EXPR: ${{ github.event.schedule || '' }}
         run: |
-          SLOT="$(python3 - <<'PY'
-          import re
-          e="${{ github.event.schedule || '' }}"
-          if e=="30 13 * * *":print("2130")
-          elif e=="30 22 * * *":print("0630")
-          else:
-              m=re.fullmatch(r"0 (\d{1,2}) \* \* \*",e)
-              print(f"{(int(m.group(1))+8)%24:02d}00" if m else "MANUAL")
-          PY
-          )"
+          python3 -B scripts/football_jc_capture_slot.py --self-test
+          PLANNED_SLOT="$(python3 -B scripts/football_jc_capture_slot.py --schedule "$FOOTBALL_SCHEDULE_EXPR")"
           python3 -B analysis/sport_match_final_registry.py emit \
             --sport football \
             --snapshot football-output/football_007_snapshot.json \
             --forecast football-output/football_jc_forecast_market.json \
             --run-id '${{ github.run_id }}' \
-            --slot "$SLOT" \
+            --slot "$PLANNED_SLOT" \
             --out football-output/football_match_candidates.json
       - name: Freeze only scheduled Beijing 21:30 as sole football grading source
         if: github.event_name == 'schedule' && github.event.schedule == '30 13 * * *'
