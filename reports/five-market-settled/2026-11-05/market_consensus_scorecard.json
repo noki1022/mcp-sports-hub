@@ -1,0 +1,149 @@
+{
+  "shadow_fusion_research": {
+    "SPREAD": {
+      "paired_events": 0,
+      "distinct_days": 0,
+      "duplicate_model_event_rows": 0,
+      "duplicate_market_event_rows": 0,
+      "production_fusion_enabled": false,
+      "promotion_policy": "DISABLED; REQUIRES CHRONOLOGICAL HOLDOUT AND SEPARATE APPROVAL",
+      "status": "BLOCKED_INSUFFICIENT_CHRONOLOGICAL_OOS",
+      "required_events": 100,
+      "required_distinct_days": 24,
+      "market_weight": null,
+      "validation": null,
+      "holdout": null
+    },
+    "TOTAL": {
+      "paired_events": 0,
+      "distinct_days": 0,
+      "duplicate_model_event_rows": 0,
+      "duplicate_market_event_rows": 0,
+      "production_fusion_enabled": false,
+      "promotion_policy": "DISABLED; REQUIRES CHRONOLOGICAL HOLDOUT AND SEPARATE APPROVAL",
+      "status": "BLOCKED_INSUFFICIENT_CHRONOLOGICAL_OOS",
+      "required_events": 100,
+      "required_distinct_days": 24,
+      "market_weight": null,
+      "validation": null,
+      "holdout": null
+    }
+  },
+  "schema_version": "nba-007-market-consensus-shadow-scorecard-v2",
+  "metrics": {
+    "JINGCAI_WIN": {
+      "sample_count": 0,
+      "distinct_days": 0,
+      "accuracy": null,
+      "brier": null,
+      "log_loss": null,
+      "calibration_gap": null
+    },
+    "JINGCAI_HANDICAP": {
+      "sample_count": 0,
+      "distinct_days": 0,
+      "accuracy": null,
+      "brier": null,
+      "log_loss": null,
+      "calibration_gap": null
+    },
+    "JINGCAI_TOTAL": {
+      "sample_count": 0,
+      "distinct_days": 0,
+      "accuracy": null,
+      "brier": null,
+      "log_loss": null,
+      "calibration_gap": null
+    },
+    "CROWN_HANDICAP": {
+      "sample_count": 0,
+      "distinct_days": 0,
+      "accuracy": null,
+      "brier": null,
+      "log_loss": null,
+      "calibration_gap": null
+    },
+    "CROWN_TOTAL": {
+      "sample_count": 0,
+      "distinct_days": 0,
+      "accuracy": null,
+      "brier": null,
+      "log_loss": null,
+      "calibration_gap": null
+    },
+    "CONSENSUS_SPREAD": {
+      "sample_count": 0,
+      "distinct_days": 0,
+      "accuracy": null,
+      "brier": null,
+      "log_loss": null,
+      "calibration_gap": null
+    },
+    "CONSENSUS_TOTAL": {
+      "sample_count": 0,
+      "distinct_days": 0,
+      "accuracy": null,
+      "brier": null,
+      "log_loss": null,
+      "calibration_gap": null
+    },
+    "MODEL_FIRST_SIDE_SPREAD": {
+      "sample_count": 0,
+      "distinct_days": 0,
+      "accuracy": null,
+      "brier": null,
+      "log_loss": null,
+      "calibration_gap": null
+    },
+    "MULTI_COMPANY_PRICE_SPREAD": {
+      "sample_count": 0,
+      "distinct_days": 0,
+      "accuracy": null,
+      "brier": null,
+      "log_loss": null,
+      "calibration_gap": null
+    },
+    "MODEL_FIRST_SIDE_TOTAL": {
+      "sample_count": 0,
+      "distinct_days": 0,
+      "accuracy": null,
+      "brier": null,
+      "log_loss": null,
+      "calibration_gap": null
+    },
+    "MULTI_COMPANY_PRICE_TOTAL": {
+      "sample_count": 0,
+      "distinct_days": 0,
+      "accuracy": null,
+      "brier": null,
+      "log_loss": null,
+      "calibration_gap": null
+    }
+  },
+  "minimum_sample_for_fusion_review": 100,
+  "minimum_distinct_days_for_fusion_review": 24,
+  "fusion_eligible": {
+    "JINGCAI_WIN": false,
+    "JINGCAI_HANDICAP": false,
+    "JINGCAI_TOTAL": false,
+    "CROWN_HANDICAP": false,
+    "CROWN_TOTAL": false,
+    "CONSENSUS_SPREAD": false,
+    "CONSENSUS_TOTAL": false,
+    "MODEL_FIRST_SIDE_SPREAD": false,
+    "MULTI_COMPANY_PRICE_SPREAD": false,
+    "MODEL_FIRST_SIDE_TOTAL": false,
+    "MULTI_COMPANY_PRICE_TOTAL": false
+  },
+  "probability_fusion": "DISABLED_NO_WEIGHT_FIT_OR_PRODUCTION_OVERRIDE",
+  "fusion_review_policy": "AT_LEAST_100_MATCHED_EVENTS_AND_24_BEIJING_DATES; NO_AUTOMATIC_PROMOTION",
+  "selection_policy": "EXACT_FROZEN_SOURCE_CAPTURE_MATCH_PRETIP_ONLY",
+  "source_orientation": "USER_CONFIRMED_007_FIRST_SIDE_HOME_OR_OVER; EXACT_SAME_LINE_NO_VIG_ONLY",
+  "moneyline_consensus": "NOT_AVAILABLE_NO_DIRECT_MULTI_COMPANY_H2H_FEED",
+  "rejections": {
+    "FORECAST_GENERATION_TIMESTAMP_MISSING": 112,
+    "NO_EXACT_FROZEN_CAPTURE_MATCH": 17,
+    "NO_FROZEN_INTRADAY_FORECAST": 33
+  },
+  "not_betting_advice": true
+}
