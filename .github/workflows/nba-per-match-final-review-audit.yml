@@ -1,0 +1,98 @@
+name: NBA latest-per-match one-scorecard review readiness (silent, official results)
+on:
+  schedule:
+    # Beijing 23:20 daily. Inspect last four days to recover delayed final-score feeds.
+    - cron: "20 15 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nba-per-match-review-readiness-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  official-reconciliation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compare immutable per-match seals with whole noon official slate and completed ESPN finals
+        run: |
+          set -euo pipefail
+          mkdir -p final-root audit-output
+          for offset in 0 1 2 3; do
+            day="$(TZ=Asia/Shanghai date -d "-$offset days" +%Y%m%d)"
+            day_dash="$(TZ=Asia/Shanghai date -d "-$offset days" +%Y-%m-%d)"
+            tag="sport-pregame-final-basketball-$day"
+            directory="final-root/basketball/$day"
+            output="audit-output/$day"
+            mkdir -p "$directory" "$output"
+            if ! gh release view "$tag" >/dev/null 2>&1; then
+              printf '{"state":"NO_IMMUTABLE_PER_MATCH_FINAL_YET","day":"%s","no_pushplus":true}\n' "$day" > "$output/missing-finals.json"
+              echo "NBA_PER_MATCH_FINALS_NOT_YET_ARCHIVED $day"
+              continue
+            fi
+            gh release download "$tag" --pattern '*.final.json' --dir "$directory"
+            if ! python3 - "$day_dash" "$output/espn-scores.json" <<'PY'
+          import json,sys
+          sys.path.insert(0,"analysis")
+          from nba_nightly_two_market_settlement import scores_for
+          result=scores_for(sys.argv[1])
+          with open(sys.argv[2],"w",encoding="utf-8") as fp:
+              json.dump(result,fp,ensure_ascii=False,sort_keys=True)
+          print("INDEPENDENT_ESPN_SCORE_RESULTS",sys.argv[1],len(result))
+          PY
+            then
+              printf '{"state":"ESPN_OFFICIAL_RESULTS_UNAVAILABLE_NO_SCORECARD","no_pushplus":true}\n' > "$output/failed-results.json"
+              echo "::warning::ESPN_RESULTS_UNAVAILABLE $day; do not use inferred or fabricated scores"
+              continue
+            fi
+            extra=()
+            cohort="reports/noon-cohorts/$day_dash/1200.json"
+            if [ -s "$cohort" ]; then
+              extra=(--official-cohort "$cohort")
+            else
+              echo "::warning::NBA_NOON_COHORT_MISSING_DO_NOT_PUBLISH_COMPLETE $day"
+            fi
+            python3 -B analysis/nba_per_match_score_review.py \
+              --final-root final-root --day "$day" \
+              --scores "$output/espn-scores.json" --out-dir "$output" "${extra[@]}"
+            if [ ! -s "$output/review.json" ]; then
+              echo "NBA_PER_MATCH_REVIEW_PARTIAL_NOT_SENT $day"
+              continue
+            fi
+            audit_tag="nba-one-verified-per-match-review-$day"
+            if ! gh release view "$audit_tag" >/dev/null 2>&1; then
+              gh release create "$audit_tag" --target main --title "NBA independently reconciled per-match review $day" \
+                --notes "One review after independently verified official full-day coverage. Research archive only. No PushPlus; old production review stays unchanged."
+            fi
+            for filename in review.json review.html manifest.json; do
+              if gh release view "$audit_tag" --json assets --jq '.assets[].name' | grep -Fxq "$filename"; then
+                mkdir -p "$output/existing"
+                gh release download "$audit_tag" --pattern "$filename" --dir "$output/existing"
+                cmp "$output/$filename" "$output/existing/$filename" || {
+                  echo "::error::NBA_PER_MATCH_SCORECARD_CONTENT_CONFLICT $day $filename"
+                  exit 1
+                }
+              else
+                gh release upload "$audit_tag" "$output/$filename"
+              fi
+            done
+            echo "NBA_SINGLE_SCORECARD_ARCHIVED_NOT_PUSHED $day"
+          done
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-per-match-review-audit-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: audit-output/
+          retention-days: 90
+          if-no-files-found: warn
