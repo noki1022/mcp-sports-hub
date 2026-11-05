@@ -1,0 +1,80 @@
+name: Verify NBA per-match pretip finals against official scores (manual audit; no push)
+on:
+  workflow_dispatch:
+    inputs:
+      beijing_day:
+        description: 'Beijing NBA game date YYYY-MM-DD; independent verification only'
+        type: string
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: nba-verified-per-match-review-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      DAY: ${{ inputs.beijing_day }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Recheck per-match scoring invariants before touching source data
+        run: |
+          python3 -B -m unittest discover -s tests -p test_sport_match_final_registry.py -v
+          python3 -B -m unittest discover -s tests -p test_sport_match_final_grade.py -v
+      - name: Retrieve immutable finalized NBA games for the exact Beijing date
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import datetime,os,re
+          d=os.environ["DAY"]
+          if not re.fullmatch(r"20\d{2}-\d{2}-\d{2}",d):
+              raise ValueError("INVALID_NBA_BEIJING_DATE")
+          datetime.date.fromisoformat(d)
+          print("DAY_COMPACT="+d.replace("-",""))
+          PY
+          tag="sport-pregame-final-basketball-$DAY_COMPACT"
+          mkdir -p "per-match-finals/basketball/$DAY_COMPACT"
+          gh release download "$tag" --pattern '*.final.json' --dir "per-match-finals/basketball/$DAY_COMPACT"
+          test "$(find "per-match-finals/basketball/$DAY_COMPACT" -name '*.final.json' -type f | wc -l)" -gt 0
+      - name: Fetch actual ESPN official FINAL by event ID; reject result identity drift
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,json,sys
+          sys.path.insert(0,"analysis")
+          from nba_nightly_two_market_settlement import scores_for
+          data=scores_for(os.environ["DAY"])
+          Path("official_completed_scores.json").write_text(json.dumps(data,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          print("ESPN_COMPLETED_SCORE_EVENTS",sum(x.get("completed") is True for x in data.values()))
+          PY
+      - name: Score only already-frozen per-game five-play answers; no new predictions
+        run: |
+          python3 -B analysis/sport_match_final_grade.py \
+            --final-root per-match-finals --sport basketball --day "$DAY_COMPACT" \
+            --results official_completed_scores.json --out nba_permatch_review.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open("nba_permatch_review.json"))
+          assert x["schema_version"]=="sports-latest-pretip-scoring-v1"
+          assert x["prediction_source"]=="LATEST_VERIFIED_PREKICKOFF_PER_MATCH_IMMUTABLE"
+          assert x["historical_2130_not_graded_separately"] is True
+          assert len(x["matches"])>0
+          print("NBA_OFFICIAL_PER_MATCH_SCORECARD_VERIFIED",len(x["matches"]),
+                {k:(v["hits"],v["graded"],v["unsettled"]) for k,v in x["summary"].items()})
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-verified-permatch-review-${{ inputs.beijing_day }}-${{ github.run_id }}
+          path: |
+            nba_permatch_review.json
+          retention-days: 90
+          if-no-files-found: warn
