@@ -16,7 +16,7 @@ from typing import Any
 
 BJ=ZoneInfo("Asia/Shanghai")
 VERSION="football-jc-single-final-2130-v1"
-FUSED_VERSION="football-jc-poisson-asian-assimilation-v2"
+FUSED_VERSION="football-jc-poisson-asian-assimilation-v3"
 KEYS=("had","hhad","ttg")
 LABELS={"had":"竞彩胜平负","hhad":"竞彩让球胜平负","ttg":"竞彩总进球数"}
 MAX_DELAY=120 # late GitHub dispatch cannot masquerade as exact 21:30 capture

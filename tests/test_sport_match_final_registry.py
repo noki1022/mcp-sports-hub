@@ -17,7 +17,7 @@ def football(t=BASE,tip=TIP):
     snap={"schema_version":"football-jc-007-v1","captured_at_utc":iso(t),
           "games":[{"match_id":"3075305","jc_number":"周四010","home_team":"甲","away_team":"乙",
                     "home_team_id_007":1,"away_team_id_007":2,"kickoff_beijing":iso(tip)}]}
-    pred={"model_version":"football-jc-poisson-asian-assimilation-v2",
+    pred={"model_version":"football-jc-poisson-asian-assimilation-v3",
           "source_sha256":S.digest(snap),"captured_at_utc":iso(t),
           "generated_at_utc":iso(t+timedelta(minutes=1)),
           "games":[{"match_id":"3075305","jc_number":"周四010",
