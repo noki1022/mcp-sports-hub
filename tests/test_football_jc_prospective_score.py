@@ -80,7 +80,7 @@ class TestProspectiveScore(unittest.TestCase):
             self.assertEqual(output["markets"][k]["paired"]["shadow"]["n"],1)
         self.assertEqual(output["total_goals_one_or_two_selection"]["shadow"]["coverage"],1)
         self.assertEqual(output["per_match"][0]["markets"]["had"]["result"],"主胜")
-        self.assertEqual(output["per_match"][0]["markets"]["hhad"]["result"],"让胜")
+        self.assertEqual(output["per_match"][0]["markets"]["hhad"]["result"],"让平")
         self.assertEqual(output["per_match"][0]["markets"]["ttg"]["result"],"3球")
     def test_missing_had_price_still_allows_model_score(self):
         self.s["games"][0]["jc_markets"]["had"]=None
