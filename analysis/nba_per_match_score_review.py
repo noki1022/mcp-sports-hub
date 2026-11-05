@@ -14,7 +14,7 @@ import sport_match_final_registry as R
 import sport_match_final_review_html as H
 
 VERSION="nba-per-match-scorecard-publication-gate-v1"
-def review(root,day,scores):
+def review(root,day,scores,official_ids=None):
     date=datetime.strptime(day,"%Y%m%d")
     assert date.strftime("%Y%m%d")==day
     if not isinstance(scores,dict):
@@ -23,15 +23,20 @@ def review(root,day,scores):
     final_ids=[str(f.get("official_game_id") or "") for f in finals]
     if len(set(final_ids))!=len(final_ids) or any(not x for x in final_ids):
         raise ValueError("DUPLICATE_OR_EMPTY_FROZEN_OFFICIAL_NBA_GAME_ID")
-    official_ids=set(scores)
-    # The whole board, not just a few predictions that happened to survive,
-    # must be reconciled before calling the final review complete.
-    missing=sorted(official_ids-set(final_ids))
-    extra=sorted(set(final_ids)-official_ids)
-    if not official_ids or not finals:
+    # Cross-check one independent OFFICIAL noon cohort. Do NOT infer full
+    # slate coverage from a possibly partial ESPN date-window response.
+    cohort_ids=set(str(x) for x in official_ids) if official_ids is not None else None
+    score_ids=set(str(x) for x in scores)
+    missing=sorted((cohort_ids or set())-set(final_ids))
+    extra=sorted(set(final_ids)-(cohort_ids or set()))
+    missing_scores=sorted((cohort_ids or set())-score_ids)
+    unexpected_scores=sorted(score_ids-(cohort_ids or set()))
+    if cohort_ids is None:
+        reason="INDEPENDENT_NOON_OFFICIAL_SLATE_NOT_VERIFIED"
+    elif not cohort_ids or not finals:
         reason="NO_VERIFIED_OFFICIAL_RESULTS_OR_NO_FROZEN_PREGAME_FINALS"
-    elif missing or extra:
-        reason="NBA_OFFICIAL_FIXTURE_COVERAGE_NOT_COMPLETE"
+    elif missing or extra or missing_scores or unexpected_scores:
+        reason="NBA_INDEPENDENT_OFFICIAL_SLATE_FORECAST_OR_RESULTS_MISMATCH"
     else:
         reason=None
     rows,counters=G.basketball_grade(finals,scores,day)
@@ -42,7 +47,10 @@ def review(root,day,scores):
     status="READY_ONE_PER_MATCH_FINAL" if not reason else "INCOMPLETE_NOT_PUBLISHABLE"
     return {"status":status,"reason":reason,
             "source_contract":"ESPN_FINAL_BY_EVENT_ID_AND_BJ_TIP_AND_HOME_AWAY_VERIFIED",
-            "same_day_official_game_ids":len(official_ids),
+            "same_day_official_game_ids":len(cohort_ids or set()),
+            "result_source_game_ids":len(score_ids),
+            "official_scores_missing":missing_scores,
+            "unofficial_score_ids":unexpected_scores,
             "sealed_unique_game_ids":len(final_ids),
             "unsealed_official_ids":missing,
             "sealed_ids_not_in_official_results":extra,
@@ -50,8 +58,8 @@ def review(root,day,scores):
             "ready_for_one_daily_review_push":status=="READY_ONE_PER_MATCH_FINAL",
             "scorecard":graded}
 
-def write_report(root,day,scores,out):
-    doc=review(root,day,scores)
+def write_report(root,day,scores,out,official_ids=None):
+    doc=review(root,day,scores,official_ids)
     dest=Path(out);dest.mkdir(parents=True,exist_ok=True)
     report=doc.pop("scorecard")
     # Preview is a partial research document until the whole game-day settles.
@@ -74,10 +82,22 @@ def main():
     p.add_argument("--final-root",required=True)
     p.add_argument("--day",required=True)
     p.add_argument("--scores",required=True)
+    p.add_argument("--official-cohort",help="Independent immutable 12:00 official NBA slate; absent means no publication")
     p.add_argument("--out-dir",required=True)
     a=p.parse_args()
     scores=json.loads(Path(a.scores).read_text(encoding="utf-8"))
-    doc=write_report(a.final_root,a.day,scores,a.out_dir)
+    ids=None
+    if a.official_cohort:
+        cohort=json.loads(Path(a.official_cohort).read_text(encoding="utf-8"))
+        registry.require(cohort.get("schema_version")=="nba-beijing-noon-cohort-v1",
+                         "INDEPENDENT_NOON_COHORT_SCHEMA_UNVERIFIED")
+        registry.require(cohort.get("target_beijing_date")==datetime.strptime(a.day,"%Y%m%d").strftime("%Y-%m-%d"),
+                         "OFFICIAL_NOON_COHORT_DAY_MISMATCH")
+        ids=cohort.get("official_games")
+        registry.require(isinstance(ids,dict) and len(ids)==cohort.get("official_count"),
+                         "OFFICIAL_COHORT_ID_COUNT_MISMATCH")
+        ids=set(ids)
+    doc=write_report(a.final_root,a.day,scores,a.out_dir,ids)
     print("NBA_SINGLE_MATCH_REVIEW_GATE",a.day,doc["status"],
           "official",doc["same_day_official_game_ids"],
           "sealed",doc["sealed_unique_game_ids"],
