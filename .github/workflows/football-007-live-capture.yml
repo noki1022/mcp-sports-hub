@@ -4,6 +4,7 @@ on:
     paths:
       - 'scripts/football_007_live_capture.py'
       - 'scripts/football_007_mobile_probe.py'
+      - 'scripts/football_007_deep_probe.py'
       - 'tests/test_football_007_live_capture.py'
       - '.github/workflows/football-007-live-capture.yml'
   workflow_dispatch:
@@ -39,6 +40,9 @@ jobs:
       - name: Audit actual 007 mobile H2H recent-form and injury source structure
         if: github.event_name != 'schedule'
         run: python3 -B scripts/football_007_mobile_probe.py
+      - name: Forensic inspect live 007 football analysis script loaders (PR only)
+        if: github.event_name == 'pull_request'
+        run: python3 -B scripts/football_007_deep_probe.py
       - name: Analyze captured board without inventing missing form, injuries or TTG quotes
         run: |
           python3 -B analysis/football_jc_probability.py --input football-output/football_007_snapshot.json --out football-output/football_jc_forecast.json
