@@ -9,6 +9,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "analysis"))
 import football_jc_probability as core
 import football_jc_report as report
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import football_jc_push as sender
 
 CAPTURE = datetime(2026, 11, 5, 8, tzinfo=timezone.utc)
 TIP = datetime(2026, 11, 6, 12, tzinfo=timezone.utc)
@@ -130,6 +132,12 @@ class TestFootballJc(unittest.TestCase):
         self.assertIn("进球数推荐：", page)
         self.assertIn("合计概率", page)
         self.assertNotIn("皇冠", page)
+
+    def test_independent_push_fails_closed_without_live_evidence(self):
+        data=core.run(snap())
+        with self.assertRaisesRegex(ValueError,"NOT_VERIFIED_LIVE_007_FOOTBALL"):
+            sender.verify_for_delivery(data)
+        self.assertNotIn("NBA", sender.ENDPOINT)
 
     def test_empty_is_not_a_claim_of_zero_fixtures(self):
         data = core.run(snap([]))
