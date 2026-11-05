@@ -89,8 +89,33 @@ def football_grade(finals,results,raw_evidence):
         graded.append(info)
     return graded,total
 
+def verify_nba_final_score_identity(final,source):
+    """Do not turn a completed score for a wrong home/away or postponed event into a hit."""
+    if source.get("completed") is not True:
+        return
+    if type(source.get("home_points")) is not int or type(source.get("away_points")) is not int:
+        raise ValueError("NBA_COMPLETED_WITHOUT_VALID_INTEGER_SCORE")
+    if source["home_points"]==source["away_points"] or min(source["home_points"],source["away_points"])<0:
+        raise ValueError("NBA_INVALID_FINAL_SCORE")
+    tip=source.get("tip_beijing")
+    registry.require(tip is not None and abs((registry.stamp(tip)-registry.stamp(final["kickoff_utc"])).total_seconds())<=300,
+                     "NBA_FINAL_EVENT_TIPOFF_NOT_SAME_PRETIP_MATCH")
+    # 007 Chinese teams were already crossed to the ESPN official fixture at source capture.
+    # Re-verify the FULL-TIME feed's sides with that same controlled name mapping.
+    from titan007_ev_analysis import NAMES
+    home=NAMES.get(final["home_team"])
+    away=NAMES.get(final["away_team"])
+    registry.require(home is not None and away is not None and home[0]!=away[0],
+                     "NBA_UNVERIFIED_FROZEN_TEAM_IDENTITY")
+    registry.require(str(source.get("home_abbr") or "").upper()==home[0] and
+                     str(source.get("away_abbr") or "").upper()==away[0],
+                     "NBA_OFFICIAL_RESULT_HOME_AWAY_SWAPPED_OR_UNKNOWN")
+
 def basketball_grade(finals,scores,day):
-    for f in finals:validate_final(f)
+    for f in finals:
+        validate_final(f)
+        if f.get("official_game_id") in scores:
+            verify_nba_final_score_identity(f,scores[f["official_game_id"]])
     board={"target_date":datetime.strptime(day,"%Y%m%d").strftime("%Y-%m-%d"),
            "games":[{"game_id":f["match_id"],"nba_game_id":f["official_game_id"],
                      "jingcai_number":f["jc_number"],"home_team":f["home_team"],
