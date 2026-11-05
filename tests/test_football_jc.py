@@ -67,6 +67,20 @@ class TestFootballJc(unittest.TestCase):
         self.assertEqual(len(goals["goals"]), len(set(goals["goals"])))
         self.assertAlmostEqual(goals["combined_probability"], sum(goals["individual_probabilities"]), places=5)
 
+    def test_ancient_h2h_does_not_drop_entire_valid_fixture(self):
+        g = game()
+        g["h2h"] = [
+            {"match_id": "ancient20y", "played_at": iso(CAPTURE-timedelta(days=7000)),
+             "home_goals": 3, "away_goals": 0}
+        ]
+        row = core.run(snap([g]))["games"][0]
+        self.assertEqual(row["status"], "RESEARCH_READY")
+        self.assertIsNotNone(row["goal_expectation"]["home"])
+        self.assertIsNotNone(row["markets"]["ttg"]["goal_selection"]["goals"])
+        g["h2h"] = []
+        without = core.run(snap([g]))["games"][0]
+        self.assertEqual(row["goal_expectation"], without["goal_expectation"])
+
     def test_injury_matters(self):
         without = game()
         without["injuries"] = []
