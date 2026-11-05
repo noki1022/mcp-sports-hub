@@ -245,7 +245,11 @@ def choose_rho(history,cutoff):
     ordered=sorted(history,key=lambda r:r["played_at_utc"])
     cut=max(MIN_TRAIN_MATCHES,int(len(ordered)*.80))
     split_time=ordered[cut]["played_at_utc"]
-    older=[m for m in ordered if m["played_at_utc"]<split_time]
+    # A historical game's kickoff is NOT its result-observed timestamp.
+    # Exclude the preceding three hours at the validation boundary so that
+    # an in-progress/future result cannot train the earlier model.
+    older=[m for m in ordered
+           if (parsed_at(split_time)-parsed_at(m["played_at_utc"])).total_seconds()>=3*3600]
     newer=[m for m in ordered if m["played_at_utc"]>=split_time]
     if len(newer)<MIN_VALIDATION_GAMES or len(older)<MIN_TRAIN_MATCHES:
         return 0.0,{"status":"INSUFFICIENT_UNIQUE_CHRONOLOGICAL_VALIDATION","holdout_games":len(newer)}
