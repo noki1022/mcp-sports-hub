@@ -45,6 +45,14 @@ class TestLive(unittest.TestCase):
   self.assertEqual(doc["source_provenance"]["coverage"]["future_jc_fixtures"],0)
   self.assertEqual(doc["source_provenance"]["state"],"VERIFIED_007_FEEDS_ZERO_FUTURE_JC_FIXTURES")
   self.assertEqual(len(doc["source_provenance"]["sha256"]["fixtures"]),64)
+ def test_future_matches_with_invalid_jc_numbers_are_not_fake_zero_day(self):
+  malformed=FIX.replace("周四001".encode(),b"bad").replace("周四002".encode(),b"bad")
+  games,coverage=live.parse_fixtures(malformed,live.parse_odds(ODDS),CAP)
+  self.assertEqual(games,[])
+  self.assertEqual(coverage["future_source_rows_before_identity_filter"],2)
+  self.assertEqual(coverage["rejected_future_identity_rows"],2)
+  with self.assertRaisesRegex(RuntimeError,"FUTURE_ROWS_EXIST"):
+   live.collect({"fixtures":malformed,"jc_odds":ODDS},CAP)
  def test_duplicate_odds_rejected(self):
   with self.assertRaisesRegex(ValueError,"DUPLICATE"):
    live.parse_odds(ODDS+b"!"+ODDS.split(b"!")[0])
