@@ -176,6 +176,14 @@ jobs:
         run: |
           python3 analysis/nba_five_market_integrity_gate.py --joined titan007_priority_joined.json --five nba_five_market_forecast.json --jingcai nba_jingcai_three_market.json --out nba_five_market_integrity.json
       - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
+        name: Freeze actual timestamped NBA per-match five-play candidates for this slot
+        run: |
+          python3 analysis/sport_match_final_registry.py emit \
+            --sport basketball --snapshot titan007_priority_joined.json \
+            --forecast nba_five_market_forecast.json \
+            --run-id "$GITHUB_RUN_ID" --slot "2130" \
+            --out nba_match_candidates.json
+      - if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'
         name: Calculate 2130 shadow-only dynamic five-market probabilities
         run: |
           PREVIOUS_SHADOW=""
@@ -284,7 +292,7 @@ jobs:
         name: Archive snapshot, complete analysis and successful PushPlus marker
         run: |
           mkdir -p "reports/daily/$TARGET_DATE/2130" "reports/pushplus-sent/$TARGET_DATE"
-          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_market_consensus.json nba_five_market_forecast.json nba_dynamic_five_market_shadow.json nba_priority_focus.json nba_priority_iphone.html nba_injury_prospective_2130.json "reports/daily/$TARGET_DATE/2130/"
+          cp titan007_priority_joined.json titan007_priority_movement.json nba_priority_dynamic.json nba_priority_model.json nba_priority_bc.json nba_jingcai_three_market.json nba_two_market_forecast.json nba_market_consensus.json nba_five_market_forecast.json nba_dynamic_five_market_shadow.json nba_priority_focus.json nba_priority_iphone.html nba_injury_prospective_2130.json nba_match_candidates.json "reports/daily/$TARGET_DATE/2130/"
           # Preserve the already-computed official report in the SAME 21:30
           # archived slot for independent read-only research after send.
           # If unavailable, original production delivery and archive proceed.
@@ -324,6 +332,7 @@ jobs:
             nba_jingcai_three_market.json
             nba_two_market_forecast.json
             nba_five_market_forecast.json
+            nba_match_candidates.json
             nba_dynamic_five_market_shadow.json
             nba_priority_focus.json
             nba_capture_audit.json
