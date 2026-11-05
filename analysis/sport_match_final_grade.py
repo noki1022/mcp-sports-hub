@@ -186,12 +186,12 @@ def render_iphone(report):
             hs,aw=game.get("home_points"),game.get("away_points")
         scores=(f"{hs}:{aw}" if type(hs) is int and type(aw) is int else "待核实")
         idx=game.get("jingcai_number") or game.get("jc_number") or "编号待核"
-        html.append("<section style='padding:10px;margin:10px 0;border-radius:10px;",
+        html.extend(["<section style='padding:10px;margin:10px 0;border-radius:10px;",
                     "border:1px solid #dbe3ee'><b>"+esc(str(idx))+"　"+
                     esc(str(game.get("home_team") or "主队待核"))+"（主） vs "+
                     esc(str(game.get("away_team") or "客队待核"))+"（客）</b>",
                     "<div style='color:#65768a;font-size:12px'>最终比分（主:客）："+
-                    esc(scores)+"</div>")
+                    esc(scores)+"</div>"])
         for key,market in game["markets"].items():
             status=market.get("outcome",market.get("status","UNSETTLED"))
             desc={"HIT":"命中","MISS":"未中","PUSH":"走盘",
@@ -212,8 +212,8 @@ def render_iphone(report):
                         esc(market_names[key])+"　"+esc(choice)+"　<b>"+esc(desc)+"</b>"+
                         esc(extra)+"</div>")
         html.append("</section>")
-    html.append("<div style='font-size:11px;color:#64748b'>未核实赛果不评分；",
-                "历史赔率或开赛后的模型计算不能反向修改本报告。</div></body></html>")
+    html.extend(["<div style='font-size:11px;color:#64748b'>未核实赛果不评分；",
+                 "历史赔率或开赛后的模型计算不能反向修改本报告。</div></body></html>"])
     return "".join(html)
 
 def main():
