@@ -19,6 +19,33 @@ ODDS=(
 ).encode("utf-8")
 
 class TestLive(unittest.TestCase):
+ def test_all_49_games_attempted_and_failure_does_not_drop_later_fixtures(self):
+  import json,hashlib,gzip
+  from tempfile import TemporaryDirectory
+  from unittest.mock import patch
+  games=[{'match_id':str(3000000+i),'kickoff_beijing':'2099-01-01T00:00:00+08:00','data_gaps':[]}
+         for i in range(49)]
+  snapshot={'games':games,'source_provenance':{}}
+  def fetch(mid):
+   if mid=='3000003':raise OSError('isolated source outage')
+   return mid.encode()
+  def parse(raw,game,observed):
+   return {'home_last5':[{}]*5,'away_last5':[{}]*5,'h2h':[],
+     'injury_source_facts':[],'injury_report_state':'UNVERIFIED','injuries':[],
+     'source_evidence':{'captured_at_utc':observed}}
+  with TemporaryDirectory() as tmp,patch.object(live.analysis_007,'get_page',side_effect=fetch),\
+       patch.object(live.analysis_007,'extract',side_effect=parse):
+   root=Path(tmp);(root/'manifest.json').write_text('{"sources":{}}')
+   result=live.enrich_analysis(snapshot,root)
+   self.assertEqual(result['attempted'],49)
+   self.assertEqual(result['parsed'],48)
+   self.assertEqual(result['source_failures'],1)
+   self.assertEqual(games[-1]['analysis_source_status'],'007_EMBEDDED_JSON_VALIDATED')
+   manifest=json.loads((root/'manifest.json').read_text())
+   self.assertEqual(len(manifest['sources']),48)
+   raw=gzip.decompress((root/'analysis_3000048.html.gz').read_bytes())
+   self.assertEqual(manifest['sources']['analysis_3000048']['sha256'],hashlib.sha256(raw).hexdigest())
+
  def test_real_observed_007_record_shapes(self):
   s=live.collect({"fixtures":FIX,"jc_odds":ODDS},CAP)
   self.assertEqual(len(s["games"]),2)
