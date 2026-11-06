@@ -23,6 +23,15 @@ class ExactFootball(unittest.TestCase):
   queued=datetime.fromisoformat("2026-11-06T16:03:00+08:00")
   self.assertEqual(validate("workflow_dispatch","cloudflare","2026-11-06","0 8 * * *",queued),
                    "CLOUDFLARE_RECOVERY_AUTHORIZED_1600")
+  eleven_minutes=datetime.fromisoformat("2026-11-06T16:11:00+08:00")
+  with self.assertRaisesRegex(ValueError,"OUTSIDE_SENDING_WINDOW"):
+   validate("workflow_dispatch","cloudflare","2026-11-06","0 8 * * *",eleven_minutes)
+  # A Friday 23:00 canonical dispatch remains a Friday sale-day task.
+  # If runner starts Saturday 00:02, it must be rejected as expired,
+  # never treated as an authorized Saturday push.
+  past_midnight=datetime.fromisoformat("2026-11-07T00:02:00+08:00")
+  with self.assertRaisesRegex(ValueError,"OUTSIDE_SENDING_WINDOW"):
+   validate("workflow_dispatch","cloudflare","2026-11-06","0 15 * * *",past_midnight)
   late=datetime.fromisoformat("2026-11-06T17:03:00+08:00")
   with self.assertRaisesRegex(ValueError,"OUTSIDE_SENDING_WINDOW"):
    validate("workflow_dispatch","cloudflare","2026-11-06","0 8 * * *",late)
