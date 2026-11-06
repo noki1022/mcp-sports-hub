@@ -1,66 +1,51 @@
-# Basketball + football: exact-time dual scheduling (no compensation)
+# Basketball and football — one 12-hour analysis window
 
-This directory controls the existing Cloudflare Worker `nba-external-schedule-watchdog`.
-It does **not** execute 007 collection, inference, raw archiving, PushPlus delivery,
-or settlement. Those jobs remain in GitHub Actions.
+**Beijing time (UTC+08):** 12:00, 13:00, 14:00, 15:00, 16:00, 17:00,
+18:00, 19:00, 20:00, **21:00**, 22:00, 23:00. Exactly 12 scheduled
+snapshots and reports per sport every calendar day. Midnight is the end of
+the window; no 00:00 additional run, 21:30, 00:30, 03:30 or 06:30.
 
-## Production policy (2026-11-06)
+At 21:00 a SHA-verified prediction is locked as the **only** review/scoring
+source. The later 22:00 and 23:00 snapshots are archived for historical
+model research, but cannot overwrite or substitute the 21:00 answer.
+If 21:00 is missing, the official scorecard is **missing**, not backfilled
+with a different slot.
 
-1. Both GitHub native cron and the same existing Cloudflare Worker cron fire at
-   the **single canonical minute**. There are no delayed backup minutes,
-   retry Cron triggers, resend workflows, or failure-driven compensatory sends.
-2. Cloudflare may issue **one** workflow_dispatch at that exact timestamp.
-   It inspects the canonical GitHub run and accepted/claimed marker first;
-   if another run has already claimed that slot, it does not redispatch.
-   Failure of that run **never** causes another dispatch.
-3. GitHub's canonical run still has its normal runtime; queue latency and
-   network/data availability are recorded as such. An original scheduled job
-   executing after its trigger is **not** a second notification attempt.
-4. NBA uses committed `reports/pushplus-sent` API acceptance markers;
-   football uses immutable one-slot Release claim assets. Both are for
-   **deduplication only**, never authorization to retry a failed send.
-5. The existing delivery-health workflow is **manual, read-only**. It has no
-   GitHub Actions write permission or PushPlus credentials and cannot dispatch.
-6. The old standalone NBA schedule-fallback sender, auto-recovery script,
-   manual compact resend workflow, and autonomous-recovery verification
-   workflow were removed. Do not restore them under another name.
-7. Original raw captures, independent pre-match evidence, 21:30 grading
-   baselines, and official postgame settlement are separate from delivery
-   remediation. Do not modify/erase old archived evidence.
+## Two independent sporting-day rules
 
-## Beijing schedule
+* **Football:** On Friday, capture and analyse only the 007 official sale
+  identifiers `周五001`, `周五002`, etc., even if those games kick off
+  after midnight on Saturday. Exclude any `周六nnn` entries. On Saturday,
+  the equivalent `周六nnn` group is the day's slate. The full 007 raw
+  response is archived unchanged and only the **derived model fixtures**
+  are filtered. Review those originally frozen exact match IDs after
+  independently verified full-time scores are available.
+* **Basketball:** Continue the next Beijing game display date convention
+  used by 007/NBA; keep the original 12:00 cohort. The 21:00 report for
+  that date is the only five-market outcome-scoring baseline.
 
-| Sport | Actual scheduled triggers |
-| --- | --- |
-| Basketball full reports | 12:00–21:00 hourly, plus 00:30 and 03:30 |
-| Basketball priorities | 21:30 and 06:30 |
-| Football analysis/push | 12:00–21:00 hourly |
-| Football priorities | 21:30 and 06:30 |
-| Football silent captures | 00:00–06:00 hourly |
-| Basketball silent captures | 00:00–06:00 hourly |
+GitHub scheduled workflows and the existing Cloudflare Worker both have
+an original 12:00–23:00 exact-hour trigger for the same processing pipeline.
+Cloudflare does not analyse/send directly and neither scheduler performs
+late compensation or a second send. Deduplication claims stay in force.
+A GitHub workflow success or a Cloudflare dispatch 204 never proves the
+message arrived on the recipient's iPhone.
 
-The review of completed games is driven by verified official-FINAL evidence,
-not by replaying a missed pre-match notification. Do not mistake a GitHub
-workflow status of success, a Cloudflare dispatch 204, or a PushPlus API
-acceptance for an iPhone delivery receipt.
-
-## Worker Cron configuration
+Worker cron configuration (UTC):
 
 ```toml
-crons = ["0 4-13,16-22 * * *", "30 13,16,19,22 * * *"]
+crons = ["0 4-15 * * *"]
 ```
 
-The two Cron expressions cover all canonical Cloudflare triggers, do not
-exceed the Cloudflare Free limit of five, and have **zero noncanonical
-recovery ticks**. GitHub scheduled tasks are enumerated in the corresponding
-workflow YAML files and validated by `scripts/validate_nba_schedules.py`,
-`scheduler/test-scheduler.mjs`, and the no-resend P0 gate.
+Keep result verification and archival workflows separate from live odds
+capture. Official result settlement may occur after midnight, but it
+must read an already sealed 21:00 forecast; it cannot perform another
+pregame market capture or rewrite historical predictions.
 
-## Deployment and verification
+Never remove raw captured 007 bytes, original prediction snapshots,
+timestamps, or append-only result evidence when pruning old schedules.
 
-The existing GitHub-linked Cloudflare Workers Builds integration deploys
-Worker code/config. A green GitHub check is build evidence, not proof of
-a live Cron execution. Inspect deployed version, actual Cron Trigger list,
-and Worker logs; match its one dispatch against GitHub canonical workflow run,
-analysis artifact, archive, and PushPlus API acceptance marker. Escalate
-a missing marker as a *failure to investigate*, **never as a reason to resend**.
+Regression checks: `node scheduler/test-scheduler.mjs`,
+`python scripts/validate_nba_schedules.py`,
+`python -m unittest discover -s tests -p test_football_007_live_capture.py`,
+and the 21:00 frozen-final tests.
