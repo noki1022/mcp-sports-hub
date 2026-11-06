@@ -8,6 +8,9 @@ import unittest
 from zoneinfo import ZoneInfo
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"analysis"))
 import football_jc_final_2130 as final
+import football_jc_asian_assimilation as asian
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts"))
+import football_jc_slot_push as push
 
 BJ=ZoneInfo("Asia/Shanghai")
 START=datetime(2026,11,5,21,31,tzinfo=BJ)
@@ -45,6 +48,18 @@ class TestSingleFinal(unittest.TestCase):
     self.snapshot=source()
     self.forecast=forecast(self.snapshot)
     self.lock=final.freeze(self.snapshot,self.forecast,"2026-11-05",START+timedelta(minutes=3))
+ def test_live_v4_fusion_sender_final_share_producer_version(self):
+    # Regression: Nov 6 16:00 capture/model passed but PushPlus rejected
+    # the producer's v4 model because final/sender were hardcoded to v3.
+    self.assertEqual(final.FUSED_VERSION,asian.VERSION)
+    self.assertEqual(self.forecast["model_version"],asian.VERSION)
+    preview=push.prepare(self.forecast,"daytime",daytime_slot="1600")
+    self.assertIn("16:00",preview["title"])
+    self.assertIn("竞彩胜平负",preview["html"])
+    stale=copy.deepcopy(self.forecast)
+    stale["model_version"]="football-jc-poisson-asian-assimilation-v3"
+    with self.assertRaisesRegex(ValueError,"MUST_SEND_SINGLE_INTEGRATED_FOOTBALL_MODEL"):
+        push.prepare(stale,"daytime",daytime_slot="1600")
  def test_final_sha_and_2130_lock(self):
     self.assertTrue(self.lock["no_shadow_model"])
     self.assertTrue(self.lock["scored_only_from_this_frozen_forecast"])

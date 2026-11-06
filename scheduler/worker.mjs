@@ -11,11 +11,19 @@ const REPO="mcp-sports-hub";
 const BASE="https://api.github.com/repos/"+OWNER+"/"+REPO;
 const DAY_MS=86400000;
 const ACTIVE=new Set(["queued","in_progress","pending","waiting","requested"]);
+// One authoritative daytime delivery schedule: 12:00–21:00 every hour.
+// The additional 13/16/17/19/20 checks use existing Worker Cron ticks;
+// never add a second scheduler, notification sender, or Worker.
 const FIXED=[
   {hour:12, slot:"1200", attempts:[0,8,18,28], maxDelay:34},
+  {hour:13, slot:"1300", attempts:[20,35], maxDelay:40},
   {hour:14, slot:"1400", attempts:[0,8,18,28], maxDelay:34},
   {hour:15, slot:"1500", attempts:[0,8,18,28], maxDelay:34},
+  {hour:16, slot:"1600", attempts:[20,35], maxDelay:40},
+  {hour:17, slot:"1700", attempts:[20,35], maxDelay:40},
   {hour:18, slot:"1800", attempts:[0,8,18,28], maxDelay:34},
+  {hour:19, slot:"1900", attempts:[20,35], maxDelay:40},
+  {hour:20, slot:"2000", attempts:[20,35], maxDelay:40},
   {hour:21, slot:"2100", attempts:[0,7,16], maxDelay:19}
 ];
 // Explicit full reports only. The disabled 22:30–05:30 *hourly market
@@ -111,9 +119,12 @@ export function matchesReportSlot(run,job){
     "30 16 * * *":"0030","45 16 * * *":"0030","0 17 * * *":"0030",
     "30 19 * * *":"0330","45 19 * * *":"0330","0 20 * * *":"0330",
     "0 4 * * *":"1200","15 4 * * *":"1200","30 4 * * *":"1200",
+    "0 5 * * *":"1300",
     "0 6 * * *":"1400","15 6 * * *":"1400","30 6 * * *":"1400",
     "0 7 * * *":"1500","15 7 * * *":"1500","30 7 * * *":"1500",
+    "0 8 * * *":"1600","0 9 * * *":"1700",
     "0 10 * * *":"1800","15 10 * * *":"1800","30 10 * * *":"1800",
+    "0 11 * * *":"1900","0 12 * * *":"2000",
     "0 13 * * *":"2100"
   };
   const slot=run.event==="schedule"?native[match[1]]:match[1];

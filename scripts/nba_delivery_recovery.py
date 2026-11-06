@@ -14,7 +14,7 @@ from nba_delivery_health import accepted_marker,inspect,run_hint,scheduled_start
 BJ=ZoneInfo("Asia/Shanghai")
 # Only slots whose receiver accepts report_slot and target_date and does not
 # have a strict cutoff earlier than this watchdog's first normal check.
-RECOVERABLE={"0030","0330","1200","1400","1500","1800","2100","2130","0630"}
+RECOVERABLE={"0030","0330",*(f"{h:02d}00" for h in range(12,22)),"2130","0630"}
 WINDOW_MINUTES=65
 # Start recovery at the first watchdog check (+5m), then let the same
 # Beijing-tipoff preflight gates used by production decide whether a complete
@@ -188,12 +188,14 @@ def dispatch(repo,token,slot,target):
 def self_test():
     from tempfile import TemporaryDirectory
     with TemporaryDirectory() as t:
+        assert all(f"{h:02d}00" in RECOVERABLE for h in range(12,22))
         root=Path(t);slot="1200";target="2026-11-01"
         at=datetime.fromisoformat("2026-10-31T12:40:00+08:00")
         ok=decision(root,slot,target,at,[])
         assert ok["action"]=="DISPATCH"
         assert decision(root,slot,target,at,None,"GITHUB_API_FAILED")["action"]=="NO_DISPATCH"
         active=[{"event":"schedule","created_at":"2026-10-31T04:00:00Z",
+                 "display_title":"NBA full report | slot=0 4 * * * | date=auto",
                  "status":"in_progress","conclusion":None}]
         assert decision(root,slot,target,at,active)["action"]=="NO_DISPATCH"
         completed=[{**active[0],"status":"completed","conclusion":"failure"}]

@@ -30,10 +30,12 @@ def test():
         checks["missing_fixed_trigger_recovery"]="PASS"
         checks["api_timeout_fail_closed"]="PASS"
         failed=[{"event":"schedule","created_at":"2026-10-31T04:00:00Z",
+                   "display_title":"NBA full report | slot=0 4 * * * | date=auto",
                   "status":"completed","conclusion":"timed_out"}]
         assert decision(root,"1200",day,t,failed)["action"]=="DISPATCH"
         checks["failed_or_timeout_retry"]="PASS"
         active=[{"event":"schedule","created_at":"2026-10-31T04:01:00Z",
+                   "display_title":"NBA full report | slot=0 4 * * * | date=auto",
                  "status":"in_progress","conclusion":None}]
         assert decision(root,"1200",day,t,failed+active)["action"]=="NO_DISPATCH"
         checks["no_parallel_duplicate"]="PASS"

@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 
 BJ=ZoneInfo("Asia/Shanghai")
 ACCEPTED="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
-FIXED={"0030":16,"0330":19,"1200":4,"1400":6,"1500":7,"1800":10,"2100":13}
+FIXED={"0030":16,"0330":19,**{f"{h+8:02d}00":h for h in range(4,14)}}
 HOURS={f"{h:02d}30" for h in [22,23,0,1,2,3,4,5]}
 SILENT_SIX={f"{h:02d}30" for h in range(6)}-{"0030","0330"}
 # UTC cron -> (Beijing report slot, display date offset relative to cron date).
@@ -32,8 +32,11 @@ SCHEDULES={
     "35 16 * * *":("0030",0), "50 16 * * *":("0030",0), "5 17 * * *":("0030",0),
     "30 19 * * *":("0330",0), "45 19 * * *":("0330",0), "0 20 * * *":("0330",0),
     "35 19 * * *":("0330",0), "50 19 * * *":("0330",0), "5 20 * * *":("0330",0),
-    "40 4 * * *":("1200",1), "40 6 * * *":("1400",1),
-    "40 7 * * *":("1500",1), "40 10 * * *":("1800",1),
+    "40 4 * * *":("1200",1), "40 5 * * *":("1300",1),
+    "40 6 * * *":("1400",1), "40 7 * * *":("1500",1),
+    "40 8 * * *":("1600",1), "40 9 * * *":("1700",1),
+    "40 10 * * *":("1800",1), "40 11 * * *":("1900",1),
+    "40 12 * * *":("2000",1),
     "20 13 * * *":("2100",1), "35 13 * * *":("2130",1), "40 13 * * *":("2100",1),
     "45 13 * * *":("2130",1), "50 13 * * *":("2130",1), "55 13 * * *":("2130",1),
     "40 14 * * *":("2200",0), "35 22 * * *":("0630",0),
@@ -116,6 +119,32 @@ def get_runs(repo:str,workflow:str,token:str):
     except (OSError,ValueError,urllib.error.HTTPError) as exc:
         return None,"GITHUB_RUN_QUERY_FAILED_"+type(exc).__name__
 
+def exact_fixed_run_slot(run:dict,slot:str,target:str)->bool:
+    """Never count a delayed previous-hour green workflow as this slot."""
+    if slot not in FIXED:
+        return True  # 21:30/06:30 and review have dedicated workflows.
+    title=run.get("display_title") or run.get("name") or ""
+    match=re.fullmatch(r"NBA full report \| slot=(.+) \| date=(.+)",title)
+    if not match:
+        return False  # Unlabelled runs cannot prove a canonical slot.
+    schedule,claimed_date=match.groups()
+    if run.get("event")=="schedule":
+        if schedule in ("30 16 * * *","45 16 * * *","0 17 * * *"):
+            actual="0030"
+        elif schedule in ("30 19 * * *","45 19 * * *","0 20 * * *"):
+            actual="0330"
+        else:
+            cron=re.fullmatch(r"(0|15|30) (\d{1,2}) \* \* \*",schedule)
+            if not cron:
+                return False
+            minute,hour=map(int,cron.groups())
+            if not (4<=hour<=13 and (minute==0 or (minute in (15,30) and hour in (4,6,7,10)))):
+                return False
+            actual=f"{hour+8:02d}00"
+        return claimed_date=="auto" and actual==slot
+    return schedule==slot and claimed_date!="auto" and claimed_date==target
+
+
 def run_hint(runs:list|None,slot:str,target:str)->tuple[str,int]:
     if runs is None:return "RUN_HISTORY_UNAVAILABLE",0
     start=scheduled_start(slot,target).astimezone(timezone.utc)-timedelta(minutes=8)
@@ -125,7 +154,7 @@ def run_hint(runs:list|None,slot:str,target:str)->tuple[str,int]:
         if run.get("event") not in ("schedule","workflow_dispatch"):continue
         try:t=datetime.fromisoformat(run["created_at"].replace("Z","+00:00"))
         except (ValueError,KeyError,TypeError):continue
-        if start<=t<=end:relevant.append(run)
+        if start<=t<=end and exact_fixed_run_slot(run,slot,target):relevant.append(run)
     if not relevant:return "NO_RECORDED_WORKFLOW_TRIGGER",0
     if any(x.get("status") in ("queued","in_progress","waiting","pending","requested") for x in relevant):
         return "WORKFLOW_RUNNING_NO_ACCEPTED_MARKER",len(relevant)
@@ -224,6 +253,15 @@ def self_test():
         if slot is None:continue
         actual=infer_slot(cron,datetime.fromisoformat(now))
         assert actual==(slot,target),(cron,actual,slot,target)
+    assert all(f"{h:02d}00" in FIXED for h in range(12,22))
+    for h in range(12,22):
+        assert SCHEDULES[f"40 {h-8} * * *"][0]==f"{h:02d}00"
+    delayed={"event":"schedule","created_at":"2026-11-06T08:15:00Z",
+             "display_title":"NBA full report | slot=0 7 * * * | date=auto",
+             "status":"completed","conclusion":"success"}
+    assert run_hint([delayed],"1600","2026-11-07")[0]=="NO_RECORDED_WORKFLOW_TRIGGER"
+    current={**delayed,"display_title":"NBA full report | slot=0 8 * * * | date=auto"}
+    assert run_hint([current],"1600","2026-11-07")[0]=="WORKFLOW_SUCCESS_WITHOUT_DELIVERY_MARKER"
     with tempfile.TemporaryDirectory() as t:
         root=Path(t)
         x=inspect(root,"2130","2026-10-31",runs=[])
