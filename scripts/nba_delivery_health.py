@@ -124,7 +124,7 @@ def exact_fixed_run_slot(run:dict,slot:str,target:str)->bool:
     if slot not in FIXED:
         return True  # 21:30/06:30 and review have dedicated workflows.
     title=run.get("display_title") or run.get("name") or ""
-    match=re.fullmatch(r"NBA full report \\| slot=(.+) \\| date=(.+)",title)
+    match=re.fullmatch(r"NBA full report \| slot=(.+) \| date=(.+)",title)
     if not match:
         return False  # Unlabelled runs cannot prove a canonical slot.
     schedule,claimed_date=match.groups()
@@ -134,7 +134,7 @@ def exact_fixed_run_slot(run:dict,slot:str,target:str)->bool:
         elif schedule in ("30 19 * * *","45 19 * * *","0 20 * * *"):
             actual="0330"
         else:
-            cron=re.fullmatch(r"(0|15|30) (\\d{1,2}) \\* \\* \\*",schedule)
+            cron=re.fullmatch(r"(0|15|30) (\d{1,2}) \* \* \*",schedule)
             if not cron:
                 return False
             minute,hour=map(int,cron.groups())
