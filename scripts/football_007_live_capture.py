@@ -8,6 +8,7 @@ No TTG odds, injury, form or H2H are invented. Raw evidence is gzip archived.
 """
 from __future__ import annotations
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import gzip
 import hashlib
@@ -204,6 +205,20 @@ def collect(raw_map,captured,target=None):
             "games":games}
 
 
+def analysis_pages(games):
+    """Bound simultaneous requests, not fixture coverage; stamp at response time."""
+    def fetch_one(game):
+        if datetime.fromisoformat(game['kickoff_beijing']).astimezone(timezone.utc)<=datetime.now(timezone.utc):
+            return None,None,None
+        try:
+            raw=analysis_007.get_page(game['match_id'])
+            return raw,datetime.now(timezone.utc).isoformat(),None
+        except (OSError,ValueError,TypeError,KeyError,RuntimeError) as exc:
+            return None,None,exc
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        yield from zip(games,pool.map(fetch_one,games))
+
+
 def enrich_analysis(snapshot,folder):
     """Attempt each future 007 game once. A blocked page never blocks live odds."""
     coverage={"attempted":0,"raw_saved":0,"parsed":0,"home_recent_ge3":0,
@@ -213,18 +228,17 @@ def enrich_analysis(snapshot,folder):
     manifest_path=folder/"manifest.json"
     manifest=json.loads(manifest_path.read_text(encoding="utf-8"))
     games=snapshot["games"]
-    for game in games[:40]:
+    for game,(raw,observed,error) in analysis_pages(games):
         mid=game["match_id"]
-        if datetime.fromisoformat(game["kickoff_beijing"]).astimezone(timezone.utc)<=datetime.now(timezone.utc):
+        if raw is None and error is None:
             game["analysis_source_status"]="SKIPPED_AFTER_KICKOFF"
             continue
         coverage["attempted"]+=1
         try:
-            raw=analysis_007.get_page(mid)
+            if error is not None:raise error
             sha=hashlib.sha256(raw).hexdigest()
             (folder/("analysis_"+mid+".html.gz")).write_bytes(gzip.compress(raw,mtime=0))
             coverage["raw_saved"]+=1
-            observed=datetime.now(timezone.utc).isoformat()
             manifest["sources"]["analysis_"+mid]={
                 "url":analysis_007.MOBILE_ROOT+mid+".htm",
                 "sha256":sha,"bytes":len(raw),"captured_at_utc":observed}
@@ -256,8 +270,6 @@ def enrich_analysis(snapshot,folder):
             coverage["source_failures"]+=1
             game["analysis_source_status"]="UNAVAILABLE_"+type(exc).__name__
             game["analysis_source_error"]=str(exc)[:130]
-    for game in games[40:]:
-        game["analysis_source_status"]="NOT_ATTEMPTED_PER_RUN_CAP"
     manifest["capture_completed_at_utc"]=datetime.now(timezone.utc).isoformat()
     manifest_path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     snapshot["source_provenance"]["analysis_coverage"]=coverage
