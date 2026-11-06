@@ -169,6 +169,17 @@ jobs:
             --baseline football-output/football_jc_forecast.json \
             --out football-output/football_jc_forecast_market.json
           python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast_market.json --html football-output/football_jc_mobile.html
+      - name: Independently audit feature-only football probabilities without odds-led predictions
+        # Optional isolated research output, never input to live answers or
+        # 21:00 scoring. Any failure is reported, but production proceeds.
+        continue-on-error: true
+        run: |
+          python3 -B analysis/football_jc_unified_research.py \
+            --snapshot football-output/football_007_snapshot.json \
+            --baseline football-output/football_jc_forecast.json \
+            --asian football-output/football_jc_forecast_market.json \
+            --out football-output/football_independent_research.json
+          test -s football-output/football_independent_research.json
       - name: Store timestamp-hashed per-match candidates independently of 21:00 baseline
         env:
           FOOTBALL_SCHEDULE_EXPR: ${{ github.event.schedule || inputs.recovery_cron || '' }}
