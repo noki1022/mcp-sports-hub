@@ -260,9 +260,16 @@ def main():
         "20,30,40 22 * * *",
         "30,40,50 16,19 * * *",
     ]
-    assert cloud_crons==expected_cloud,(cloud_crons,expected_cloud)
+    football_cloud=[
+        "20,35 4-13,16-21 * * *",
+        "35 22 * * *",
+        "42,52 13,22 * * *",
+    ]
+    assert cloud_crons==expected_cloud+football_cloud,(cloud_crons,expected_cloud+football_cloud)
     midnight_ticks=set()
-    for expr in cloud_crons:
+    # NBA overnight market watcher remains disabled. Soccer-only backups
+    # run separately through plannedFootballJob; do not misclassify them as NBA.
+    for expr in expected_cloud:
         mm,hh,_,_,_=expr.split()
         for hour in (int(x) for x in hh.split(",")):
             for minute in (int(x) for x in mm.split(",")):
@@ -273,6 +280,9 @@ def main():
     assert midnight_ticks=={(h,m) for h in (0,3) for m in (30,40,50)}
     worker=(ROOT/"scheduler/worker.mjs").read_text()
     assert 'if((h>=22 || h<=5) && [30,40,49].includes(m))' not in worker
+    assert 'export function dispatchFootballAt(' in worker
+    assert 'football-007-live-capture.yml' in worker
+    assert 'FOOTBALL_SLOT_ALREADY_CLAIMED' in worker
 
     # Guard against the duplicate PushPlus sends/artifact uploads that previously
     # caused two accepted 21:30 notifications and a 409 artifact conflict.
