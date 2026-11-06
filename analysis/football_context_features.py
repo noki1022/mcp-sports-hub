@@ -121,6 +121,7 @@ def build_game(game,captured):
     return {
         "match_id":str(game["match_id"]), "jc_number":game.get("jc_number"),
         "league":game.get("league"),
+        "league_id_007":game.get("league_id_007"),
         "home_team_id_007":game.get("home_team_id_007"),
         "away_team_id_007":game.get("away_team_id_007"),
         "kickoff_beijing":game["kickoff_beijing"],
