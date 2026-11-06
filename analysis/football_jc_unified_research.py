@@ -1,31 +1,28 @@
 #!/usr/bin/env python3
-"""Research-only unified football forecast from genuine pre-kickoff 007 evidence.
+"""Independent-first football research pipeline. NO odds-led predictions.
 
-No PushPlus, settlement writes, or production model promotion. M0 is the
-recent-five/H2H/verified-injury prior, M1 is the existing real five-book Asian
-line update. This candidate tests capped European and 8-bucket goal-market
-reconciliation while keeping all three JC markets on ONE score grid.
-Weights and confidence flags are UNTRAINED; must pass future walk-forward
-proper-score comparison before use in production.
+The predictive baseline (M0) reads validated recent5/H2H/verified injuries,
+never 007 prices. M1, the existing five-book Asian-priced candidate, and
+007 prices are compared as external diagnostics only. The same score
+distribution is used internally for coherent HAD, HHAD and TTG, but the mode
+score, the shortest odds and top-2 TTG buckets are NOT recommendation rules.
+
+Prediction efficacy, calibration and value have NOT been demonstrated.
+No production PushPlus, score freeze, retroactive replacement or auto-promotion.
 """
 from __future__ import annotations
-
 import argparse
-from copy import deepcopy
 from datetime import datetime, timezone
 import hashlib
 import json
 import math
 from pathlib import Path
-
 import football_jc_probability as core
 
-VERSION = "football-unified-research-v1"
-GOALS = ("0球", "1球", "2球", "3球", "4球", "5球", "6球", "7+球")
-MAX_TOTAL_DELTA = 0.25
-MAX_MARGIN_DELTA = 0.15
-TOTAL_MARKET_SHRINKAGE = 0.20
-EURO_MARKET_SHRINKAGE = 0.15
+VERSION = "football-independent-first-research-v2"
+HAD = ("主胜", "平", "客胜")
+HHAD = ("让胜", "让平", "让负")
+TTG = ("0球", "1球", "2球", "3球", "4球", "5球", "6球", "7+球")
 
 
 def digest(obj):
@@ -33,228 +30,179 @@ def digest(obj):
 
 
 def dt(raw):
-    value = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-    if value.tzinfo is None:
-        raise ValueError("TIMESTAMP_MUST_HAVE_TIMEZONE")
-    return value.astimezone(timezone.utc)
+    d=datetime.fromisoformat(str(raw).replace("Z","+00:00"))
+    if d.tzinfo is None:raise ValueError("TIMESTAMP_MUST_HAVE_TIMEZONE")
+    return d.astimezone(timezone.utc)
 
 
-def normalize(prices, size):
-    if not isinstance(prices, list) or len(prices) != size:
+def devig(prices, size):
+    """Market implied probability for diagnostics only; never model input."""
+    if not isinstance(prices,list) or len(prices)!=size:return None
+    if any(type(v) not in (int,float) or not math.isfinite(v) or v<=1 for v in prices):
         return None
-    if any(type(x) not in (float, int) or not math.isfinite(x) or x <= 1 for x in prices):
-        return None
-    inverses = [1.0/x for x in prices]
-    total = sum(inverses)
-    if total < .85 or total > 1.6:
-        return None
-    return [x/total for x in inverses]
+    inv=[1/v for v in prices]
+    total=sum(inv)
+    if not .85<=total<=1.6:return None
+    return [v/total for v in inv]
 
 
-def bucket_dist(total):
-    if not .2 <= total <= 8.0:
-        raise ValueError("INVALID_TOTAL_GOALS")
-    dist = core.poisson(total)
-    return [*dist[:7], sum(dist[7:])]
-
-
-def market_total_fit(prices):
-    """Project genuine 8-bucket 007 TTG odds onto a single Poisson total.
-
-    A fit is an approximation, never an observed or independently validated
-    goal expectation. Severe non-Poisson disagreement disables adjustment.
-    """
-    q = normalize(prices, 8)
-    if q is None:
-        return None, "OFFICIAL_TTG_NOT_VALID"
-    lo, hi = .45, 6.3
-    # bounded deterministic grid, no stochastic optimisation or fitted weights
-    fits = [(sum((a-b)**2 for a,b in zip(bucket_dist(.45+i*.015),q)),
-             .45+i*.015) for i in range(391)]
-    error, total = min(fits)
-    max_gap = max(abs(a-b) for a,b in zip(bucket_dist(total),q))
-    if max_gap > .13:
-        return None, "TTG_MARKET_NON_POISSON_CONFLICT"
-    return total, "FIT_APPROXIMATE_NOT_MODEL_TRUTH"
-
-
-def odds_margin_fit(prices, total):
-    """Infer 1X2 directional signal at a fixed expected total; never a score."""
-    q = normalize(prices, 3)
-    if q is None:
-        return None, "JC_HAD_NOT_OFFERED_OR_INVALID"
-    if total < .4 or total > 7:
-        return None, "INVALID_TOTAL_FOR_HAD_CONVERSION"
-    best = None
-    for i in range(101):
-        h = max(.15, total * (.1 + .008*i))
-        a = total-h
-        if a < .15:
-            continue
-        probs = core.distribution(h,a,None)[0]
-        err = sum((x-y)**2 for x,y in zip(probs,q))
-        if best is None or err < best[0]:
-            best = (err,h-a)
-    if best is None or best[0] > .04:
-        return None, "EURO_1X2_NOT_RECONCILABLE_WITH_MODEL_TOTAL"
-    return best[1], "EURO_DIRECTION_FIT_APPROXIMATE"
-
-
-def top_scores(home,away):
-    ph = core.poisson(home)
-    pa = core.poisson(away)
-    ordered = sorted(((ph[h]*pa[a],h,a) for h in range(11) for a in range(11)),
-                     key=lambda row: (-row[0],row[1],row[2]))
-    result = [{"score":f"{h}:{a}","probability":round(p,6)} for p,h,a in ordered[:3]]
-    lead = result[0]["probability"]-result[1]["probability"]
-    return result, lead
-
-
-def check_sources(snapshot, independent, asian):
-    if snapshot.get("schema_version") != "football-jc-007-v1":
+def check_sources(snapshot, baseline, market):
+    if snapshot.get("schema_version")!="football-jc-007-v1":
         raise ValueError("SNAPSHOT_NOT_VERIFIED_007")
-    if independent.get("model_version") != core.VERSION:
-        raise ValueError("NOT_INDEPENDENT_BASELINE")
-    if asian.get("model_version") != "football-jc-poisson-asian-assimilation-v4":
-        raise ValueError("NOT_V4_FUSED_ASIAN_FORECAST")
-    if independent.get("source_sha256") != digest(snapshot) or asian.get("source_sha256") != digest(snapshot):
-        raise ValueError("FORECAST_SNAPSHOT_HASH_MISMATCH")
-    capture = dt(snapshot["captured_at_utc"])
-    for doc in (independent,asian):
-        if dt(doc["captured_at_utc"]) != capture:
-            raise ValueError("FORECAST_CAPTURE_MISMATCH")
-    if not (len(snapshot["games"]) == len(independent["games"]) == len(asian["games"])):
+    if baseline.get("model_version")!=core.VERSION:
+        raise ValueError("INDEPENDENT_MODEL_IDENTITY_REQUIRED")
+    if market.get("model_version")!="football-jc-poisson-asian-assimilation-v4":
+        raise ValueError("MARKET_COMPARATOR_IDENTITY_REQUIRED")
+    original=digest(snapshot)
+    captured=dt(snapshot["captured_at_utc"])
+    for doc in (baseline,market):
+        if doc.get("source_sha256")!=original:
+            raise ValueError("SNAPSHOT_HASH_MISMATCH")
+        if dt(doc["captured_at_utc"])!=captured:
+            raise ValueError("FORECAST_CAPTURE_DRIFT")
+        made=dt(doc["generated_at_utc"])
+        if made<captured:raise ValueError("PREDICTION_BEFORE_SOURCE_CAPTURE")
+    if len(snapshot.get("games",[]))!=len(baseline.get("games",[])) or len(snapshot["games"])!=len(market.get("games",[])):
         raise ValueError("MATCH_COUNT_DRIFT")
-    return capture
+    return captured
 
 
-def analyze(snapshot, independent, asian):
-    capture = check_sources(snapshot, independent, asian)
-    outputs=[]
-    counts={"total":0,"full_data":0,"ttg_fit":0,"euro_fit":0,
-            "asian_applied":0,"injury_verified":0,"before_kickoff":0,
-            "top_1_1":0,"no_independent_model":0}
-    for game,base,prior in zip(snapshot["games"], independent["games"], asian["games"]):
-        mid=str(game["match_id"])
-        if str(base["match_id"])!=mid or str(prior["match_id"])!=mid:
-            raise ValueError("MISALIGNED_MATCH_IDS")
-        if game.get("jc_number")!=base.get("jc_number") or game.get("jc_number")!=prior.get("jc_number"):
-            raise ValueError("MISALIGNED_JC_NUMBER")
-        if any(game.get(k)!=prior.get(k) or game.get(k)!=base.get(k) for k in ("home_team","away_team","kickoff_beijing")):
-            raise ValueError("MISALIGNED_FIXTURE_IDENTITY")
-        counts["total"]+=1
+def three_markets(home,away,handicap):
+    had,hhad,ttg,_=core.distribution(home,away,handicap)
+    result={
+        "had":{k:round(v,7) for k,v in zip(HAD,had)},
+        "hhad":None if hhad is None else {k:round(v,7) for k,v in zip(HHAD,hhad)},
+        "ttg":{k:round(v,7) for k,v in zip(TTG,ttg)}
+    }
+    return result
+
+
+def audit_odds(market,probs):
+    odds_hhad=market.get("hhad")
+    quotes={
+        "had":market.get("had"),
+        "hhad":odds_hhad.get("odds") if isinstance(odds_hhad,dict) else None,
+        "ttg":market.get("ttg")}
+    labels={"had":HAD,"hhad":HHAD,"ttg":TTG}
+    out={}
+    for kind,odds in quotes.items():
+        implied=devig(odds,len(labels[kind]))
+        our=probs[kind]
+        if our is None or implied is None:
+            out[kind]={"state":"NO_COMPARABLE_OFFICIAL_PRICE",
+                       "recommendation":None}
+        else:
+            out[kind]={
+                "state":"PRICE_DIAGNOSTIC_ONLY_NOT_MODEL_INPUT",
+                "market_implied_de_vig":{k:round(v,7) for k,v in zip(labels[kind],implied)},
+                "independent_minus_market_pp":{k:round(100*(our[k]-v),2) for k,v in zip(labels[kind],implied)},
+                "recommendation":None,
+                "reason":"UNTRAINED_PROBABILITIES_NO_CALIBRATED_VALUE_EDGE"}
+    return out
+
+
+def analyze(snapshot,baseline,market):
+    capture=check_sources(snapshot,baseline,market)
+    counts={"source_games":0,"independent_ready":0,"market_comparator_available":0,
+            "missing_hhad":0,"unverified_injury_games":0}
+    rows=[]
+    for game,first,other in zip(snapshot["games"],baseline["games"],market["games"]):
+        mid=str(game.get("match_id") or "")
+        if mid!=str(first.get("match_id")) or mid!=str(other.get("match_id")):
+            raise ValueError("FOOTBALL_FIXTURE_IDENTITY_MISMATCH")
+        fields=("jc_number","home_team","away_team","kickoff_beijing")
+        if any(game.get(k)!=first.get(k) or game.get(k)!=other.get(k) for k in fields):
+            raise ValueError("FOOTBALL_FIXTURE_FIELDS_CHANGED")
+        counts["source_games"]+=1
         row={"match_id":mid,"jc_number":game.get("jc_number"),
              "home_team":game.get("home_team"),"away_team":game.get("away_team"),
-             "league":game.get("league"),"kickoff_beijing":game.get("kickoff_beijing"),
-             "status":"RESEARCH_UNAVAILABLE","probabilities":{},
-             "score_ranking":[]}
-        if dt(game["kickoff_beijing"])<=capture:
-            row["reason"]="NOT_PREMATCH";outputs.append(row);continue
-        counts["before_kickoff"]+=1
-        if prior.get("status")!="RESEARCH_READY" or base.get("status")!="RESEARCH_READY":
-            counts["no_independent_model"]+=1
-            row["reason"]="BASELINE_NOT_READY";outputs.append(row);continue
-        b=base.get("goal_expectation") or {}
-        p=prior.get("goal_expectation") or {}
-        bh,ba=float(b["home"]),float(b["away"])
-        h,a=float(p["home"]),float(p["away"])
-        if min(h,a,bh,ba)<.15 or max(h,a,bh,ba)>5:
-            row["reason"]="INVALID_GOAL_EXPECTATIONS";outputs.append(row);continue
-        data=game.get("jc_markets") or {}
-        goals_target,goal_state=market_total_fit(data.get("ttg"))
-        total=h+a
-        before_total=total
-        if goals_target is not None:
-            proposed=(goals_target-total)*TOTAL_MARKET_SHRINKAGE
-            adjustment=max(-MAX_TOTAL_DELTA,min(MAX_TOTAL_DELTA,proposed))
-            total=max(.4,min(7.0,total+adjustment))
-            counts["ttg_fit"]+=1
-        else:
-            adjustment=0.
-        # Retain the real Asian main-line goal-difference signal from M1.
-        margin=h-a
-        euro_target,euro_state=odds_margin_fit(data.get("had"),total)
-        euro_adj=0.
-        if euro_target is not None:
-            euro_adj=max(-MAX_MARGIN_DELTA,min(MAX_MARGIN_DELTA,
-                  (euro_target-margin)*EURO_MARKET_SHRINKAGE))
-            counts["euro_fit"]+=1
-        diff=margin+euro_adj
-        # Preserve a strictly valid home and away intensity after clipping.
-        diff=max(-total+.3,min(total-.3,diff))
-        hh=(total+diff)/2.
-        aa=(total-diff)/2.
-        if min(hh,aa)<.15:
-            raise ValueError("NEGATIVE_OR_INVALID_INTENSITY")
-        odds_hhad=data.get("hhad")
-        handicap=odds_hhad.get("signed_home_handicap") if isinstance(odds_hhad,dict) else None
-        had,hhad,ttg,_ = core.distribution(hh,aa,handicap)
-        scores,lead=top_scores(hh,aa)
-        goal_order=sorted(zip(GOALS,ttg),key=lambda x:x[1],reverse=True)
-        favorite_two=goal_order[:2]
+             "kickoff_beijing":game.get("kickoff_beijing"),
+             "status":"RESEARCH_UNAVAILABLE"}
+        kickoff=dt(game["kickoff_beijing"])
+        if capture>=kickoff or any(dt(doc["generated_at_utc"])>=kickoff for doc in (baseline,market)):
+            row["reason"]="NOT_PREMATCH_AT_ALL_SOURCE_AND_MODEL_TIMES"
+            rows.append(row);continue
+        if first.get("status")!="RESEARCH_READY":
+            row["reason"]="INDEPENDENT_FEATURE_BASELINE_NOT_READY"
+            rows.append(row);continue
+        g=first.get("goal_expectation") or {}
+        bh,ba=float(g["home"]),float(g["away"])
+        if not (math.isfinite(bh) and math.isfinite(ba) and .15<=bh<=5 and .15<=ba<=5):
+            row["reason"]="INVALID_INDEPENDENT_GOAL_EXPECTATION"
+            rows.append(row);continue
+        official=game.get("jc_markets") or {}
+        hhad=official.get("hhad")
+        line=hhad.get("signed_home_handicap") if isinstance(hhad,dict) else None
+        if line is not None and (type(line)!=int or abs(line)>12):
+            raise ValueError("UNVERIFIED_SIGNED_JC_HANDICAP")
+        if line is None:counts["missing_hhad"]+=1
+        # EVERY model probability originates in the non-price M0 baseline.
+        independent=three_markets(bh,ba,line)
+        diag={"status":"MARKET_COMPARATOR_UNAVAILABLE"}
+        if other.get("status")=="RESEARCH_READY":
+            gam=other.get("goal_expectation") or {}
+            mh,ma=float(gam["home"]),float(gam["away"])
+            if all(math.isfinite(v) and .15<=v<=5 for v in (mh,ma)):
+                diag={
+                    "status":"MARKET_COMPETITOR_ONLY_NOT_PREDICTION_SOURCE",
+                    "real_asian_applied":(other.get("market_assimilation") or {}).get("status")=="APPLIED_BOUNDED_007_REAL_ASIAN",
+                    "market_updated_goal_expectation":{"home":round(mh,4),"away":round(ma,4)},
+                    "market_minus_independent_goals":{"home":round(mh-bh,4),"away":round(ma-ba,4)},
+                    "candidate_probabilities":three_markets(mh,ma,line)
+                }
+                counts["market_comparator_available"]+=1
+        quality=first.get("data_quality") or {}
+        verified=game.get("injury_report_state")=="VERIFIED"
+        counts["unverified_injury_games"]+=int(not verified)
         row.update({
-          "status":"RESEARCH_CANDIDATE_UNVALIDATED_DO_NOT_PUSH",
-          "model_source":"M0_RECENT5_H2H_VERIFIED_INJURY_PLUS_M1_007_REAL_ASIAN",
-          "expected_goals":{"home":round(hh,4),"away":round(aa,4),"total":round(total,4)},
-          "components_expected_goals":{
-             "M0":{"home":bh,"away":ba},
-             "M1_after_real_asian":{"home":h,"away":a},
-             "M2_ttg_market_total_change":round(total-before_total,4),
-             "M2_euro_market_margin_change":round(euro_adj,4),
-             "asian_effect_home":round(h-bh,4),"asian_effect_away":round(a-ba,4),
-             "injury_verified":game.get("injury_report_state")=="VERIFIED",
-             "injury_listed_unverified":len(game.get("injury_source_facts") or []),
-             "recent5_home":len(game.get("home_last5") or []),
-             "recent5_away":len(game.get("away_last5") or []),
-             "h2h_count":len(game.get("h2h") or []),
-             "asian_company_applied":prior.get("market_assimilation",{}).get("status")=="APPLIED_BOUNDED_007_REAL_ASIAN",
-             "market_ttg_fit_status":goal_state,"euro_direction_fit_status":euro_state,
-             "euro_asian_diagnostic_separate_no_automatic_override":True},
-          "score_ranking":scores,
-          "single_score_ambiguous":lead<.025,
-          "first_second_exact_score_gap_pp":round(lead*100,2),
-          "probabilities":{
-            "had":{k:round(v,6) for k,v in zip(("主胜","平","客胜"),had)},
-            "hhad":None if hhad is None else {k:round(v,6) for k,v in zip(("让胜","让平","让负"),hhad)},
-            "ttg":{k:round(v,6) for k,v in zip(GOALS,ttg)}},
-          "goals_candidate":{"two_most_likely":[x[0] for x in favorite_two],
-                             "combined_probability":round(sum(x[1] for x in favorite_two),6),
-                             "not_a_value_or_profitability_signal":True}
+            "status":"RESEARCH_INDEPENDENT_UNCALIBRATED_NOT_BET_SIGNAL",
+            "prediction_source":"ONLY_007_PRETIP_RECENT5_H2H_VERIFIED_INJURY",
+            "independent_expected_goals":{"home":round(bh,4),"away":round(ba,4),
+                                         "total":round(bh+ba,4)},
+            "independent_probabilities":independent,
+            "independent_most_probable_direction":{
+                "had":max(independent["had"],key=independent["had"].get),
+                "hhad":None if independent["hhad"] is None else max(independent["hhad"],key=independent["hhad"].get),
+                "ttg":None},
+            "exact_score_prediction":None,
+            "total_goals_two_buckets_recommendation":None,
+            "feature_evidence":{
+                "home_recent5_count":quality.get("home_recent"),
+                "away_recent5_count":quality.get("away_recent"),
+                "h2h_count":quality.get("h2h"),
+                "injuries_verified":verified,
+                "injury_reported_unconfirmed":len(game.get("injury_source_facts") or []),
+                "factor_attribution":"UNTRAINED_REQUIRES_INDEPENDENT_ABLATION"},
+            "asian_price_competitor":diag,
+            "official_market_diagnostics":audit_odds(official,independent),
+            "betting_value_status":"UNAVAILABLE_UNTIL_OUT_OF_SAMPLE_CALIBRATION",
+            "probability_model_can_disagree_with_007_prices":True,
         })
-        counts["full_data"]+=1
-        counts["asian_applied"]+=int(row["components_expected_goals"]["asian_company_applied"])
-        counts["injury_verified"]+=int(row["components_expected_goals"]["injury_verified"])
-        counts["top_1_1"]+=int(scores[0]["score"]=="1:1")
-        outputs.append(row)
-    return {"schema_version":VERSION,"research_only":True,
-        "not_production_predictions":True,"no_send_no_grading_baseline_replacement":True,
-        "untrained_weights":{"total_market":TOTAL_MARKET_SHRINKAGE,
-             "euro_direction":EURO_MARKET_SHRINKAGE,
-             "max_total_delta":MAX_TOTAL_DELTA,"max_margin_delta":MAX_MARGIN_DELTA},
-        "model_version":VERSION,"source_snapshot_sha256":digest(snapshot),
-        "source_fused_model_sha256":digest(asian),
-        "source_independent_model_sha256":digest(independent),
-        "captured_at_utc":capture.isoformat(),"counts":counts,
-        "games":outputs}
+        rows.append(row)
+        counts["independent_ready"]+=1
+    return {"schema_version":VERSION,
+        "research_only":True,"no_push_no_archive_replacement":True,
+        "independent_probabilities_do_not_read_prices":True,
+        "source_snapshot_sha256":digest(snapshot),
+        "baseline_sha256":digest(baseline),"market_comparator_sha256":digest(market),
+        "captured_at_utc":capture.isoformat(),"counts":counts,"games":rows}
 
 
 def main():
-    p=argparse.ArgumentParser()
-    p.add_argument("--snapshot",required=True)
-    p.add_argument("--baseline",required=True)
-    p.add_argument("--asian",required=True)
-    p.add_argument("--out",required=True)
-    a=p.parse_args()
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--snapshot",required=True)
+    parser.add_argument("--baseline",required=True)
+    parser.add_argument("--asian",required=True)
+    parser.add_argument("--out",required=True)
+    args=parser.parse_args()
     def load(path):
         raw=Path(path).read_bytes()
-        if len(raw)>25_000_000:
-            raise ValueError("RESEARCH_INPUT_OVER_LIMIT")
+        if len(raw)>25_000_000:raise ValueError("FOOTBALL_RESEARCH_FILE_TOO_LARGE")
         return json.loads(raw)
-    result=analyze(load(a.snapshot),load(a.baseline),load(a.asian))
-    output=Path(a.out)
-    output.parent.mkdir(parents=True,exist_ok=True)
-    output.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    print("FOOTBALL_UNIFIED_RESEARCH_ONLY",json.dumps(result["counts"],sort_keys=True))
+    report=analyze(load(args.snapshot),load(args.baseline),load(args.asian))
+    dest=Path(args.out);dest.parent.mkdir(parents=True,exist_ok=True)
+    dest.write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    print("FOOTBALL_INDEPENDENT_FIRST_RESEARCH",json.dumps(report["counts"],sort_keys=True))
 
 
 if __name__=="__main__":
