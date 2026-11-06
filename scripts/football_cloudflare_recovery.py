@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 import os
 import re
 from zoneinfo import ZoneInfo
+from football_jc_capture_slot import MAX_ORIGINAL_SEND_LAG_SECONDS
 
 BEIJING = ZoneInfo("Asia/Shanghai")
 VALID_SLOTS = frozenset(f"{h:02d}00" for h in range(12,24))
@@ -50,17 +51,15 @@ def validate(event: str, source: str, day: str, cron: str,
     if now.tzinfo is None:
         raise ValueError("RECOVERY_NOW_NAIVE")
     local = now.astimezone(BEIJING)
-    if local.date().isoformat() != day:
-        raise ValueError("RECOVERY_WRONG_BEIJING_DAY")
-    planned = datetime(local.year, local.month, local.day, int(slot[:2]),
-                       int(slot[2:]), tzinfo=BEIJING)
+    # Bind to the original Cloudflare scheduled sale date, not the date on
+    # which GitHub eventually started. This also safely rejects a queued
+    # 23:00 job that arrives after midnight without assigning it Saturday.
+    sale_date=datetime.strptime(day,"%Y-%m-%d").date()
+    planned = datetime(sale_date.year, sale_date.month, sale_date.day,
+                       int(slot[:2]), int(slot[2:]), tzinfo=BEIJING)
     delay = (local - planned).total_seconds()
-    # Even a valid Cloudflare request cannot unlock a new stale report.
-    # Late native GH crons are audited separately; do not backdate sources.
-    # This was dispatched at the canonical minute by Cloudflare. Allow GitHub
-    # runner queue delay without manufacturing a second scheduled trigger.
-    # The 60-minute cap also prevents stale or replayed dispatches.
-    if delay < 0 or delay > 60 * 60:
+    # A delayed original job is never permission to send a make-up report.
+    if delay < 0 or delay > MAX_ORIGINAL_SEND_LAG_SECONDS:
         raise ValueError("RECOVERY_OUTSIDE_SENDING_WINDOW")
     return "CLOUDFLARE_RECOVERY_AUTHORIZED_" + slot
 
