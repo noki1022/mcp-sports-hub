@@ -86,6 +86,24 @@ class TestLive(unittest.TestCase):
  def test_invalid_month_rejected(self):
   with self.assertRaisesRegex(ValueError,"MONTH"):
    live.timestamp("2026,12,5,18,00,00")
+ def test_friday_jc_scope_does_not_mix_saturday_number(self):
+  # A Friday-sale match can begin Saturday after midnight. The *sale number*
+  # determines membership, not its kickoff calendar date.
+  f=FIX.replace(b"2026,10,5,18,00,00",b"2026,10,6,18,00,00")
+  f=f.replace(b"2026,10,6,01,45,00",b"2026,10,7,01,45,00")
+  f=f.replace("周四001".encode(),"周五001".encode()).replace("周四002".encode(),"周五002".encode())
+  rows=f.split(b"!")
+  saturday=rows[1].replace(b"3075305",b"3075306").replace("周五002".encode(),"周六003".encode())
+  mixed=rows[0]+b"!"+rows[1]+b"!"+saturday
+  captured=datetime(2026,11,6,8,tzinfo=timezone.utc)
+  result=live.collect({"fixtures":mixed,"jc_odds":ODDS},captured,target_jc_day="2026-11-06")
+  self.assertEqual([x["jc_number"] for x in result["games"]],["周五001","周五002"])
+  self.assertEqual(result["source_provenance"]["coverage"]["excluded_other_jc_sale_days"],1)
+  self.assertTrue(any(g["kickoff_beijing"].startswith("2026-11-07") for g in result["games"]))
+  self.assertEqual(result["beijing_date"],"2026-11-06")
+  self.assertEqual(result["jc_sale_day_beijing"],"2026-11-06")
+  self.assertEqual(live.jc_prefix("2026-11-07"),"周六")
+
  def test_filter_by_beijing_tip_date(self):
   s=live.collect({"fixtures":FIX,"jc_odds":ODDS},CAP,"2026-11-06")
   self.assertEqual(len(s["games"]),1)
