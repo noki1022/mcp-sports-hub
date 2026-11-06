@@ -86,6 +86,8 @@ def football_grade(finals,results,raw_evidence):
             total[key][status]+=1
             info["markets"][key]={"direction":predicted,"actual":actual,"status":status,
                                     "official_home_handicap":line if key=="hhad" else None}
+        if f.get("selection_rule")=="ONLY_BEIJING_2100_IMMUTABLE_FORECAST":
+            info["selection_rule"]=f["selection_rule"]
         graded.append(info)
     return graded,total
 
@@ -134,6 +136,8 @@ def basketball_grade(finals,scores,day):
         f=byid[item["game_id"]]
         item["pregame_candidate_sha256"]=f["original_candidate_sha256"]
         item["kickoff_utc"]=f["kickoff_utc"]
+        if f.get("selection_rule")=="ONLY_BEIJING_2100_IMMUTABLE_FORECAST":
+            item["selection_rule"]=f["selection_rule"]
         for k,v in item["markets"].items():
             totals[k][v["outcome"]]+=1
     return per,totals
@@ -152,6 +156,8 @@ def result(sport,day,rows,counters):
             "historical_2130_not_graded_separately":True,
             "official_result_validation_required":True,
             "matches":rows,"summary":details}
+    if rows and all(r.get("selection_rule")=="ONLY_BEIJING_2100_IMMUTABLE_FORECAST" for r in rows):
+        report["prediction_source"]="ONLY_BEIJING_2100_IMMUTABLE_FORECAST"
     report["review_sha256"]=registry.digest(report)
     return report
 
@@ -173,7 +179,8 @@ def render_iphone(report):
           "font:14px/1.55 -apple-system,BlinkMacSystemFont,Arial,sans-serif;color:#26364b'>",
           "<h2 style='font-size:19px;margin:0 0 6px'>北京时间 "+esc(day)+" "+title+"复盘</h2>",
           "<div style='font-size:12px;color:#64748b;margin-bottom:10px'>",
-          "只评价每场最后一次有效赛前冻结版；21:30仅用于历史对比。走盘与未入样不计命中率。</div>"]
+          ("只评价北京时间21:00原始赛前冻结版。" if report.get("prediction_source")=="ONLY_BEIJING_2100_IMMUTABLE_FORECAST"
+           else "历史复盘：只评价每场最后一次有效赛前冻结版。")+"走盘与未入样不计命中率。</div>"]
     for key,stats in report["summary"].items():
         ratio=(f'{stats["hit_rate"]*100:.1f}%（{stats["hits"]}/{stats["graded"]}）'
                if stats["graded"] else "暂无有效样本")
@@ -248,3 +255,4 @@ def main():
     print("VERIFIED_PER_MATCH_REVIEW",a.sport,[(k,x["graded"]) for k,x in report["summary"].items()])
 
 if __name__=="__main__":main()
+

@@ -179,7 +179,7 @@ def select(bundles,as_of):
         reference=[r for r in rows if r["planned_slot_beijing"]=="2100"]
         if not reference:
             continue  # missing 21:00 is not permission to invent a baseline
-        latest=reference[-1]
+        latest=reference[0]  # First original 21:00 run; a rerun must not replace it.
         tip=stamp(latest["kickoff_utc"])
         baseline=latest
         lead=(tip-stamp(latest["generated_utc"])).total_seconds()/60
@@ -251,6 +251,20 @@ def publish_finals(bundles,as_of,out_dir,grace_minutes=90):
                         "sport":final["sport"],"forecast_sha256":final["forecast_sha256"]})
     return outputs
 
+def verify_existing_final(existing, proposed):
+    """Preserve audited pre-migration archives without rewriting historical answers."""
+    for doc in (existing, proposed):
+        require(doc.get("final_sha256")==digest({k:v for k,v in doc.items() if k!="final_sha256"}),
+                "EXISTING_FINAL_HASH_MISMATCH")
+    if existing == proposed:
+        return "IDEMPOTENT_SAME_FINAL"
+    identity=("sport","match_id","official_game_id","home_id","away_id","kickoff_utc","jc_number")
+    require(all(existing.get(k)==proposed.get(k) for k in identity), "FINAL_IDENTITY_CONFLICT")
+    if (existing.get("selection_rule")=="LATEST_ACTUALLY_GENERATED_VERIFIED_PRETIP"
+            and stamp(existing["generated_utc"]) < stamp("2026-11-06T13:00:00+00:00")):
+        return "PRESERVED_HISTORICAL_BASELINE_NOT_REWRITTEN"
+    raise ValueError("FINAL_CONFLICT_REQUIRES_AUDIT")
+
 def save_once(path,document):
     dst=Path(path)
     dst.parent.mkdir(parents=True,exist_ok=True)
@@ -304,3 +318,4 @@ def main():
             print("PER_MATCH_PRETIP_FINAL",save_once(a.out,result),len(result["matched_games"]))
 
 if __name__=="__main__":main()
+

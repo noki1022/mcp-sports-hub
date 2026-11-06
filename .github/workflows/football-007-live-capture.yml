@@ -108,7 +108,7 @@ jobs:
       - name: Validate football 007 actual Asian market assimilation invariants (PR only)
         if: github.event_name == 'pull_request'
         run: python3 -B -m unittest discover -s tests -p test_football_jc_asian_assimilation.py -v
-      - name: Verify 21:30-only three-market football review and iPhone settled layout
+      - name: Verify 21:00-only three-market football review and iPhone settled layout
         if: github.event_name == 'pull_request'
         run: python3 -B -m unittest discover -s tests -p test_football_jc_single_final_review.py -v
       - name: Regression-test oversized football PushPlus payload without sending
@@ -120,7 +120,7 @@ jobs:
           python3 -B -m unittest discover -s tests -p test_sport_match_final_registry.py -v
           python3 -B -m unittest discover -s tests -p test_football_capture_slot_recovery.py -v
           python3 -B -m unittest discover -s tests -p test_football_cloudflare_recovery.py -v
-      - name: Test one-model 21:30 lock and next-morning comparison
+      - name: Test one-model 21:00 lock and immutable comparison
         if: github.event_name == 'pull_request'
         run: |
           python3 -B -m unittest discover -s tests -p test_football_jc_final_2130.py -v
@@ -269,7 +269,7 @@ jobs:
       - name: Create immutable 21:00 final asset (never overwrite)
         run: |
           if [ -s football-output/no_future_fixtures.txt ]; then
-            echo "NO_FOOTBALL_MATCHES_NO_2130_BASELINE_TO_CREATE"
+            echo "NO_FOOTBALL_MATCHES_NO_2100_BASELINE_TO_CREATE"
             exit 0
           fi
           test -s football-output/football_jc_final_2100.json
@@ -281,7 +281,7 @@ jobs:
           fi
           gh release create "$tag" football-output/football_jc_final_2100.json \
             --target main --title "Football 21:00 immutable scoring baseline $BJ_DAY" \
-            --notes "Immutable 21:00 scoring baseline. Actual official score grading must use each match's latest verified pretip final."
+            --notes "Immutable 21:00 scoring baseline. Official scoring uses only the original 21:00 forecast with independently verified full-time results."
           echo "FOOTBALL_SINGLE_FINAL_ARCHIVED=$tag"
 
   archive-football-raw-release:
@@ -437,3 +437,4 @@ jobs:
             football-output/football_jc_send_status.json
             football-output/football_jc_sent_preview.html
           if-no-files-found: warn
+

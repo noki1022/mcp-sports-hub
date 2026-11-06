@@ -45,8 +45,8 @@ jobs:
           assert 'nba_delivery_recovery.py' not in watch and '--send' not in watch
           evening=Path('.github/workflows/nba-priority-2130.yml').read_text()
           morning=Path('.github/workflows/nba-priority-0630.yml').read_text()
-          assert evening.count('    - cron: ')==1 and '30 13 * * *' in evening
-          assert morning.count('    - cron: ')==1 and '30 22 * * *' in morning
+          assert 'cron:' not in evening
+          assert 'cron:' not in morning
           assert '*/10' not in morning and '40 13 * * *' not in evening
           print('NO_COMPENSATION_SENDER_P0_ACCEPTED')
           PY
@@ -55,3 +55,4 @@ jobs:
           node-version: '22'
       - name: Exact Cloudflare/GitHub trigger contract and negative retry tests
         run: node scheduler/test-scheduler.mjs
+

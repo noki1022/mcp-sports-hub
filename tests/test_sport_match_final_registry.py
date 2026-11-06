@@ -121,6 +121,31 @@ class TestRegistry(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"IMMUTABLE_FINAL"):
                 S.publish_finals([competing],iso(TIP+timedelta(hours=4)),folder)
 
+    def test_same_slot_rerun_cannot_replace_original_2100(self):
+        first=S.make_candidate("football",*football(BASE),123,"2100")
+        snap,pred=football(BASE+timedelta(minutes=10))
+        pred["games"][0]["markets"]["had"]["direction"]="客胜"
+        rerun=S.make_candidate("football",snap,pred,124,"2100")
+        final=S.select([rerun,first],iso(TIP))["matched_games"][0]
+        self.assertEqual(final["run_id"],"123")
+        self.assertEqual(final["markets"]["had"]["direction"],"主胜")
+
+    def test_legacy_archive_preserved_but_new_policy_conflict_rejected(self):
+        b=S.make_candidate("football",*football(BASE),123,"2100")
+        new=S.publishable_final_documents([b],iso(TIP+timedelta(hours=2)))[0]
+        old=deepcopy(new)
+        old["selection_rule"]="LATEST_ACTUALLY_GENERATED_VERIFIED_PRETIP"
+        old["final_sha256"]=S.digest({k:v for k,v in old.items() if k!="final_sha256"})
+        self.assertEqual(S.verify_existing_final(old,new),"PRESERVED_HISTORICAL_BASELINE_NOT_REWRITTEN")
+        self.assertEqual(S.verify_existing_final(new,new),"IDEMPOTENT_SAME_FINAL")
+        changed=deepcopy(new);changed["markets"]["had"]["direction"]="客胜"
+        changed["final_sha256"]=S.digest({k:v for k,v in changed.items() if k!="final_sha256"})
+        with self.assertRaisesRegex(ValueError,"FINAL_CONFLICT"):
+            S.verify_existing_final(new,changed)
+        old["home_id"]="999"
+        with self.assertRaisesRegex(ValueError,"HASH_MISMATCH"):
+            S.verify_existing_final(old,new)
+
     def test_verified_football_zero_fixture_first_capture_does_not_fail_archive(self):
         snap,pred=football()
         snap["games"]=[]
@@ -145,3 +170,4 @@ class TestRegistry(unittest.TestCase):
         self.assertTrue(s["selection_is_not_a_claim_of_greater_predictive_accuracy"])
 
 if __name__=="__main__":unittest.main()
+
