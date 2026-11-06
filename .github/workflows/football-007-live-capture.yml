@@ -13,6 +13,7 @@ on:
       - 'analysis/football_jc_capture_movement.py'
       - 'tests/test_football_jc_capture_movement.py'
       - 'scripts/football_jc_capture_slot.py'
+      - 'tests/test_football_capture_slot_recovery.py'
       - 'tests/test_sport_match_final_registry.py'
       - 'analysis/football_jc_single_final_review.py'
       - 'tests/test_football_jc_single_final_review.py'
@@ -39,6 +40,9 @@ on:
     # UTC: Beijing 12:00-21:00 hourly, 21:30 baseline, 00:00-06:00 silent, 06:30 update.
     # Every slot captures independently; prior-day history missing never blocks first capture.
     - cron: "0 4 * * *"
+    # Retry only the canonical 12:00 slot when GitHub drops/delays the first event.
+    - cron: "15 4 * * *"
+    - cron: "30 4 * * *"
     - cron: "0 5 * * *"
     - cron: "0 6 * * *"
     - cron: "0 7 * * *"
@@ -98,7 +102,9 @@ jobs:
         run: python3 -B -m unittest discover -s tests -p test_football_jc_single_final_review.py -v
       - name: Validate first capture and per-game football / NBA pretip final selection
         if: github.event_name == 'pull_request'
-        run: python3 -B -m unittest discover -s tests -p test_sport_match_final_registry.py -v
+        run: |
+          python3 -B -m unittest discover -s tests -p test_sport_match_final_registry.py -v
+          python3 -B -m unittest discover -s tests -p test_football_capture_slot_recovery.py -v
       - name: Test one-model 21:30 lock and next-morning comparison
         if: github.event_name == 'pull_request'
         run: |
@@ -320,7 +326,7 @@ jobs:
 
   football-daytime-push:
     needs: [live-football, archive-football-raw-release]
-    if: needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && github.event_name == 'schedule' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *"]'), github.event.schedule)
+    if: needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && github.event_name == 'schedule' && contains(fromJSON('["0 4 * * *","15 4 * * *","30 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *"]'), github.event.schedule)
     runs-on: ubuntu-latest
     timeout-minutes: 6
     permissions:
@@ -328,7 +334,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
-      FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.FOOTBALL_PUSHPLUS_TOKEN || secrets.PUSHPLUS_TOKEN }}
+      FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN || secrets.FOOTBALL_PUSHPLUS_TOKEN }}
       TRIGGER_SCHEDULE: ${{ github.event.schedule || '' }}
     steps:
       - uses: actions/checkout@v4
@@ -356,9 +362,12 @@ jobs:
           SLOT="$(python3 - <<'PY'
           import os,re
           e=os.environ["TRIGGER_SCHEDULE"]
-          m=re.fullmatch(r"0 ([4-9]|1[0-3]) \* \* \*",e)
-          if not m:raise ValueError("NOT_DAYTIME_FOOTBALL_TRIGGER")
-          print(f"{int(m.group(1))+8:02d}00")
+          if e in ("15 4 * * *","30 4 * * *"):
+              print("1200")
+          else:
+              m=re.fullmatch(r"0 ([4-9]|1[0-3]) \* \* \*",e)
+              if not m:raise ValueError("NOT_DAYTIME_FOOTBALL_TRIGGER")
+              print(f"{int(m.group(1))+8:02d}00")
           PY
           )"
           echo "DAYTIME_SLOT=$SLOT" >> "$GITHUB_ENV"
@@ -429,7 +438,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
-      FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.FOOTBALL_PUSHPLUS_TOKEN || secrets.PUSHPLUS_TOKEN }}
+      FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN || secrets.FOOTBALL_PUSHPLUS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
