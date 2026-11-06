@@ -104,7 +104,7 @@ def jc_prefix(day):
 def validate_jc_scope(games,day):
     prefix=jc_prefix(day)
     for game in games:
-        if not re.fullmatch(re.escape(prefix)+r"\\d{3}",str(game.get("jc_number") or "")):
+        if not re.fullmatch(re.escape(prefix)+r"\d{3}",str(game.get("jc_number") or "")):
             raise ValueError("FOOTBALL_JC_SALE_DAY_SCOPE_DRIFT")
     return True
 
