@@ -195,6 +195,7 @@ def self_test():
         assert ok["action"]=="DISPATCH"
         assert decision(root,slot,target,at,None,"GITHUB_API_FAILED")["action"]=="NO_DISPATCH"
         active=[{"event":"schedule","created_at":"2026-10-31T04:00:00Z",
+                 "display_title":"NBA full report | slot=0 4 * * * | date=auto",
                  "status":"in_progress","conclusion":None}]
         assert decision(root,slot,target,at,active)["action"]=="NO_DISPATCH"
         completed=[{**active[0],"status":"completed","conclusion":"failure"}]
