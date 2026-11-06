@@ -253,31 +253,35 @@ def main():
     # Beijing 22:30–05:30 market-monitor period: 00:30 and 03:30.
     cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
     cloud_crons=cloud["triggers"]["crons"]
-    expected_cloud=[
-        "0,8,18,28 4,6,7,10 * * *",
-        "0,7,16,30,40 13 * * *",
-        "0,10,20 14 * * *",
-        "20,30,40 22 * * *",
-        "30,40,50 16,19 * * *",
-    ]
-    football_cloud=[
-        "20,35 4-13,16-21 * * *",
-        "35 22 * * *",
-        "42,52 13,22 * * *",
-    ]
-    assert cloud_crons==expected_cloud+football_cloud,(cloud_crons,expected_cloud+football_cloud)
-    midnight_ticks=set()
-    # NBA overnight market watcher remains disabled. Soccer-only backups
-    # run separately through plannedFootballJob; do not misclassify them as NBA.
-    for expr in expected_cloud:
-        mm,hh,_,_,_=expr.split()
-        for hour in (int(x) for x in hh.split(",")):
-            for minute in (int(x) for x in mm.split(",")):
-                utc_minute=hour*60+minute
-                if 14*60+30<=utc_minute<=21*60+30:
-                    assert (hour in (16,19) and minute in (30,40,50)),(expr,hour,minute)
-                    midnight_ticks.add(((hour+8)%24,minute))
-    assert midnight_ticks=={(h,m) for h in (0,3) for m in (30,40,50)}
+    assert len(cloud_crons)<=5, "CLOUDFLARE_FREE_PLAN_CRON_LIMIT"
+    assert cloud_crons==[
+        "0,7,8,10,16,18,20,28,30,35,40,42,52 4-14 * * *",
+        "20,30,35,40,42,50,52 16-22 * * *",
+    ],cloud_crons
+    def expand_cloud(expr):
+        minutes,hours,*_=expr.split()
+        def values(field):
+            out=set()
+            for item in field.split(","):
+                p=item.split("-")
+                out.update(range(int(p[0]),int(p[-1])+1))
+            return out
+        return {(h,m) for h in values(hours) for m in values(minutes)}
+    ticks=set().union(*(expand_cloud(expr) for expr in cloud_crons))
+    assert len(ticks)==11*13+7*7
+    for h in range(24):
+        for m in range(60):
+            local=datetime(2026,11,6,h,m,tzinfo=timezone.utc).astimezone(bj)
+            lh,lm=local.hour,local.minute
+            nba=((lh in (12,14,15,18) and lm in (0,8,18,28)) or
+                 (lh==21 and lm in (0,7,16,30,40)) or
+                 (lh==22 and lm in (0,10,20)) or
+                 (lh==6 and lm in (20,30,40)) or
+                 (lh in (0,3) and lm in (30,40,50)))
+            football=((12<=lh<=21 or 0<=lh<=6) and lm in (20,35)) or
+                     (lh in (21,6) and lm in (42,52))
+            if nba or football:
+                assert (h,m) in ticks, ("MISSING_EXTERNAL_BACKUP",h,m,lh,lm)
     worker=(ROOT/"scheduler/worker.mjs").read_text()
     assert 'if((h>=22 || h<=5) && [30,40,49].includes(m))' not in worker
     assert 'export async function dispatchFootballAt(' in worker
