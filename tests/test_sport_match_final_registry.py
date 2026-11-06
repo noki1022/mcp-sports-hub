@@ -102,7 +102,7 @@ class TestRegistry(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"BUNDLE_HASH"):
             S.select([broken],iso(TIP+timedelta(minutes=1)))
     def test_append_once_final_does_not_overwrite_late_or_second_run(self):
-        old=S.make_candidate("football",*football(BASE),123,"2130")
+        old=S.make_candidate("football",*football(BASE),123,"2100")
         snap,new=football(TIP-timedelta(minutes=8))
         new["games"][0]["markets"]["had"]["direction"]="客胜"
         newest=S.make_candidate("football",snap,new,124,"2300")
