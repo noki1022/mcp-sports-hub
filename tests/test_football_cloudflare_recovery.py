@@ -17,7 +17,11 @@ class ExactFootball(unittest.TestCase):
   good=datetime.fromisoformat("2026-11-06T16:00:30+08:00")
   self.assertEqual(validate("workflow_dispatch","cloudflare","2026-11-06","0 8 * * *",good),
                    "CLOUDFLARE_RECOVERY_AUTHORIZED_1600")
-  late=datetime.fromisoformat("2026-11-06T16:03:00+08:00")
+  # Runner queueing is allowed for the original exact-time dispatch.
+  queued=datetime.fromisoformat("2026-11-06T16:03:00+08:00")
+  self.assertEqual(validate("workflow_dispatch","cloudflare","2026-11-06","0 8 * * *",queued),
+                   "CLOUDFLARE_RECOVERY_AUTHORIZED_1600")
+  late=datetime.fromisoformat("2026-11-06T17:03:00+08:00")
   with self.assertRaisesRegex(ValueError,"OUTSIDE_SENDING_WINDOW"):
    validate("workflow_dispatch","cloudflare","2026-11-06","0 8 * * *",late)
 if __name__=="__main__":unittest.main()
