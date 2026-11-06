@@ -1,81 +1,29 @@
-name: Verify priority 06:30 Beijing morning NBA full report
+name: Verify retired NBA 06:30 automatic report disabled
 on:
   pull_request:
     branches: [main]
     paths:
-      - 'scripts/nba_0630_priority_gate.py'
-      - 'scripts/nba_0630_pretip_filter.py'
       - '.github/workflows/nba-priority-0630.yml'
-      - '.github/workflows/titan007-final-hourly.yml'
+      - '.github/workflows/nba-silent-overnight-hourly.yml'
+      - '.github/workflows/titan007-three-analysis.yml'
       - '.github/workflows/verify-nba-priority-0630.yml'
-permissions:
-  contents: read
+permissions: {contents: read}
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: '3.12'}
-      - run: |
-          python3 -m py_compile scripts/nba_0630_priority_gate.py scripts/nba_0630_pretip_filter.py
-          python3 scripts/nba_0630_priority_gate.py --self-test
-          python3 scripts/nba_0630_pretip_filter.py --self-test
-          python3 scripts/nba_overnight_cohort.py self-test
-      - name: Verify actual machine emitted GITHUB_OUTPUT both true and false, not stdout formatting
-        run: |
-          printf 'run_report=true\ntarget_date=2026-11-02\n' > /tmp/gate-true.txt
-          grep -Fxq 'run_report=true' /tmp/gate-true.txt
-          printf 'run_report=false\ntarget_date=2026-11-02\n' > /tmp/gate-false.txt
-          if grep -Fxq 'run_report=true' /tmp/gate-false.txt; then
-            echo "FALSE_GATE_MUST_NOT_PASS" >&2
-            exit 1
-          fi
-      - name: Verify scheduled priority, full-board dynamic review and distinct dedup
+      - name: No automatic overnight or 06:30 capture or PushPlus
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          s=Path('.github/workflows/nba-priority-0630.yml').read_text()
-          h=Path('.github/workflows/titan007-final-hourly.yml').read_text()
-          assert '- cron: "30 22 * * *"' in s
-          assert '- cron: "*/10 22-23,0-5 * * *"' not in s
-          assert '06:58' not in s
-          assert "steps.presend.outputs.skip != 'true'" in s
-          assert '30 14-21 * * *' not in h
-          assert 'workflow_dispatch:' in h and 'schedule:' not in h.split('permissions:',1)[0]
-          assert '30 14-22 * * *' not in h
-          assert "nba_0630_priority_gate.py --phase preflight" in s
-          assert "nba_0630_priority_gate.py --phase presend" in s
-          # The pre-send JSON gate must parse a true verdict correctly. The
-          # former double-escaped sed BRE returned empty for both true/false,
-          # silently skipping every otherwise-valid 06:30 delivery.
-          assert s.count("grep -Fxq 'run_report=true' \"$GITHUB_OUTPUT\"") == 2
-          assert "run_report=$(sed" not in s
-          assert "nba_0630_pretip_filter.py" in s
-          assert "verify_nba_capture_analysis.py" in s
-          assert "nba_hourly_dynamic_review.py" in s
-          assert "titan007_hourly_history.py capture" in s
-          assert '--dynamic nba_priority_dynamic.json' in s
-          assert 'pushplus_mobile.py --mode three' in s
-          assert 'reports/pushplus-sent/$TARGET_DATE/0630.json' in s
-          assert "'slot':'0630'" in s
-          assert s.index('--phase presend')<s.index('pushplus_mobile.py --mode three')
-          preflight=s.split('      - name: Preflight locked Beijing slate, dynamic safe window and accepted-push ledger',1)[1].split('      - if:',1)[0]
-          assert 'export TARGET_DATE="$target"' in preflight
-          assert preflight.index('export TARGET_DATE="$target"')<preflight.index('nba_fixed_slot_gate.py')
-          hourly_gate=h.split('      - name: Resolve canonical hourly slot; skip if API already accepted',1)[1].split('      - name: Join Beijing NBA fixtures',1)[0]
-          assert 'export HOURLY_REPORT_SLOT="$slot"' in hourly_gate
-          assert 'test -n "$slot"' in hourly_gate
-          assert s.index('nba_hourly_dynamic_review.py')<s.index('pushplus_mobile.py --mode three')
-          old=Path('.github/workflows/nba-priority-2130.yml').read_text()
-          daily=Path('.github/workflows/titan007-three-analysis.yml').read_text()
-          assert '- cron: "0 22 * * *"' not in daily
-          assert "'0 22 * * *':'0600'" not in daily
-          assert 'nba_overnight_cohort.py lock' in old
-          assert 'nba_overnight_cohort.py enforce' in s
-          assert 'reports/overnight-cohorts/$TARGET_DATE/2130.json' in s
-          assert s.index('nba_overnight_cohort.py enforce') < s.index('nba_0630_pretip_filter.py --joined')
-          assert old.index('nba_overnight_cohort.py lock')<old.index('pushplus_mobile.py --mode three')
-          print('NBA_0630_PRIORITY_FULL_ANALYSIS_WIRING_PASS')
+          for path in ('nba-priority-0630.yml','nba-silent-overnight-hourly.yml',
+                       'nba-priority-2130.yml'):
+              s=Path('.github/workflows')/path
+              assert '  schedule:' not in s.read_text(),path
+          main=Path('.github/workflows/titan007-three-analysis.yml').read_text()
+          expected=[f'    - cron: "0 {h} * * *"' for h in range(4,16)]
+          actual=[l for l in main.splitlines() if l.startswith('    - cron:')]
+          assert actual==expected,(actual,expected)
+          print('NBA_12_HOURS_NO_0630_NO_OVERNIGHT_PASS')
           PY
