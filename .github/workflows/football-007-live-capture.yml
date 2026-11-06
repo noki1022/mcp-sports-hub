@@ -122,6 +122,9 @@ jobs:
       - name: Verify 21:30-only three-market football review and iPhone settled layout
         if: github.event_name == 'pull_request'
         run: python3 -B -m unittest discover -s tests -p test_football_jc_single_final_review.py -v
+      - name: Regression-test oversized football PushPlus payload without sending
+        if: github.event_name == 'pull_request'
+        run: python3 -B -m unittest discover -s tests -p test_football_push_payload_limit.py -v
       - name: Validate first capture and per-game football / NBA pretip final selection
         if: github.event_name == 'pull_request'
         run: |
