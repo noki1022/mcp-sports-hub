@@ -26,6 +26,7 @@ workflows={
  "nba-per-match-final-review-audit.yml":["20 15 * * *"],
  # Quiet archive admission/research only; no odds collection or production push.
  "sports-data-lifecycle.yml":["40 4 * * *"],
+ "sports-verified-results.yml":["50 * * * *"],
  "nba-silent-overnight-hourly.yml":["0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *"],
  "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
  # Complete allowlist: every scheduled workflow must be declared here.
@@ -54,7 +55,7 @@ workflows={
  "nba-injury-live-roster-feature-freeze.yml":["10 18 * * *"]
 }
 # Football has its own independent schedule and never shares NBA slot/delivery logic.
-football_schedule={"football-007-live-capture.yml":["0 4 * * *","15 4 * * *","30 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","30 13 * * *","0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *","30 22 * * *"]}
+football_schedule={"football-007-live-capture.yml":["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","30 13 * * *","0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *","30 22 * * *"]}
 def load(path):
     obj=yaml.safe_load(path.read_text())
     if not isinstance(obj,dict):raise AssertionError(str(path))
@@ -297,4 +298,3 @@ def main():
     print("NBA_SCHEDULE_YAML_ALL_STRUCTURES_VALIDATED",len(all_times),"scheduled UTC triggers")
     print("NOTE_GITHUB_CRON_BEST_EFFORT_NOT_EXACT_TIME_GUARANTEE")
 if __name__=="__main__":main()
-

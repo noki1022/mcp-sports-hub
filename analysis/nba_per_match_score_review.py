@@ -89,12 +89,12 @@ def main():
     ids=None
     if a.official_cohort:
         cohort=json.loads(Path(a.official_cohort).read_text(encoding="utf-8"))
-        registry.require(cohort.get("schema_version")=="nba-beijing-noon-cohort-v1",
+        R.require(cohort.get("schema_version")=="nba-beijing-noon-cohort-v1",
                          "INDEPENDENT_NOON_COHORT_SCHEMA_UNVERIFIED")
-        registry.require(cohort.get("target_beijing_date")==datetime.strptime(a.day,"%Y%m%d").strftime("%Y-%m-%d"),
+        R.require(cohort.get("target_beijing_date")==datetime.strptime(a.day,"%Y%m%d").strftime("%Y-%m-%d"),
                          "OFFICIAL_NOON_COHORT_DAY_MISMATCH")
         ids=cohort.get("official_games")
-        registry.require(isinstance(ids,dict) and len(ids)==cohort.get("official_count"),
+        R.require(isinstance(ids,dict) and len(ids)==cohort.get("official_count"),
                          "OFFICIAL_COHORT_ID_COUNT_MISMATCH")
         ids=set(ids)
     doc=write_report(a.final_root,a.day,scores,a.out_dir,ids)

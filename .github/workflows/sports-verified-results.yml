@@ -1,0 +1,80 @@
+name: Sports verified results to immutable per-match review
+on:
+  push:
+    branches: [main]
+    paths: ['analysis/sports_verified_*.py', 'ops/sports_result_to_review.py', '.github/workflows/sports-verified-results.yml']
+  pull_request:
+    paths: ['analysis/sports_verified_*.py', 'ops/sports_result_to_review.py', 'analysis/nba_per_match_score_review.py', 'tests/test_sports_verified_results.py', '.github/workflows/sports-verified-results.yml']
+  workflow_run:
+    workflows: ['Football + NBA immutable per-match latest valid pretip finals']
+    types: [completed]
+    branches: [main]
+  schedule:
+    # Hourly recovery; GitHub cron is best effort. No odds or notification job.
+    - cron: '50 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sports-verified-results-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify raw result replay and reject wrong or unfinished results
+        run: |
+          python -m unittest discover -s tests -p test_sports_verified_results.py -v
+          python -m unittest discover -s tests -p test_nba_per_match_score_review.py -v
+          python -m unittest discover -s tests -p test_sport_match_final_grade.py -v
+      - name: Read-only live admission rehearsal on PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python ops/sports_result_to_review.py --repo "$GH_REPO"
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name == 'pull_request'
+        with:
+          name: verified-results-rehearsal-${{ github.run_id }}-${{ github.run_attempt }}
+          path: verified-results/
+          retention-days: 14
+  archive:
+    needs: validate
+    if: >-
+      github.event_name != 'pull_request' && github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.event != 'pull_request'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Append verified result bytes and replayable per-match reviews
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python ops/sports_result_to_review.py --repo "$GH_REPO" --publish
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verified-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: verified-results/
+          retention-days: 14
