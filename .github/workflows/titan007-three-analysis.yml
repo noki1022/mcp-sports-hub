@@ -4,18 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       report_slot:
-        description: "Canonical Beijing slot (including 00:30 and 03:30), or ONCE for a one-time manual run"
+        description: "Canonical Beijing hourly slot 1200..2300; ONCE only for manual diagnostic"
         required: false
         type: string
       target_date:
-        description: "Beijing game display date YYYY-MM-DD; 00:30/03:30 default to today, daytime slots to tomorrow"
+        description: "Beijing next-day game date YYYY-MM-DD for the 12:00..23:00 window"
         required: false
         type: string
   schedule:
-    # One and only one native trigger per Beijing report slot.
-    # Cloudflare independently triggers at the SAME timestamp, never later.
-    - cron: "30 16 * * *"
-    - cron: "30 19 * * *"
+    # Exactly twelve Beijing-hour slots: 12:00 through 23:00.
+    # 21:00 forecast is the sole settlement baseline; 22/23 do not replace it.
     - cron: "0 4 * * *"
     - cron: "0 5 * * *"
     - cron: "0 6 * * *"
@@ -26,6 +24,8 @@ on:
     - cron: "0 11 * * *"
     - cron: "0 12 * * *"
     - cron: "0 13 * * *"
+    - cron: "0 14 * * *"
+    - cron: "0 15 * * *"
 permissions:
   contents: write
 concurrency:
