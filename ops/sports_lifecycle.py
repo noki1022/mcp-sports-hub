@@ -162,6 +162,9 @@ def run(repo,out,days=120,inventory=None,cache_dir=None):
     rows,admission=build(assets,snapshots)
     policy=json.loads((Path(__file__).resolve().parents[1]/'config/sports_learning_policy.json').read_text())
     study=research(rows,policy)
+    feature_coverage=coverage(rows)
+    feature_coverage['dynamic_coefficients_trained']=any(
+        bool(g.get('conditional_weight_research',{}).get('model')) for g in study['groups'])
     size_mib=metadata['size']/1024
     capacity='CRITICAL' if size_mib>=policy['git_critical_mib'] else 'WARNING' if size_mib>=policy['git_warning_mib'] else 'OK'
     readiness=('NO_FROZEN_FINALS_YET' if not admission['final_files'] else
@@ -178,7 +181,7 @@ def run(repo,out,days=120,inventory=None,cache_dir=None):
         'download_bytes':used,'digest_validated_cache_hits':cache_hits,
         'training_admission':admission,'training_groups':len(study['groups']),
         'learning_readiness':readiness,'hash_bound_snapshot_identities':len(snapshots),
-        'analysis_feature_coverage':coverage(rows),
+        'analysis_feature_coverage':feature_coverage,
         'independent_backup_status':policy['independent_backup_status'],
         'nba_raw_byte_audit':'SEPARATE_EXISTING_NBA_RAW_VAULT_WORKFLOW',
         'production_weights_modified':False,'deleted_original_files':0}

@@ -7,6 +7,7 @@ on:
       - 'ops/sports_learning_dataset.py'
       - 'ops/sports_candidate_archive.py'
       - 'analysis/sports_weight_learning.py'
+      - 'analysis/sports_conditional_weights.py'
       - 'analysis/sports_analysis_features.py'
       - 'config/sports_learning_policy.json'
       - '.github/workflows/sports-data-lifecycle.yml'
@@ -16,11 +17,13 @@ on:
       - 'ops/sports_learning_dataset.py'
       - 'ops/sports_candidate_archive.py'
       - 'analysis/sports_weight_learning.py'
+      - 'analysis/sports_conditional_weights.py'
       - 'analysis/sports_analysis_features.py'
       - 'tests/test_sports_analysis_features.py'
       - 'analysis/sport_match_final_registry.py'
       - 'config/sports_learning_policy.json'
       - 'tests/test_sports_learning_lifecycle.py'
+      - 'tests/test_sports_conditional_weights.py'
       - '.github/workflows/sports-data-lifecycle.yml'
   workflow_run:
     workflows:
@@ -58,6 +61,7 @@ jobs:
       - name: Verify sample isolation, timestamp rejection and immutable evidence
         run: |
           python -m unittest discover -s tests -p test_sports_learning_lifecycle.py -v
+          python -m unittest discover -s tests -p test_sports_conditional_weights.py -v
           python -m unittest discover -s tests -p test_sports_analysis_features.py -v
           python -m unittest discover -s tests -p test_sport_match_final_registry.py -v
   audit-and-research:

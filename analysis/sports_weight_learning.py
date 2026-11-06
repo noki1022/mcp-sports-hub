@@ -127,6 +127,8 @@ def research(rows,policy):
         result.update(status='RESEARCH_ONLY_FUTURE_PROSPECTIVE_CONFIRMATION_REQUIRED',market_weight=selected,
             baseline=baseline,candidate=candidate,day_clustered_logloss_delta_95_interval=ci,
             historical_evidence_pass=bool(selected>0 and ci[1]<0 and candidate['brier']<baseline['brier']))
+        from sports_conditional_weights import study
+        result['conditional_weight_research']=study(train,val,test,selected,policy['max_market_weight'])
         results.append(result)
     return {'schema_version':'sports-weight-research-v1','input_snapshot_rows':len(rows),'independent_event_market_rows':len(latest),
         'rejected':rejected,'groups':results,'production_promotion_allowed':False,
