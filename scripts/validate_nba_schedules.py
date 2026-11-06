@@ -248,7 +248,7 @@ def main():
     # Beijing 22:30–05:30 market-monitor period: 00:30 and 03:30.
     cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
     cloud_crons=cloud["triggers"]["crons"]
-    expected_cloud=["0 4-13,16-22 * * *","30 13,16,19,22 * * *","0 14 * * *"]
+    expected_cloud=["0 4-13,16-22 * * *","30 13,16,19,22 * * *"]
     assert cloud_crons==expected_cloud,(cloud_crons,expected_cloud)
     assert len(cloud_crons)<=5, "CLOUDFLARE_FREE_CRON_ACCOUNT_LIMIT"
     def expand(field):
@@ -267,7 +267,6 @@ def main():
         all_ticks.update((h,m) for h in expand(hour) for m in expand(minute))
     exact={(h,0) for h in list(range(4,14))+list(range(16,23))}
     exact|={(h,30) for h in (13,16,19,22)}
-    exact.add((14,0))
     assert all_ticks==exact,"CLOUDFLARE_HAS_UNAUTHORIZED_RETRY_TICKS"
     worker=(ROOT/"scheduler/worker.mjs").read_text()
     assert 'export async function dispatchFootballAt(' in worker
