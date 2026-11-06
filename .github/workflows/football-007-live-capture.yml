@@ -185,7 +185,7 @@ jobs:
             --asian football-output/football_jc_forecast_market.json \
             --out football-output/football_independent_research.json
           test -s football-output/football_independent_research.json
-      - name: Audit point-in-time football context: opponent IDs, venue, rest, personnel evidence
+      - name: "Audit point-in-time football context: opponent IDs, venue, rest, personnel evidence"
         # Read-only: no model update, no PushPlus, no scoring change.
         # Results live alongside the existing raw archive and source hash.
         continue-on-error: true
