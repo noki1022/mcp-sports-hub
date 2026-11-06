@@ -55,7 +55,7 @@ workflows={
  "nba-injury-live-roster-feature-freeze.yml":["10 18 * * *"]
 }
 # Football has its own independent schedule and never shares NBA slot/delivery logic.
-football_schedule={"football-007-live-capture.yml":["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","30 13 * * *","0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *","30 22 * * *"]}
+football_schedule={"football-007-live-capture.yml":["0 4 * * *","15 4 * * *","30 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","30 13 * * *","0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *","30 22 * * *"]}
 def load(path):
     obj=yaml.safe_load(path.read_text())
     if not isinstance(obj,dict):raise AssertionError(str(path))

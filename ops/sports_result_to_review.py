@@ -90,13 +90,20 @@ def run(repo, out, publish=False, days=7):
                         urls = [f'https://m.titan007.com/analy/Analysis/{mid}.htm']
                     else:
                         date = datetime.fromisoformat(final['kickoff_utc'].replace('Z', '+00:00')).date()
+                        # ESPN date slates follow the US game date, often the
+                        # previous calendar date for a UTC/BJ morning tip.
                         urls = ['https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=' +
-                                date.strftime('%Y%m%d') + '&limit=100']
-                    url = urls[0]
-                    if url not in cache:
-                        cache[url] = fetch(url)
-                    raw, observed = cache[url]
-                    report = V.make(final, raw, url, observed)
+                                d.strftime('%Y%m%d') + '&limit=100' for d in (date, date-timedelta(days=1))]
+                    for url in urls:
+                        if url not in cache:
+                            cache[url] = fetch(url)
+                        raw, observed = cache[url]
+                        try:
+                            report = V.make(final, raw, url, observed)
+                            break
+                        except ValueError as exc:
+                            if str(exc) != 'NBA_EVENT_MISSING_OR_DUPLICATE' or url == urls[-1]:
+                                raise
                     destination = out/sport/day/name
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     destination.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True)+'\n')
