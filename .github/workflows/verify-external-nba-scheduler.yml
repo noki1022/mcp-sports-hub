@@ -46,11 +46,16 @@ jobs:
               '20,30,40 22 * * *',
               '30,40,50 16,19 * * *',
           ]
-          assert crons==expected,(crons,expected)
-          # Only the 00:30/03:30 full-board analysis exceptions may execute
-          # in the normally disabled Beijing 22:30–05:30 hourly-monitor window.
+          soccer=[
+              '20,35 4-13,16-21 * * *',
+              '35 22 * * *',
+              '42,52 13,22 * * *',
+          ]
+          assert crons==expected+soccer,(crons,expected+soccer)
+          # NBA-only overnight market monitoring remains disabled; football
+          # night captures are intentionally supported by a separate dispatcher.
           overnight=set()
-          for expr in crons:
+          for expr in expected:
               minute_field,hour_field,*_=expr.split()
               minutes=[int(x) for x in minute_field.split(',')]
               hours=[int(x) for x in hour_field.split(',')]
@@ -76,6 +81,9 @@ jobs:
           assert 'const MIDNIGHT_REPORTS=[' in worker
           assert '"titan007-three-analysis.yml"' in worker
           assert 'slot:f.slot' in worker
+          assert 'export function dispatchFootballAt(' in worker
+          assert 'FOOTBALL_DISPATCH_ACCEPTED_NOT_COMPLETED' in worker
+          assert 'football-007-live-capture.yml' in worker
           assert not Path(".github/workflows/deploy-cloudflare-secondary-scheduler.yml").exists()
           print("EXISTING_CLOUDFLARE_WORKERS_BUILDS_INTEGRATION_PRESERVED")
           PY
