@@ -49,7 +49,7 @@ class TestRegistry(unittest.TestCase):
         self.assertEqual(final["matched_games"][0]["state"],"LOCKED_AFTER_KICKOFF")
         self.assertEqual(final["matched_games"][0]["scoring_baseline_2100_sha256"],b["records"][0]["record_sha256"])
     def test_last_valid_pretip_wins_not_latest_run_id(self):
-        old=S.make_candidate("football",*football(BASE),123,"2130")
+        old=S.make_candidate("football",*football(BASE),123,"2100")
         snap,new=football(TIP-timedelta(minutes=10))
         new["games"][0]["markets"]["had"]["direction"]="客胜"
         current=S.make_candidate("football",snap,new,124,"2300")
@@ -59,7 +59,7 @@ class TestRegistry(unittest.TestCase):
         self.assertTrue(result["scoring_baseline_unchanged"])
         self.assertEqual(result["window"],"EARLIER_VALID_PRETIP")
     def test_postkickoff_cannot_replace_or_inflate_count(self):
-        before=S.make_candidate("football",*football(BASE),123,"2130")
+        before=S.make_candidate("football",*football(BASE),123,"2100")
         late=S.make_candidate("football",*football(TIP+timedelta(minutes=1)),124,"0900")
         self.assertEqual(len(late["skipped"]),1)
         a=S.select([before,late,before],iso(TIP+timedelta(hours=1)))["matched_games"][0]
@@ -69,7 +69,7 @@ class TestRegistry(unittest.TestCase):
         snapshot,forecast=football()
         forecast["model_version"]="football-jc-poisson-research-v1"
         with self.assertRaisesRegex(ValueError,"ONLY_FUSED"):
-            S.make_candidate("football",snapshot,forecast,125,"2130")
+            S.make_candidate("football",snapshot,forecast,125,"2100")
     def test_bad_football_source_digest_blocks(self):
         snap,pred=football()
         snap["games"][0]["home_team"]="错"
@@ -77,7 +77,7 @@ class TestRegistry(unittest.TestCase):
             S.make_candidate("football",snap,pred,123)
     def test_nba_five_markets_and_quote_pre_tip(self):
         snap,pred=nba()
-        row=S.make_candidate("basketball",snap,pred,8,"2130")
+        row=S.make_candidate("basketball",snap,pred,8,"2100")
         self.assertEqual(len(row["records"][0]["markets"]),5)
         S.check_bundle(row)
         pred["games"][0]["markets"]["CROWN_TOTAL"]["captured_at_utc"]=iso(TIP+timedelta(minutes=1))
@@ -93,7 +93,7 @@ class TestRegistry(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"HOME_AWAY"):
             S.make_candidate("basketball",snap,pred,1)
     def test_identity_drift_and_tamper_blocks(self):
-        one=S.make_candidate("football",*football(BASE),1,"2130")
+        one=S.make_candidate("football",*football(BASE),1,"2100")
         later=S.make_candidate("football",*football(BASE+timedelta(hours=1),TIP+timedelta(minutes=20)),2,"2200")
         with self.assertRaisesRegex(ValueError,"IDENTITY_OR_KICKOFF"):
             S.select([one,later],iso(TIP+timedelta(hours=1)))
@@ -105,7 +105,7 @@ class TestRegistry(unittest.TestCase):
         old=S.make_candidate("football",*football(BASE),123,"2130")
         snap,new=football(TIP-timedelta(minutes=8))
         new["games"][0]["markets"]["had"]["direction"]="客胜"
-        newest=S.make_candidate("football",snap,new,124,"0630")
+        newest=S.make_candidate("football",snap,new,124,"2300")
         self.assertEqual(S.publishable_final_documents([old,newest],iso(TIP+timedelta(minutes=20))),[])
         first=S.publishable_final_documents([old,newest],iso(TIP+timedelta(hours=2)))
         self.assertEqual(len(first),1)
