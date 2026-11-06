@@ -14,7 +14,7 @@ def planned(schedule:str)->str:
     text=str(schedule or "").strip()
     if not text:
         return "MANUAL"
-    m=re.fullmatch(r"(0|30) (\d{1,2}) \* \* \*",text)
+    m=re.fullmatch(r"0 (\d{1,2}) \* \* \*",text)
     if not m:
         raise ValueError("UNRECOGNIZED_FOOTBALL_CAPTURE_CRON")
     minute,hour=0,int(m.group(1))
