@@ -1,8 +1,5 @@
-name: NBA PRIORITY 21:30 Beijing pre-cutoff report
+name: NBA historical 21:30 priority diagnostic (automatic disabled)
 on:
-  schedule:
-    # Single exact 21:30 trigger; no delayed backup or compensation send.
-    - cron: "30 13 * * *"
   workflow_dispatch:
 permissions:
   contents: write
