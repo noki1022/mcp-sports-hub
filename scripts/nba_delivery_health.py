@@ -194,16 +194,12 @@ def alert_html(report:dict)->str:
 def self_test():
     """Only exact-slot audit and immutable acceptance, never dispatch or alert."""
     from datetime import datetime
-    for h in range(12,22):
+    for h in range(12,24):
         slot=f"{h:02d}00"
         cron=f"0 {h-8} * * *"
         when=datetime.fromisoformat(f"2026-11-06T{h:02d}:00:00+08:00")
         assert infer_slot(cron,when)==(slot,"2026-11-07")
         assert expected_workflow(slot)=="titan007-three-analysis.yml"
-    for cron,when,slot,date in [
-        ("30 16 * * *","2026-11-07T00:30:00+08:00","0030","2026-11-07"),
-        ("30 19 * * *","2026-11-07T03:30:00+08:00","0330","2026-11-07")]:
-        assert infer_slot(cron,datetime.fromisoformat(when))==(slot,date)
     assert len(SCHEDULES)==12
     with tempfile.TemporaryDirectory() as d:
         root=Path(d)
