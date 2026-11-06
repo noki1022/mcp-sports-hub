@@ -1,118 +1,66 @@
-# Cloudflare Workers Builds — shared NBA + football secondary scheduler
+# Basketball + football: exact-time dual scheduling (no compensation)
 
-The existing Cloudflare Worker **nba-external-schedule-watchdog** is already
-linked to this GitHub repository through **Cloudflare Workers Builds**. GitHub
-commit checks dated Nov 1–2, 2026 show successful Cloudflare production builds,
-including the Nov 2 merge of PR #202 (Cloudflare production version ID
-`191d4403-54a8-44c2-aafa-3ba5f42cf65a`). This is evidence of the
-existing production build integration, NOT a live Cron execution log.
+This directory controls the existing Cloudflare Worker `nba-external-schedule-watchdog`.
+It does **not** execute 007 collection, inference, raw archiving, PushPlus delivery,
+or settlement. Those jobs remain in GitHub Actions.
 
-The older one-off GitHub Actions workflow called "Deploy Cloudflare primary NBA
-scheduler" reported missing credentials and skipped its own Wrangler steps.
-That does **not** mean the independent Cloudflare Workers Builds integration
-failed or that the existing Worker needs redeployment through a second system.
-Do not create or request another Worker or GitHub Actions deployment route.
+## Production policy (2026-11-06)
 
-## Architecture
+1. Both GitHub native cron and the same existing Cloudflare Worker cron fire at
+   the **single canonical minute**. There are no delayed backup minutes,
+   retry Cron triggers, resend workflows, or failure-driven compensatory sends.
+2. Cloudflare may issue **one** workflow_dispatch at that exact timestamp.
+   It inspects the canonical GitHub run and accepted/claimed marker first;
+   if another run has already claimed that slot, it does not redispatch.
+   Failure of that run **never** causes another dispatch.
+3. GitHub's canonical run still has its normal runtime; queue latency and
+   network/data availability are recorded as such. An original scheduled job
+   executing after its trigger is **not** a second notification attempt.
+4. NBA uses committed `reports/pushplus-sent` API acceptance markers;
+   football uses immutable one-slot Release claim assets. Both are for
+   **deduplication only**, never authorization to retry a failed send.
+5. The existing delivery-health workflow is **manual, read-only**. It has no
+   GitHub Actions write permission or PushPlus credentials and cannot dispatch.
+6. The old standalone NBA schedule-fallback sender, auto-recovery script,
+   manual compact resend workflow, and autonomous-recovery verification
+   workflow were removed. Do not restore them under another name.
+7. Original raw captures, independent pre-match evidence, 21:30 grading
+   baselines, and official postgame settlement are separate from delivery
+   remediation. Do not modify/erase old archived evidence.
 
-- **Cloudflare Cron**: independent, best-effort trigger, backed by
-  `scheduler/worker.mjs` and `scheduler/wrangler.toml`.
-- **GitHub Actions**: only executor of 007 collection, model analysis,
-  report creation and PushPlus API sending.
-- **Shared accepted marker**: both trigger paths check the GitHub
-  `reports/pushplus-sent/YYYY-MM-DD/<slot>.json` ledger. The Worker also
-  checks running/completed GitHub workflow state to avoid duplicate dispatch.
-- **No direct Cloudflare PushPlus**: dispatch HTTP 204 means GitHub accepted
-  a workflow request, not that the analysis ran or an iPhone received a push.
+## Beijing schedule
 
-The Cloudflare schedule includes the normal daytime fixed slots, priority
-21:30/06:30, the 22:00 official-final review recovery, and precisely two
-overnight full-report exceptions: **00:30** and **03:30 Beijing time**.
-Each new slot has Cloudflare backup checks at :30, :40 and :50. The old
-Beijing 22:30–05:30 *hourly odds-monitoring* chain remains disabled.
+| Sport | Actual scheduled triggers |
+| --- | --- |
+| Basketball full reports | 12:00–21:00 hourly, plus 00:30 and 03:30 |
+| Basketball priorities | 21:30 and 06:30 |
+| Football analysis/push | 12:00–21:00 hourly |
+| Football priorities | 21:30 and 06:30 |
+| Football silent captures | 00:00–06:00 hourly |
+| Basketball silent captures | 00:00–06:00 hourly |
 
-## Football independent backup (same Worker, no second deployment)
+The review of completed games is driven by verified official-FINAL evidence,
+not by replaying a missed pre-match notification. Do not mistake a GitHub
+workflow status of success, a Cloudflare dispatch 204, or a PushPlus API
+acceptance for an iPhone delivery receipt.
 
-The existing Worker **nba-external-schedule-watchdog** retains its original NBA
-schedule and dispatch flow. Football uses distinct plannedFootballJob /
-dispatchFootballAt checks. The only football action Cloudflare performs is
-GitHub workflow_dispatch for **football-007-live-capture.yml**; GitHub still
-runs capture, independent model analysis, raw Release archiving and PushPlus.
+## Worker Cron configuration
 
-**Beijing schedule and recovery checks**
+```toml
+crons = ["0 4-13,16-22 * * *", "30 13,16,19,22 * * *"]
+```
 
-- Football 12:00–21:00 hourly: checks at :20 and :35 each hour. GitHub
-  original schedules (including native noon retries) remain primary.
-- Football 21:30 and 06:30: checks at :42 and :52. Existing unique
-  football PushPlus Release claim remains the final sender safeguard.
-- Football 00:00–06:00 hourly: :20/:35 backup collection, no phone push.
-  This does not enable NBA overnight hourly market monitoring.
+The two Cron expressions cover all canonical Cloudflare triggers, do not
+exceed the Cloudflare Free limit of five, and have **zero noncanonical
+recovery ticks**. GitHub scheduled tasks are enumerated in the corresponding
+workflow YAML files and validated by `scripts/validate_nba_schedules.py`,
+`scheduler/test-scheduler.mjs`, and the no-resend P0 gate.
 
-**Cloudflare Free Cron limit compatibility**: the first shared deployment
-failed after the Worker config grew to eight expressions. Cloudflare Workers
-Free permits only five account-level Cron Triggers. The original five NBA
-triggers and three new football triggers have therefore been consolidated
-into exactly five *superset* patterns in the SAME Worker:
+## Deployment and verification
 
-- 0,8,18,20,28,35 4,6,7,10 * * *
-- 0,7,16,20,30,35,40,42,52 13 * * *
-- 0,10,20,35 14 * * *
-- 20,30,35,40,42,52 22 * * *
-- 20,30,35,40,50 5,8,9,11,12,16-21 * * *
-
-This deliberately adds a limited number of no-op ticks. The Worker still
-filters exact NBA and football slots before ANY GitHub API request. Unit
-tests compare full tick coverage against every existing NBA time and every
-new football backup. No second Worker, external scheduler, or plan upgrade is
-needed. Verify a successful Cloudflare production build before claiming this
-repair actually deployed.
-
-**Safety**: Worker checks Release claims/accepted receipts and matching
-same-day queued/running/successful Actions before recovery. Failed runs may
-be retried within bounded windows, but a claimed or API-accepted push is
-never automatically resent. GitHub independently validates recovery day,
-cron and freshness before collecting. Raw archives remain append-only by
-run ID + attempt, and the actual acquisition timestamp is not replaced with
-the planned slot time. Unknown/late/cross-day requests fail closed. A manual
-workflow_dispatch without recovery inputs remains capture-only.
-
-**Production acceptance**: Verify the new main commit is actually deployed
-by the existing Cloudflare Workers Builds integration, check actual live
-Cron Triggers and logs for FOOTBALL_EXTERNAL_SCHEDULE, correlate with GitHub
-workflow_dispatch and separate release/archive/PushPlus receipt records.
-GitHub test success alone does not prove the Worker went live or that an
-iPhone received a notification.
-
-## Verify production synchronization after a merge
-
-1. Open Cloudflare dashboard > Workers & Pages >
-   `nba-external-schedule-watchdog` > Deployments/Builds. Confirm the new
-   `main` commit was built **and deployed to production**. This repository
-   already has the Cloudflare Workers Builds GitHub integration; a separate
-   GitHub Actions deployment workflow is neither needed nor wanted.
-2. In the same Worker, inspect **Triggers > Cron Triggers**. Confirm exact
-   expression `30,40,50 16,19 * * *` exists alongside existing triggers.
-   Merely seeing it in Git does not prove Cloudflare applied it.
-3. Inspect Cloudflare Worker **Logs/Observability** for actual Cron
-   invocations at Beijing 00:30/00:40/00:50, 03:30/03:40/03:50.
-   Look for `NBA_EXTERNAL_SCHEDULE`, `WORKFLOW_RUNNING`,
-   `API_ALREADY_ACCEPTED`, or `DISPATCH_ACCEPTED_NOT_COMPLETED`,
-   and investigate `NBA_EXTERNAL_SCHEDULE_FAILED`.
-4. Correlate with GitHub Actions full-board run records for the same
-   Beijing slot. A `workflow_dispatch` event alone does not prove Cloudflare
-   originated it; the Cloudflare Worker invocation log is the independent
-   origin evidence.
-5. Validate API-accepted PushPlus markers for both slots and confirm that
-   only one per-slot full report was sent. An accepted marker proves PushPlus
-   server acceptance, not handset receipt.
-
-If the live Cloudflare Cron set differs from `wrangler.toml`, investigate
-the existing Workers Builds build/deploy configuration and its active root/
-config. **Do not** silently build a second Worker or replace the existing
-integration. There is no known Cloudflare API connector in this session,
-so live Worker Cron and logs must not be claimed verified from GitHub alone.
-
-This secondary scheduler cannot guarantee exact-second timing: even after
-Cloudflare Cron fires promptly, the triggered GitHub Actions job may queue.
-All Beijing dates are Asia/Shanghai; a started game or expired analysis
-window must not receive a stale pre-tip full-board prediction.
+The existing GitHub-linked Cloudflare Workers Builds integration deploys
+Worker code/config. A green GitHub check is build evidence, not proof of
+a live Cron execution. Inspect deployed version, actual Cron Trigger list,
+and Worker logs; match its one dispatch against GitHub canonical workflow run,
+analysis artifact, archive, and PushPlus API acceptance marker. Escalate
+a missing marker as a *failure to investigate*, **never as a reason to resend**.
