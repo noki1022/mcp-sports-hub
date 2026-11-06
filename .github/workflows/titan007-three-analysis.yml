@@ -404,6 +404,13 @@ jobs:
           if [ "$count" -gt 0 ]; then
             dir="reports/daily/${TARGET_DATE}/${REPORT_SLOT}"
             mkdir -p "$dir"
+            if [ "$REPORT_SLOT" = "2100" ] && git cat-file -e "origin/main:$dir/nba_five_market_forecast.json" 2>/dev/null; then
+              git show "origin/main:$dir/nba_five_market_forecast.json" > "$RUNNER_TEMP/original-2100.json"
+              cmp "$RUNNER_TEMP/original-2100.json" nba_five_market_forecast.json || {
+                echo "::error::IMMUTABLE_2100_FORECAST_EXISTS; refusing replacement or divergent push"
+                exit 1
+              }
+            fi
             cp titan007_three_joined.json titan007_three_report.html titan007_three_report.csv titan007_three_market.json titan007_three_decision.json titan007_three_movement.json nba_two_market_forecast.json nba_market_consensus.json nba_five_market_forecast.json nba_model_analysis.json nba_jingcai_three_market.json nba_injury_context.json nba_dynamic_five_market_shadow.json nba_match_candidates.json "$dir"/
             git config user.name github-actions[bot]
             git config user.email 41898282+github-actions[bot]@users.noreply.github.com
@@ -523,4 +530,5 @@ jobs:
             nba_offday_pushplus_preview.html
           if-no-files-found: warn
           retention-days: 14
+
 
