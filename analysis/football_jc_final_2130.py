@@ -19,7 +19,7 @@ VERSION="football-jc-single-final-2100-v1"
 from football_jc_asian_assimilation import VERSION as FUSED_VERSION  # one producer-owned contract
 KEYS=("had","hhad","ttg")
 LABELS={"had":"竞彩胜平负","hhad":"竞彩让球胜平负","ttg":"竞彩总进球数"}
-MAX_DELAY=120 # late GitHub dispatch cannot masquerade as exact 21:30 capture
+MAX_DELAY=120 # scheduled 21:00 source window; never relabel a late capture as on-time
 
 def as_dt(s):
     d=datetime.fromisoformat(str(s).replace("Z","+00:00"))
@@ -250,5 +250,16 @@ def cli():
     path=Path(a.out)
     path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n","utf-8")
-    print("FOOTBALL_JC_2130_0630",a.mode,"games",len(result.get("games",[])))
+    if a.mode=="freeze":
+        # The immutable 21:00 payload stores fixture facts under snapshot_facts,
+        # not games. Reporting the legacy key silently printed zero for a
+        # successfully frozen non-empty slate.
+        source_games=len(snapshot["games"])
+        frozen_games=len(result["snapshot_facts"])
+        forecast_games=len(result["forecast"]["games"])
+        if source_games!=frozen_games or frozen_games!=forecast_games:
+            raise ValueError("FROZEN_2100_GAME_COUNT_MISMATCH")
+        print("FOOTBALL_JC_FINAL_2100",a.mode,"source_games",frozen_games)
+    else:
+        print("FOOTBALL_JC_LEGACY_COMPARE",a.mode,"changed_games",len(result.get("games",[])))
 if __name__=="__main__":cli()
