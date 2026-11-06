@@ -12,35 +12,17 @@ on:
         required: false
         type: string
   schedule:
-    # Full-board overnight reports: Beijing 00:30 and 03:30, with bounded retries.
+    # One and only one native trigger per Beijing report slot.
+    # Cloudflare independently triggers at the SAME timestamp, never later.
     - cron: "30 16 * * *"
-    - cron: "45 16 * * *"
-    - cron: "0 17 * * *"
     - cron: "30 19 * * *"
-    - cron: "45 19 * * *"
-    - cron: "0 20 * * *"
-    # 12:00 Beijing full-board report and bounded retries.
     - cron: "0 4 * * *"
-    # Retry opportunities when GitHub drops/delays the 12:00 scheduled event.
-    - cron: "15 4 * * *"
-    - cron: "30 4 * * *"
-    # New Beijing 13:00 full-board capture, analysis and push.
     - cron: "0 5 * * *"
-    # Beijing 14:00 full-board report, plus delayed recovery triggers.
     - cron: "0 6 * * *"
-    - cron: "15 6 * * *"
-    - cron: "30 6 * * *"
-    # Full-board dynamic market and model reviews: 15:00/18:00 Beijing, recover at :15/:30.
     - cron: "0 7 * * *"
-    - cron: "15 7 * * *"
-    - cron: "30 7 * * *"
-    # Newly requested 16:00 / 17:00 complete reviews.
     - cron: "0 8 * * *"
     - cron: "0 9 * * *"
     - cron: "0 10 * * *"
-    - cron: "15 10 * * *"
-    - cron: "30 10 * * *"
-    # Newly requested 19:00 / 20:00 complete reviews.
     - cron: "0 11 * * *"
     - cron: "0 12 * * *"
     - cron: "0 13 * * *"
@@ -86,7 +68,7 @@ jobs:
       - name: Preflight canonical slot and verified acceptance
         id: preflight
         run: |
-          # Remote ledger is authoritative; completed retries must not refetch 007 or recalculate.
+          # Remote API-acceptance ledger is authoritative; same-slot duplicates skip.
           git fetch --quiet origin main
           python3 scripts/nba_fixed_slot_gate.py --phase preflight
       - name: Install locked NBA numerical dependency
@@ -156,7 +138,7 @@ jobs:
             # Ad-hoc capture has its own immutable ONCE delivery ledger; never
             # forge a 12:00 noon cohort from an arbitrary manual capture time.
             echo "ONE_TIME_MANUAL_CAPTURE_NO_NOON_LOCK"
-          elif [ "$EXTERNAL_REPORT_SLOT" = "1200" ] || [ "$SCHEDULE_EXPR" = "0 4 * * *" ] || [ "$SCHEDULE_EXPR" = "15 4 * * *" ] || [ "$SCHEDULE_EXPR" = "30 4 * * *" ]; then
+          elif [ "$EXTERNAL_REPORT_SLOT" = "1200" ] || [ "$SCHEDULE_EXPR" = "0 4 * * *" ]; then
             if [ -f "reports/noon-cohorts/$TARGET_DATE/1200.json" ]; then
               echo "EXISTING_NOON_COHORT_RETAINED"
               python3 scripts/nba_noon_slate.py enforce --joined titan007_three_joined.json --lock "reports/noon-cohorts/$TARGET_DATE/1200.json" --out nba_same_slate.json
@@ -504,49 +486,6 @@ jobs:
             git commit -m "Mark PushPlus accepted ${TARGET_DATE} ${REPORT_SLOT}"
             for i in 1 2 3; do
               if git push; then exit 0; fi
-              git pull --rebase origin main
-            done
-            exit 1
-          fi
-      - name: Failsafe verified NBA schedule PushPlus when full report fails
-        if: ${{ failure() && steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true' && steps.preflight.outcome == 'success' && steps.recheck.outcome != 'failure' && steps.final_pretip.outcome != 'failure' }}
-        env:
-          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
-        run: |
-          FALLBACK_SLOT="${REPORT_SLOT:-}"
-          case "$FALLBACK_SLOT" in
-            0030|0330|1200|1400|1500|1800|2100|ONCE|ONCE-*) ;;
-            *) echo "FALLBACK_UNKNOWN_SLOT" >&2; exit 1 ;;
-          esac
-          # If PushPlus accepted the full report but the later Git marker write failed,
-          # never send a second schedule-only notification for the same slot.
-          if python3 - <<'PY'
-          import json
-          from pathlib import Path
-          try:
-              accepted=json.loads(Path("pushplus_status.json").read_text()).get("state")=="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
-          except (OSError,ValueError):
-              accepted=False
-          raise SystemExit(0 if accepted else 1)
-          PY
-          then
-            echo "FULL_REPORT_API_ACCEPTED_SKIP_FALLBACK"
-            exit 0
-          fi
-          git fetch --quiet origin main
-          python3 scripts/nba_fixed_slot_gate.py --phase recheck >> /tmp/fallback_gate_status
-          if grep -q 'API_ALREADY_ACCEPTED' /tmp/fallback_gate_status; then
-            echo "Full report already accepted; suppress fallback"
-            exit 0
-          fi
-          python3 scripts/nba_schedule_fallback_push.py --target "$TARGET_DATE" --slot "$FALLBACK_SLOT"
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add reports/schedule-fallback-sent/
-          if ! git diff --cached --quiet; then
-            git commit -m "Record verified NBA schedule fallback PushPlus acceptance"
-            for n in 1 2 3; do
-              if git push origin HEAD:main; then exit 0; fi
               git pull --rebase origin main
             done
             exit 1
