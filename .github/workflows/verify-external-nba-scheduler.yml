@@ -81,7 +81,7 @@ jobs:
           assert 'const MIDNIGHT_REPORTS=[' in worker
           assert '"titan007-three-analysis.yml"' in worker
           assert 'slot:f.slot' in worker
-          assert 'export function dispatchFootballAt(' in worker
+          assert 'export async function dispatchFootballAt(' in worker
           assert 'FOOTBALL_DISPATCH_ACCEPTED_NOT_COMPLETED' in worker
           assert 'football-007-live-capture.yml' in worker
           assert not Path(".github/workflows/deploy-cloudflare-secondary-scheduler.yml").exists()
