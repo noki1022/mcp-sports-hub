@@ -174,10 +174,14 @@ def select(bundles,as_of):
     chosen=[]
     for key,rows in sorted(grouped.items()):
         rows.sort(key=lambda r:(stamp(r["generated_utc"]),stamp(r["capture_utc"]),int(r["run_id"])))
-        latest=rows[-1]
+        # The official grading baseline is exactly the 21:00 original.
+        # Later 22:00/23:00 forecasts remain independently archived.
+        reference=[r for r in rows if r["planned_slot_beijing"]=="2100"]
+        if not reference:
+            continue  # missing 21:00 is not permission to invent a baseline
+        latest=reference[-1]
         tip=stamp(latest["kickoff_utc"])
-        reference=[r for r in rows if r["planned_slot_beijing"]=="2130"]
-        baseline=reference[-1] if reference else None
+        baseline=latest
         lead=(tip-stamp(latest["generated_utc"])).total_seconds()/60
         if lead<3:
             window="WITHIN_3_MINUTES_PRETIP"
@@ -191,7 +195,7 @@ def select(bundles,as_of):
             "home_id":latest["home_id"],"away_id":latest["away_id"],
             "kickoff_utc":latest["kickoff_utc"],
             "state":"LOCKED_AFTER_KICKOFF" if now>=tip else "PENDING_MAY_STILL_CHANGE",
-            "selection_rule":"LATEST_ACTUALLY_GENERATED_VERIFIED_PRETIP",
+            "selection_rule":"ONLY_BEIJING_2100_IMMUTABLE_FORECAST",
             "capture_utc":latest["capture_utc"],"generated_utc":latest["generated_utc"],
             "lead_minutes":round(lead,2),"window":window,
             "run_id":latest["run_id"],"model_version":latest["model_version"],
@@ -199,8 +203,8 @@ def select(bundles,as_of):
             "source_snapshot_sha256":latest["source_snapshot_sha256"],
             "forecast_sha256":latest["forecast_sha256"],
             "original_candidate_sha256":latest["record_sha256"],
-            "comparison_only_2130_sha256":baseline["record_sha256"] if baseline else None,
-            "is_different_from_2130":bool(baseline and baseline["record_sha256"]!=latest["record_sha256"]),
+            "scoring_baseline_2100_sha256":baseline["record_sha256"],
+            "scoring_baseline_unchanged":True,
             "markets":deepcopy(latest["markets"]),"valid_candidate_count":len(rows)})
     output={"schema_version":FINAL_SCHEMA,"as_of_utc":now.isoformat(),
             "scoring_contract":"SCORE_ONLY_LOCKED_AFTER_KICKOFF_USING_ORIGINAL_FORECAST",
