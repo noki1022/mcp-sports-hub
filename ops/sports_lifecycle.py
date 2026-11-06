@@ -10,6 +10,7 @@ from pathlib import Path
 from zipfile import ZipFile
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'analysis'))
 from sports_weight_learning import research
+from sports_analysis_features import coverage
 from sports_learning_dataset import build,digest
 
 
@@ -177,6 +178,7 @@ def run(repo,out,days=120,inventory=None,cache_dir=None):
         'download_bytes':used,'digest_validated_cache_hits':cache_hits,
         'training_admission':admission,'training_groups':len(study['groups']),
         'learning_readiness':readiness,'hash_bound_snapshot_identities':len(snapshots),
+        'analysis_feature_coverage':coverage(rows),
         'independent_backup_status':policy['independent_backup_status'],
         'nba_raw_byte_audit':'SEPARATE_EXISTING_NBA_RAW_VAULT_WORKFLOW',
         'production_weights_modified':False,'deleted_original_files':0}
