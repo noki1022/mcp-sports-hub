@@ -254,30 +254,42 @@ def main():
     cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
     cloud_crons=cloud["triggers"]["crons"]
     expected_cloud=[
-        "0,8,18,28 4,6,7,10 * * *",
-        "0,7,16,30,40 13 * * *",
-        "0,10,20 14 * * *",
-        "20,30,40 22 * * *",
-        "30,40,50 16,19 * * *",
+        "0,8,18,20,28,35 4,6,7,10 * * *",
+        "0,7,16,20,30,35,40,42,52 13 * * *",
+        "0,10,20,35 14 * * *",
+        "20,30,35,40,42,52 22 * * *",
+        "20,30,35,40,50 5,8,9,11,12,16-21 * * *",
     ]
-    football_cloud=[
-        "20,35 4-13,16-21 * * *",
-        "35 22 * * *",
-        "42,52 13,22 * * *",
+    assert cloud_crons==expected_cloud,(cloud_crons,expected_cloud)
+    assert len(cloud_crons)<=5, "CLOUDFLARE_FREE_CRON_ACCOUNT_LIMIT"
+    def expand(field):
+        values=set()
+        for part in field.split(","):
+            if "-" in part:
+                a,b=map(int,part.split("-"))
+                values.update(range(a,b+1))
+            else:
+                values.add(int(part))
+        return values
+    all_ticks=set()
+    for expr in cloud_crons:
+        minute,hour,dom,month,weekday=expr.split()
+        assert (dom,month,weekday)==("*","*","*")
+        all_ticks.update((h,m) for h in expand(hour) for m in expand(minute))
+    original=[
+        ("0,8,18,28","4,6,7,10"),
+        ("0,7,16,30,40","13"),
+        ("0,10,20","14"),
+        ("20,30,40","22"),
+        ("30,40,50","16,19"),
     ]
-    assert cloud_crons==expected_cloud+football_cloud,(cloud_crons,expected_cloud+football_cloud)
-    midnight_ticks=set()
-    # NBA overnight market watcher remains disabled. Soccer-only backups
-    # run separately through plannedFootballJob; do not misclassify them as NBA.
-    for expr in expected_cloud:
-        mm,hh,_,_,_=expr.split()
-        for hour in (int(x) for x in hh.split(",")):
-            for minute in (int(x) for x in mm.split(",")):
-                utc_minute=hour*60+minute
-                if 14*60+30<=utc_minute<=21*60+30:
-                    assert (hour in (16,19) and minute in (30,40,50)),(expr,hour,minute)
-                    midnight_ticks.add(((hour+8)%24,minute))
-    assert midnight_ticks=={(h,m) for h in (0,3) for m in (30,40,50)}
+    nba_required={(h,m) for minutes,hours in original
+                  for h in expand(hours) for m in expand(minutes)}
+    football_hours=set(range(4,14))|set(range(16,23))
+    football_required={(h,m) for h in football_hours for m in (20,35)}
+    football_required|={(h,m) for h in (13,22) for m in (42,52)}
+    assert nba_required<=all_ticks,"NBA_EXISTING_CLOUDFLARE_TICKS_CHANGED"
+    assert football_required<=all_ticks,"FOOTBALL_CLOUDFLARE_BACKUPS_MISSING"
     worker=(ROOT/"scheduler/worker.mjs").read_text()
     assert 'if((h>=22 || h<=5) && [30,40,49].includes(m))' not in worker
     assert 'export async function dispatchFootballAt(' in worker
