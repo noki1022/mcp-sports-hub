@@ -95,6 +95,14 @@ class TestSingleFinal(unittest.TestCase):
         self.assertEqual(record["final_forecast_sha256"],final.sha(self.forecast))
         self.assertIn("FOOTBALL_JC_FINAL_2100 freeze source_games 1",out.getvalue())
         self.assertNotIn("games 0",out.getvalue())
+ def test_hourly_daytime_accepts_all_twelve_slots_including_2200_2300(self):
+    for hour in range(12,24):
+        slot=f"{hour:02d}00"
+        message=push.prepare(self.forecast,"daytime",daytime_slot=slot)
+        self.assertIn(f"{hour:02d}:00",message["title"])
+    for old in ("2130","0630","0000","2400","ONCE"):
+        with self.assertRaisesRegex(ValueError,"UNRECOGNIZED_DAYTIME_CAPTURE_SLOT"):
+            push.prepare(self.forecast,"daytime",daytime_slot=old)
  def test_final_sha_and_2100_lock(self):
     self.assertTrue(self.lock["no_shadow_model"])
     self.assertTrue(self.lock["scored_only_from_this_frozen_forecast"])
