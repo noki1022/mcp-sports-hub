@@ -121,6 +121,11 @@ def run(repo, out, publish=False, days=7):
                             {k: report['matches'][0].get(k) for k in ('home_points', 'away_points')}})
                 except Exception as exc:
                     reason = str(exc)[:180]
+                    if reason == 'NBA_OFFICIAL_RESULT_HOME_AWAY_SWAPPED_OR_UNKNOWN':
+                        identity['identity_diagnostic'] = {
+                            'frozen_home': final['home_team'], 'frozen_away': final['away_team'],
+                            'official_game_id': final['official_game_id'],
+                            'source': V.S.basketball(raw, final['official_game_id'])}
                     pending = reason in ('FOOTBALL_NOT_FINAL', 'NBA_NOT_FINAL', 'NBA_EVENT_MISSING_OR_DUPLICATE',
                                          'REGULATION_STAGE_NOT_VERIFIED', 'REGULATION_SCORE_AMBIGUOUS', 'RESULT_OBSERVED_TOO_EARLY')
                     health['pending' if pending else 'errors'].append(identity | {'reason': reason})
