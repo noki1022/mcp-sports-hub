@@ -158,7 +158,12 @@ def verify_bytes(snapshot,game,raw,observed):
     captured=dt(snapshot["captured_at_utc"])
     time=dt(proof["captured_at_utc"])
     tip=dt(game["kickoff_beijing"])
-    if captured>=tip or time>=tip or time<captured or (time-captured).total_seconds()>600:
+    # The immutable snapshot is finalized after the individual analysis
+    # pages have been fetched. Either clock ordering is valid as long as
+    # both are strictly PRE-KICKOFF and separated by at most 10 minutes.
+    # Requiring page observation >= final snapshot assembly time incorrectly
+    # quarantined all 13 authentic 007 source pages.
+    if captured>=tip or time>=tip or abs((time-captured).total_seconds())>600:
         raise ValueError("DEEP_RESEARCH_AFTER_KICKOFF_OR_SOURCE_CLOCK")
     if dt(observed)!=time:raise ValueError("INCONSISTENT_SOURCE_OBSERVATION_TIME")
     return time,tip
