@@ -59,7 +59,10 @@ jobs:
           from pathlib import Path
           w=Path('.github/workflows/titan007-three-analysis.yml').read_text()
           assert 'ONE_TIME_MANUAL_CAPTURE_NO_NOON_LOCK' in w
-          assert '2100|ONCE' in w
+          # The canonical exact-time schedule and no-fallback send contract.
+          assert '- cron: "0 13 * * *"' in w
+          assert 'nba_schedule_fallback_push.py' not in w
+          assert "Failsafe verified NBA schedule PushPlus when full report fails" not in w
           assert 'GITHUB_EVENT_NAME' in Path('scripts/nba_fixed_slot_gate.py').read_text()
           print('ONE_TIME_MANUAL_DELIVERY_AND_MARKET_COVERAGE_PASS')
           PY
