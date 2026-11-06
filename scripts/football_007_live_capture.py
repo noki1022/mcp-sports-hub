@@ -265,7 +265,8 @@ def enrich_analysis(snapshot,folder):
                 "sha256":sha,"bytes":len(raw),"captured_at_utc":observed}
             detail=analysis_007.extract(raw,game,observed)
             for key in ("home_last5","away_last5","h2h","injury_source_facts",
-                        "injury_report_state","injuries"):
+                        "injury_report_state","injuries",
+                        "season_source_facts","transfer_source_facts"):
                 game[key]=detail[key]
             game["analysis_source_evidence"]=detail["source_evidence"]
             game["analysis_source_status"]="007_EMBEDDED_JSON_VALIDATED"
