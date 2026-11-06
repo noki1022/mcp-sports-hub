@@ -464,6 +464,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
       FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN || secrets.FOOTBALL_PUSHPLUS_TOKEN }}
+      TRIGGER_SCHEDULE: ${{ github.event.schedule || inputs.recovery_cron || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -492,6 +493,25 @@ jobs:
             *) echo "::error::UNKNOWN_FOOTBALL_PRIORITY_SCHEDULE"; exit 1 ;;
           esac
           echo "PRIORITY_SLOT=$SLOT" >> "$GITHUB_ENV"
+          # A late GitHub cron can report success while sending an obsolete
+          # pre-match forecast. Keep the archive, but refuse stale delivery.
+          if ! python3 - <<'PY'
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          import os,sys
+          slot=os.environ["TRIGGER_SCHEDULE"]
+          hour,minute=(21,30) if slot=="30 13 * * *" else (6,30)
+          now=datetime.now(ZoneInfo("Asia/Shanghai"))
+          planned=now.replace(hour=hour,minute=minute,second=0,microsecond=0)
+          lag=(now-planned).total_seconds()
+          limit=75*60 if hour==6 else 60*60
+          sys.exit(0 if 0<=lag<=limit else 2)
+          PY
+          then
+            echo "::warning::STALE_PRIORITY_CAPTURE_ARCHIVED_BUT_NO_DELAYED_PUSH"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ -z "$FOOTBALL_PUSHPLUS_TOKEN" ]; then
             echo "::error::NO_FOOTBALL_PUSHPLUS_TOKEN_ARCHIVE_ONLY"
             exit 1
