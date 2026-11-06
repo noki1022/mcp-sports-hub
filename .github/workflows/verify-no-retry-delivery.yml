@@ -28,6 +28,7 @@ jobs:
           python-version: '3.12'
       - name: All exact-time slots, no compensation and no fallback sender
         run: |
+          python3 -m pip install --quiet PyYAML==6.0.2
           python3 scripts/validate_nba_schedules.py
           python3 scripts/nba_fixed_slot_gate.py --self-test
           python3 scripts/nba_delivery_health.py --self-test
