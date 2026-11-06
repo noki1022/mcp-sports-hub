@@ -75,7 +75,7 @@ class TestSingleFinal(unittest.TestCase):
  def test_reject_early_or_very_late_as_final(self):
     with self.assertRaisesRegex(ValueError,"OUTSIDE_BEIJING_2100"):
         final.freeze(self.snapshot,self.forecast,"2026-11-05",START-timedelta(minutes=4))
-    with self.assertRaisesRegex(ValueError,"OUTSIDE_BEIJING_2130"):
+    with self.assertRaisesRegex(ValueError,"OUTSIDE_BEIJING_2100"):
         final.freeze(self.snapshot,self.forecast,"2026-11-05",START+timedelta(hours=3))
  def test_0630_reversal_includes_old_new_and_basis(self):
     current=source(NEXT)
