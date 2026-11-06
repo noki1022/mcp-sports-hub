@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Football-only 21:30 immutable final and 06:30 change gate contract tests."""
 import copy
+import io
+import json
+from contextlib import redirect_stdout
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 import sys
@@ -67,6 +72,29 @@ class TestSingleFinal(unittest.TestCase):
     stale["model_version"]="football-jc-poisson-asian-assimilation-v3"
     with self.assertRaisesRegex(ValueError,"MUST_SEND_SINGLE_INTEGRATED_FOOTBALL_MODEL"):
         push.prepare(stale,"daytime",daytime_slot="1600")
+ def test_2100_cli_reports_frozen_snapshot_facts_not_legacy_games(self):
+    # The frozen document stores snapshot_facts + forecast, not a top-level
+    # games list. A successful freeze must never emit misleading 'games 0'.
+    with TemporaryDirectory() as folder:
+        root=Path(folder)
+        snapshot_file=root/"snapshot.json"
+        forecast_file=root/"forecast.json"
+        output=root/"locked.json"
+        snapshot_file.write_text(json.dumps(self.snapshot),encoding="utf-8")
+        forecast_file.write_text(json.dumps(self.forecast),encoding="utf-8")
+        out=io.StringIO()
+        argv=["football_jc_final_2130.py","--mode","freeze",
+              "--snapshot",str(snapshot_file),"--forecast",str(forecast_file),
+              "--day","2026-11-05","--out",str(output),
+              "--now",(START+timedelta(minutes=3)).isoformat()]
+        with patch.object(sys,"argv",argv),redirect_stdout(out):
+            final.cli()
+        record=json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(len(record["snapshot_facts"]),1)
+        self.assertEqual(len(record["forecast"]["games"]),1)
+        self.assertEqual(record["final_forecast_sha256"],final.sha(self.forecast))
+        self.assertIn("FOOTBALL_JC_FINAL_2100 freeze source_games 1",out.getvalue())
+        self.assertNotIn("games 0",out.getvalue())
  def test_final_sha_and_2100_lock(self):
     self.assertTrue(self.lock["no_shadow_model"])
     self.assertTrue(self.lock["scored_only_from_this_frozen_forecast"])
