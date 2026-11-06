@@ -48,10 +48,24 @@ runs capture, independent model analysis, raw Release archiving and PushPlus.
 - Football 00:00–06:00 hourly: :20/:35 backup collection, no phone push.
   This does not enable NBA overnight hourly market monitoring.
 
-The added Cron expressions in the SAME wrangler.toml file are:
-- 20,35 4-13,16-21 * * *
-- 35 22 * * *
-- 42,52 13,22 * * *
+**Cloudflare Free Cron limit compatibility**: the first shared deployment
+failed after the Worker config grew to eight expressions. Cloudflare Workers
+Free permits only five account-level Cron Triggers. The original five NBA
+triggers and three new football triggers have therefore been consolidated
+into exactly five *superset* patterns in the SAME Worker:
+
+- 0,8,18,20,28,35 4,6,7,10 * * *
+- 0,7,16,20,30,35,40,42,52 13 * * *
+- 0,10,20,35 14 * * *
+- 20,30,35,40,42,52 22 * * *
+- 20,30,35,40,50 5,8,9,11,12,16-21 * * *
+
+This deliberately adds a limited number of no-op ticks. The Worker still
+filters exact NBA and football slots before ANY GitHub API request. Unit
+tests compare full tick coverage against every existing NBA time and every
+new football backup. No second Worker, external scheduler, or plan upgrade is
+needed. Verify a successful Cloudflare production build before claiming this
+repair actually deployed.
 
 **Safety**: Worker checks Release claims/accepted receipts and matching
 same-day queued/running/successful Actions before recovery. Failed runs may
