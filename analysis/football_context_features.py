@@ -8,7 +8,9 @@ A nearMatches score is not an independently confirmed official final result.
 Never read betting prices or use future/post-kickoff information.
 """
 from __future__ import annotations
+import argparse
 from datetime import datetime, timezone
+from pathlib import Path
 import hashlib
 import json
 import math
@@ -175,3 +177,22 @@ def analyze(snapshot):
                   "features_ready":sum(r["status"]=="SOURCE_FEATURES_EXTRACTED_NOT_MODEL_WEIGHTS" for r in out),
                   "quarantined":sum(r["status"]=="FEATURES_QUARANTINED" for r in out)}
     }
+
+
+def main():
+    parser=argparse.ArgumentParser(description="Read-only 007 football feature audit (no model update)")
+    parser.add_argument("--snapshot",required=True)
+    parser.add_argument("--out",required=True)
+    args=parser.parse_args()
+    raw=Path(args.snapshot).read_bytes()
+    if not raw or len(raw)>25_000_000:
+        raise ValueError("FOOTBALL_CONTEXT_INPUT_NOT_VALID_SIZE")
+    report=analyze(json.loads(raw))
+    path=Path(args.out)
+    path.parent.mkdir(parents=True,exist_ok=True)
+    path.write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    print("FOOTBALL_CONTEXT_FEATURES_RESEARCH",json.dumps(report["counts"],sort_keys=True))
+
+
+if __name__=="__main__":
+    main()
