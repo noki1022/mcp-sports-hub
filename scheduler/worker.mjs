@@ -63,7 +63,7 @@ async function acceptedBasketball(job,env,fetcher){
   const p=await r.json();
   if(typeof p.content!=="string")throw Error("NBA_MARKER_BAD_CONTENT");
   let data;
-  try{data=JSON.parse(atob(p.content.replace(/\\s/g,"")))}
+  try{data=JSON.parse(atob(p.content.replace(/\s/g,"")))}
   catch{throw Error("NBA_MARKER_BAD_JSON")}
   return data.slot===job.slot&&data.state==="API_ACCEPTED_NOT_DEVICE_CONFIRMED";
 }
@@ -71,7 +71,7 @@ function matchesBasketball(run,job){
   if(!["schedule","workflow_dispatch"].includes(run.event))return false;
   if(job.kind==="priority")return true;
   const name=run.display_title||"";
-  const m=/^NBA full report \\| slot=(.+) \\| date=(.+)$/.exec(name);
+  const m=/^NBA full report \| slot=(.+) \| date=(.+)$/.exec(name);
   if(!m)return false;
   if(run.event==="workflow_dispatch")return m[1]===job.slot&&m[2]===job.target_date;
   const expected=job.slot.slice(2)==="30"
@@ -111,7 +111,7 @@ export async function dispatchAt(timestamp,env,fetcher=fetch){
 function matchesFootball(run,job){
   if(!["schedule","workflow_dispatch"].includes(run.event))return false;
   const title=run.display_title||run.name||"";
-  const m=/^Football 007 \\| cron=(.+) \\| day=(auto|\\d{4}-\\d{2}-\\d{2})$/.exec(title);
+  const m=/^Football 007 \| cron=(.+) \| day=(auto|\d{4}-\d{2}-\d{2})$/.exec(title);
   return !!m&&m[1]===job.cron&&
     (run.event==="schedule"?m[2]==="auto":m[2]===job.date);
 }
