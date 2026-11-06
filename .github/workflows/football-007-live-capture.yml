@@ -413,6 +413,13 @@ jobs:
           fi
           day="$(TZ=Asia/Shanghai date +%Y%m%d)"
           tag="football-007-raw-$day"
+          # Validate and compact before acquiring an immutable send lock.
+          python3 -B scripts/football_jc_slot_push.py \
+            --forecast football-output/football_jc_forecast_market.json \
+            --mode daytime --daytime-slot "$SLOT" \
+            --movement football-output/football_capture_movement.json \
+            --html-out football-output/football_jc_preflight_preview.html \
+            --status-out football-output/football_jc_preflight_status.json --preflight
           claim="football-push-$day-$SLOT.claim.json"
           if gh release view "$tag" --json assets --jq '.assets[].name' | grep -Fxq "$claim"; then
             echo "DUPLICATE_FOOTBALL_SLOT_CLAIM_ALREADY_EXISTS"
