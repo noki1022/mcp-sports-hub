@@ -12,7 +12,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 import argparse,gzip,json,hashlib,sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-import football_jc_final_2100 as final
+import football_jc_final_2130 as final
 import football_jc_prospective_score as source
 
 BJ=ZoneInfo("Asia/Shanghai")
