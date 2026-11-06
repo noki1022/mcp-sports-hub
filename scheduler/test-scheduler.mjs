@@ -4,7 +4,7 @@ import {plannedJob,plannedFootballJob,dispatchAt,dispatchFootballAt} from "./wor
 const t=s=>Date.parse(s);
 const cf=readFileSync(new URL("./wrangler.toml",import.meta.url),"utf8");
 const matches=[...cf.matchAll(/"([^"]+ \* \* \*)"/g)].map(m=>m[1]);
-assert.equal(matches.length,3);
+assert.equal(matches.length,2);
 function expand(f){
  const out=[];
  for(const term of f.split(",")){
@@ -23,7 +23,6 @@ const expected=new Set();
 for(let h=4;h<=13;h++)expected.add(h+":0");
 for(let h=16;h<=22;h++)expected.add(h+":0");
 for(const h of [13,16,19,22])expected.add(h+":30");
-expected.add("14:0");
 assert.deepEqual(ticks,expected);
 for(let h=12;h<=21;h++){
  const time=Date.UTC(2026,10,6,h-8,0);
