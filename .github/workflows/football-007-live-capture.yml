@@ -276,6 +276,9 @@ jobs:
           BJ_DAY="$(TZ=Asia/Shanghai date +%Y%m%d)"
           tag="football-jc-final-2100-$BJ_DAY"
           if gh release view "$tag" >/dev/null 2>&1; then
+            mkdir -p existing-2100
+            gh release download "$tag" --pattern football_jc_final_2100.json --dir existing-2100
+            python3 -c 'import json; a=json.load(open("existing-2100/football_jc_final_2100.json")); b=json.load(open("football-output/football_jc_final_2100.json")); assert a["final_forecast_sha256"] == b["final_forecast_sha256"], "IMMUTABLE_2100_FORECAST_CONFLICT_NO_DIVERGENT_PUSH"'
             echo "FINAL_ALREADY_FROZEN_NO_OVERWRITE=$tag"
             exit 0
           fi
@@ -331,8 +334,8 @@ jobs:
 
 
   football-daytime-push:
-    needs: [live-football, archive-football-raw-release]
-    if: needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && ((github.event_name == 'schedule' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","0 14 * * *","0 15 * * *"]'), github.event.schedule)) || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","0 14 * * *","0 15 * * *"]'), inputs.recovery_cron)))
+    needs: [live-football, archive-football-raw-release, archive-football-2100-final]
+    if: always() && !cancelled() && ((github.event.schedule || inputs.recovery_cron) != '0 13 * * *' || needs.archive-football-2100-final.result == 'success') && needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && ((github.event_name == 'schedule' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","0 14 * * *","0 15 * * *"]'), github.event.schedule)) || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","0 14 * * *","0 15 * * *"]'), inputs.recovery_cron)))
     runs-on: ubuntu-latest
     timeout-minutes: 6
     permissions:
