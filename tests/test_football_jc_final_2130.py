@@ -13,8 +13,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts"))
 import football_jc_slot_push as push
 
 BJ=ZoneInfo("Asia/Shanghai")
-START=datetime(2026,11,5,21,31,tzinfo=BJ)
-SLOT=datetime(2026,11,5,21,30,tzinfo=BJ)
+START=datetime(2026,11,5,21,3,tzinfo=BJ)
+SLOT=datetime(2026,11,5,21,0,tzinfo=BJ)
 NEXT=datetime(2026,11,6,6,32,tzinfo=BJ)
 TIP=datetime(2026,11,6,11,0,tzinfo=BJ)
 def fixture():
@@ -48,6 +48,13 @@ class TestSingleFinal(unittest.TestCase):
     self.snapshot=source()
     self.forecast=forecast(self.snapshot)
     self.lock=final.freeze(self.snapshot,self.forecast,"2026-11-05",START+timedelta(minutes=3))
+ def test_wrong_official_jc_weekday_cannot_be_frozen(self):
+    wrong=source()
+    wrong["games"][0]["jc_number"]="周五010"
+    changed=forecast(wrong)
+    changed["games"][0]["jc_number"]="周五010"
+    with self.assertRaisesRegex(ValueError,"FROZEN_JC_OFFICIAL_WEEKDAY_DRIFT"):
+        final.freeze(wrong,changed,"2026-11-05",START+timedelta(minutes=3))
  def test_live_v4_fusion_sender_final_share_producer_version(self):
     # Regression: Nov 6 16:00 capture/model passed but PushPlus rejected
     # the producer's v4 model because final/sender were hardcoded to v3.
@@ -60,13 +67,13 @@ class TestSingleFinal(unittest.TestCase):
     stale["model_version"]="football-jc-poisson-asian-assimilation-v3"
     with self.assertRaisesRegex(ValueError,"MUST_SEND_SINGLE_INTEGRATED_FOOTBALL_MODEL"):
         push.prepare(stale,"daytime",daytime_slot="1600")
- def test_final_sha_and_2130_lock(self):
+ def test_final_sha_and_2100_lock(self):
     self.assertTrue(self.lock["no_shadow_model"])
     self.assertTrue(self.lock["scored_only_from_this_frozen_forecast"])
     self.assertEqual(self.lock["final_forecast_sha256"],final.sha(self.forecast))
     self.assertEqual(self.lock["scheduled_slot_beijing"],SLOT.isoformat())
  def test_reject_early_or_very_late_as_final(self):
-    with self.assertRaisesRegex(ValueError,"OUTSIDE_BEIJING_2130"):
+    with self.assertRaisesRegex(ValueError,"OUTSIDE_BEIJING_2100"):
         final.freeze(self.snapshot,self.forecast,"2026-11-05",START-timedelta(minutes=4))
     with self.assertRaisesRegex(ValueError,"OUTSIDE_BEIJING_2130"):
         final.freeze(self.snapshot,self.forecast,"2026-11-05",START+timedelta(hours=3))
