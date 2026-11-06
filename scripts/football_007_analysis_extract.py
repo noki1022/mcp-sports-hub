@@ -89,10 +89,14 @@ def recent(half,team_id,cutoff,limit=5):
             or not 0<=hs<=30 or not 0<=ascore<=30):
             continue
         team_home=(hid==str(team_id))
+        opponent=aid if team_home else hid
         result.append({"match_id":mid,"played_at":played.isoformat(),
                        "goals_for":hs if team_home else ascore,
                        "goals_against":ascore if team_home else hs,
-                       "venue":"HOME" if team_home else "AWAY"})
+                       "venue":"HOME" if team_home else "AWAY",
+                       # Verified IDs permit future opponent-adjusted ratings.
+                       # This does not imply that opponent strength is known.
+                       "opponent_team_id_007":opponent if opponent.isdecimal() else None})
     result.sort(key=lambda v:v["played_at"],reverse=True)
     return result[:limit],("VERIFIED" if len(result)>=3 else "INSUFFICIENT_RECENT_FORM")
 
