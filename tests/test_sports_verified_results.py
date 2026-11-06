@@ -72,6 +72,17 @@ class Results(unittest.TestCase):
             self.assertEqual(result.returncode,0,result.stderr)
             self.assertFalse((root/'out/review.json').exists())
 
+    def test_verified_espn_gs_alias_preserves_home_away_check(self):
+        import sport_match_final_grade as G
+        final=nba()
+        final['home_team']='金州勇士'
+        source={'completed':True,'home_points':120,'away_points':100,
+                'tip_beijing':iso(TIP),'home_abbr':'GS','away_abbr':'MIA'}
+        G.verify_nba_final_score_identity(final,source)
+        source['home_abbr'],source['away_abbr']='MIA','GS'
+        with self.assertRaisesRegex(ValueError,'SWAPPED'):
+            G.verify_nba_final_score_identity(final,source)
+
 
 if __name__=='__main__':
     unittest.main()
