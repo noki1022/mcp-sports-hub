@@ -99,7 +99,7 @@ def main():
              'Final overnight pretip check immediately before PushPlus',
              'Send complete iPhone full-board NBA analysis',
              'Save confirmed accepted notification slot',
-             'Failsafe verified NBA schedule PushPlus when full report fails'}
+}
     found=set()
     for step in full['jobs']['analysis']['steps']:
         if step.get('name') in guarded:
@@ -213,6 +213,9 @@ def main():
     watchdog=(ROOT/".github/workflows/nba-delivery-health-watchdog.yml").read_text()
     assert "nba_delivery_health.py" in watchdog
     assert "nba_delivery_recovery.py" not in watchdog
+    assert not (ROOT/"scripts/nba_delivery_recovery.py").exists()
+    assert not (ROOT/"scripts/nba_schedule_fallback_push.py").exists()
+    assert not (ROOT/".github/workflows/pushplus-compact-resend.yml").exists()
     assert "--send" not in watchdog and "PUSHPLUS_TOKEN" not in watchdog
     assert "schedule:" not in watchdog
     assert "titan007_join_beijing_verified.py" not in watchdog
