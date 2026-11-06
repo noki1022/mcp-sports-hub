@@ -127,8 +127,15 @@ jobs:
           python3 -B -m py_compile analysis/football_jc_report.py scripts/football_jc_slot_push.py
       - name: Capture only official current-day 007 周Xnnn sales fixtures
         run: |
+          # Hourly 23:00 may queue across midnight. Preserve the ORIGINAL
+          # 007 sale weekday for this scheduled run; never reclassify Friday
+          # 周五-numbered fixtures as Saturday 周六 fixtures due to queueing.
+          JC_SALE_DAY="$(TZ=Asia/Shanghai date +%Y-%m-%d)"
+          if [ "$(TZ=Asia/Shanghai date +%H)" -lt 12 ]; then
+            JC_SALE_DAY="$(TZ=Asia/Shanghai date -d yesterday +%Y-%m-%d)"
+          fi
           python3 -B scripts/football_007_live_capture.py \
-            --jc-sale-day "$(TZ=Asia/Shanghai date +%Y-%m-%d)" \
+            --jc-sale-day "$JC_SALE_DAY" \
             --out football-output/football_007_snapshot.json --raw-dir football-output/raw
           python3 - <<'PY'
           import json,re
@@ -270,7 +277,7 @@ jobs:
           tag="football-jc-final-2100-$BJ_DAY"
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "FINAL_ALREADY_FROZEN_NO_OVERWRITE=$tag"
-            exit 1
+            exit 0
           fi
           gh release create "$tag" football-output/football_jc_final_2100.json \
             --target main --title "Football 21:00 immutable scoring baseline $BJ_DAY" \
