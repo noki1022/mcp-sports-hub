@@ -178,6 +178,54 @@ class TestCrossSportHealth(unittest.TestCase):
                "status": "completed", "conclusion": "success"}
         self.assertIsNone(H.declared_slot_match(slot, run))
 
+    def test_football_noon_native_retries_are_canonical(self):
+        slots = [s for s in H.expected_slots(NOW, 24, 180)
+                 if s["workflow"] == H.FOOTBALL and
+                 s["planned"].astimezone(H.BJ).strftime("%H:%M") == "12:00"]
+        self.assertTrue(slots)
+        slot = slots[-1]
+        for minutes in (15, 30):
+            retry = slot["planned"] + timedelta(minutes=minutes)
+            run = {"id": 1000 + minutes, "path": ".github/workflows/football-007-live-capture.yml",
+                   "name": f"Football 007 | cron={retry.minute} {retry.hour} * * * | day=auto",
+                   "event": "schedule", "created_at": (retry + timedelta(minutes=2)).isoformat(),
+                   "conclusion": "success", "status": "completed"}
+            self.assertEqual(H.declared_slot_match(slot, run), 2)
+
+    def test_cloudflare_recovered_football_is_counted_once(self):
+        runs, releases = source()
+        target = next(r for r in runs if r["name"] == H.FOOTBALL)
+        slot = next(s for s in H.expected_slots(NOW, 24, 180)
+                    if s["workflow"] == H.FOOTBALL and
+                    s["planned"] + timedelta(minutes=12) == H.when(target["created_at"]))
+        target["event"] = "workflow_dispatch"
+        target["path"] = ".github/workflows/football-007-live-capture.yml"
+        target["created_at"] = (slot["planned"] + timedelta(minutes=25)).isoformat()
+        cron = f"{slot['planned'].minute} {slot['planned'].hour} * * *"
+        target["name"] = "Football 007 | cron=" + cron + " | day=" + (
+            slot["planned"].astimezone(H.BJ).date().isoformat())
+        target["display_title"] = target["name"]
+        day = H.when(target["created_at"]).astimezone(H.BJ).strftime("%Y%m%d")
+        # Ensure the genuine recovered run ID still has immutable raw evidence.
+        for release in releases:
+            if release["tag_name"] == "football-007-raw-" + day:
+                self.assertTrue(any(str(target["id"]) in a["name"] for a in release["assets"]))
+        result = H.audit(runs, releases, BRANCH, NOW)
+        self.assertEqual(result["critical_count"], 0)
+        self.assertEqual(len([x for x in result["slots"] if x["recovered_via_workflow_dispatch"]]), 1)
+
+    def test_manual_or_wrong_day_dispatch_cannot_fill_missing_football_slot(self):
+        for bad in ("Football 007 | manual",
+                    "Football 007 | cron=0 4 * * * | day=2020-01-01"):
+            runs, releases = source()
+            target = next(r for r in runs if r["name"] == H.FOOTBALL)
+            target.update(event="workflow_dispatch",
+                          path=".github/workflows/football-007-live-capture.yml",
+                          name=bad, display_title=bad)
+            result = H.audit(runs, releases, BRANCH, NOW)
+            self.assertIn("SCHEDULED_RUN_NOT_OBSERVED",
+                          [i["code"] for i in result["issues"]])
+
     def test_naive_time_rejected(self):
         with self.assertRaisesRegex(ValueError, "NAIVE_TIMESTAMP"):
             H.when("2026-11-06T12:00:00")
