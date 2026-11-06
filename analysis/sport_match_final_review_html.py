@@ -89,7 +89,7 @@ def render(report):
         E(str(report.get("beijing_day") or ""))," ",SPORT_NAMES[sport],"逐场复盘</h2>",
         "<p style='font-size:12px;color:#5f7185;margin:0 0 12px'>",
         ("仅按北京时间21:00原始赛前冻结版评分。" if report.get("prediction_source")=="ONLY_BEIJING_2100_IMMUTABLE_FORECAST"
-         else "历史复盘：仅按每场最新有效赛前冻结版评分。")+"主队在左；未核实赛果不入样。</p>"]
+         else "历史复盘：仅按每场最新有效赛前冻结版评分，21:30留档不重复计分。")+"主队在左；未核实赛果不入样。</p>"]
     summary=report.get("summary") or {}
     for market in MARKET_ORDER[sport]:
         d=summary.get(market) or {}
