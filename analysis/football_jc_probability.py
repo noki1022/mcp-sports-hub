@@ -288,6 +288,15 @@ def run(snapshot):
     date = snapshot["beijing_date"]
     if datetime.fromisoformat(date).strftime("%Y-%m-%d") != date:
         raise ValueError("INVALID_BEIJING_DATE")
+    jc_sale_day = snapshot.get("jc_sale_day_beijing")
+    if jc_sale_day:
+        if jc_sale_day != date:
+            raise ValueError("FOOTBALL_JC_SALE_DAY_DATE_MISMATCH")
+        from datetime import date as _date
+        prefix = "周"+"一二三四五六日"[_date.fromisoformat(jc_sale_day).weekday()]
+        for fixture in snapshot.get("games") or []:
+            if not str(fixture.get("jc_number") or "").startswith(prefix):
+                raise ValueError("FORECAST_MIXED_JC_SALE_DAY")
     rows = snapshot.get("games")
     if not isinstance(rows, list):
         raise ValueError("MISSING_GAMES_ARRAY")
