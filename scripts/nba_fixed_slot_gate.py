@@ -210,7 +210,8 @@ def self_test() -> None:
         assert content.index("Recheck verified acceptance before PushPlus") < content.index("Send complete iPhone full-board NBA analysis")
         assert content.index("Recheck verified acceptance before PushPlus") < content.index("Final overnight pretip check immediately before PushPlus")
         assert content.index("Final overnight pretip check immediately before PushPlus") < content.index("Send complete iPhone full-board NBA analysis")
-        assert "steps.final_pretip.outcome != 'failure'" in content
+        assert "id: final_pretip" in content
+        assert "Failsafe verified NBA schedule PushPlus when full report fails" not in content
         assert "overnight_all_games_pretip(Path(\"titan007_three_joined.json\"),target,now)" in content
         for schedule in SCHEDULE_SLOTS:
             assert '    - cron: "' + schedule + '"' in content
