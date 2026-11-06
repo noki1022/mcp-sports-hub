@@ -41,11 +41,9 @@ on:
   workflow_dispatch:
     inputs:
       recovery_source:
-        description: 'Only existing Cloudflare Worker recovery'
+        description: 'Recovery origin (cloudflare only); leave blank for manual capture'
         required: false
-        type: choice
-        options:
-          - cloudflare
+        type: string
       recovery_day:
         description: 'Canonical YYYY-MM-DD Beijing day; only valid with source=cloudflare'
         required: false
