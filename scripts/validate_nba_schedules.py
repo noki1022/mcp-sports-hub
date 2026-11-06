@@ -26,6 +26,7 @@ workflows={
  "nba-per-match-final-review-audit.yml":["20 15 * * *"],
  # Quiet archive admission/research only; no odds collection or production push.
  "sports-data-lifecycle.yml":["40 4 * * *"],
+ "sports-verified-results.yml":["50 * * * *"],
  "nba-silent-overnight-hourly.yml":["0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *"],
  "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
  # Complete allowlist: every scheduled workflow must be declared here.
@@ -319,4 +320,3 @@ def main():
     print("NBA_SCHEDULE_YAML_ALL_STRUCTURES_VALIDATED",len(all_times),"scheduled UTC triggers")
     print("NOTE_GITHUB_CRON_BEST_EFFORT_NOT_EXACT_TIME_GUARANTEE")
 if __name__=="__main__":main()
-

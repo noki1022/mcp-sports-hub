@@ -119,6 +119,9 @@ def build(assets, snapshots=None):
                 try:
                     # An unfinished review may later settle; conflicting terminal labels cannot.
                     review,row=select_review(matches,f,market)
+                    if 'result_evidence' in review['document']:
+                        from sports_verified_review import verify
+                        verify(review['document'],f)
                     result=row['markets'][market]
                     if result.get('status',result.get('outcome')) not in ('HIT','MISS'):raise ValueError('UNSETTLED_PUSH_OR_UNAVAILABLE')
                     home,away=score(row,f['sport'])

@@ -119,7 +119,7 @@ def run(repo,out,days=120,inventory=None,cache_dir=None):
             snapshots[key]=identity
         raw_audits.append({'id':asset_id,'verification':verification,
             **{k:v for k,v in audit.items() if k!='snapshot_identity'}})
-    prefixes=('football-007-raw-','nba-silent-actual-','sport-pregame-final-','nba-one-verified-per-match-review-','football-')
+    prefixes=('football-007-raw-','nba-silent-actual-','sport-pregame-final-','sport-verified-review-','nba-one-verified-per-match-review-','football-')
     for release in releases:
         tag=release['tag_name']
         if not tag.startswith(prefixes):continue
