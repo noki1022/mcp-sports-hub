@@ -57,12 +57,7 @@ jobs:
               target=x
           else:
               local=datetime.now(ZoneInfo('Asia/Shanghai'))
-              same_day_crons={'30 16 * * *','45 16 * * *','0 17 * * *',
-                              '30 19 * * *','45 19 * * *','0 20 * * *'}
-              same_day_slots={'0030','0330'}
-              same_day=(os.environ.get('SCHEDULE_EXPR','').strip() in same_day_crons
-                        or os.environ.get('EXTERNAL_REPORT_SLOT','').strip() in same_day_slots)
-              target=(local.date() if same_day else local.date()+timedelta(days=1)).isoformat()
+              target=(local.date()+timedelta(days=1)).isoformat()
           print('TARGET_DATE='+target)
           PY
       - name: Preflight canonical slot and verified acceptance
