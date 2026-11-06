@@ -1,4 +1,4 @@
-# Cloudflare Workers Builds — NBA secondary scheduler
+# Cloudflare Workers Builds — shared NBA + football secondary scheduler
 
 The existing Cloudflare Worker **nba-external-schedule-watchdog** is already
 linked to this GitHub repository through **Cloudflare Workers Builds**. GitHub
@@ -30,6 +30,44 @@ The Cloudflare schedule includes the normal daytime fixed slots, priority
 overnight full-report exceptions: **00:30** and **03:30 Beijing time**.
 Each new slot has Cloudflare backup checks at :30, :40 and :50. The old
 Beijing 22:30–05:30 *hourly odds-monitoring* chain remains disabled.
+
+## Football independent backup (same Worker, no second deployment)
+
+The existing Worker **nba-external-schedule-watchdog** retains its original NBA
+schedule and dispatch flow. Football uses distinct plannedFootballJob /
+dispatchFootballAt checks. The only football action Cloudflare performs is
+GitHub workflow_dispatch for **football-007-live-capture.yml**; GitHub still
+runs capture, independent model analysis, raw Release archiving and PushPlus.
+
+**Beijing schedule and recovery checks**
+
+- Football 12:00–21:00 hourly: checks at :20 and :35 each hour. GitHub
+  original schedules (including native noon retries) remain primary.
+- Football 21:30 and 06:30: checks at :42 and :52. Existing unique
+  football PushPlus Release claim remains the final sender safeguard.
+- Football 00:00–06:00 hourly: :20/:35 backup collection, no phone push.
+  This does not enable NBA overnight hourly market monitoring.
+
+The added Cron expressions in the SAME wrangler.toml file are:
+- 20,35 4-13,16-21 * * *
+- 35 22 * * *
+- 42,52 13,22 * * *
+
+**Safety**: Worker checks Release claims/accepted receipts and matching
+same-day queued/running/successful Actions before recovery. Failed runs may
+be retried within bounded windows, but a claimed or API-accepted push is
+never automatically resent. GitHub independently validates recovery day,
+cron and freshness before collecting. Raw archives remain append-only by
+run ID + attempt, and the actual acquisition timestamp is not replaced with
+the planned slot time. Unknown/late/cross-day requests fail closed. A manual
+workflow_dispatch without recovery inputs remains capture-only.
+
+**Production acceptance**: Verify the new main commit is actually deployed
+by the existing Cloudflare Workers Builds integration, check actual live
+Cron Triggers and logs for FOOTBALL_EXTERNAL_SCHEDULE, correlate with GitHub
+workflow_dispatch and separate release/archive/PushPlus receipt records.
+GitHub test success alone does not prove the Worker went live or that an
+iPhone received a notification.
 
 ## Verify production synchronization after a merge
 
