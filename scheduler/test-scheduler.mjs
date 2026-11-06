@@ -1,285 +1,72 @@
 import assert from "node:assert/strict";
-import {plannedJob,dispatchAt,matchesReportSlot} from "./worker.mjs";
-const at=s=>Date.parse(s);
-const checks=[
-["2026-10-30T04:00:00Z","1200","2026-10-31"],
-["2026-10-30T07:00:00Z","1500","2026-10-31"],
-["2026-10-30T10:00:00Z","1800","2026-10-31"],
-["2026-10-30T13:30:00Z","2130","2026-10-31"],
-["2026-10-30T22:20:00Z","0630","2026-10-31"],
-["2026-10-30T22:40:00Z","0630","2026-10-31"],
-["2026-10-30T16:30:00Z","0030","2026-10-31"],
-["2026-10-30T16:40:00Z","0030","2026-10-31"],
-["2026-10-30T16:50:00Z","0030","2026-10-31"],
-["2026-10-30T19:30:00Z","0330","2026-10-31"],
-["2026-10-30T19:40:00Z","0330","2026-10-31"],
-["2026-10-30T19:50:00Z","0330","2026-10-31"]
-];
-for(const [date,slot,target] of checks){
-  const job=plannedJob(at(date));
-  assert.equal(job?.slot,slot,date);assert.equal(job?.target_date,target,date);
-}
-assert.equal(plannedJob(at("2026-10-30T22:00:00Z")),null); // old 06:00
-assert.equal(plannedJob(at("2026-10-30T13:20:00Z")),null); // NEVER deliver a 21:30 final at 21:20
-assert.equal(plannedJob(at("2026-10-30T09:00:00Z")),null); // expired one-off
-const fake={
-  async fetch(url,opts){
-    if(url.includes("/contents/"))return {status:404,ok:false};
-    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[]})};
-    if(url.endsWith("/dispatches")){
-      const obj=JSON.parse(opts.body);
-      assert.equal(obj.inputs.report_slot,"1500");
-      assert.equal(obj.inputs.target_date,"2026-10-31");
-      return {status:204};
-    }
-    throw Error(url);
-  }
-};
-assert.equal((await dispatchAt(at("2026-10-30T07:00:00Z"),{GITHUB_TOKEN:"FAKE"},fake.fetch)).state,"DISPATCH_ACCEPTED_NOT_COMPLETED");
-// Regression: nightly watchdog must inspect five-market, not retired two-market marker.
-const nightly=plannedJob(at("2026-10-30T14:00:00Z"));
-assert.equal(nightly?.kind,"night_review");
-let markerUrl="";
-const already={
-  async fetch(url){
-    if(url.includes("/contents/")){
-      markerUrl=url;
-      return {status:200,ok:true,json:async()=>({content:btoa(JSON.stringify({state:"API_ACCEPTED_NOT_DEVICE_CONFIRMED"}))})};
-    }
-    throw Error("Unexpected additional GitHub dispatch: "+url);
-  }
-};
-assert.equal((await dispatchAt(at("2026-10-30T14:00:00Z"),{GITHUB_TOKEN:"FAKE"},already.fetch)).state,"API_ALREADY_ACCEPTED");
-assert.match(markerUrl,/five-market-settled/);
-
-const extended=[
-  ["2026-10-30T04:08:00Z","1200","2026-10-31"],
-  ["2026-10-30T06:00:00Z","1400","2026-10-31"],
-  ["2026-10-30T07:18:00Z","1500","2026-10-31"],
-  ["2026-10-30T10:28:00Z","1800","2026-10-31"],
-  ["2026-10-30T13:16:00Z","2100","2026-10-31"],
-  ["2026-10-30T13:40:00Z","2130","2026-10-31"],
-  ["2026-10-30T22:40:00Z","0630","2026-10-31"],
-  ["2026-10-30T14:30:00Z",null], // 22:30 Beijing: overnight monitoring disabled
-  ["2026-10-30T14:40:00Z",null],
-  ["2026-10-30T15:49:00Z",null],
-  ["2026-10-30T16:40:00Z","0030","2026-10-31"],
-  ["2026-10-30T17:49:00Z",null],
-  ["2026-10-30T18:40:00Z",null],
-  ["2026-10-30T19:49:00Z",null],
-  ["2026-10-30T20:40:00Z",null],
-  ["2026-10-30T21:49:00Z",null] // 05:49 Beijing: no late overnight dispatch
-];
-for(const [date,expected,target] of extended){
-  const job=plannedJob(at(date));
-  if(expected===null)assert.equal(job,null,date);
-  else {
-    assert.equal(job?.slot,expected,date);
-    assert.equal(job?.target_date,target,date);
-  }
-}
-assert.equal(plannedJob(at("2026-10-30T13:17:00Z")),null); // outside retry minute
-assert.equal(plannedJob(at("2026-10-30T22:50:00Z")),null); // no stale 06:30 retry
-assert.equal(plannedJob(at("2026-10-30T13:49:00Z")),null); // no late 21:30 retry
-assert.equal(plannedJob(at("2026-10-30T22:49:00Z")),null); // no late 06:30 retry
-// A live matching run must suppress another dispatch.
-const activeRun={
-  async fetch(url){
-    if(url.includes("/contents/"))return {status:404,ok:false};
-    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[
-      {created_at:"2026-10-30T07:00:20Z",event:"schedule",status:"in_progress",conclusion:null,display_title:"NBA full report | slot=0 7 * * * | date=auto"}
-    ]})};
-    throw Error("ACTIVE_RUN_MUST_NOT_DISPATCH");
-  }
-};
-assert.equal((await dispatchAt(at("2026-10-30T07:08:00Z"),{GITHUB_TOKEN:"FAKE"},activeRun.fetch)).state,"WORKFLOW_RUNNING");
-// A successful run suppresses redispatch even when its marker commit is delayed.
-const successfulFixed={
-  async fetch(url){
-    if(url.includes("/contents/"))return {status:404,ok:false};
-    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[
-      {created_at:"2026-10-30T13:30:10Z",updated_at:"2026-10-30T13:35:00Z",
-       event:"schedule",status:"completed",conclusion:"success"}
-    ]})};
-    throw Error("SUCCESSFUL_FIXED_RUN_MUST_NOT_DISPATCH");
-  }
-};
-assert.equal((await dispatchAt(at("2026-10-30T13:40:00Z"),{GITHUB_TOKEN:"FAKE"},successfulFixed.fetch)).state,"WORKFLOW_SUCCESS_WITHOUT_ACCEPTED_MARKER");
-// The external scheduler must not query or dispatch overnight hourly market jobs.
-const noOvernightCalls=async()=>{throw Error("OVERNIGHT_MONITOR_MUST_NOT_CALL_GITHUB");};
-assert.equal((await dispatchAt(at("2026-10-30T14:40:00Z"),{GITHUB_TOKEN:"FAKE"},noOvernightCalls)).state,"NO_SLOT");
-assert.equal((await dispatchAt(at("2026-10-30T21:49:00Z"),{GITHUB_TOKEN:"FAKE"},noOvernightCalls)).state,"NO_SLOT");
-// 21:30 has no early 21:20 trigger; 06:30 retains early 06:20 recovery.
-for(const [checkTime,previousTime] of [
-  ["2026-10-30T22:30:00Z","2026-10-30T22:20:10Z"]
-]){
-  const earlyRun=async url=>{
-    if(url.includes("/contents/"))return {status:404,ok:false};
-    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[{
-      created_at:previousTime,event:"workflow_dispatch",
-      status:"in_progress",conclusion:null
-    }]})};
-    throw new Error("DUPLICATE_PRIORITY_DISPATCH_BLOCKED_"+url);
-  };
-  assert.equal((await dispatchAt(at(checkTime),{GITHUB_TOKEN:"FAKE"},earlyRun)).state,
-    "WORKFLOW_RUNNING");
-  const greenRun=async url=>{
-    if(url.includes("/contents/"))return {status:404,ok:false};
-    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[{
-      created_at:previousTime,event:"workflow_dispatch",
-      status:"completed",conclusion:"success"
-    }]})};
-    throw new Error("GREEN_PRIORITY_MUST_NOT_REDISPATCH_"+url);
-  };
-  assert.equal((await dispatchAt(at(checkTime),{GITHUB_TOKEN:"FAKE"},greenRun)).state,
-    "WORKFLOW_SUCCESS_WITHOUT_ACCEPTED_MARKER");
-}
-
-// Midnight backup dispatch is canonical full-board analysis for the SAME Beijing day.
-const midnightCalls=[];
-const midnightFake=async (url,opts)=>{
-  midnightCalls.push({url,opts});
-  if(url.includes("/contents/"))return {status:404,ok:false};
-  if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[]})};
-  if(url.endsWith("/dispatches"))return {status:204};
-  throw new Error("UNEXPECTED_MIDNIGHT_URL_"+url);
-};
-for(const [timestamp,slot,date] of [
-  ["2026-10-30T16:30:00Z","0030","2026-10-31"],
-  ["2026-10-30T19:30:00Z","0330","2026-10-31"]
-]){
-  midnightCalls.length=0;
-  const result=await dispatchAt(at(timestamp),{GITHUB_TOKEN:"FAKE"},midnightFake);
-  assert.equal(result.state,"DISPATCH_ACCEPTED_NOT_COMPLETED");
-  assert.equal(result.slot,slot);
-  assert.equal(result.target_date,date);
-  const sent=midnightCalls.find(call=>call.url.endsWith("/dispatches"));
-  assert.ok(sent);
-  assert.ok(sent.url.includes("titan007-three-analysis.yml"));
-  assert.deepEqual(JSON.parse(sent.opts.body),{
-    ref:"main",inputs:{target_date:date,report_slot:slot}
-  });
-}
-// A live matching native GH run must suppress the Cloudflare retry.
-const activeMidnight=async url=>{
-  if(url.includes("/contents/"))return {status:404,ok:false};
-  if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[{
-    created_at:"2026-10-30T16:30:07Z",event:"schedule",
-    display_title:"NBA full report | slot=30 16 * * * | date=auto",
-    status:"in_progress",conclusion:null
-  }]})};
-  throw new Error("ACTIVE_MIDNIGHT_MUST_NOT_REDISPATCH");
-};
-assert.equal((await dispatchAt(at("2026-10-30T16:40:00Z"),
-  {GITHUB_TOKEN:"FAKE"},activeMidnight)).state,"WORKFLOW_RUNNING");
-const acceptedMidnight=async url=>{
-  if(url.includes("/contents/"))return {status:200,ok:true,json:async()=>({
-    content:btoa(JSON.stringify({slot:"0030",state:"API_ACCEPTED_NOT_DEVICE_CONFIRMED"}))
-  })};
-  throw new Error("ALREADY_ACCEPTED_MIDNIGHT_MUST_NOT_DISPATCH");
-};
-assert.equal((await dispatchAt(at("2026-10-30T16:50:00Z"),
-  {GITHUB_TOKEN:"FAKE"},acceptedMidnight)).state,"API_ALREADY_ACCEPTED");
-
-// A failed run is eligible for a bounded retry, not treated as success.
-const failedRun={
-  async fetch(url,opts){
-    if(url.includes("/contents/"))return {status:404,ok:false};
-    if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[
-      {created_at:"2026-10-30T07:00:10Z",updated_at:"2026-10-30T07:03:00Z",
-       event:"schedule",status:"completed",conclusion:"failure"}
-    ]})};
-    if(url.endsWith("/dispatches"))return {status:204};
-    throw Error(url);
-  }
-};
-assert.equal((await dispatchAt(at("2026-10-30T07:08:00Z"),{GITHUB_TOKEN:"FAKE"},failedRun.fetch)).state,"DISPATCH_ACCEPTED_NOT_COMPLETED");
-// GitHub read/API errors fail closed; they must never be interpreted as "no run".
-const unavailable={
-  async fetch(){return {ok:false,status:503};}
-};
-await assert.rejects(()=>dispatchAt(at("2026-10-30T07:08:00Z"),{GITHUB_TOKEN:"FAKE"},unavailable.fetch),/MARKER_READ_HTTP_503/);
-
-console.log("CLOUDFLARE_SCHEDULER_UTC_SLOT_AND_DISPATCH_PASS");
-
-
-// Nov 4 incident: delayed 14:00 cron starts at 14:59/15:26/15:46.
-// Neither successful nor active earlier-slot work may suppress 15:00.
-for(const status of ["in_progress","completed"]){
-  for(const title of ["NBA full report | slot=0 6 * * * | date=auto",
-                     "NBA full report | slot=1400 | date=2026-11-05",
-                     "Titan007 scheduled full-board NBA analysis and PushPlus delivery"]){
-    const delayed=async(url,opts)=>{
-      if(url.includes("/contents/"))return {status:404,ok:false};
-      if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[{
-        created_at:"2026-11-04T06:59:30Z",event:"schedule",status,
-        conclusion:status==="completed"?"success":null,display_title:title
-      }]})};
-      if(url.endsWith("/dispatches")){
-        assert.equal(JSON.parse(opts.body).inputs.report_slot,"1500");
-        return {status:204};
-      }
-      throw Error(url);
-    };
-    assert.equal((await dispatchAt(at("2026-11-04T07:08:00Z"),
-      {GITHUB_TOKEN:"FAKE"},delayed)).state,"DISPATCH_ACCEPTED_NOT_COMPLETED");
-  }
-}
-const sameSlotJob=plannedJob(at("2026-11-04T07:08:00Z"));
-assert.equal(matchesReportSlot({event:"workflow_dispatch",display_title:
-  "NBA full report | slot=1500 | date=2026-11-05"},sameSlotJob),true);
-assert.equal(matchesReportSlot({event:"workflow_dispatch",display_title:
-  "NBA full report | slot=1500 | date=2026-11-04"},sameSlotJob),false);
-assert.equal(matchesReportSlot({event:"schedule",created_at:"2026-11-04T07:00:30Z",display_title:
-  "NBA full report | slot=0 7 * * * | date=auto"},sameSlotJob),true);
-console.log("DELAYED_PREVIOUS_SLOT_MUST_NOT_SUPPRESS_CURRENT_REPORT_PASS");
-// Nov 6 incident: 16:00 was absent from Cloudflare backup despite existing
-// GitHub scheduled report. Verify all ten business-hour slots AND that each
-// backup tick is present in the SAME 5-trigger Worker configuration.
 import {readFileSync} from "node:fs";
-const cfConfig=readFileSync(new URL("./wrangler.toml",import.meta.url),"utf8");
-const cronGroups=[...cfConfig.matchAll(/"([0-9,\\-]+) ([0-9,\\-]+) \* \* \*"/g)]
-  .map(m=>({minutes:m[1],hours:m[2]}));
-assert.equal(cronGroups.length,5,"must not exceed existing Cloudflare Free Cron quota");
-function covers(group,value){
-  return group.split(",").some(s=>{
-    const [start,end]=s.split("-").map(Number);
-    return end===undefined?start===value:start<=value&&value<=end;
-  });
+import {plannedJob,plannedFootballJob,dispatchAt,dispatchFootballAt} from "./worker.mjs";
+const t=s=>Date.parse(s);
+const cf=readFileSync(new URL("./wrangler.toml",import.meta.url),"utf8");
+const matches=[...cf.matchAll(/"([^"]+ \* \* \*)"/g)].map(m=>m[1]);
+assert.equal(matches.length,3);
+function expand(f){
+ const out=[];
+ for(const term of f.split(",")){
+   if(term.includes("-")){const [a,b]=term.split("-").map(Number);
+     for(let n=a;n<=b;n++)out.push(n);}
+   else out.push(Number(term));
+ }
+ return out;
 }
-for(let hour=12;hour<=21;hour++){
-  const utc=(hour+16)%24;
-  for(const minute of [20,35]){
-    // Some earlier slots use other retry moments; new slots must have 20/35.
-    if(![13,16,17,19,20].includes(hour))continue;
-    assert.ok(cronGroups.some(g=>covers(g.minutes,minute)&&covers(g.hours,utc)),
-      "missing Worker cron for "+hour+":"+minute);
-    const when=Date.UTC(2026,10,6,utc,minute);
-    const job=plannedJob(when);
-    assert.equal(job?.slot,String(hour).padStart(2,"0")+"00",
-      "missing recovery slot "+hour+":"+minute);
-    assert.equal(job.target_date,"2026-11-07");
-    const dispatched=[];
-    const backup=async(url,opts)=>{
-      if(url.includes("/contents/"))return {status:404,ok:false};
-      if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[]})};
-      if(url.endsWith("/dispatches")){dispatched.push(JSON.parse(opts.body));return {status:204};}
-      throw Error(url);
-    };
-    assert.equal((await dispatchAt(when,{GITHUB_TOKEN:"FAKE"},backup)).state,
-      "DISPATCH_ACCEPTED_NOT_COMPLETED");
-    assert.deepEqual(dispatched[0].inputs,{target_date:"2026-11-07",
-      report_slot:String(hour).padStart(2,"0")+"00"});
-  }
+const ticks=new Set();
+for(const line of matches){
+ const [mins,hrs]=line.split(" ");
+ for(const h of expand(hrs))for(const m of expand(mins))ticks.add(h+":"+m);
 }
-const curr=plannedJob(Date.parse("2026-11-06T08:20:00Z"));
-assert.equal(matchesReportSlot({event:"schedule",
-  created_at:"2026-11-06T08:05:00Z",
-  display_title:"NBA full report | slot=0 7 * * * | date=auto"},curr),false);
-assert.equal(matchesReportSlot({event:"schedule",
-  created_at:"2026-11-06T08:05:00Z",
-  display_title:"NBA full report | slot=0 8 * * * | date=auto"},curr),true);
-console.log("ALL_TEN_BASKETBALL_BACKUP_SLOTS_COVERED");
-
-// The paired football tests are also a mandatory part of the existing scheduler suite.
+const expected=new Set();
+for(let h=4;h<=13;h++)expected.add(h+":0");
+for(let h=16;h<=22;h++)expected.add(h+":0");
+for(const h of [13,16,19,22])expected.add(h+":30");
+expected.add("14:0");
+assert.deepEqual(ticks,expected);
+for(let h=12;h<=21;h++){
+ const time=Date.UTC(2026,10,6,h-8,0);
+ const job=plannedJob(time),foot=plannedFootballJob(time);
+ assert.equal(job?.slot,String(h).padStart(2,"0")+"00");
+ assert.equal(foot?.slot,job.slot);
+ for(const mm of [1,8,15,20,30,35,40,52]){
+   if(h===21&&mm===30)continue;
+   assert.equal(plannedJob(time+mm*60000),null,"retry NBA "+h+":"+mm);
+   assert.equal(plannedFootballJob(time+mm*60000),null,"retry football "+h+":"+mm);
+ }
+}
+for(const [stamp,slot] of [
+ ["2026-11-06T16:30:00Z","0030"],["2026-11-06T19:30:00Z","0330"],
+ ["2026-11-06T13:30:00Z","2130"],["2026-11-06T22:30:00Z","0630"]
+])assert.equal(plannedJob(t(stamp))?.slot,slot);
+const sent=[];
+const transport=async(url,opts)=>{
+ if(url.includes("/contents/")||url.includes("/releases/tags/"))return {ok:false,status:404};
+ if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[]})};
+ if(url.endsWith("/dispatches")){sent.push(JSON.parse(opts.body));return {status:204};}
+ throw Error(url);
+};
+assert.equal((await dispatchAt(t("2026-11-06T08:00:00Z"),
+ {GITHUB_TOKEN:"fake"},transport)).state,"EXACT_SLOT_DISPATCH_ACCEPTED_NOT_DELIVERED");
+assert.deepEqual(sent.pop().inputs,{target_date:"2026-11-07",report_slot:"1600"});
+assert.equal((await dispatchFootballAt(t("2026-11-06T08:00:00Z"),
+ {GITHUB_TOKEN:"fake"},transport)).state,"FOOTBALL_EXACT_DISPATCH_ACCEPTED_NOT_DELIVERED");
+assert.deepEqual(sent.pop().inputs,{recovery_source:"cloudflare",
+ recovery_day:"2026-11-06",recovery_cron:"0 8 * * *"});
+const failNoRetry=async(url)=>{
+ if(url.includes("/contents/"))return {ok:false,status:404};
+ if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[
+  {event:"schedule",created_at:"2026-11-06T08:00:03Z",status:"completed",
+  conclusion:"failure",display_title:"NBA full report | slot=0 8 * * * | date=auto"}
+ ]})};
+ throw Error("FORBIDDEN_RETRY_"+url);
+};
+assert.equal((await dispatchAt(t("2026-11-06T08:00:00Z"),
+ {GITHUB_TOKEN:"fake"},failNoRetry)).state,"CANONICAL_RUN_EXISTS_NO_RETRY");
+assert.equal((await dispatchAt(t("2026-11-06T08:20:00Z"),
+ {GITHUB_TOKEN:"fake"},async()=>{throw Error("NO_RETRY_ALLOWED")})).state,"NO_SLOT");
+assert.equal((await dispatchFootballAt(t("2026-11-06T08:35:00Z"),
+ {GITHUB_TOKEN:"fake"},async()=>{throw Error("NO_RETRY_ALLOWED")})).state,"NO_SLOT");
+console.log("SINGLE_EXACT_TIME_NO_COMPENSATION_TEST_PASS");
 await import("./test-football-scheduler.mjs");
