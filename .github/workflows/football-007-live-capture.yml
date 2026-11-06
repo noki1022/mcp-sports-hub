@@ -204,6 +204,10 @@ jobs:
         if: (github.event_name == 'schedule' && github.event.schedule == '0 13 * * *') || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && inputs.recovery_cron == '0 13 * * *')
         run: |
           BJ_DAY="$(TZ=Asia/Shanghai date +%Y-%m-%d)"
+          if python3 -c 'import json,sys;sys.exit(0 if not json.load(open("football-output/football_007_snapshot.json")).get("games") else 1)'; then
+            echo "NO_VERIFIED_OFFICIAL_JC_SALE_DAY_FIXTURES" > football-output/no_future_fixtures.txt
+            exit 0
+          fi
           python3 - <<'PY'
           import json,os,re
           doc=json.load(open("football-output/football_007_snapshot.json"))
