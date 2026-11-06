@@ -37,6 +37,8 @@ class Tests(unittest.TestCase):
   self.assertEqual(len(out["home_last5"]),5)
   self.assertEqual(len(out["away_last5"]),5)
   self.assertEqual(out["home_last5"][0]["match_id"],"30005")
+  self.assertEqual(out["home_last5"][0]["opponent_team_id_007"],"104")
+  self.assertEqual(out["away_last5"][0]["opponent_team_id_007"],"114")
   self.assertEqual(out["away_last5"][0]["venue"],"AWAY")
   self.assertEqual(out["h2h"][0]["home_goals"],1)
   self.assertEqual(out["h2h"][0]["away_goals"],3)
