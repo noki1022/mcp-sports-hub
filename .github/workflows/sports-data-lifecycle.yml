@@ -5,6 +5,7 @@ on:
     paths:
       - 'ops/sports_lifecycle.py'
       - 'ops/sports_learning_dataset.py'
+      - 'ops/sports_candidate_archive.py'
       - 'analysis/sports_weight_learning.py'
       - 'config/sports_learning_policy.json'
       - '.github/workflows/sports-data-lifecycle.yml'
@@ -12,6 +13,7 @@ on:
     paths:
       - 'ops/sports_lifecycle.py'
       - 'ops/sports_learning_dataset.py'
+      - 'ops/sports_candidate_archive.py'
       - 'analysis/sports_weight_learning.py'
       - 'analysis/sport_match_final_registry.py'
       - 'config/sports_learning_policy.json'
@@ -20,7 +22,10 @@ on:
   workflow_run:
     workflows:
       - 'Football JC unified analysis, 21:30 locked final, 06:30 update'
-      - 'Durable NBA every-capture 007 / Jingcai / multi-book raw market evidence'
+      - 'Titan007 scheduled full-board NBA analysis and PushPlus delivery'
+      - 'NBA PRIORITY 21:30 Beijing pre-cutoff report'
+      - 'NBA PRIORITY 06:30 Beijing morning full report'
+      - 'NBA silent 00-06 hourly five-market as-of capture (no PushPlus)'
       - 'Football + NBA immutable per-match latest valid pretip finals'
       - 'NBA latest-per-match one-scorecard review readiness (silent, official results)'
     types: [completed]
@@ -75,6 +80,11 @@ jobs:
           python-version: '3.12'
       - name: Bind report to checked-out code
         run: echo "LIFECYCLE_CODE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Append original NBA day and morning candidates without regenerating predictions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python ops/sports_candidate_archive.py --repo "$GH_REPO" --out candidate-publication.json
       - uses: actions/cache/restore@v4
         if: github.event_name != 'pull_request'
         with:
@@ -102,6 +112,17 @@ jobs:
           if [ ! -f lifecycle-output/manifest.json ]; then
             echo '::error::NO_COMPLETED_LIFECYCLE_MANIFEST; audit did not complete'
             exit 1
+          fi
+          if [ -f candidate-publication.json ]; then
+            cp candidate-publication.json lifecycle-output/
+            python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path('lifecycle-output')
+          manifest=json.loads((root/'manifest.json').read_text())
+          manifest['candidate-publication.json']=hashlib.sha256((root/'candidate-publication.json').read_bytes()).hexdigest()
+          (root/'manifest.json').write_text(json.dumps(manifest,sort_keys=True,indent=2)+'\n')
+          PY
           fi
           month="$(TZ=Asia/Shanghai date +%Y%m)"
           tag="sports-data-lifecycle-$month"

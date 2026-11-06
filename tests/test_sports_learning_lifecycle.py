@@ -1,4 +1,5 @@
 import copy,gzip,hashlib,io,json,sys,tempfile,unittest
+import subprocess
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -9,6 +10,7 @@ from sports_weight_learning import prepare,research,validate
 from sports_learning_dataset import build,digest
 from sports_lifecycle import audit_zip,run,cached_asset,save_cache
 from sport_match_final_registry import publishable_final_documents
+from sports_candidate_archive import plan as publication_plan,publish
 
 POLICY=json.loads((ROOT/'config/sports_learning_policy.json').read_text())
 def row(n=0):
@@ -135,6 +137,19 @@ class AdmissionTests(unittest.TestCase):
     def test_score_cannot_be_overridden_by_hit_flag(self):
         a=nba_assets();a[2]['document']['matches'][0]['home_points']=150
         self.assertEqual(build(reseal(a))[0],[])
+    def test_legacy_league_restored_only_from_hash_matched_snapshot(self):
+        a=assets();r=a[0]['document']['records'][0];r.pop('league')
+        snapshot={'schema_version':'football-jc-007-v1','games':[{'match_id':r['match_id'],
+            'league':'Original League','home_team':'H','away_team':'A','home_team_id_007':1,
+            'away_team_id_007':2,'kickoff_beijing':r['kickoff_utc']}]}
+        r['source_snapshot_sha256']=digest(snapshot);reseal(a)
+        unchanged=json.dumps(a,sort_keys=True)
+        rows,_=build(a,{digest(snapshot):snapshot})
+        self.assertEqual(len(rows),1);self.assertEqual(rows[0]['league'],'Original League')
+        self.assertEqual(json.dumps(a,sort_keys=True),unchanged)
+        self.assertEqual(build(a,{'wrong_hash':snapshot})[0],[])
+        broken=copy.deepcopy(snapshot);broken['games'][0]['home_team_id_007']=99
+        self.assertEqual(build(a,{digest(snapshot):broken})[0],[])
 
 class ArchiveTests(unittest.TestCase):
     def raw(self,tampered=False):
@@ -162,6 +177,13 @@ class ArchiveTests(unittest.TestCase):
             self.assertEqual(cached_asset('test/repo',meta,False,cache,'202611'),raw)
             (cache/'20.json').write_bytes(b'[]')
             self.assertIsNone(cached_asset('test/repo',meta,False,cache,'202611'))
+    def test_raw_snapshot_identity_bound_to_full_snapshot_hash(self):
+        snapshot={'schema_version':'football-jc-007-v1','games':[{'match_id':'1','league':'L'}]}
+        buf=io.BytesIO(self.raw())
+        with ZipFile(buf,'a') as z:z.writestr('football-output/football_007_snapshot.json',json.dumps(snapshot))
+        result=audit_zip(buf.getvalue())
+        self.assertEqual(result['snapshot_identity']['source_sha256'],digest(snapshot))
+        self.assertEqual(result['snapshot_identity']['games'][0]['league'],'L')
     def test_live_orchestration_uses_metadata_creates_only_derived_files(self):
         docs=assets();metadata={'repository':{'size':100},'releases':[{'tag_name':'football-007-raw-20261105','assets':[
             {'id':a['id'],'name':('football-candidates.json' if a['id']==1 else 'football.final.json' if a['id']==2 else 'review.json'),
@@ -172,5 +194,45 @@ class ArchiveTests(unittest.TestCase):
             self.assertEqual(report['deleted_original_files'],0)
             self.assertTrue((Path(tmp)/'manifest.json').is_file())
             self.assertEqual(report['training_admission']['admitted_event_markets'],1)
+            self.assertEqual(report['learning_readiness'],'INSUFFICIENT_INDEPENDENT_HISTORY')
+
+class PublicationTests(unittest.TestCase):
+    def entry(self):
+        raw=json.dumps(nba_assets()[0]['document']).encode()
+        return {'raw':raw,'tag':'nba-silent-actual-20261106','name':'nba-candidates-test.json',
+                'sha256':hashlib.sha256(raw).hexdigest(),'pretip_at_plan_time':0,'records':1}
+    def test_tomorrow_board_and_old_capture_bytes_are_preserved(self):
+        entry=self.entry();now=datetime(2026,11,5,22,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'2026-11-07/1200/nba_match_candidates.json';path.parent.mkdir(parents=True)
+            path.write_bytes(entry['raw'])
+            rows=publication_plan(tmp,now)
+            self.assertEqual(len(rows),1);self.assertEqual(rows[0]['raw'],entry['raw'])
+            self.assertEqual(rows[0]['pretip_at_plan_time'],0)
+    def test_remote_digest_idempotency_needs_no_download_or_overwrite(self):
+        e=self.entry();response=json.dumps({'assets':[{'name':e['name'],'digest':'sha256:'+e['sha256']}]}).encode()
+        with patch('sports_candidate_archive.command',return_value=response) as cmd:
+            result=publish([e],'test/repo')
+            self.assertEqual(result[0]['state'],'EXISTING_IDENTICAL');self.assertEqual(cmd.call_count,1)
+    def test_conflicting_asset_fails_without_replacement(self):
+        e=self.entry();response=json.dumps({'assets':[{'name':e['name'],'digest':'sha256:'+'0'*64}]}).encode()
+        with patch('sports_candidate_archive.command',return_value=response) as cmd:
+            with self.assertRaisesRegex(ValueError,'IMMUTABLE_CANDIDATE_CONFLICT'):publish([e],'test/repo')
+            self.assertEqual(cmd.call_count,1)
+    def test_append_uploads_exact_bytes_without_clobber(self):
+        e=self.entry();calls=[]
+        def fake(args):
+            calls.append(args)
+            if args[0]=='api':return b'{"assets":[]}'
+            self.assertEqual(args[:2],['release','upload']);self.assertNotIn('--clobber',args)
+            self.assertEqual(Path(args[3]).read_bytes(),e['raw']);return b''
+        with patch('sports_candidate_archive.command',side_effect=fake):
+            self.assertEqual(publish([e],'test/repo')[0]['state'],'APPENDED_UNCHANGED')
+        self.assertEqual(len(calls),2)
+    def test_permission_error_is_not_release_missing(self):
+        error=subprocess.CalledProcessError(1,['gh'],stderr=b'HTTP 403 forbidden')
+        with patch('sports_candidate_archive.command',side_effect=error) as cmd:
+            with self.assertRaises(subprocess.CalledProcessError):publish([self.entry()],'test/repo')
+            self.assertEqual(cmd.call_count,1)
 
 if __name__=='__main__':unittest.main()

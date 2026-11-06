@@ -40,8 +40,33 @@ def score(row,sport):
     return values
 
 
-def build(assets):
-    candidates={};finals=[];reviews=[];rejected=Counter();rows=[]
+def league_for(original, snapshots):
+    league = original.get('league')
+    if league:
+        return league
+    if original['sport'] == 'basketball':
+        return 'NBA'  # the existing emitter explicitly filters to NBA games
+    source = snapshots.get(original['source_snapshot_sha256'])
+    if source is None:
+        raise ValueError('LEAGUE_MISSING_CANNOT_POOL_FOOTBALL')
+    matches = [g for g in source['games'] if str(g.get('match_id')) == original['match_id']]
+    if len(matches) != 1:
+        raise ValueError('LEGACY_SNAPSHOT_EVENT_MISSING_OR_DUPLICATE')
+    game = matches[0]
+    for old, new in (('home_team','home_team'), ('away_team','away_team'),
+                     ('home_team_id_007','home_id'), ('away_team_id_007','away_id')):
+        if game.get(old) != original.get(new):
+            raise ValueError('LEGACY_SNAPSHOT_IDENTITY_DRIFT')
+    if clock(game['kickoff_beijing']) != clock(original['kickoff_utc']):
+        raise ValueError('LEGACY_SNAPSHOT_KICKOFF_DRIFT')
+    if not isinstance(game.get('league'), str) or not game['league'].strip():
+        raise ValueError('LEAGUE_MISSING_FROM_HASH_MATCHED_SNAPSHOT')
+    return game['league']
+
+
+def build(assets, snapshots=None):
+    snapshots = snapshots or {}
+    candidates={};finals=[];reviews=[];rejected=Counter();rows=[];quarantine=[]
     for asset in assets:
         try:
             d=asset['document']
@@ -87,8 +112,7 @@ def build(assets):
             original=candidates[cid]['record']
             for k in ('sport','match_id','official_game_id','jc_number','home_id','away_id','home_team','away_team','run_id','model_version','kickoff_utc','generated_utc','capture_utc','markets','forecast_sha256','source_snapshot_sha256'):
                 if f.get(k)!=original.get(k):raise ValueError('FINAL_CANDIDATE_DRIFT_'+k)
-            league=original.get('league') or ('NBA' if f['sport']=='basketball' else None)
-            if not league:raise ValueError('LEAGUE_MISSING_CANNOT_POOL_FOOTBALL')
+            league=league_for(original, snapshots)
             matches=by_candidate.get((f['sport'],cid),[])
             if not matches:raise ValueError('NO_VERIFIED_REVIEW')
             for market,m in f['markets'].items():
@@ -138,9 +162,15 @@ def build(assets):
                        'same_line_verified':True,'source_hashes':{'candidate':cid,'final':f['final_sha256'],'review':review['document']['review_sha256']},
                        'publication_evidence':{'candidate_created_at':candidates[cid]['created_at'],'review_asset_id':review['id']}}
                     rows.append(validate(r))
-                except (KeyError,ValueError,TypeError,AttributeError,ZeroDivisionError,OverflowError) as ex:rejected[str(ex)]+=1
-        except (KeyError,ValueError,TypeError) as ex:rejected[str(ex)]+=1
+                except (KeyError,ValueError,TypeError,AttributeError,ZeroDivisionError,OverflowError) as ex:
+                    rejected[str(ex)]+=1
+                    quarantine.append({'sport':f['sport'],'event_id':f['match_id'],'market':market,'reason':str(ex)})
+        except (KeyError,ValueError,TypeError) as ex:
+            rejected[str(ex)]+=1
+            quarantine.append({'sport':f['sport'],'event_id':f['match_id'],'kickoff':f.get('kickoff_utc'),
+                'candidate_sha256':cid,'reason':str(ex)})
     # Exact duplicates may arrive from multiple immutable asset copies.
     unique={digest(r):r for r in rows}
     return list(unique.values()),{'candidate_records_with_pretip_publication':len(candidates),'final_files':len(finals),'review_files':len(reviews),
-        'admitted_event_markets':len(unique),'quarantine_reasons':dict(rejected),'source_files_deleted':0}
+        'admitted_event_markets':len(unique),'quarantine_reasons':dict(rejected),
+        'quarantined_events':list({digest(r):r for r in quarantine}.values()),'source_files_deleted':0}

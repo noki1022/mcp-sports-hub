@@ -10,7 +10,7 @@ from pathlib import Path
 from zipfile import ZipFile
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'analysis'))
 from sports_weight_learning import research
-from sports_learning_dataset import build
+from sports_learning_dataset import build,digest
 
 
 def gh(path,binary=False):
@@ -49,8 +49,18 @@ def audit_zip(raw):
                 if h.hexdigest()!=entry.get('sha256') or size!=entry.get('bytes'):raise ValueError('RAW_SOURCE_HASH_OR_SIZE_MISMATCH')
                 checked+=1
         # Other gzip sources may have separate manifests. Never claim they were checked here.
+        identity=None
+        snapshot_paths=[p for p in names if p.endswith('/football_007_snapshot.json')]
+        if len(snapshot_paths)==1:
+            member=snapshot_paths[0]
+            if z.getinfo(member).file_size>20_000_000:raise ValueError('OVERSIZED_SOURCE_SNAPSHOT')
+            snapshot=json.loads(z.read(member))
+            if snapshot.get('schema_version')!='football-jc-007-v1':raise ValueError('UNEXPECTED_SOURCE_SNAPSHOT_SCHEMA')
+            fields=('match_id','league','home_team','away_team','home_team_id_007','away_team_id_007','kickoff_beijing')
+            identity={'source_sha256':digest(snapshot),
+                'games':[{k:g.get(k) for k in fields} for g in snapshot['games']]}
         return {'declared_sources_verified':checked,'scope':'ROOT_RAW_MANIFEST_SOURCES_ONLY',
-                'zip_sha256':hashlib.sha256(raw).hexdigest()}
+                'zip_sha256':hashlib.sha256(raw).hexdigest(),'snapshot_identity':identity}
 
 
 def cached_asset(repo,asset,raw_zip,cache,month):
@@ -67,7 +77,7 @@ def cached_asset(repo,asset,raw_zip,cache,month):
         if raw_zip:
             record=json.loads(prefix.with_suffix('.audit.json').read_text())
             identity={k:asset[k] for k in ('id','size','created_at','digest')}
-            if record['repository']==repo and record['identity']==identity and record['month']==month:
+            if record.get('receipt_schema')==2 and record['repository']==repo and record['identity']==identity and record['month']==month:
                 audit=record['audit']
                 if audit['zip_sha256']==expected[7:] and audit['declared_sources_verified']>0:return audit
         else:
@@ -81,7 +91,7 @@ def save_cache(repo,asset,value,raw_zip,cache,month):
     if cache is None:return
     # Atomic replace makes interrupted jobs safe to resume.
     dest=(cache/str(asset['id'])).with_suffix('.audit.json' if raw_zip else '.json')
-    raw=json.dumps({'repository':repo,'identity':{k:asset.get(k) for k in ('id','size','created_at','digest')},
+    raw=json.dumps({'receipt_schema':2,'repository':repo,'identity':{k:asset.get(k) for k in ('id','size','created_at','digest')},
                     'month':month,'audit':value}).encode() if raw_zip else value
     temporary=dest.with_suffix('.tmp');temporary.write_bytes(raw);temporary.replace(dest)
 
@@ -100,7 +110,15 @@ def run(repo,out,days=120,inventory=None,cache_dir=None):
             if not data:break
             releases.extend(data);page+=1
     else:releases=inventory['releases']
-    assets=[];catalog=[];errors=[];raw_audits=[];used=0;cache_hits=0
+    assets=[];catalog=[];errors=[];raw_audits=[];used=0;cache_hits=0;snapshots={}
+    def remember_raw(asset_id,audit,verification):
+        identity=audit.get('snapshot_identity')
+        if identity is not None:
+            key=identity['source_sha256']
+            if key in snapshots and snapshots[key]!=identity:raise ValueError('CONFLICTING_SNAPSHOT_IDENTITY_RECEIPTS')
+            snapshots[key]=identity
+        raw_audits.append({'id':asset_id,'verification':verification,
+            **{k:v for k,v in audit.items() if k!='snapshot_identity'}})
     prefixes=('football-007-raw-','nba-silent-actual-','sport-pregame-final-','nba-one-verified-per-match-review-','football-')
     for release in releases:
         tag=release['tag_name']
@@ -118,7 +136,7 @@ def run(repo,out,days=120,inventory=None,cache_dir=None):
             if cached is not None:
                 cache_hits+=1
                 if raw_zip:
-                    raw_audits.append({'id':asset['id'],'verification':'PRIOR_BYTE_AUDIT_CURRENT_DIGEST_UNCHANGED',**cached});continue
+                    remember_raw(asset['id'],cached,'PRIOR_BYTE_AUDIT_CURRENT_DIGEST_UNCHANGED');continue
                 try:
                     assets.append({'id':asset['id'],'created_at':asset['created_at'],'document':json.loads(cached)})
                     continue
@@ -134,17 +152,22 @@ def run(repo,out,days=120,inventory=None,cache_dir=None):
                 if raw_zip:
                     audit=audit_zip(raw)
                     save_cache(repo,asset,audit,True,cache,month)
-                    raw_audits.append({'id':asset['id'],'verification':'BYTES_CHECKED_THIS_RUN',**audit});continue
+                    remember_raw(asset['id'],audit,'BYTES_CHECKED_THIS_RUN');continue
                 doc=json.loads(raw)
                 save_cache(repo,asset,raw,False,cache,month)
                 assets.append({'id':asset['id'],'created_at':asset['created_at'],'document':doc})
             except (Exception,) as ex:
                 errors.append({'id':asset['id'],'reason':type(ex).__name__+':'+str(ex)[:180]})
-    rows,admission=build(assets)
+    rows,admission=build(assets,snapshots)
     policy=json.loads((Path(__file__).resolve().parents[1]/'config/sports_learning_policy.json').read_text())
     study=research(rows,policy)
     size_mib=metadata['size']/1024
     capacity='CRITICAL' if size_mib>=policy['git_critical_mib'] else 'WARNING' if size_mib>=policy['git_warning_mib'] else 'OK'
+    readiness=('NO_FROZEN_FINALS_YET' if not admission['final_files'] else
+        'BLOCKED_NO_VERIFIED_REVIEW_ASSETS' if not admission['review_files'] else
+        'BLOCKED_NO_ADMITTED_SAMPLES' if not rows else
+        'INSUFFICIENT_INDEPENDENT_HISTORY' if all(g['status']=='INSUFFICIENT_INDEPENDENT_HISTORY' for g in study['groups']) else
+        'RESEARCH_EVALUATED_NOT_PRODUCTION_PROMOTED')
     report={'schema_version':'sports-data-lifecycle-v1','checked_at_utc':now.isoformat(),
         'status':'INCOMPLETE' if errors else 'AUDITED_WITH_EXPLICIT_SCOPE',
         'repository':repo,'git_size_approx_mib':size_mib,'capacity':capacity,
@@ -153,6 +176,7 @@ def run(repo,out,days=120,inventory=None,cache_dir=None):
         'inventory_lookback_days':days,'football_raw_audits':raw_audits,'errors':errors,
         'download_bytes':used,'digest_validated_cache_hits':cache_hits,
         'training_admission':admission,'training_groups':len(study['groups']),
+        'learning_readiness':readiness,'hash_bound_snapshot_identities':len(snapshots),
         'independent_backup_status':policy['independent_backup_status'],
         'nba_raw_byte_audit':'SEPARATE_EXISTING_NBA_RAW_VAULT_WORKFLOW',
         'production_weights_modified':False,'deleted_original_files':0}
