@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression for noon recovery and the shared fixed-slot delivery gate."""
+"""Regression for one noon send and shared immutable acceptance gate."""
 from pathlib import Path
 from datetime import datetime
 import sys
@@ -8,7 +8,7 @@ from nba_fixed_slot_gate import SCHEDULE_SLOTS, resolve_slot, marker_is_accepted
 
 s=Path(".github/workflows/titan007-three-analysis.yml").read_text()
 now=datetime.fromisoformat("2026-10-31T12:00:00+08:00")
-for expr in ("0 4 * * *","15 4 * * *","30 4 * * *"):
+for expr in ("0 4 * * *",):
     assert ('cron: "'+expr+'"') in s
     assert SCHEDULE_SLOTS[expr]=="1200"
     assert resolve_slot(expr,"",now)=="1200"
@@ -26,15 +26,17 @@ assert "scripts/nba_verified_offday.py --self-test" in Path(".github/workflows/c
 assert "--send --require-token --require-delivery" in s
 assert "status.get('state')!='API_ACCEPTED_NOT_DEVICE_CONFIRMED'" in s
 assert "FALLBACK_SLOT=\"${REPORT_SLOT:-}\"" in s
-assert "nba_schedule_fallback_push.py" in s
+assert "nba_schedule_fallback_push.py" not in s
 assert "reports/pushplus-sent" in s
-print("NOON_PUSHPLUS_RECOVERY_GUARDS_PASS")
+assert '- cron: "15 4 * * *"' not in s
+assert '- cron: "30 4 * * *"' not in s
+print("NOON_PUSHPLUS_SINGLE_CANONICAL_SLOT_PASS")
 
 # Live incidents (2026-10-31): delayed cron, empty 007 next-day ID3, and
 # 13:05 first-available market data must not abort fixture-only baseline.
 assert '--allow-schedule-only' in s
 assert 'SCHEDULE_ONLY_CAPTURE_NO_VERIFIED_007_QUOTES' in Path('scripts/titan007_join_beijing_verified.py').read_text()
-assert 'FALLBACK_SLOT="${REPORT_SLOT:-}"' in s
+assert 'FALLBACK_SLOT="${REPORT_SLOT:-}"' not in s
 assert "python3 scripts/nba_fixed_slot_gate.py --phase recheck" in s
 assert s.index('Lock the noon official NBA slate') < s.index('Enforce Beijing date identity')
 # Exercise the actual CLI serializer: the old late-freeze wrote a literal
