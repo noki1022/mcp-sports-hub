@@ -307,7 +307,7 @@ jobs:
           test -s football-output/raw/fixtures.txt.gz
           test -s football-output/raw/jc_odds.txt.gz
           test -s football-output/raw/manifest.json
-          bj_day="$(TZ=Asia/Shanghai date +%Y%m%d)"
+          bj_day="$(python3 -c 'import datetime,json; d=json.load(open("football-output/football_007_snapshot.json"))["jc_sale_day_beijing"]; datetime.date.fromisoformat(d); print(d.replace("-",""))')"
           tag="football-007-raw-$bj_day"
           archive="football-007-raw-$bj_day-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}.zip"
           zip -q -r "$archive" football-output/
@@ -378,24 +378,33 @@ jobs:
           )"
           echo "DAYTIME_SLOT=$SLOT" >> "$GITHUB_ENV"
           export DAYTIME_SLOT="$SLOT"
-          # GitHub schedule is best-effort. Never push a stale report as if punctual.
-          if ! python3 - <<'PY'
-          from datetime import datetime,timedelta
-          from zoneinfo import ZoneInfo
-          import os,sys
-          now=datetime.now(ZoneInfo("Asia/Shanghai"))
-          slot=os.environ["DAYTIME_SLOT"]
-          expected=now.replace(hour=int(slot[:2]),minute=0,second=0,microsecond=0)
-          lag=(now-expected).total_seconds()
-          sys.exit(0 if 0<=lag<=60*60 else 2)
-          PY
-          then
-            echo "::warning::STALE_DAYTIME_CAPTURE_ARCHIVED_BUT_SUPPRESS_DELAYED_PUSH"
+          # All slot records belong to the source's original 007 JC sale
+          # day even when the 23:00 GitHub runner starts after midnight.
+          day="$(python3 -c 'import datetime,json; d=json.load(open("football-output/football_007_snapshot.json"))["jc_sale_day_beijing"]; datetime.date.fromisoformat(d); print(d.replace("-",""))')"
+          echo "FOOTBALL_SALE_DAY=$day" >> "$GITHUB_ENV"
+          tag="football-007-raw-$day"
+          claim="football-push-$day-$SLOT.claim.json"
+          accepted="football-push-$day-$SLOT.accepted.json"
+          # Two original exact-time triggers are allowed, but no second send.
+          # Check acceptance before freshness, so a delayed duplicate can
+          # acknowledge an already-accepted original without sending again.
+          if gh release view "$tag" --json assets --jq '.assets[].name' | grep -Fxq "$accepted"; then
+            echo "FOOTBALL_CANONICAL_API_ALREADY_ACCEPTED_NO_RESEND"
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          day="$(TZ=Asia/Shanghai date +%Y%m%d)"
-          tag="football-007-raw-$day"
+          if gh release view "$tag" --json assets --jq '.assets[].name' | grep -Fxq "$claim"; then
+            echo "::warning::FOOTBALL_PRECLAIM_EXISTS_ACCEPTANCE_UNCONFIRMED_NO_RESEND"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # A queued original run must not send 43-60 minutes after its
+          # canonical hour. The short allowance is execution latency only,
+          # not a scheduled retry or compensating dispatch.
+          if ! python3 -B scripts/football_jc_capture_slot.py --send-window "$SLOT"; then
+            echo "::error::FOOTBALL_CANONICAL_SEND_EXPIRED_ARCHIVE_ONLY_NO_RESEND"
+            exit 1
+          fi
           # Validate and compact before acquiring an immutable send lock.
           python3 -B scripts/football_jc_slot_push.py \
             --forecast football-output/football_jc_forecast_market.json \
@@ -403,12 +412,6 @@ jobs:
             --movement football-output/football_capture_movement.json \
             --html-out football-output/football_jc_preflight_preview.html \
             --status-out football-output/football_jc_preflight_status.json --preflight
-          claim="football-push-$day-$SLOT.claim.json"
-          if gh release view "$tag" --json assets --jq '.assets[].name' | grep -Fxq "$claim"; then
-            echo "DUPLICATE_FOOTBALL_SLOT_CLAIM_ALREADY_EXISTS"
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           printf '{"schema_version":"football-push-claim-v1","slot":"%s","run_id":"%s","status":"CLAIMED_BEFORE_API_NO_DUPLICATE_RETRY"}\n' "$SLOT" "$GITHUB_RUN_ID" > "$claim"
           # Atomic asset name uniqueness: a failed claim must fail closed.
           gh release upload "$tag" "$claim"
@@ -427,7 +430,7 @@ jobs:
       - name: Append PushPlus API acceptance receipt; do not confuse with iPhone delivery
         if: success() && steps.claim.outputs.skip != 'true'
         run: |
-          day="$(TZ=Asia/Shanghai date +%Y%m%d)"
+          day="$FOOTBALL_SALE_DAY"
           tag="football-007-raw-$day"
           receipt="football-push-$day-$DAYTIME_SLOT.accepted.json"
           cp football-output/football_jc_send_status.json "$receipt"
