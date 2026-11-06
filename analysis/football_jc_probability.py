@@ -247,6 +247,10 @@ def build_match(game, captured):
     away_gf, away_ga = weighted(away, 0, captured), weighted(away, 1, captured)
     home_lambda = 0.35 * 1.40 + 0.65 * math.sqrt(max(0.10, home_gf) * max(0.10, away_ga))
     away_lambda = 0.35 * 1.15 + 0.65 * math.sqrt(max(0.10, away_gf) * max(0.10, home_ga))
+    # An auditable arithmetic decomposition, NOT a causal estimate or a
+    # trained attribution: each step is the exact change the baseline model
+    # made to the two goal expectations, starting from fixed league priors.
+    form_home, form_away = home_lambda, away_lambda
     if h2h:
         # Ancient H2H (sometimes >10 years old) decays below the effective
         # threshold. Do not multiply an expectation by None or discard the game.
@@ -257,8 +261,20 @@ def build_match(game, captured):
             w = min(0.12, len(h2h_recent) * 0.024)
             home_lambda = (1 - w) * home_lambda + w * h2h_home
             away_lambda = (1 - w) * away_lambda + w * h2h_away
+    h2h_home, h2h_away = home_lambda, away_lambda
     home_lambda = max(0.15, min(4.5, home_lambda + injuries["home_attack"] + injuries["away_conceded"]))
     away_lambda = max(0.15, min(4.5, away_lambda + injuries["away_attack"] + injuries["home_conceded"]))
+    base["factor_contributions"] = {
+        "schema_version": "football-goal-expectation-components-v1",
+        "unit": "expected_goals",
+        "reference_only_untrained_not_causal": True,
+        "recent5_vs_fixed_prior": {"home": round(form_home-1.40, 4), "away": round(form_away-1.15, 4)},
+        "h2h_vs_recent5": {"home": round(h2h_home-form_home, 4), "away": round(h2h_away-form_away, 4)},
+        "verified_injury_delta": {"home": round(home_lambda-h2h_home, 4), "away": round(away_lambda-h2h_away, 4)},
+        "asian_market_delta": {"home": 0., "away": 0.},
+        "injury_verified": injury_state == "VERIFIED",
+        "euro_asian_conversion_not_fused": True
+    }
     had, hhad, ttg, top = distribution(home_lambda, away_lambda, handicap)
     goal_rank = sorted(zip(TTG, ttg), key=lambda item: item[1], reverse=True)
     # Up to TWO exact JC total-goal buckets, not an invented over/under line.
