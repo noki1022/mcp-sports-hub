@@ -233,5 +233,53 @@ assert.equal(matchesReportSlot({event:"workflow_dispatch",display_title:
 assert.equal(matchesReportSlot({event:"schedule",created_at:"2026-11-04T07:00:30Z",display_title:
   "NBA full report | slot=0 7 * * * | date=auto"},sameSlotJob),true);
 console.log("DELAYED_PREVIOUS_SLOT_MUST_NOT_SUPPRESS_CURRENT_REPORT_PASS");
+// Nov 6 incident: 16:00 was absent from Cloudflare backup despite existing
+// GitHub scheduled report. Verify all ten business-hour slots AND that each
+// backup tick is present in the SAME 5-trigger Worker configuration.
+import {readFileSync} from "node:fs";
+const cfConfig=readFileSync(new URL("./wrangler.toml",import.meta.url),"utf8");
+const cronGroups=[...cfConfig.matchAll(/"([0-9,\\-]+) ([0-9,\\-]+) \* \* \*"/g)]
+  .map(m=>({minutes:m[1],hours:m[2]}));
+assert.equal(cronGroups.length,5,"must not exceed existing Cloudflare Free Cron quota");
+function covers(group,value){
+  return group.split(",").some(s=>{
+    const [start,end]=s.split("-").map(Number);
+    return end===undefined?start===value:start<=value&&value<=end;
+  });
+}
+for(let hour=12;hour<=21;hour++){
+  const utc=(hour+16)%24;
+  for(const minute of [20,35]){
+    // Some earlier slots use other retry moments; new slots must have 20/35.
+    if(![13,16,17,19,20].includes(hour))continue;
+    assert.ok(cronGroups.some(g=>covers(g.minutes,minute)&&covers(g.hours,utc)),
+      "missing Worker cron for "+hour+":"+minute);
+    const when=Date.UTC(2026,10,6,utc,minute);
+    const job=plannedJob(when);
+    assert.equal(job?.slot,String(hour).padStart(2,"0")+"00",
+      "missing recovery slot "+hour+":"+minute);
+    assert.equal(job.target_date,"2026-11-07");
+    const dispatched=[];
+    const backup=async(url,opts)=>{
+      if(url.includes("/contents/"))return {status:404,ok:false};
+      if(url.includes("/runs?"))return {ok:true,json:async()=>({workflow_runs:[]})};
+      if(url.endsWith("/dispatches")){dispatched.push(JSON.parse(opts.body));return {status:204};}
+      throw Error(url);
+    };
+    assert.equal((await dispatchAt(when,{GITHUB_TOKEN:"FAKE"},backup)).state,
+      "DISPATCH_ACCEPTED_NOT_COMPLETED");
+    assert.deepEqual(dispatched[0].inputs,{target_date:"2026-11-07",
+      report_slot:String(hour).padStart(2,"0")+"00"});
+  }
+}
+const curr=plannedJob(Date.parse("2026-11-06T08:20:00Z"));
+assert.equal(matchesReportSlot({event:"schedule",
+  created_at:"2026-11-06T08:05:00Z",
+  display_title:"NBA full report | slot=0 7 * * * | date=auto"},curr),false);
+assert.equal(matchesReportSlot({event:"schedule",
+  created_at:"2026-11-06T08:05:00Z",
+  display_title:"NBA full report | slot=0 8 * * * | date=auto"},curr),true);
+console.log("ALL_TEN_BASKETBALL_BACKUP_SLOTS_COVERED");
+
 // The paired football tests are also a mandatory part of the existing scheduler suite.
 await import("./test-football-scheduler.mjs");
