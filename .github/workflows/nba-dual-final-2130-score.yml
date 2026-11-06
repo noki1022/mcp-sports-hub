@@ -1,8 +1,5 @@
 name: NBA final 21:30 original vs independent shadow scoreboard (research only)
 on:
-  schedule:
-    # One quiet audit after completed NBA Beijing-date games, not a push.
-    - cron: '25 14 * * *'
   workflow_dispatch:
     inputs:
       target_date:
