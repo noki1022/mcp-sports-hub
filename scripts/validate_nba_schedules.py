@@ -278,8 +278,8 @@ def main():
                  (lh==22 and lm in (0,10,20)) or
                  (lh==6 and lm in (20,30,40)) or
                  (lh in (0,3) and lm in (30,40,50)))
-            football=((12<=lh<=21 or 0<=lh<=6) and lm in (20,35)) or
-                     (lh in (21,6) and lm in (42,52))
+            football=(((12<=lh<=21 or 0<=lh<=6) and lm in (20,35)) or
+                     (lh in (21,6) and lm in (42,52)))
             if nba or football:
                 assert (h,m) in ticks, ("MISSING_EXTERNAL_BACKUP",h,m,lh,lm)
     worker=(ROOT/"scheduler/worker.mjs").read_text()
