@@ -14,10 +14,6 @@ def planned(schedule:str)->str:
     text=str(schedule or "").strip()
     if not text:
         return "MANUAL"
-    # Bounded retries at 12:15/12:30 always belong to the 12:00 capture.
-    # Keep the actual fetched timestamp in the raw snapshot, not here.
-    if text in ("15 4 * * *", "30 4 * * *"):
-        return "1200"
     m=re.fullmatch(r"(0|30) (\d{1,2}) \* \* \*",text)
     if not m:
         raise ValueError("UNRECOGNIZED_FOOTBALL_CAPTURE_CRON")
@@ -33,15 +29,13 @@ def planned(schedule:str)->str:
 
 def selftest():
     assert planned("0 4 * * *")=="1200"
-    assert planned("15 4 * * *")=="1200"
-    assert planned("30 4 * * *")=="1200"
     assert planned("0 13 * * *")=="2100"
     assert planned("30 13 * * *")=="2130"
     assert planned("0 16 * * *")=="0000"
     assert planned("0 22 * * *")=="0600"
     assert planned("30 22 * * *")=="0630"
     assert planned("")=="MANUAL"
-    for wrong in ("0 14 * * *","20 13 * * *","30 12 * * *","0 23 * * *"):
+    for wrong in ("15 4 * * *","30 4 * * *","0 14 * * *","20 13 * * *","30 12 * * *","0 23 * * *"):
         try: planned(wrong)
         except ValueError:pass
         else:raise AssertionError("UNSUPPORTED_SLOT_ACCEPTED:"+wrong)
