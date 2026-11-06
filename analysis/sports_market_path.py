@@ -50,6 +50,9 @@ def describe(snapshots, *, asof, kickoff, tolerance=1e-6):
         sign=1 if delta>tolerance else -1 if delta< -tolerance else 0
         steps.append({'at':tb.isoformat(),'matched':len(ids),'delta':delta,
             'hours':(tb-ta).total_seconds()/3600,
+            'up_fraction':sum(x>tolerance for x in deltas)/len(ids),
+            'down_fraction':sum(x< -tolerance for x in deltas)/len(ids),
+            'flat_fraction':sum(abs(x)<=tolerance for x in deltas)/len(ids),
             'breadth':sum(sign*x>tolerance for x in deltas)/len(ids) if sign else 0.,
             'changed':sum(abs(x)>tolerance for x in deltas),
             'coverage_churn':1-len(ids)/len(a.keys() | b.keys())})
@@ -64,7 +67,16 @@ def describe(snapshots, *, asof, kickoff, tolerance=1e-6):
     last=steps[-1] if steps else None
     first_books=ordered[0][1]; matched=sorted(current.keys() & first_books.keys())
     net=median(current[k]-first_books[k] for k in matched) if len(matched)>=3 else None
+    split=bool(last and last.get('up_fraction',0)>=.2 and last.get('down_fraction',0)>=.2)
+    stable_tail=0.;stable_intervals=0
+    for step in reversed(segment):
+        if step['changed'] or step['coverage_churn']:break
+        stable_tail+=step['hours'];stable_intervals+=1
+    travel=sum(abs(s['delta']) for s in segment)
+    segment_net=sum(s['delta'] for s in segment)
     state=('FIRST_CAPTURE' if not steps else 'COVERAGE_CHANGED' if last['delta'] is None else
+           'DIVERGING' if split else
+           'PAUSED_AFTER_MOVE' if stable_intervals and nonzero else
            'REVERSAL' if len(nonzero)>=2 and nonzero[-1]['delta']*nonzero[-2]['delta']<0 else
            'STABLE' if not nonzero else 'RISING' if nonzero[-1]['delta']>0 else 'FALLING')
     return {'status':state,'snapshots':len(ordered),'rejected':rejected,
@@ -76,6 +88,15 @@ def describe(snapshots, *, asof, kickoff, tolerance=1e-6):
         'last_move_breadth':last.get('breadth') if last else None,
         'last_change_per_hour':last['delta']/last['hours'] if last and last['delta'] is not None else None,
         'last_gap_hours':last.get('hours') if last else None,
+        'latest_up_fraction':last.get('up_fraction') if last else None,
+        'latest_down_fraction':last.get('down_fraction') if last else None,
+        'latest_flat_fraction':last.get('flat_fraction') if last else None,
+        'opposing_company_moves':split,
+        'last_direction_reversed':len(nonzero)>=2 and nonzero[-1]['delta']*nonzero[-2]['delta']<0,
+        'unchanged_tail_hours':stable_tail,'unchanged_tail_intervals':stable_intervals,
+        'segment_absolute_travel':travel,
+        'segment_directional_efficiency':abs(segment_net)/travel if travel>tolerance else None,
+        'stability_is_observed_quotes_not_proof_of_new_information':True,
         'reversals':reversals,'changed_intervals':sum(s['changed']>0 for s in usable),
         'path':steps,'snapshots_are_not_independent_samples':True}
 
@@ -83,8 +104,9 @@ def describe(snapshots, *, asof, kickoff, tolerance=1e-6):
 def risk_multiplier(path):
     """Conservative attenuation only; repeated agreement never boosts confidence."""
     factor=1.
-    if path['status']=='REVERSAL':factor*=.5
+    if path['status']=='REVERSAL' or path.get('last_direction_reversed'):factor*=.5
     if path['status']=='COVERAGE_CHANGED':factor*=.5
+    if path.get('opposing_company_moves'):factor*=.5
     breadth=path.get('last_move_breadth')
     if path.get('last_change_same_books') and breadth is not None and breadth<.6:factor*=.5
     if (path.get('last_gap_hours') or 0)>3:factor*=.5

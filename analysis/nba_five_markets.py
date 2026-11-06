@@ -234,6 +234,9 @@ def make(joined,model,jc,top10,consensus=None,history=None):
           "home_team":g.get("home_team"),"away_team":g.get("away_team"),
           "tipoff_beijing":g.get("start_time_beijing"),
           "model_margin_home_minus_away":margin,"model_total":total,
+          "model_input_evidence":{"margin_sigma":p.get("margin_sigma"),"total_sigma":p.get("total_sigma"),
+            "data_quality":p.get("data_quality"),"pregame_context":p.get("pregame_context"),
+            "injury_context":p.get("injury_context"),"injury_adjustment":p.get("injury_adjustment")},
           "dynamic_market_analysis":dynamic,
           "markets":selected})
     return {"schema_version":"nba-five-markets-v1",

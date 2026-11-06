@@ -48,6 +48,31 @@ class PathTests(unittest.TestCase):
         with self.assertRaises(ValueError):describe([],asof='2026-11-06T08:00:00Z',kickoff='2026-11-06T08:00:00Z')
     def test_long_gap_is_not_hourly(self):
         self.assertEqual(risk_multiplier(path([snap(1,1),snap(8,2)])),.5)
+    def test_balanced_opposing_moves_are_not_stability(self):
+        first=snap(7,2);last=snap(8,2)
+        for quote,value in zip(last['quotes'],[1,1,2,3,3]):quote['value']=value
+        r=path([first,last])
+        self.assertEqual(r['last_change_same_books'],0)
+        self.assertEqual(r['status'],'DIVERGING')
+        self.assertEqual(r['latest_up_fraction'],.4)
+        self.assertEqual(risk_multiplier(r),.5)
+        self.assertEqual(r['unchanged_tail_hours'],0)
+    def test_move_then_flat_has_a_measurable_pause(self):
+        r=path([snap(5,1),snap(6,2),snap(7,2),snap(8,2)])
+        self.assertEqual(r['status'],'PAUSED_AFTER_MOVE')
+        self.assertEqual(r['unchanged_tail_hours'],2)
+        self.assertEqual(r['segment_directional_efficiency'],1)
+        self.assertEqual(risk_multiplier(r),1)
+    def test_round_trip_is_not_a_zero_information_path(self):
+        r=path([snap(6,1),snap(7,2),snap(8,1)])
+        self.assertEqual(r['net_change_same_books'],0)
+        self.assertEqual(r['segment_absolute_travel'],2)
+        self.assertEqual(r['segment_directional_efficiency'],0)
+        self.assertEqual(r['status'],'REVERSAL')
+    def test_pause_after_reversal_does_not_restore_confidence(self):
+        r=path([snap(5,1),snap(6,2),snap(7,1),snap(8,1)])
+        self.assertEqual(r['status'],'PAUSED_AFTER_MOVE')
+        self.assertEqual(risk_multiplier(r),.5)
 
 class FootballTests(unittest.TestCase):
     def older(self,shift,hours):

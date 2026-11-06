@@ -164,6 +164,8 @@ def build(assets, snapshots=None):
                        'label_available_at':review['created_at'],'probabilities':p,'market_probabilities':q,'outcome':y,
                        'same_line_verified':True,'source_hashes':{'candidate':cid,'final':f['final_sha256'],'review':review['document']['review_sha256']},
                        'publication_evidence':{'candidate_created_at':candidates[cid]['created_at'],'review_asset_id':review['id']}}
+                    from sports_analysis_features import extract
+                    r['analysis_features']=extract(original,market)
                     rows.append(validate(r))
                 except (KeyError,ValueError,TypeError,AttributeError,ZeroDivisionError,OverflowError) as ex:
                     rejected[str(ex)]+=1

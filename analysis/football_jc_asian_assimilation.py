@@ -37,8 +37,8 @@ import football_jc_euro_asian as euro
 from sports_market_path import describe, risk_multiplier
 from sports_dynamic_inputs import read_history
 
-VERSION="football-jc-poisson-asian-assimilation-v3"
-ASSIMILATION="007_AH_PREFERRED_5_BOOKMAKER_TEMPORAL_RISK_V3"
+VERSION="football-jc-poisson-asian-assimilation-v4"
+ASSIMILATION="007_AH_PREFERRED_5_BOOKMAKER_DIVERGENCE_RISK_V4"
 SOURCE_VERSION="football-jc-poisson-research-v1"
 MAX_SNAPSHOT_BYTES=20_000_000
 MIN_COMPANIES=5

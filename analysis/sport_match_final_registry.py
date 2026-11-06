@@ -44,7 +44,8 @@ def make_candidate(sport,snapshot,forecast,run_id,slot=""):
     if sport=="football":
         require(snapshot.get("schema_version")=="football-jc-007-v1","WRONG_FOOTBALL_SOURCE")
         require(forecast.get("source_sha256")==digest(snapshot),"FOOTBALL_SOURCE_HASH_MISMATCH")
-        require(forecast.get("model_version")=="football-jc-poisson-asian-assimilation-v3","ONLY_FUSED_FOOTBALL_MODEL_ALLOWED")
+        require(forecast.get("model_version") in ("football-jc-poisson-asian-assimilation-v3",
+                "football-jc-poisson-asian-assimilation-v4"),"ONLY_FUSED_FOOTBALL_MODEL_ALLOWED")
         captured=stamp(snapshot["captured_at_utc"])
         require(stamp(forecast["captured_at_utc"])==captured,"FOOTBALL_CAPTURE_DRIFT")
         generated=stamp(forecast["generated_at_utc"])
@@ -119,12 +120,18 @@ def make_candidate(sport,snapshot,forecast,run_id,slot=""):
             record["evidence"]={
                 "injury_report_state":orig.get("injury_report_state"),
                 "verified_absence_ids":sorted(str(x.get("player_id")) for x in injury_list
-                   if isinstance(x,dict) and x.get("status")=="VERIFIED" and x.get("player_id") is not None),
+                   if orig.get("injury_report_state")=="VERIFIED" and isinstance(x,dict)
+                   and x.get("status")=="OUT" and x.get("player_id") is not None),
                 "goal_expectation":deepcopy(row.get("goal_expectation")),
                 "market_assimilation":deepcopy(row.get("market_assimilation")),
                 "data_quality":deepcopy(row.get("data_quality")),
                 "analysis_status":row.get("status"),
             }
+        else:
+            record["evidence"]={"model_input_evidence":deepcopy(row.get("model_input_evidence")),
+                "model_margin_home_minus_away":row.get("model_margin_home_minus_away"),
+                "model_total":row.get("model_total"),
+                "dynamic_market_analysis":deepcopy(row.get("dynamic_market_analysis"))}
         record["record_sha256"]=digest(record)
         records.append(record)
     require(len(seen)==len(originals),"MISSING_FIXTURE_FORECAST")
