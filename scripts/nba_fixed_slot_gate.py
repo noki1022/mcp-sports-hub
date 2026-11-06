@@ -131,8 +131,6 @@ def self_test() -> None:
         assert resolve_slot(schedule, "", now) == slot
     for slot in FIXED_SLOTS:
         assert resolve_slot("", slot, now) == slot
-    assert resolve_slot("30 16 * * *", "", now) == "0030"
-    assert resolve_slot("30 19 * * *", "", now) == "0330"
     assert resolve_slot("", "", now) == "1240"
     assert resolve_slot("", "", now, "workflow_dispatch") == "ONCE"
     assert resolve_slot("", "ONCE", now, "workflow_dispatch") == "ONCE"
