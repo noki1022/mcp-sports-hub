@@ -52,32 +52,25 @@ def point_in_time_valid(frozen,games):
     return True
 
 def frozen_source(root,day):
-    # Prefer a complete original pretip board, never a 06:30 subset of
-    # only games that have not started. Compare against frozen noon official IDs.
-    cohort=root/"reports"/"noon-cohorts"/day/"1200.json"
-    official_ids=None
-    if cohort.is_file():
-        official_ids=set((read_json(cohort).get("official_games") or {}).keys())
-        if not official_ids:raise ValueError("NOON_OFFICIAL_COHORT_EMPTY")
-    slots=("0630","0530","0430","0330","0230","0130","0030",
-           "2330","2230","2130","2100","1800","1500","1400","1200")
-    candidates=[]
-    for slot in slots:
-        p=root/"reports"/"daily"/day/slot/"nba_five_market_forecast.json"
-        if p.is_file():candidates.append((slot,p))
-        if slot in ("0030","0130","0230","0330","0430","0530"):
-            p=root/"reports"/"overnight-six"/day/slot/"five.json"
-            if p.is_file():candidates.append((slot,p))
-    valid=[]
-    for slot,path in candidates:
-        frozen=read_json(path)
-        games=frozen_games(frozen,day)
-        ids={str(g["nba_game_id"]) for g in games}
-        if official_ids is not None and ids!=official_ids:continue
-        # Model-board timestamp and each issued quote must both predate tip.
-        if not point_in_time_valid(frozen,games):continue
-        valid.append((slot,path))
-    return valid[0][1] if valid else None
+    """ONLY canonical Beijing 21:00 frozen five-play answer can be graded.
+
+    Never use 22:00/23:00, missing-slot fallbacks, 21:30 or next-day 06:30
+    as an implicit replacement. Existing source still must predate kickoff.
+    """
+    file=root/"reports"/"daily"/day/"2100"/"nba_five_market_forecast.json"
+    if not file.is_file():
+        return None
+    frozen=read_json(file)
+    games=frozen_games(frozen,day)
+    official=root/"reports"/"noon-cohorts"/day/"1200.json"
+    if official.is_file():
+        ids=set((read_json(official).get("official_games") or {}).keys())
+        if not ids:raise ValueError("NOON_OFFICIAL_COHORT_EMPTY")
+        if {str(g["nba_game_id"]) for g in games}!=ids:
+            raise ValueError("2100_COHORT_NOT_EQUAL_TO_NOON_OFFICIAL_GAMES")
+    if not point_in_time_valid(frozen,games):
+        raise ValueError("2100_FROZEN_BOARD_HAS_POSTTIP_INFORMATION")
+    return file
 
 def reviewed(root,day):
     p=root/"reports"/"five-market-settled"/day/"2200.json"
