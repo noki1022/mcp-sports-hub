@@ -62,8 +62,10 @@ def validate(event: str, source: str, day: str, cron: str,
     delay = (local - planned).total_seconds()
     # Even a valid Cloudflare request cannot unlock a new stale report.
     # Late native GH crons are audited separately; do not backdate sources.
-    # Queueing jitter only (two minutes); NO late resend window.
-    if delay < 0 or delay > 120:
+    # This was dispatched at the canonical minute by Cloudflare. Allow GitHub
+    # runner queue delay without manufacturing a second scheduled trigger.
+    # The 60-minute cap also prevents stale or replayed dispatches.
+    if delay < 0 or delay > 60 * 60:
         raise ValueError("RECOVERY_OUTSIDE_SENDING_WINDOW")
     return "CLOUDFLARE_RECOVERY_AUTHORIZED_" + slot
 
