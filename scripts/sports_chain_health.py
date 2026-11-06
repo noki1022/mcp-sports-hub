@@ -105,6 +105,11 @@ def trigger_candidates(slot):
             return [planned + timedelta(minutes=m) for m in (0, 15, 30)]
     if slot["workflow"] == NBA_2130:
         return [planned, planned + timedelta(minutes=10)]
+    if slot["workflow"] == FOOTBALL:
+        local = planned.astimezone(BJ)
+        if (local.hour, local.minute) == (12, 0):
+            return [planned, planned + timedelta(minutes=15),
+                    planned + timedelta(minutes=30)]
     return [planned]
 
 
@@ -122,6 +127,22 @@ def declared_slot_match(slot, run):
     return None
 
 
+def verified_football_recovery(run, slot):
+    """Count only self-labelled exact-date/cron recoveries, never manual runs.
+
+    This attests workflow arguments and slot identity, not Cloudflare origin.
+    Only the external Worker's production logs can prove that origin.
+    """
+    if run.get("event") != "workflow_dispatch" or slot["workflow"] != FOOTBALL:
+        return False
+    name = run.get("display_title") or run.get("name") or ""
+    if not isinstance(name, str):
+        return False
+    match = re.fullmatch(r"Football 007 \| cron=(\d{1,2} \d{1,2} \* \* \*) \| day=(\d{4}-\d{2}-\d{2})", name)
+    return bool(match and match.group(2) == slot["planned"].astimezone(BJ).date().isoformat()
+                and declared_slot_match(slot, run) is not None)
+
+
 def chronological_assignments(slots, runs):
     """Global minimum-delay matching; never steal an adjacent hourly run.
 
@@ -132,7 +153,9 @@ def chronological_assignments(slots, runs):
     for i, slot in enumerate(slots):
         planned = slot["planned"]
         for run in runs:
-            if canonical_workflow(run) != slot["workflow"] or run.get("event") != "schedule":
+            if canonical_workflow(run) != slot["workflow"]:
+                continue
+            if run.get("event") != "schedule" and not verified_football_recovery(run, slot):
                 continue
             if type(run.get("id")) is not int:
                 continue
@@ -199,7 +222,9 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
     artifacts = release_assets(releases)
     unique_runs = {}
     for run in runs:
-        if not isinstance(run, dict) or run.get("event") != "schedule":
+        if not isinstance(run, dict) or run.get("event") not in ("schedule", "workflow_dispatch"):
+            continue
+        if run["event"] == "workflow_dispatch" and canonical_workflow(run) != FOOTBALL:
             continue
         rid = run.get("id")
         if type(rid) is not int or not isinstance(run.get("created_at"), str):
@@ -217,6 +242,7 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
         scheduled.append({"workflow": slot["workflow"], "beijing_slot": slot["slot_beijing"],
                           "run_id": run.get("id") if run else None,
                           "schedule_delay_minutes": lag,
+                          "recovered_via_workflow_dispatch": bool(run and run.get("event") == "workflow_dispatch"),
                           "cron_verified_from_run_name": bool(run and advertised_cron(run))})
         if run is None:
             problems.append({"severity": "critical", "code": "SCHEDULED_RUN_NOT_OBSERVED",
@@ -272,6 +298,7 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
             "status": "CRITICAL" if critical else "WARNING" if warnings else "OK",
             "issues": problems, "slots": scheduled, "priority_delivery_evidence": push_evidence,
             "limitations": [
+                "Cloudflare recovery workflow_dispatch run-name is slot evidence, NOT proof of Worker origin without Worker Cron logs",
                 "Actual schedule trigger expression is unavailable for non-dynamic GitHub runs; time-only association can be ambiguous",
                 "A completed/green run does NOT prove model, push or review steps actually executed",
                 "A successful send step is not a handset receipt; inspect verified API response and phone delivery separately",

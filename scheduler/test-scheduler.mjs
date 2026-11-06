@@ -233,3 +233,5 @@ assert.equal(matchesReportSlot({event:"workflow_dispatch",display_title:
 assert.equal(matchesReportSlot({event:"schedule",created_at:"2026-11-04T07:00:30Z",display_title:
   "NBA full report | slot=0 7 * * * | date=auto"},sameSlotJob),true);
 console.log("DELAYED_PREVIOUS_SLOT_MUST_NOT_SUPPRESS_CURRENT_REPORT_PASS");
+// The paired football tests are also a mandatory part of the existing scheduler suite.
+await import("./test-football-scheduler.mjs");

@@ -1,4 +1,5 @@
 name: Football JC unified analysis, 21:30 locked final, 06:30 update
+run-name: ${{ github.event_name == 'schedule' && format('Football 007 | cron={0} | day=auto', github.event.schedule) || github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && format('Football 007 | cron={0} | day={1}', inputs.recovery_cron, inputs.recovery_day) || 'Football 007 | manual' }}
 on:
   pull_request:
     paths:
@@ -13,6 +14,8 @@ on:
       - 'analysis/football_jc_capture_movement.py'
       - 'tests/test_football_jc_capture_movement.py'
       - 'scripts/football_jc_capture_slot.py'
+      - 'scripts/football_cloudflare_recovery.py'
+      - 'tests/test_football_cloudflare_recovery.py'
       - 'tests/test_football_capture_slot_recovery.py'
       - 'tests/test_sport_match_final_registry.py'
       - 'analysis/football_jc_single_final_review.py'
@@ -36,6 +39,19 @@ on:
       - 'tests/test_football_007_live_capture.py'
       - '.github/workflows/football-007-live-capture.yml'
   workflow_dispatch:
+    inputs:
+      recovery_source:
+        description: 'Recovery origin (cloudflare only); leave blank for manual capture'
+        required: false
+        type: string
+      recovery_day:
+        description: 'Canonical YYYY-MM-DD Beijing day; only valid with source=cloudflare'
+        required: false
+        type: string
+      recovery_cron:
+        description: 'Canonical original UTC cron; only valid with source=cloudflare'
+        required: false
+        type: string
   schedule:
     # UTC: Beijing 12:00-21:00 hourly, 21:30 baseline, 00:00-06:00 silent, 06:30 update.
     # Every slot captures independently; prior-day history missing never blocks first capture.
@@ -77,6 +93,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Verify Cloudflare recovery date, canonical slot and fresh execution window
+        env:
+          FOOTBALL_RECOVERY_SOURCE: ${{ inputs.recovery_source || '' }}
+          FOOTBALL_RECOVERY_DAY: ${{ inputs.recovery_day || '' }}
+          FOOTBALL_RECOVERY_CRON: ${{ inputs.recovery_cron || '' }}
+        run: python3 -B scripts/football_cloudflare_recovery.py
       - name: Validate 007 real fixture and official odds record contracts offline
         run: |
           python3 -B -m unittest discover -s tests -p test_football_007_live_capture.py -v
@@ -105,6 +127,7 @@ jobs:
         run: |
           python3 -B -m unittest discover -s tests -p test_sport_match_final_registry.py -v
           python3 -B -m unittest discover -s tests -p test_football_capture_slot_recovery.py -v
+          python3 -B -m unittest discover -s tests -p test_football_cloudflare_recovery.py -v
       - name: Test one-model 21:30 lock and next-morning comparison
         if: github.event_name == 'pull_request'
         run: |
@@ -140,7 +163,7 @@ jobs:
           python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast_market.json --html football-output/football_jc_mobile.html
       - name: Store timestamp-hashed per-match candidates independently of 21:30 baseline
         env:
-          FOOTBALL_SCHEDULE_EXPR: ${{ github.event.schedule || '' }}
+          FOOTBALL_SCHEDULE_EXPR: ${{ github.event.schedule || inputs.recovery_cron || '' }}
         run: |
           python3 -B scripts/football_jc_capture_slot.py --self-test
           PLANNED_SLOT="$(python3 -B scripts/football_jc_capture_slot.py --schedule "$FOOTBALL_SCHEDULE_EXPR")"
@@ -177,7 +200,7 @@ jobs:
             --history-dir $RUNNER_TEMP/football-prior-candidates \
             --out football-output/football_capture_movement.json
       - name: Freeze only scheduled Beijing 21:30 as sole football grading source
-        if: github.event_name == 'schedule' && github.event.schedule == '30 13 * * *'
+        if: (github.event_name == 'schedule' && github.event.schedule == '30 13 * * *') || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && inputs.recovery_cron == '30 13 * * *')
         run: |
           if python3 -c 'import json,sys;sys.exit(0 if not json.load(open("football-output/football_007_snapshot.json")).get("games") else 1)'; then
             echo "VERIFIED_EMPTY_FOOTBALL_2130_NO_FICTITIOUS_FINAL" > football-output/no_future_fixtures.txt
@@ -194,7 +217,7 @@ jobs:
             --html football-output/football_jc_mobile.html
           test -s football-output/football_jc_final_2130.json
       - name: Retrieve immutable previous-day 21:30 football answer and compare at 06:30
-        if: github.event_name == 'schedule' && github.event.schedule == '30 22 * * *'
+        if: (github.event_name == 'schedule' && github.event.schedule == '30 22 * * *') || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && inputs.recovery_cron == '30 22 * * *')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
@@ -247,7 +270,7 @@ jobs:
 
   archive-football-2130-final:
     needs: live-football
-    if: needs.live-football.result == 'success' && github.event_name == 'schedule' && github.event.schedule == '30 13 * * *'
+    if: needs.live-football.result == 'success' && ((github.event_name == 'schedule' && github.event.schedule == '30 13 * * *') || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && inputs.recovery_cron == '30 13 * * *'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -326,7 +349,7 @@ jobs:
 
   football-daytime-push:
     needs: [live-football, archive-football-raw-release]
-    if: needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && github.event_name == 'schedule' && contains(fromJSON('["0 4 * * *","15 4 * * *","30 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *"]'), github.event.schedule)
+    if: needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && ((github.event_name == 'schedule' && contains(fromJSON('["0 4 * * *","15 4 * * *","30 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *"]'), github.event.schedule)) || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && contains(fromJSON('["0 4 * * *","15 4 * * *","30 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *"]'), inputs.recovery_cron)))
     runs-on: ubuntu-latest
     timeout-minutes: 6
     permissions:
@@ -335,7 +358,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
       FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN || secrets.FOOTBALL_PUSHPLUS_TOKEN }}
-      TRIGGER_SCHEDULE: ${{ github.event.schedule || '' }}
+      TRIGGER_SCHEDULE: ${{ github.event.schedule || inputs.recovery_cron || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -430,7 +453,7 @@ jobs:
 
   football-final-and-morning-push:
     needs: [live-football, archive-football-2130-final, archive-football-raw-release]
-    if: always() && needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && github.event_name == 'schedule' && ((github.event.schedule == '30 13 * * *' && needs.archive-football-2130-final.result == 'success') || github.event.schedule == '30 22 * * *')
+    if: always() && needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare')) && ((((github.event.schedule || inputs.recovery_cron) == '30 13 * * *') && needs.archive-football-2130-final.result == 'success') || (github.event.schedule || inputs.recovery_cron) == '30 22 * * *')
     runs-on: ubuntu-latest
     timeout-minutes: 7
     permissions:
@@ -439,6 +462,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
       FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN || secrets.FOOTBALL_PUSHPLUS_TOKEN }}
+      TRIGGER_SCHEDULE: ${{ github.event.schedule || inputs.recovery_cron || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -453,7 +477,7 @@ jobs:
       - name: Claim exactly one immutable scheduled 21:30 or 06:30 football notification
         id: priority_claim
         env:
-          TRIGGER_SCHEDULE: ${{ github.event.schedule || '' }}
+          TRIGGER_SCHEDULE: ${{ github.event.schedule || inputs.recovery_cron || '' }}
         run: |
           set -euo pipefail
           if [ -s football-output/no_future_fixtures.txt ]; then
@@ -467,6 +491,25 @@ jobs:
             *) echo "::error::UNKNOWN_FOOTBALL_PRIORITY_SCHEDULE"; exit 1 ;;
           esac
           echo "PRIORITY_SLOT=$SLOT" >> "$GITHUB_ENV"
+          # A late GitHub cron can report success while sending an obsolete
+          # pre-match forecast. Keep the archive, but refuse stale delivery.
+          if ! python3 - <<'PY'
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          import os,sys
+          slot=os.environ["TRIGGER_SCHEDULE"]
+          hour,minute=(21,30) if slot=="30 13 * * *" else (6,30)
+          now=datetime.now(ZoneInfo("Asia/Shanghai"))
+          planned=now.replace(hour=hour,minute=minute,second=0,microsecond=0)
+          lag=(now-planned).total_seconds()
+          limit=75*60 if hour==6 else 60*60
+          sys.exit(0 if 0<=lag<=limit else 2)
+          PY
+          then
+            echo "::warning::STALE_PRIORITY_CAPTURE_ARCHIVED_BUT_NO_DELAYED_PUSH"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ -z "$FOOTBALL_PUSHPLUS_TOKEN" ]; then
             echo "::error::NO_FOOTBALL_PUSHPLUS_TOKEN_ARCHIVE_ONLY"
             exit 1
@@ -495,7 +538,7 @@ jobs:
             echo "::error::Missing FOOTBALL_PUSHPLUS_TOKEN or PUSHPLUS_TOKEN; forecast is still archived, but notification NOT delivered"
             exit 1
           fi
-          if [ "${{ github.event.schedule }}" = '30 13 * * *' ]; then
+          if [ "$TRIGGER_SCHEDULE" = '30 13 * * *' ]; then
             LOCK="football-output/football_jc_final_2130.json"
             MODE="final"
             EXTRA=()
