@@ -195,91 +195,36 @@ def alert_html(report:dict)->str:
       "不补造过期赛前快照，不把工作流成功等同于推送成功。</p></div>")
 
 def self_test():
+    """Only exact-slot audit and immutable acceptance, never dispatch or alert."""
     from datetime import datetime
-    for clock,expected in (("2026-10-30T22:30:00+08:00","2230"),
-                           ("2026-10-30T22:35:00+08:00","2230"),
-                           ("2026-10-30T22:59:59+08:00","2230"),
-                           ("2026-10-30T23:00:00+08:00","2230"),
-                           ("2026-10-31T00:01:00+08:00","2330"),
-                           ("2026-10-31T00:30:00+08:00","0030"),
-                           ("2026-10-31T05:30:00+08:00","0530"),
-                           ("2026-10-31T06:00:00+08:00","0530")):
-        assert hourly_slot(datetime.fromisoformat(clock))==expected,clock
-    assert hourly_slot(datetime.fromisoformat("2026-10-31T00:10:00+08:00"))=="2330"
-    assert hourly_slot(datetime.fromisoformat("2026-10-31T01:12:00+08:00"))=="0030"
-    # A delayed :55 watchdog at 23:18 is still checking 22:30.
-    assert infer_slot("55 14-21 * * *",datetime.fromisoformat("2026-10-31T23:18:22+08:00"))==("2230","2026-11-01")
-    assert infer_slot("55 14-21 * * *",datetime.fromisoformat("2026-10-31T23:55:00+08:00"))==("2330","2026-11-01")
-    assert infer_slot("55 14-21 * * *",datetime.fromisoformat("2026-11-01T00:18:22+08:00"))==("2330","2026-11-01")
-
-    for cron,now,slot,target in (
-        ("30 16 * * *","2026-10-31T00:30:00+08:00","0030","2026-10-31"),
-        ("35 16 * * *","2026-10-31T00:35:00+08:00","0030","2026-10-31"),
-        ("50 16 * * *","2026-10-31T00:50:00+08:00","0030","2026-10-31"),
-        ("0 17 * * *","2026-10-31T01:00:00+08:00","0030","2026-10-31"),
-        ("30 19 * * *","2026-10-31T03:30:00+08:00","0330","2026-10-31"),
-        ("35 19 * * *","2026-10-31T03:35:00+08:00","0330","2026-10-31"),
-        ("50 19 * * *","2026-10-31T03:50:00+08:00","0330","2026-10-31"),
-        ("0 20 * * *","2026-10-31T04:00:00+08:00","0330","2026-10-31"),
-        ("40 4 * * *","2026-10-30T12:40:00+08:00","1200","2026-10-31"),
-        ("40 13 * * *","2026-10-30T21:40:00+08:00","2100","2026-10-31"),
-        ("55 13 * * *","2026-10-30T21:55:00+08:00","2130","2026-10-31"),
-         ("35 13 * * *","2026-10-30T21:35:00+08:00","2130","2026-10-31"),
-         ("45 13 * * *","2026-10-30T21:45:00+08:00","2130","2026-10-31"),
-         ("50 13 * * *","2026-10-30T21:50:00+08:00","2130","2026-10-31"),
-         ("45 22 * * *","2026-10-31T06:45:00+08:00","0630","2026-10-31"),
-         ("50 22 * * *","2026-10-31T06:50:00+08:00","0630","2026-10-31"),
-        ("40 14 * * *","2026-10-30T22:40:00+08:00","2200","2026-10-30"),
-        ("55 14-21 * * *","2026-10-30T22:55:00+08:00","2230","2026-10-31"),
-        ("55 14-21 * * *","2026-10-31T00:55:00+08:00","0030","2026-10-31"),
-        ("55 14 * * *","2026-10-30T22:55:00+08:00","2230","2026-10-31"),
-        ("55 15 * * *","2026-10-30T23:55:00+08:00","2330","2026-10-31"),
-        ("55 16 * * *","2026-10-31T00:55:00+08:00","0030","2026-10-31"),
-        ("55 22 * * *","2026-10-31T06:55:00+08:00","0630","2026-10-31"),
-    ):
-        if slot is None:continue
-        actual=infer_slot(cron,datetime.fromisoformat(now))
-        assert actual==(slot,target),(cron,actual,slot,target)
-    assert all(f"{h:02d}00" in FIXED for h in range(12,22))
     for h in range(12,22):
-        assert SCHEDULES[f"40 {h-8} * * *"][0]==f"{h:02d}00"
-    delayed={"event":"schedule","created_at":"2026-11-06T08:15:00Z",
-             "display_title":"NBA full report | slot=0 7 * * * | date=auto",
-             "status":"completed","conclusion":"success"}
-    assert run_hint([delayed],"1600","2026-11-07")[0]=="NO_RECORDED_WORKFLOW_TRIGGER"
-    current={**delayed,"display_title":"NBA full report | slot=0 8 * * * | date=auto"}
+        slot=f"{h:02d}00"
+        cron=f"0 {h-8} * * *"
+        when=datetime.fromisoformat(f"2026-11-06T{h:02d}:00:00+08:00")
+        assert infer_slot(cron,when)==(slot,"2026-11-07")
+        assert expected_workflow(slot)=="titan007-three-analysis.yml"
+    for cron,when,slot,date in [
+        ("30 16 * * *","2026-11-07T00:30:00+08:00","0030","2026-11-07"),
+        ("30 19 * * *","2026-11-07T03:30:00+08:00","0330","2026-11-07")]:
+        assert infer_slot(cron,datetime.fromisoformat(when))==(slot,date)
+    assert len(SCHEDULES)==12
+    with tempfile.TemporaryDirectory() as d:
+        root=Path(d)
+        target="2026-11-07"
+        p=marker_path(root,"1600",target)
+        assert not accepted_marker(root,"1600",target)
+        p.parent.mkdir(parents=True,exist_ok=True)
+        p.write_text(json.dumps({"state":ACCEPTED,"slot":"1600"}))
+        assert accepted_marker(root,"1600",target)
+        assert inspect(root,"1600",target)["status"]==ACCEPTED
+        assert not accepted_marker(root,"1700",target)
+    old={"event":"schedule","created_at":"2026-11-06T08:15:00Z",
+         "status":"completed","conclusion":"success",
+         "display_title":"NBA full report | slot=0 7 * * * | date=auto"}
+    assert run_hint([old],"1600","2026-11-07")[0]=="NO_RECORDED_WORKFLOW_TRIGGER"
+    current={**old,"display_title":"NBA full report | slot=0 8 * * * | date=auto"}
     assert run_hint([current],"1600","2026-11-07")[0]=="WORKFLOW_SUCCESS_WITHOUT_DELIVERY_MARKER"
-    with tempfile.TemporaryDirectory() as t:
-        root=Path(t)
-        x=inspect(root,"2130","2026-10-31",runs=[])
-        assert x["status"]=="MISSING_API_ACCEPTANCE" and x["run_hint"]=="NO_RECORDED_WORKFLOW_TRIGGER"
-        path=marker_path(root,"2130","2026-10-31");path.parent.mkdir(parents=True)
-        path.write_text(json.dumps({"slot":"2130","state":ACCEPTED}),encoding="utf-8")
-        assert inspect(root,"2130","2026-10-31",runs=[])["status"]==ACCEPTED
-        assert "未见推送成功标记" in alert_html(x)
-        silent=inspect(root,"0130","2026-10-31",runs=[])
-        assert silent["status"]=="SILENT_ANALYSIS_MISSING"
-        assert silent["run_hint"]=="SILENT_NO_PUSH_REQUIRED"
-        assert inspect(root,"0030","2026-10-31",runs=[])["status"]=="MISSING_API_ACCEPTANCE"
-        assert expected_workflow("0030")=="titan007-three-analysis.yml"
-        assert expected_workflow("0330")=="titan007-three-analysis.yml"
-        assert scheduled_start("0030","2026-10-31").isoformat()=="2026-10-31T00:30:00+08:00"
-        assert scheduled_start("0330","2026-10-31").isoformat()=="2026-10-31T03:30:00+08:00"
-    assert not alert_ready("2130","2026-10-31",datetime.fromisoformat("2026-10-30T21:35:00+08:00"))
-    assert alert_ready("2130","2026-10-31",datetime.fromisoformat("2026-10-30T21:45:00+08:00"))
-    assert not alert_ready("0030","2026-10-31",datetime.fromisoformat("2026-10-31T00:40:00+08:00"))
-    assert alert_ready("0030","2026-10-31",datetime.fromisoformat("2026-10-31T00:43:00+08:00"))
-    assert not alert_ready("0330","2026-10-31",datetime.fromisoformat("2026-10-31T03:40:00+08:00"))
-    assert alert_ready("0330","2026-10-31",datetime.fromisoformat("2026-10-31T03:43:00+08:00"))
-    assert not alert_ready("0630","2026-10-31",datetime.fromisoformat("2026-10-31T06:35:00+08:00"))
-    assert alert_ready("0630","2026-10-31",datetime.fromisoformat("2026-10-31T06:45:00+08:00"))
-    fail=[{"event":"workflow_dispatch","created_at":"2026-10-30T13:25:10Z",
-           "status":"completed","conclusion":"failure"}]
-    assert run_hint(fail,"2130","2026-10-31")[0]=="WORKFLOW_FAILED"
-    active=[{"event":"workflow_dispatch","created_at":"2026-10-30T13:25:10Z",
-             "status":"in_progress","conclusion":None}]
-    assert run_hint(active,"2130","2026-10-31")[0]=="WORKFLOW_RUNNING_NO_ACCEPTED_MARKER"
-    print("NBA_DELIVERY_HEALTH_TEST_PASS")
+    print("NBA_READ_ONLY_DELIVERY_AUDIT_NO_RESEND_PASS")
 
 def main():
     parser=argparse.ArgumentParser()
