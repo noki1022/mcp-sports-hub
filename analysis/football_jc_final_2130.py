@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Single canonical football JC 21:30 Beijing final, and 06:30 changes.
+"""21:00 canonical football JC frozen forecast; no future-slot replacement.
 
 No shadow forecast. Uses 007 Asian-integrated football report only. Scheduled
-UTC 13:30 slot means Beijing 21:30. Freeze is an immutable payload intended
+UTC 13:00 slot means Beijing 21:00. Freeze is an immutable payload intended
 for a create-only GitHub Release asset; it never uses a 06:30 snapshot to grade.
 Actual capture timestamp is retained (cron is not guaranteed exact).
 """
@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 from typing import Any
 
 BJ=ZoneInfo("Asia/Shanghai")
-VERSION="football-jc-single-final-2130-v1"
+VERSION="football-jc-single-final-2100-v1"
 from football_jc_asian_assimilation import VERSION as FUSED_VERSION  # one producer-owned contract
 KEYS=("had","hhad","ttg")
 LABELS={"had":"竞彩胜平负","hhad":"竞彩让球胜平负","ttg":"竞彩总进球数"}
@@ -111,15 +111,22 @@ def freeze(snapshot,forecast,scheduled_day,now=None):
     captured,generated=source_check(snapshot,forecast)
     now=(now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     day=datetime.strptime(scheduled_day,"%Y-%m-%d").date()
-    slot=datetime(day.year,day.month,day.day,21,30,tzinfo=BJ).astimezone(timezone.utc)
+    slot=datetime(day.year,day.month,day.day,21,0,tzinfo=BJ).astimezone(timezone.utc)
     if now<slot or (now-slot).total_seconds()>MAX_DELAY*60:
-        raise ValueError("OUTSIDE_BEIJING_2130_SCHEDULED_FINAL_WINDOW")
+        raise ValueError("OUTSIDE_BEIJING_2100_SCHEDULED_FINAL_WINDOW")
     # Scheduled GitHub Actions can begin late; use the actual timestamp,
     # allow up to 120 minutes after slot but never use a pre-slot report.
     if captured<slot or generated>now+timedelta(minutes=2):
-        raise ValueError("NOT_LIVE_2130_SOURCE_WINDOW")
+        raise ValueError("NOT_LIVE_2100_SOURCE_WINDOW")
     if generated<slot or generated>=slot+timedelta(minutes=MAX_DELAY):
         raise ValueError("FORECAST_OUTSIDE_FINAL_SLOT_WINDOW")
+    expected="周"+"一二三四五六日"[day.weekday()]
+    if snapshot.get("jc_sale_day_beijing") and snapshot["jc_sale_day_beijing"]!=scheduled_day:
+        raise ValueError("JC_SALE_DATE_DIFFERS_FROM_2100_BASELINE")
+    if not snapshot["games"]:
+        raise ValueError("NO_VERIFIED_JC_GAMES_TO_LOCK")
+    if any(not str(g["jc_number"]).startswith(expected) for g in snapshot["games"]):
+        raise ValueError("FROZEN_JC_OFFICIAL_WEEKDAY_DRIFT")
     games=[source_facts(g) for g in snapshot["games"]]
     return {"schema_version":VERSION,"slot_beijing_date":scheduled_day,
        "scheduled_slot_beijing":slot.astimezone(BJ).isoformat(),
