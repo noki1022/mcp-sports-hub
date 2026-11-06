@@ -280,7 +280,7 @@ def main():
     assert midnight_ticks=={(h,m) for h in (0,3) for m in (30,40,50)}
     worker=(ROOT/"scheduler/worker.mjs").read_text()
     assert 'if((h>=22 || h<=5) && [30,40,49].includes(m))' not in worker
-    assert 'export function dispatchFootballAt(' in worker
+    assert 'export async function dispatchFootballAt(' in worker
     assert 'football-007-live-capture.yml' in worker
     assert 'FOOTBALL_SLOT_ALREADY_CLAIMED' in worker
 
