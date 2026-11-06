@@ -42,22 +42,22 @@ def nba(t=BASE,tip=TIP):
 class TestRegistry(unittest.TestCase):
     def test_football_first_capture_no_previous_required(self):
         snap,pred=football()
-        b=S.make_candidate("football",snap,pred,123,"2130")
+        b=S.make_candidate("football",snap,pred,123,"2100")
         self.assertEqual(len(b["records"]),1)
         self.assertEqual(S.select([b],iso(BASE))["matched_games"],[])
         final=S.select([b],iso(TIP+timedelta(minutes=1)))
         self.assertEqual(final["matched_games"][0]["state"],"LOCKED_AFTER_KICKOFF")
-        self.assertEqual(final["matched_games"][0]["comparison_only_2130_sha256"],b["records"][0]["record_sha256"])
+        self.assertEqual(final["matched_games"][0]["scoring_baseline_2100_sha256"],b["records"][0]["record_sha256"])
     def test_last_valid_pretip_wins_not_latest_run_id(self):
         old=S.make_candidate("football",*football(BASE),123,"2130")
         snap,new=football(TIP-timedelta(minutes=10))
         new["games"][0]["markets"]["had"]["direction"]="客胜"
-        current=S.make_candidate("football",snap,new,124,"0630")
+        current=S.make_candidate("football",snap,new,124,"2300")
         result=S.select([current,old],iso(TIP+timedelta(minutes=1)))["matched_games"][0]
-        self.assertEqual(result["markets"]["had"]["direction"],"客胜")
-        self.assertEqual(result["run_id"],"124")
-        self.assertTrue(result["is_different_from_2130"])
-        self.assertEqual(result["window"],"LAST_3_TO_30_MINUTES")
+        self.assertEqual(result["markets"]["had"]["direction"],"主胜")
+        self.assertEqual(result["run_id"],"123")
+        self.assertTrue(result["scoring_baseline_unchanged"])
+        self.assertEqual(result["window"],"EARLIER_VALID_PRETIP")
     def test_postkickoff_cannot_replace_or_inflate_count(self):
         before=S.make_candidate("football",*football(BASE),123,"2130")
         late=S.make_candidate("football",*football(TIP+timedelta(minutes=1)),124,"0900")
@@ -115,8 +115,12 @@ class TestRegistry(unittest.TestCase):
             self.assertEqual(created[0]["state"],"CREATED_APPEND_ONCE")
             repeated=S.publish_finals([old,newest],iso(TIP+timedelta(hours=4)),folder)
             self.assertEqual(repeated[0]["state"],"ALREADY_IDENTICAL")
+            # A different 21:00 forecast for the same match must conflict;
+            # 23:00 evidence must never replace the accepted 21:00 answer.
+            competing=S.make_candidate("football",snap,new,125,"2100")
             with self.assertRaisesRegex(ValueError,"IMMUTABLE_FINAL"):
-                S.publish_finals([old],iso(TIP+timedelta(hours=4)),folder)
+                S.publish_finals([competing],iso(TIP+timedelta(hours=4)),folder)
+
     def test_verified_football_zero_fixture_first_capture_does_not_fail_archive(self):
         snap,pred=football()
         snap["games"]=[]
@@ -135,7 +139,7 @@ class TestRegistry(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"EMPTY_BOARD_WITHOUT"):
             S.make_candidate("football",bad,pred,9101,"1200")
     def test_no_result_recalculation_all_unstarted_pending(self):
-        b=S.make_candidate("basketball",*nba(),3,"1200")
+        b=S.make_candidate("basketball",*nba(),3,"2100")
         s=S.select([b],iso(BASE+timedelta(hours=1)))
         self.assertEqual(s["matched_games"][0]["state"],"PENDING_MAY_STILL_CHANGE")
         self.assertTrue(s["selection_is_not_a_claim_of_greater_predictive_accuracy"])
