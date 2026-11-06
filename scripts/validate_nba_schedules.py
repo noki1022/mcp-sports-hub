@@ -12,13 +12,9 @@ import tomllib
 
 ROOT=Path(__file__).resolve().parents[1]
 workflows={
- "titan007-three-analysis.yml": ["30 16 * * *","45 16 * * *","0 17 * * *",
- "30 19 * * *","45 19 * * *","0 20 * * *",
- "0 4 * * *","15 4 * * *","30 4 * * *","0 5 * * *",
- "0 6 * * *","15 6 * * *","30 6 * * *",
- "0 7 * * *","15 7 * * *","30 7 * * *","0 8 * * *","0 9 * * *",
- "0 10 * * *","15 10 * * *","30 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *"],
- "nba-priority-2130.yml":["30 13 * * *","40 13 * * *"],
+ "titan007-three-analysis.yml": ["30 16 * * *","30 19 * * *",
+ "0 4 * * *", "0 5 * * *", "0 6 * * *", "0 7 * * *", "0 8 * * *", "0 9 * * *", "0 10 * * *", "0 11 * * *", "0 12 * * *", "0 13 * * *"],
+ "nba-priority-2130.yml":["30 13 * * *"],
  "titan007-final-hourly.yml":[],
  "sports-per-match-finalizer.yml":["25 * * * *"],
  # Cross-sport read-only run/archive audit; no odds collector or PushPlus.
@@ -28,17 +24,12 @@ workflows={
  "sports-data-lifecycle.yml":["40 4 * * *"],
  "sports-verified-results.yml":["50 * * * *"],
  "nba-silent-overnight-hourly.yml":["0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *"],
- "nba-priority-0630.yml":["*/10 22-23,0-5 * * *"],
+ "nba-priority-0630.yml":["30 22 * * *"],
  # Complete allowlist: every scheduled workflow must be declared here.
  # Post-21:30 jobs are bounded delivery recovery or official-FINAL settlement,
  # not overnight odds or injury monitoring.
- "nba-delivery-health-watchdog.yml":[
- "35 16 * * *","50 16 * * *","5 17 * * *",
- "35 19 * * *","50 19 * * *","5 20 * * *",
- "40 4 * * *","40 5 * * *","40 6 * * *","40 7 * * *","40 8 * * *","40 9 * * *","40 10 * * *","40 11 * * *","40 12 * * *",
- "20 13 * * *","35 13 * * *","45 13 * * *","50 13 * * *",
- "40 13 * * *","55 13 * * *",
- "35 22 * * *","40 22 * * *","45 22 * * *","50 22 * * *","55 22 * * *"],
+ "nba-delivery-health-watchdog.yml":[],
+
  "nba-full-chain-e2e.yml":["0 20 * * *"],
  "nba-injury-change-watch.yml":["30-59/5 22,23 * * *","*/5 0-12 * * *","0-30/5 13 * * *"],
  "nba-two-market-nightly-2200.yml":["*/15 0-15 * * *","*/15 16-23 * * *"],
@@ -55,7 +46,8 @@ workflows={
  "nba-injury-live-roster-feature-freeze.yml":["10 18 * * *"]
 }
 # Football has its own independent schedule and never shares NBA slot/delivery logic.
-football_schedule={"football-007-live-capture.yml":["0 4 * * *","15 4 * * *","30 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","30 13 * * *","0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *","30 22 * * *"]}
+football_schedule={"football-007-live-capture.yml":["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","30 13 * * *","0 16 * * *","0 17 * * *","0 18 * * *","0 19 * * *","0 20 * * *","0 21 * * *","0 22 * * *","30 22 * * *"]}
+
 def load(path):
     obj=yaml.safe_load(path.read_text())
     if not isinstance(obj,dict):raise AssertionError(str(path))
@@ -220,7 +212,9 @@ def main():
     # safe recovery, but must never refetch 007 odds or recalculate the model.
     watchdog=(ROOT/".github/workflows/nba-delivery-health-watchdog.yml").read_text()
     assert "nba_delivery_health.py" in watchdog
-    assert "nba_delivery_recovery.py" in watchdog
+    assert "nba_delivery_recovery.py" not in watchdog
+    assert "--send" not in watchdog and "PUSHPLUS_TOKEN" not in watchdog
+    assert "schedule:" not in watchdog
     assert "titan007_join_beijing_verified.py" not in watchdog
     assert "optional_007_enrichment.py" not in watchdog
     # The 24-hour postgame trigger waits for official FINAL and settles frozen
@@ -254,13 +248,7 @@ def main():
     # Beijing 22:30–05:30 market-monitor period: 00:30 and 03:30.
     cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
     cloud_crons=cloud["triggers"]["crons"]
-    expected_cloud=[
-        "0,8,18,20,28,35 4,6,7,10 * * *",
-        "0,7,16,20,30,35,40,42,52 13 * * *",
-        "0,10,20,35 14 * * *",
-        "20,30,35,40,42,52 22 * * *",
-        "20,30,35,40,50 5,8,9,11,12,16-21 * * *",
-    ]
+    expected_cloud=["0 4-13,16-22 * * *","30 13,16,19,22 * * *","0 14 * * *"]
     assert cloud_crons==expected_cloud,(cloud_crons,expected_cloud)
     assert len(cloud_crons)<=5, "CLOUDFLARE_FREE_CRON_ACCOUNT_LIMIT"
     def expand(field):
@@ -277,25 +265,14 @@ def main():
         minute,hour,dom,month,weekday=expr.split()
         assert (dom,month,weekday)==("*","*","*")
         all_ticks.update((h,m) for h in expand(hour) for m in expand(minute))
-    original=[
-        ("0,8,18,28","4,6,7,10"),
-        ("0,7,16,30,40","13"),
-        ("0,10,20","14"),
-        ("20,30,40","22"),
-        ("30,40,50","16,19"),
-    ]
-    nba_required={(h,m) for minutes,hours in original
-                  for h in expand(hours) for m in expand(minutes)}
-    football_hours=set(range(4,14))|set(range(16,23))
-    football_required={(h,m) for h in football_hours for m in (20,35)}
-    football_required|={(h,m) for h in (13,22) for m in (42,52)}
-    assert nba_required<=all_ticks,"NBA_EXISTING_CLOUDFLARE_TICKS_CHANGED"
-    assert football_required<=all_ticks,"FOOTBALL_CLOUDFLARE_BACKUPS_MISSING"
+    exact={(h,0) for h in list(range(4,14))+list(range(16,23))}
+    exact|={(h,30) for h in (13,16,19,22)}
+    exact.add((14,0))
+    assert all_ticks==exact,"CLOUDFLARE_HAS_UNAUTHORIZED_RETRY_TICKS"
     worker=(ROOT/"scheduler/worker.mjs").read_text()
-    assert 'if((h>=22 || h<=5) && [30,40,49].includes(m))' not in worker
     assert 'export async function dispatchFootballAt(' in worker
-    assert 'football-007-live-capture.yml' in worker
-    assert 'FOOTBALL_SLOT_ALREADY_CLAIMED' in worker
+    assert "NO_RETRY" in worker and "EXACT_SLOT" in worker
+    assert "FOOTBALL_ALREADY_CLAIMED" in worker
 
     # Guard against the duplicate PushPlus sends/artifact uploads that previously
     # caused two accepted 21:30 notifications and a 409 artifact conflict.
@@ -313,9 +290,10 @@ def main():
     archive=main_report.split("      - name: Archive analysis in repository",1)[1].split(
         "      - name: Validate cross-artifact delivery contract",1)[0]
     assert "for n in 1 2 3" in archive and "git pull --rebase origin main" in archive
-    fallback=main_report.split("      - name: Failsafe verified NBA schedule PushPlus when full report fails",1)[1].split(
-        "      - if: always()",1)[0]
-    assert "pushplus_status.json" in fallback and "FULL_REPORT_API_ACCEPTED_SKIP_FALLBACK" in fallback
+    assert "Failsafe verified NBA schedule PushPlus when full report fails" not in main_report
+    assert "nba_schedule_fallback_push.py" not in main_report
+    assert "nba_delivery_recovery.py" not in watchdog
+    assert len(football_schedule["football-007-live-capture.yml"])==19
     print("NBA_SINGLE_PUSH_AND_ARTIFACT_IDEMPOTENCY_GUARD_PASS")
     print("NBA_SCHEDULE_YAML_ALL_STRUCTURES_VALIDATED",len(all_times),"scheduled UTC triggers")
     print("NOTE_GITHUB_CRON_BEST_EFFORT_NOT_EXACT_TIME_GUARANTEE")
