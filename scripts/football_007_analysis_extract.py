@@ -89,10 +89,14 @@ def recent(half,team_id,cutoff,limit=5):
             or not 0<=hs<=30 or not 0<=ascore<=30):
             continue
         team_home=(hid==str(team_id))
+        opponent=aid if team_home else hid
         result.append({"match_id":mid,"played_at":played.isoformat(),
                        "goals_for":hs if team_home else ascore,
                        "goals_against":ascore if team_home else hs,
-                       "venue":"HOME" if team_home else "AWAY"})
+                       "venue":"HOME" if team_home else "AWAY",
+                       # Verified IDs permit future opponent-adjusted ratings.
+                       # This does not imply that opponent strength is known.
+                       "opponent_team_id_007":opponent if opponent.isdecimal() else None})
     result.sort(key=lambda v:v["played_at"],reverse=True)
     return result[:limit],("VERIFIED" if len(result)>=3 else "INSUFFICIENT_RECENT_FORM")
 
@@ -168,6 +172,96 @@ def injury_facts(raw,observed):
                           "status":"SOURCE_LISTED_INJURY_UNCONFIRMED_AVAILABILITY"})
     return facts,"007_PUBLIC_LIST_EXTRACTED_AVAILABILITY_UNCONFIRMED"
 
+def _source_season_points(raw, team_id, league_id):
+    """Retain genuine 007 currentPoints, never invent season standings.
+
+    Full-time status of the underlying historical record is not independently
+    certified; season stats are source-reported and require point-in-time audits.
+    """
+    if not isinstance(raw,dict):
+        return None
+    if str(raw.get("teamId"))!=str(team_id):
+        return None
+    source_league=raw.get("sclassId")
+    if league_id is not None and str(source_league)!=str(league_id):
+        return None
+    season=raw.get("curSeason")
+    if not isinstance(season,str) or not re.fullmatch(r"20\d{2}(?:-20\d{2})?",season):
+        return None
+    groups={}
+    for row in raw.get("points") or []:
+        if not isinstance(row,dict):continue
+        kind=row.get("pointsKind")
+        if kind not in ("ALL","HOME","AWAY","NEAR") or kind in groups:
+            continue
+        fields=("total","win","draw","loss","getGoal","lossGoal","point","rank")
+        if any(type(row.get(k)) is not int or row[k]<0 or row[k]>1000 for k in fields):
+            continue
+        if row["win"]+row["draw"]+row["loss"]!=row["total"]:
+            continue
+        groups[kind]={k:row[k] for k in fields}
+    if not all(k in groups for k in ("ALL","HOME","AWAY")):
+        return None
+    all_,h,a=groups["ALL"],groups["HOME"],groups["AWAY"]
+    # The same league season must not count phantom fixtures.
+    for k in ("total","win","draw","loss","getGoal","lossGoal"):
+        if all_[k]!=h[k]+a[k]:
+            return None
+    return {"source_team_id_007":str(team_id),
+            "source_league_id_007":str(source_league),
+            "season_id":season,"scopes":groups,
+            "source_status":"007_CURRENTPOINTS_STRUCTURED_NOT_INDEPENDENT_FT_AUDITED"}
+
+
+def season_facts(data,home_id,away_id,league_id):
+    cp=data.get("currentPoints")
+    if not isinstance(cp,dict):
+        return {"status":"UNAVAILABLE","home":None,"away":None}
+    home=_source_season_points(cp.get("homePoints"),home_id,league_id)
+    away=_source_season_points(cp.get("awayPoints"),away_id,league_id)
+    if home is None or away is None:
+        return {"status":"INCOMPLETE_OR_TEAM_LEAGUE_MISMATCH","home":home,"away":away}
+    if home["season_id"]!=away["season_id"] or home["source_league_id_007"]!=away["source_league_id_007"]:
+        return {"status":"DIFFERENT_SEASON_OR_LEAGUE","home":None,"away":None}
+    return {"status":"SOURCE_REPORTED_007_SEASON_PRETIP",
+            "season_id":home["season_id"],"home":home,"away":away}
+
+
+def transfer_facts(data,home_id,away_id,captured):
+    """Transfers are timestamped source facts, not proven lineup impacts."""
+    raw=data.get("transfer")
+    if not isinstance(raw,dict):
+        return {"status":"UNAVAILABLE","home":[],"away":[]}
+    sides={}
+    for label,field,team_id in (("home","homeList",home_id),("away","guestList",away_id)):
+        group=raw.get(field)
+        if not isinstance(group,list):
+            return {"status":"INCOMPLETE_SOURCE_LISTS","home":[],"away":[]}
+        events=[]
+        seen=set()
+        for item in group[:150]:
+            if not isinstance(item,dict):continue
+            player=item.get("playerId")
+            direction=item.get("type")
+            if not (type(player) is int and player>0 and direction in ("IN","OUT")):
+                continue
+            try:
+                stamp=datetime.fromtimestamp(int(item["transferTime"]),UTC)
+            except (KeyError,TypeError,ValueError,OverflowError):
+                continue
+            if stamp>captured:
+                continue  # Never learn a future transfer from a page snapshot.
+            key=(player,direction,stamp.isoformat())
+            if key in seen:continue
+            seen.add(key)
+            events.append({"player_id_007":player,"club_team_id_007":str(team_id),
+                           "direction":direction,"event_at_utc":stamp.isoformat(),
+                           "source_status":"007_LISTED_TRANSFER_NOT_VERIFIED_PLAYING_TIME"})
+        sides[label]=sorted(events,key=lambda x:(x["event_at_utc"],x["player_id_007"]),reverse=True)
+    return {"status":"007_SOURCE_REPORTED_TRANSFERS_NOT_LINEUP_IMPACT",
+            "home":sides["home"],"away":sides["away"]}
+
+
 def extract(raw,game,captured_at):
     captured=parse_dt(captured_at)
     kickoff=parse_dt(game["kickoff_beijing"])
@@ -199,8 +293,11 @@ def extract(raw,game,captured_at):
     aform,astatus=recent(away,away_id,latest)
     h2h,h2hstatus=head_to_head(data.get("vsMatches"),home_id,away_id,latest)
     facts,injstatus=injury_facts(data.get("injury"),captured)
+    seasons=season_facts(data,home_id,away_id,game.get("league_id_007"))
+    transfers=transfer_facts(data,home_id,away_id,captured)
     return {
         "home_last5":hform,"away_last5":aform,"h2h":h2h,
+        "season_source_facts":seasons,"transfer_source_facts":transfers,
         # Facts are auditable but not treated as confirmed DNPs; 007 supplies
         # injury reason, not an independently confirmed status or minutes share.
         "injury_source_facts":facts,
@@ -215,5 +312,7 @@ def extract(raw,game,captured_at):
                            "home_form_status":hstatus,
                            "away_form_status":astatus,
                            "h2h_status":h2hstatus,
-                           "injury_status":injstatus}
+                           "injury_status":injstatus,
+                           "season_status":seasons["status"],
+                           "transfer_status":transfers["status"]}
     }

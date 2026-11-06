@@ -37,6 +37,8 @@ class Tests(unittest.TestCase):
   self.assertEqual(len(out["home_last5"]),5)
   self.assertEqual(len(out["away_last5"]),5)
   self.assertEqual(out["home_last5"][0]["match_id"],"30005")
+  self.assertEqual(out["home_last5"][0]["opponent_team_id_007"],"104")
+  self.assertEqual(out["away_last5"][0]["opponent_team_id_007"],"114")
   self.assertEqual(out["away_last5"][0]["venue"],"AWAY")
   self.assertEqual(out["h2h"][0]["home_goals"],1)
   self.assertEqual(out["h2h"][0]["away_goals"],3)
@@ -46,6 +48,41 @@ class Tests(unittest.TestCase):
   self.assertEqual(out["injury_source_facts"][0]["source_reason"],"膝关节损伤")
   self.assertEqual(out["injuries"],[])
   self.assertEqual(out["injury_report_state"],"UNVERIFIED")
+ def test_007_season_totals_and_pretip_transfers_from_actual_source_shape(self):
+  obj=source()
+  def stats(n,w,d,l,gf,ga,points,rank,kind):
+   return {"pointsKind":kind,"total":n,"win":w,"draw":d,"loss":l,
+           "getGoal":gf,"lossGoal":ga,"point":points,"rank":rank}
+  home=[
+   stats(5,2,1,2,7,6,7,8,"ALL"),
+   stats(3,2,0,1,5,3,6,5,"HOME"),
+   stats(2,0,1,1,2,3,1,14,"AWAY")]
+  away=[
+   stats(5,1,3,1,6,5,6,9,"ALL"),
+   stats(3,1,1,1,4,3,4,10,"HOME"),
+   stats(2,0,2,0,2,2,2,8,"AWAY")]
+  obj["currentPoints"]["homePoints"].update(sclassId=36,curSeason="2026-2027",points=home)
+  obj["currentPoints"]["awayPoints"].update(sclassId=36,curSeason="2026-2027",points=away)
+  when=int(CAP.timestamp())
+  obj["transfer"]={
+    "homeList":[{"playerId":123,"type":"IN","transferTime":str(when-86400)},
+                {"playerId":456,"type":"OUT","transferTime":str(when+86400)}],
+    "guestList":[{"playerId":789,"type":"OUT","transferTime":str(when-86400*10)}]}
+  result=src.extract(html(obj),dict(GAME,league_id_007=36),CAP.isoformat())
+  season=result["season_source_facts"]
+  self.assertEqual(season["status"],"SOURCE_REPORTED_007_SEASON_PRETIP")
+  self.assertEqual(season["season_id"],"2026-2027")
+  self.assertEqual(season["home"]["scopes"]["ALL"]["total"],5)
+  self.assertEqual(season["away"]["scopes"]["AWAY"]["lossGoal"],2)
+  transfers=result["transfer_source_facts"]
+  self.assertEqual(transfers["status"],"007_SOURCE_REPORTED_TRANSFERS_NOT_LINEUP_IMPACT")
+  self.assertEqual(len(transfers["home"]),1)
+  self.assertEqual(transfers["home"][0]["player_id_007"],123)
+  self.assertEqual(len(transfers["away"]),1)
+  self.assertEqual(result["source_evidence"]["season_status"],"SOURCE_REPORTED_007_SEASON_PRETIP")
+  mismatch=src.extract(html(obj),dict(GAME,league_id_007=999),CAP.isoformat())
+  self.assertEqual(mismatch["season_source_facts"]["status"],"INCOMPLETE_OR_TEAM_LEAGUE_MISMATCH")
+  self.assertEqual(len(mismatch["home_last5"]),5)
  def test_no_future_match_leak(self):
   obj=source();obj["nearMatches"]["homeMatches"]["matches"][0]["matchTime"]=str(int((CAP+timedelta(days=4)).timestamp()))
   data=src.extract(html(obj),GAME,CAP.isoformat())

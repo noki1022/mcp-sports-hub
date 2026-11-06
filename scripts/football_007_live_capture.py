@@ -145,6 +145,7 @@ def parse_fixtures(raw,odds,captured,target=None,target_jc_day=None):
         jc=odds.get(mid,{})
         games.append({
             "match_id":mid,"jc_number":jcnum,"league":leagues.get(c[5],"未核实联赛"),
+            "league_id_007":int(c[5]),
             "home_team_id_007":int(c[7]) if c[7].isdigit() else None,
             "away_team_id_007":int(c[9]) if c[9].isdigit() else None,
             "home_team":home,"away_team":away,
@@ -263,9 +264,14 @@ def enrich_analysis(snapshot,folder):
                 "url":analysis_007.MOBILE_ROOT+mid+".htm",
                 "sha256":sha,"bytes":len(raw),"captured_at_utc":observed}
             detail=analysis_007.extract(raw,game,observed)
+            # Core football data must stay readable even when a new optional
+            # season/transfer source is absent or returns a partial document.
             for key in ("home_last5","away_last5","h2h","injury_source_facts",
                         "injury_report_state","injuries"):
                 game[key]=detail[key]
+            for key in ("season_source_facts","transfer_source_facts"):
+                if key in detail:
+                    game[key]=detail[key]
             game["analysis_source_evidence"]=detail["source_evidence"]
             game["analysis_source_status"]="007_EMBEDDED_JSON_VALIDATED"
             gaps=game["data_gaps"]

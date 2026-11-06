@@ -32,6 +32,8 @@ class TestLive(unittest.TestCase):
   def parse(raw,game,observed):
    return {'home_last5':[{}]*5,'away_last5':[{}]*5,'h2h':[],
      'injury_source_facts':[],'injury_report_state':'UNVERIFIED','injuries':[],
+     'season_source_facts':{'status':'UNAVAILABLE','home':None,'away':None},
+     'transfer_source_facts':{'status':'UNAVAILABLE','home':[],'away':[]},
      'source_evidence':{'captured_at_utc':observed}}
   with TemporaryDirectory() as tmp,patch.object(live.analysis_007,'get_page',side_effect=fetch),\
        patch.object(live.analysis_007,'extract',side_effect=parse):
@@ -51,6 +53,7 @@ class TestLive(unittest.TestCase):
   self.assertEqual(len(s["games"]),2)
   self.assertEqual(s["games"][0]["jc_number"],"周四001")
   self.assertEqual(s["games"][0]["home_team"],"曼联")
+  self.assertEqual(s["games"][0]["league_id_007"],36)
   self.assertEqual(s["games"][0]["away_team"],"阿森纳")
   self.assertEqual(s["games"][0]["kickoff_beijing"],"2026-11-05T18:00:00+08:00")
   self.assertEqual(s["games"][0]["jc_markets"]["hhad"]["signed_home_handicap"],-1)
