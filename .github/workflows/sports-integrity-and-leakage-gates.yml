@@ -42,8 +42,9 @@ jobs:
           mkdir -p audit-input audit-output
           # Never use "latest" GitHub Actions artifacts as evidence.
           for page in 1 2 3 4; do
-            gh api "/repos/$GITHUB_REPOSITORY/actions/runs?event=schedule&per_page=100&page=$page" \
-              > "audit-input/runs-$page.json"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/runs?event=schedule&per_page=100&page=$page" > "audit-input/native-$page.json"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/runs?event=workflow_dispatch&per_page=100&page=$page" > "audit-input/external-$page.json"
+            python3 -c 'import json,sys; a=json.load(open(sys.argv[1])); b=json.load(open(sys.argv[2])); print(json.dumps({"workflow_runs":a["workflow_runs"]+b["workflow_runs"]}))' "audit-input/native-$page.json" "audit-input/external-$page.json" > "audit-input/runs-$page.json"
           done
           gh api "/repos/$GITHUB_REPOSITORY/releases?per_page=100" > audit-input/releases.json
           gh api "/repos/$GITHUB_REPOSITORY/branches/archive/nba-market-captures" \
@@ -71,7 +72,7 @@ jobs:
           ids=sorted({run["id"] for ix,(run,_) in grouped.items()
                       if slots[ix]["workflow"] in h.PRIORITY
                       and slots[ix]["planned"].astimezone(h.BJ).strftime("%H:%M")
-                      in ("21:30","06:30")})
+                      == "21:00"})
           for rid in ids[:16]:
               print(rid)
           PY
@@ -100,3 +101,4 @@ jobs:
           path: audit-output/sports-chain-health.json
           if-no-files-found: warn
           retention-days: 90
+

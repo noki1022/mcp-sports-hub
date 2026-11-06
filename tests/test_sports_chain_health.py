@@ -100,7 +100,7 @@ class TestCrossSportHealth(unittest.TestCase):
 
     def test_priority_step_skipped_is_not_confirmed_push(self):
         runs, releases = source()
-        target = next(r for r in runs if r["name"] == H.NBA_2130)
+        target = next(r for r in runs if r["name"] == H.NBA_DAY and H.when(r["created_at"]).astimezone(H.BJ).hour == 21)
         job_map = {str(target["id"]): [{"steps": [
             {"name": "Preflight Beijing cutoff", "conclusion": "success"},
             {"name": "Push full-board priority analysis to iPhone before 22:00",
@@ -134,63 +134,29 @@ class TestCrossSportHealth(unittest.TestCase):
         self.assertIsNone(re.fullmatch(pattern, "../42120654124.json"))
         self.assertIsNone(re.fullmatch(pattern, "42120654124.json.tmp"))
 
-    def test_overnight_full_reports_are_expected(self):
-        slots = list(H.expected_slots(NOW, 24, 180))
-        full = [s for s in slots if s["workflow"] == H.NBA_DAY]
-        self.assertTrue(any(s["planned"].astimezone(H.BJ).strftime("%H:%M") == "00:30"
-                            for s in full))
-        self.assertTrue(any(s["planned"].astimezone(H.BJ).strftime("%H:%M") == "03:30"
-                            for s in full))
+    def test_only_twelve_exact_hour_slots_per_sport(self):
+        slots=list(H.expected_slots(NOW, 48, 0))
+        for sport in (H.NBA_DAY,H.FOOTBALL):
+            clocks={x["planned"].astimezone(H.BJ).strftime("%H:%M") for x in slots if x["workflow"]==sport}
+            self.assertEqual(clocks,{f"{h}:00" for h in range(12,24)})
+        self.assertEqual({x["workflow"] for x in slots},{H.NBA_DAY,H.FOOTBALL})
 
-    def test_overnight_retry_cron_matches_canonical_report(self):
-        slots = list(H.expected_slots(NOW, 24, 180))
-        slot = next(s for s in slots if s["workflow"] == H.NBA_DAY and
-                    s["planned"].astimezone(H.BJ).strftime("%H:%M") == "00:30")
-        retry = slot["planned"] + timedelta(minutes=15)
-        run = {"id": 991, "event": "schedule",
-               "path": ".github/workflows/titan007-three-analysis.yml",
-               "name": f"NBA full report | slot={retry.minute} {retry.hour} * * * | date=auto",
-               "created_at": (retry + timedelta(minutes=55)).isoformat(),
-               "status": "completed", "conclusion": "success"}
-        self.assertEqual(H.declared_slot_match(slot, run), 55)
-        allocated = H.chronological_assignments([slot], [run])
-        self.assertEqual(allocated[0][0]["id"], 991)
+    def test_compensation_crons_never_count_as_original_slot(self):
+        for sport in (H.NBA_DAY,H.FOOTBALL):
+            slot=next(x for x in H.expected_slots(NOW,24,180) if x["workflow"]==sport)
+            for minutes in (10,15,30):
+                retry=slot["planned"]+timedelta(minutes=minutes)
+                run={"name":f"run | cron={retry.minute} {retry.hour} * * *", "created_at":retry.isoformat()}
+                self.assertIsNone(H.declared_slot_match(slot,run))
 
-    def test_2130_retry_cron_matches_only_2130(self):
-        slots = list(H.expected_slots(NOW, 24, 180))
-        slot = next(s for s in slots if s["workflow"] == H.NBA_2130)
-        retry = slot["planned"] + timedelta(minutes=10)
-        run = {"id": 992, "event": "schedule",
-               "path": ".github/workflows/nba-priority-2130.yml",
-               "name": f"NBA priority | cron={retry.minute} {retry.hour} * * *",
-               "created_at": (retry + timedelta(minutes=65)).isoformat(),
-               "status": "completed", "conclusion": "success"}
-        self.assertEqual(H.declared_slot_match(slot, run), 65)
-
-    def test_wrong_day_cron_cannot_be_relabelled_as_overnight(self):
-        slots = list(H.expected_slots(NOW, 24, 180))
-        slot = next(s for s in slots if s["workflow"] == H.NBA_DAY and
-                    s["planned"].astimezone(H.BJ).strftime("%H:%M") == "03:30")
-        run = {"id": 993, "event": "schedule",
-               "path": ".github/workflows/titan007-three-analysis.yml",
-               "name": "NBA full report | slot=0 4 * * * | date=auto",
-               "created_at": (slot["planned"] + timedelta(minutes=40)).isoformat(),
-               "status": "completed", "conclusion": "success"}
-        self.assertIsNone(H.declared_slot_match(slot, run))
-
-    def test_football_noon_native_retries_are_canonical(self):
-        slots = [s for s in H.expected_slots(NOW, 24, 180)
-                 if s["workflow"] == H.FOOTBALL and
-                 s["planned"].astimezone(H.BJ).strftime("%H:%M") == "12:00"]
-        self.assertTrue(slots)
-        slot = slots[-1]
-        for minutes in (15, 30):
-            retry = slot["planned"] + timedelta(minutes=minutes)
-            run = {"id": 1000 + minutes, "path": ".github/workflows/football-007-live-capture.yml",
-                   "name": f"Football 007 | cron={retry.minute} {retry.hour} * * * | day=auto",
-                   "event": "schedule", "created_at": (retry + timedelta(minutes=2)).isoformat(),
-                   "conclusion": "success", "status": "completed"}
-            self.assertEqual(H.declared_slot_match(slot, run), 2)
+    def test_exact_nba_external_slot_and_date_required(self):
+        slot=next(x for x in H.expected_slots(NOW,24,180) if x["workflow"]==H.NBA_DAY)
+        local=slot["planned"].astimezone(H.BJ)
+        name=f"NBA full report | slot={local.strftime('%H%M')} | date={(local.date()+timedelta(days=1)).isoformat()}"
+        run={"event":"workflow_dispatch","name":name,"created_at":slot["planned"].isoformat()}
+        self.assertTrue(H.verified_football_recovery(run,slot))
+        run["name"]=name.replace(local.strftime('%H%M'),"ONCE")
+        self.assertFalse(H.verified_football_recovery(run,slot))
 
     def test_cloudflare_recovered_football_is_counted_once(self):
         runs, releases = source()
@@ -232,3 +198,4 @@ class TestCrossSportHealth(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
