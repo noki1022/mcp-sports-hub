@@ -1,0 +1,167 @@
+{
+  "schema_version": "nba-five-market-settlement-v1",
+  "beijing_date": "2026-11-06",
+  "games": [
+    {
+      "game_id": "728905",
+      "nba_game_id": "401909936",
+      "jingcai_number": "周四306",
+      "home_team": "菲尼克斯太阳",
+      "away_team": "奥兰多魔术",
+      "home_points": 117,
+      "away_points": 104,
+      "markets": {
+        "JINGCAI_WIN": {
+          "direction": "HOME_WIN",
+          "source": "007_JINGCAI",
+          "line": null,
+          "signed_home_handicap": null,
+          "frozen_capture_utc": "2026-11-05T22:20:56.986236+00:00",
+          "outcome": "HIT",
+          "reason": null
+        },
+        "JINGCAI_HANDICAP": {
+          "direction": "AWAY_COVER",
+          "source": "007_JINGCAI",
+          "line": -2.5,
+          "signed_home_handicap": -2.5,
+          "frozen_capture_utc": "2026-11-05T22:20:56.986236+00:00",
+          "outcome": "MISS",
+          "reason": null
+        },
+        "JINGCAI_TOTAL": {
+          "direction": "OVER",
+          "source": "007_JINGCAI",
+          "line": 224.5,
+          "signed_home_handicap": null,
+          "frozen_capture_utc": "2026-11-05T22:20:56.986236+00:00",
+          "outcome": "MISS",
+          "reason": null
+        },
+        "CROWN_HANDICAP": {
+          "direction": "AWAY_COVER",
+          "source": "007_CROWN_ID3",
+          "line": 1.5,
+          "signed_home_handicap": -1.5,
+          "frozen_capture_utc": "2026-11-05T22:20:51.150987+00:00",
+          "outcome": "MISS",
+          "reason": null
+        },
+        "CROWN_TOTAL": {
+          "direction": "OVER",
+          "source": "007_CROWN_ID3",
+          "line": 221.5,
+          "signed_home_handicap": null,
+          "frozen_capture_utc": "2026-11-05T22:20:51.150987+00:00",
+          "outcome": "MISS",
+          "reason": null
+        }
+      }
+    },
+    {
+      "game_id": "728906",
+      "nba_game_id": "401909937",
+      "jingcai_number": "周四307",
+      "home_team": "金州勇士",
+      "away_team": "迈阿密热火",
+      "home_points": 120,
+      "away_points": 100,
+      "markets": {
+        "JINGCAI_WIN": {
+          "direction": "HOME_WIN",
+          "source": "007_JINGCAI",
+          "line": null,
+          "signed_home_handicap": null,
+          "frozen_capture_utc": "2026-11-05T22:20:56.986236+00:00",
+          "outcome": "HIT",
+          "reason": null
+        },
+        "JINGCAI_HANDICAP": {
+          "direction": "AWAY_COVER",
+          "source": "007_JINGCAI",
+          "line": -6.5,
+          "signed_home_handicap": -6.5,
+          "frozen_capture_utc": "2026-11-05T22:20:56.986236+00:00",
+          "outcome": "MISS",
+          "reason": null
+        },
+        "JINGCAI_TOTAL": {
+          "direction": "UNDER",
+          "source": "007_JINGCAI",
+          "line": 236.5,
+          "signed_home_handicap": null,
+          "frozen_capture_utc": "2026-11-05T22:20:56.986236+00:00",
+          "outcome": "HIT",
+          "reason": null
+        },
+        "CROWN_HANDICAP": {
+          "direction": "AWAY_COVER",
+          "source": "007_CROWN_ID3",
+          "line": 4.5,
+          "signed_home_handicap": -4.5,
+          "frozen_capture_utc": "2026-11-05T22:20:51.150987+00:00",
+          "outcome": "MISS",
+          "reason": null
+        },
+        "CROWN_TOTAL": {
+          "direction": "UNDER",
+          "source": "007_CROWN_ID3",
+          "line": 235.5,
+          "signed_home_handicap": null,
+          "frozen_capture_utc": "2026-11-05T22:20:51.150987+00:00",
+          "outcome": "HIT",
+          "reason": null
+        }
+      }
+    }
+  ],
+  "summary": {
+    "JINGCAI_WIN": {
+      "hits": 2,
+      "misses": 0,
+      "pushes": 0,
+      "excluded": 0,
+      "unsettled": 0,
+      "graded": 2,
+      "hit_rate": 1.0
+    },
+    "JINGCAI_HANDICAP": {
+      "hits": 0,
+      "misses": 2,
+      "pushes": 0,
+      "excluded": 0,
+      "unsettled": 0,
+      "graded": 2,
+      "hit_rate": 0.0
+    },
+    "JINGCAI_TOTAL": {
+      "hits": 1,
+      "misses": 1,
+      "pushes": 0,
+      "excluded": 0,
+      "unsettled": 0,
+      "graded": 2,
+      "hit_rate": 0.5
+    },
+    "CROWN_HANDICAP": {
+      "hits": 0,
+      "misses": 2,
+      "pushes": 0,
+      "excluded": 0,
+      "unsettled": 0,
+      "graded": 2,
+      "hit_rate": 0.0
+    },
+    "CROWN_TOTAL": {
+      "hits": 1,
+      "misses": 1,
+      "pushes": 0,
+      "excluded": 0,
+      "unsettled": 0,
+      "graded": 2,
+      "hit_rate": 0.5
+    }
+  },
+  "settlement_policy": "As-of frozen pretip directional hit rate; no odds retrofits; pushes excluded",
+  "all_five_predictions_available": true
+}

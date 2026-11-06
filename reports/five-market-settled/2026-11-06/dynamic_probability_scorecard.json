@@ -1,0 +1,5322 @@
+{
+  "schema_version": "nba-dynamic-five-market-replay-v1",
+  "settled_days": [
+    "2026-10-31",
+    "2026-11-01",
+    "2026-11-02",
+    "2026-11-03",
+    "2026-11-05",
+    "2026-11-06"
+  ],
+  "settled_day_count": 6,
+  "archived_shadow_snapshot_count": 29,
+  "valid_pretip_market_snapshot_rows": 1347,
+  "latest_game_market_rows": 173,
+  "by_market_all_snapshots": {
+    "JINGCAI_WIN": {
+      "n": 269,
+      "distinct_days": 4,
+      "brier": 0.2262649,
+      "log_loss": 0.6397925,
+      "ece_10": 0.1540442,
+      "first_side_realized_rate": 0.483271,
+      "candidate_direction_accuracy": {
+        "n": 269,
+        "hits": 168,
+        "misses": 101,
+        "accuracy": 0.624535
+      },
+      "frozen_direction_accuracy": {
+        "n": 269,
+        "hits": 168,
+        "misses": 101,
+        "accuracy": 0.624535
+      },
+      "consensus_benchmark": {
+        "n": 0,
+        "model_brier_same_sample": null,
+        "market_brier": null,
+        "market_minus_model_brier": null,
+        "market_log_loss": null
+      },
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "n": 9,
+          "mean_probability": 0.255141,
+          "realized_first_side_rate": 0.0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "n": 27,
+          "mean_probability": 0.342331,
+          "realized_first_side_rate": 0.333333
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "n": 20,
+          "mean_probability": 0.429977,
+          "realized_first_side_rate": 0.0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "n": 74,
+          "mean_probability": 0.533667,
+          "realized_first_side_rate": 0.513514
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "n": 67,
+          "mean_probability": 0.638241,
+          "realized_first_side_rate": 0.432836
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "n": 36,
+          "mean_probability": 0.747538,
+          "realized_first_side_rate": 0.5
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "n": 36,
+          "mean_probability": 0.829603,
+          "realized_first_side_rate": 1.0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        }
+      ]
+    },
+    "JINGCAI_HANDICAP": {
+      "n": 287,
+      "distinct_days": 4,
+      "brier": 0.2521859,
+      "log_loss": 0.699173,
+      "ece_10": 0.1630992,
+      "first_side_realized_rate": 0.463415,
+      "candidate_direction_accuracy": {
+        "n": 287,
+        "hits": 144,
+        "misses": 143,
+        "accuracy": 0.501742
+      },
+      "frozen_direction_accuracy": {
+        "n": 287,
+        "hits": 144,
+        "misses": 143,
+        "accuracy": 0.501742
+      },
+      "consensus_benchmark": {
+        "n": 42,
+        "model_brier_same_sample": 0.2330024,
+        "market_brier": 0.2490451,
+        "market_minus_model_brier": 0.0160427,
+        "market_log_loss": 0.6912368
+      },
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "n": 45,
+          "mean_probability": 0.366912,
+          "realized_first_side_rate": 0.155556
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "n": 70,
+          "mean_probability": 0.447478,
+          "realized_first_side_rate": 0.642857
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "n": 105,
+          "mean_probability": 0.549819,
+          "realized_first_side_rate": 0.428571
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "n": 45,
+          "mean_probability": 0.645646,
+          "realized_first_side_rate": 0.666667
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "n": 22,
+          "mean_probability": 0.724774,
+          "realized_first_side_rate": 0.272727
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        }
+      ]
+    },
+    "JINGCAI_TOTAL": {
+      "n": 287,
+      "distinct_days": 4,
+      "brier": 0.246416,
+      "log_loss": 0.6858257,
+      "ece_10": 0.1388768,
+      "first_side_realized_rate": 0.383275,
+      "candidate_direction_accuracy": {
+        "n": 287,
+        "hits": 158,
+        "misses": 129,
+        "accuracy": 0.550523
+      },
+      "frozen_direction_accuracy": {
+        "n": 287,
+        "hits": 158,
+        "misses": 129,
+        "accuracy": 0.550523
+      },
+      "consensus_benchmark": {
+        "n": 70,
+        "model_brier_same_sample": 0.2630698,
+        "market_brier": 0.2499042,
+        "market_minus_model_brier": -0.0131656,
+        "market_log_loss": 0.6929555
+      },
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "n": 20,
+          "mean_probability": 0.377967,
+          "realized_first_side_rate": 0.45
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "n": 94,
+          "mean_probability": 0.460928,
+          "realized_first_side_rate": 0.255319
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "n": 152,
+          "mean_probability": 0.541408,
+          "realized_first_side_rate": 0.421053
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "n": 21,
+          "mean_probability": 0.656938,
+          "realized_first_side_rate": 0.619048
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        }
+      ]
+    },
+    "CROWN_HANDICAP": {
+      "n": 253,
+      "distinct_days": 4,
+      "brier": 0.2581194,
+      "log_loss": 0.7105661,
+      "ece_10": 0.0787832,
+      "first_side_realized_rate": 0.450593,
+      "candidate_direction_accuracy": {
+        "n": 253,
+        "hits": 133,
+        "misses": 120,
+        "accuracy": 0.525692
+      },
+      "frozen_direction_accuracy": {
+        "n": 253,
+        "hits": 133,
+        "misses": 120,
+        "accuracy": 0.525692
+      },
+      "consensus_benchmark": {
+        "n": 197,
+        "model_brier_same_sample": 0.2594481,
+        "market_brier": 0.2499038,
+        "market_minus_model_brier": -0.0095444,
+        "market_log_loss": 0.6929547
+      },
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "n": 25,
+          "mean_probability": 0.390389,
+          "realized_first_side_rate": 0.4
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "n": 62,
+          "mean_probability": 0.452375,
+          "realized_first_side_rate": 0.387097
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "n": 108,
+          "mean_probability": 0.541646,
+          "realized_first_side_rate": 0.509259
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "n": 53,
+          "mean_probability": 0.634079,
+          "realized_first_side_rate": 0.471698
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "n": 5,
+          "mean_probability": 0.708134,
+          "realized_first_side_rate": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        }
+      ]
+    },
+    "CROWN_TOTAL": {
+      "n": 251,
+      "distinct_days": 4,
+      "brier": 0.2506191,
+      "log_loss": 0.6945048,
+      "ece_10": 0.1520152,
+      "first_side_realized_rate": 0.406375,
+      "candidate_direction_accuracy": {
+        "n": 251,
+        "hits": 128,
+        "misses": 123,
+        "accuracy": 0.50996
+      },
+      "frozen_direction_accuracy": {
+        "n": 251,
+        "hits": 128,
+        "misses": 123,
+        "accuracy": 0.50996
+      },
+      "consensus_benchmark": {
+        "n": 180,
+        "model_brier_same_sample": 0.2450551,
+        "market_brier": 0.2498222,
+        "market_minus_model_brier": 0.004767,
+        "market_log_loss": 0.6927915
+      },
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "n": 15,
+          "mean_probability": 0.370477,
+          "realized_first_side_rate": 0.133333
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "n": 47,
+          "mean_probability": 0.466585,
+          "realized_first_side_rate": 0.340426
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "n": 146,
+          "mean_probability": 0.557768,
+          "realized_first_side_rate": 0.390411
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "n": 34,
+          "mean_probability": 0.635853,
+          "realized_first_side_rate": 0.558824
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "n": 9,
+          "mean_probability": 0.709324,
+          "realized_first_side_rate": 0.888889
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        }
+      ]
+    }
+  },
+  "by_slot": {
+    "0030": {
+      "JINGCAI_WIN": {
+        "n": 33,
+        "distinct_days": 4,
+        "brier": 0.2252743,
+        "log_loss": 0.6375965,
+        "ece_10": 0.153389,
+        "first_side_realized_rate": 0.484848,
+        "candidate_direction_accuracy": {
+          "n": 33,
+          "hits": 21,
+          "misses": 12,
+          "accuracy": 0.636364
+        },
+        "frozen_direction_accuracy": {
+          "n": 33,
+          "hits": 21,
+          "misses": 12,
+          "accuracy": 0.636364
+        },
+        "consensus_benchmark": {
+          "n": 0,
+          "model_brier_same_sample": null,
+          "market_brier": null,
+          "market_minus_model_brier": null,
+          "market_log_loss": null
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 1,
+            "mean_probability": 0.255141,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.330689,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 3,
+            "mean_probability": 0.423701,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 9,
+            "mean_probability": 0.535705,
+            "realized_first_side_rate": 0.555556
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 9,
+            "mean_probability": 0.634463,
+            "realized_first_side_rate": 0.444444
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 4,
+            "mean_probability": 0.739313,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 4,
+            "mean_probability": 0.829603,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_HANDICAP": {
+        "n": 35,
+        "distinct_days": 4,
+        "brier": 0.2495733,
+        "log_loss": 0.6929902,
+        "ece_10": 0.2820322,
+        "first_side_realized_rate": 0.485714,
+        "candidate_direction_accuracy": {
+          "n": 35,
+          "hits": 16,
+          "misses": 19,
+          "accuracy": 0.457143
+        },
+        "frozen_direction_accuracy": {
+          "n": 35,
+          "hits": 16,
+          "misses": 19,
+          "accuracy": 0.457143
+        },
+        "consensus_benchmark": {
+          "n": 3,
+          "model_brier_same_sample": 0.2444509,
+          "market_brier": 0.2465462,
+          "market_minus_model_brier": 0.0020953,
+          "market_log_loss": 0.6862386
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 6,
+            "mean_probability": 0.361844,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 9,
+            "mean_probability": 0.455165,
+            "realized_first_side_rate": 0.888889
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 13,
+            "mean_probability": 0.555705,
+            "realized_first_side_rate": 0.384615
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 4,
+            "mean_probability": 0.647224,
+            "realized_first_side_rate": 0.75
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 3,
+            "mean_probability": 0.720426,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_TOTAL": {
+        "n": 35,
+        "distinct_days": 4,
+        "brier": 0.2444587,
+        "log_loss": 0.6821919,
+        "ece_10": 0.1479787,
+        "first_side_realized_rate": 0.371429,
+        "candidate_direction_accuracy": {
+          "n": 35,
+          "hits": 22,
+          "misses": 13,
+          "accuracy": 0.628571
+        },
+        "frozen_direction_accuracy": {
+          "n": 35,
+          "hits": 22,
+          "misses": 13,
+          "accuracy": 0.628571
+        },
+        "consensus_benchmark": {
+          "n": 4,
+          "model_brier_same_sample": 0.2459258,
+          "market_brier": 0.2531986,
+          "market_minus_model_brier": 0.0072728,
+          "market_log_loss": 0.6995458
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.371396,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 15,
+            "mean_probability": 0.460974,
+            "realized_first_side_rate": 0.2
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 16,
+            "mean_probability": 0.540387,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 2,
+            "mean_probability": 0.680626,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_HANDICAP": {
+        "n": 35,
+        "distinct_days": 4,
+        "brier": 0.2633361,
+        "log_loss": 0.7206158,
+        "ece_10": 0.0814748,
+        "first_side_realized_rate": 0.457143,
+        "candidate_direction_accuracy": {
+          "n": 35,
+          "hits": 17,
+          "misses": 18,
+          "accuracy": 0.485714
+        },
+        "frozen_direction_accuracy": {
+          "n": 35,
+          "hits": 17,
+          "misses": 18,
+          "accuracy": 0.485714
+        },
+        "consensus_benchmark": {
+          "n": 26,
+          "model_brier_same_sample": 0.2573744,
+          "market_brier": 0.250554,
+          "market_minus_model_brier": -0.0068204,
+          "market_log_loss": 0.6942553
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.391642,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 11,
+            "mean_probability": 0.454412,
+            "realized_first_side_rate": 0.454545
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 16,
+            "mean_probability": 0.551022,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 6,
+            "mean_probability": 0.636181,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_TOTAL": {
+        "n": 35,
+        "distinct_days": 4,
+        "brier": 0.2505735,
+        "log_loss": 0.6944915,
+        "ece_10": 0.1950533,
+        "first_side_realized_rate": 0.371429,
+        "candidate_direction_accuracy": {
+          "n": 35,
+          "hits": 18,
+          "misses": 17,
+          "accuracy": 0.514286
+        },
+        "frozen_direction_accuracy": {
+          "n": 35,
+          "hits": 18,
+          "misses": 17,
+          "accuracy": 0.514286
+        },
+        "consensus_benchmark": {
+          "n": 27,
+          "model_brier_same_sample": 0.2421385,
+          "market_brier": 0.2496795,
+          "market_minus_model_brier": 0.007541,
+          "market_log_loss": 0.6925062
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.371541,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 5,
+            "mean_probability": 0.463247,
+            "realized_first_side_rate": 0.2
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 20,
+            "mean_probability": 0.553185,
+            "realized_first_side_rate": 0.35
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 7,
+            "mean_probability": 0.62961,
+            "realized_first_side_rate": 0.571429
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 1,
+            "mean_probability": 0.703416,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      }
+    },
+    "0330": {
+      "JINGCAI_WIN": {
+        "n": 33,
+        "distinct_days": 4,
+        "brier": 0.2252743,
+        "log_loss": 0.6375965,
+        "ece_10": 0.153389,
+        "first_side_realized_rate": 0.484848,
+        "candidate_direction_accuracy": {
+          "n": 33,
+          "hits": 21,
+          "misses": 12,
+          "accuracy": 0.636364
+        },
+        "frozen_direction_accuracy": {
+          "n": 33,
+          "hits": 21,
+          "misses": 12,
+          "accuracy": 0.636364
+        },
+        "consensus_benchmark": {
+          "n": 0,
+          "model_brier_same_sample": null,
+          "market_brier": null,
+          "market_minus_model_brier": null,
+          "market_log_loss": null
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 1,
+            "mean_probability": 0.255141,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.330689,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 3,
+            "mean_probability": 0.423701,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 9,
+            "mean_probability": 0.535705,
+            "realized_first_side_rate": 0.555556
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 9,
+            "mean_probability": 0.634463,
+            "realized_first_side_rate": 0.444444
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 4,
+            "mean_probability": 0.739313,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 4,
+            "mean_probability": 0.829603,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_HANDICAP": {
+        "n": 35,
+        "distinct_days": 4,
+        "brier": 0.2495733,
+        "log_loss": 0.6929902,
+        "ece_10": 0.2820322,
+        "first_side_realized_rate": 0.485714,
+        "candidate_direction_accuracy": {
+          "n": 35,
+          "hits": 16,
+          "misses": 19,
+          "accuracy": 0.457143
+        },
+        "frozen_direction_accuracy": {
+          "n": 35,
+          "hits": 16,
+          "misses": 19,
+          "accuracy": 0.457143
+        },
+        "consensus_benchmark": {
+          "n": 5,
+          "model_brier_same_sample": 0.280765,
+          "market_brier": 0.2442942,
+          "market_minus_model_brier": -0.0364708,
+          "market_log_loss": 0.6817328
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 6,
+            "mean_probability": 0.361844,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 9,
+            "mean_probability": 0.455165,
+            "realized_first_side_rate": 0.888889
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 13,
+            "mean_probability": 0.555705,
+            "realized_first_side_rate": 0.384615
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 4,
+            "mean_probability": 0.647224,
+            "realized_first_side_rate": 0.75
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 3,
+            "mean_probability": 0.720426,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_TOTAL": {
+        "n": 35,
+        "distinct_days": 4,
+        "brier": 0.2444587,
+        "log_loss": 0.6821919,
+        "ece_10": 0.1479787,
+        "first_side_realized_rate": 0.371429,
+        "candidate_direction_accuracy": {
+          "n": 35,
+          "hits": 22,
+          "misses": 13,
+          "accuracy": 0.628571
+        },
+        "frozen_direction_accuracy": {
+          "n": 35,
+          "hits": 22,
+          "misses": 13,
+          "accuracy": 0.628571
+        },
+        "consensus_benchmark": {
+          "n": 4,
+          "model_brier_same_sample": 0.3044793,
+          "market_brier": 0.251302,
+          "market_minus_model_brier": -0.0531774,
+          "market_log_loss": 0.6957512
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.371396,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 15,
+            "mean_probability": 0.460974,
+            "realized_first_side_rate": 0.2
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 16,
+            "mean_probability": 0.540387,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 2,
+            "mean_probability": 0.680626,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_HANDICAP": {
+        "n": 35,
+        "distinct_days": 4,
+        "brier": 0.2625557,
+        "log_loss": 0.7190917,
+        "ece_10": 0.1247303,
+        "first_side_realized_rate": 0.457143,
+        "candidate_direction_accuracy": {
+          "n": 35,
+          "hits": 16,
+          "misses": 19,
+          "accuracy": 0.457143
+        },
+        "frozen_direction_accuracy": {
+          "n": 35,
+          "hits": 16,
+          "misses": 19,
+          "accuracy": 0.457143
+        },
+        "consensus_benchmark": {
+          "n": 29,
+          "model_brier_same_sample": 0.2539234,
+          "market_brier": 0.249904,
+          "market_minus_model_brier": -0.0040194,
+          "market_log_loss": 0.692955
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.392672,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 9,
+            "mean_probability": 0.458404,
+            "realized_first_side_rate": 0.555556
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 15,
+            "mean_probability": 0.548477,
+            "realized_first_side_rate": 0.466667
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 8,
+            "mean_probability": 0.635754,
+            "realized_first_side_rate": 0.375
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_TOTAL": {
+        "n": 35,
+        "distinct_days": 4,
+        "brier": 0.2495037,
+        "log_loss": 0.6919859,
+        "ece_10": 0.180124,
+        "first_side_realized_rate": 0.4,
+        "candidate_direction_accuracy": {
+          "n": 35,
+          "hits": 18,
+          "misses": 17,
+          "accuracy": 0.514286
+        },
+        "frozen_direction_accuracy": {
+          "n": 35,
+          "hits": 18,
+          "misses": 17,
+          "accuracy": 0.514286
+        },
+        "consensus_benchmark": {
+          "n": 32,
+          "model_brier_same_sample": 0.2529049,
+          "market_brier": 0.2493607,
+          "market_minus_model_brier": -0.0035442,
+          "market_log_loss": 0.6918684
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.371541,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 4,
+            "mean_probability": 0.460053,
+            "realized_first_side_rate": 0.25
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 22,
+            "mean_probability": 0.561526,
+            "realized_first_side_rate": 0.363636
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 6,
+            "mean_probability": 0.651964,
+            "realized_first_side_rate": 0.666667
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 1,
+            "mean_probability": 0.720741,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      }
+    },
+    "0630": {
+      "JINGCAI_WIN": {
+        "n": 29,
+        "distinct_days": 3,
+        "brier": 0.2235365,
+        "log_loss": 0.6330248,
+        "ece_10": 0.1549868,
+        "first_side_realized_rate": 0.482759,
+        "candidate_direction_accuracy": {
+          "n": 29,
+          "hits": 18,
+          "misses": 11,
+          "accuracy": 0.62069
+        },
+        "frozen_direction_accuracy": {
+          "n": 29,
+          "hits": 18,
+          "misses": 11,
+          "accuracy": 0.62069
+        },
+        "consensus_benchmark": {
+          "n": 0,
+          "model_brier_same_sample": null,
+          "market_brier": null,
+          "market_minus_model_brier": null,
+          "market_log_loss": null
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 1,
+            "mean_probability": 0.255141,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.330689,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 2,
+            "mean_probability": 0.432667,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 8,
+            "mean_probability": 0.534303,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 7,
+            "mean_probability": 0.636135,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 4,
+            "mean_probability": 0.739313,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 4,
+            "mean_probability": 0.829603,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_HANDICAP": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2438546,
+        "log_loss": 0.6815411,
+        "ece_10": 0.2798472,
+        "first_side_realized_rate": 0.483871,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 15,
+          "misses": 16,
+          "accuracy": 0.483871
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 15,
+          "misses": 16,
+          "accuracy": 0.483871
+        },
+        "consensus_benchmark": {
+          "n": 3,
+          "model_brier_same_sample": 0.2436094,
+          "market_brier": 0.2478472,
+          "market_minus_model_brier": 0.0042378,
+          "market_log_loss": 0.6888406
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 6,
+            "mean_probability": 0.361844,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 8,
+            "mean_probability": 0.454865,
+            "realized_first_side_rate": 0.875
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 10,
+            "mean_probability": 0.557074,
+            "realized_first_side_rate": 0.4
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 4,
+            "mean_probability": 0.647224,
+            "realized_first_side_rate": 0.75
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 3,
+            "mean_probability": 0.720426,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_TOTAL": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2404175,
+        "log_loss": 0.6735154,
+        "ece_10": 0.1789284,
+        "first_side_realized_rate": 0.354839,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 19,
+          "misses": 12,
+          "accuracy": 0.612903
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 19,
+          "misses": 12,
+          "accuracy": 0.612903
+        },
+        "consensus_benchmark": {
+          "n": 3,
+          "model_brier_same_sample": 0.2538102,
+          "market_brier": 0.2513051,
+          "market_minus_model_brier": -0.0025051,
+          "market_log_loss": 0.6957574
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.371396,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 14,
+            "mean_probability": 0.459023,
+            "realized_first_side_rate": 0.214286
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 14,
+            "mean_probability": 0.539205,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 1,
+            "mean_probability": 0.685615,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_HANDICAP": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.25812,
+        "log_loss": 0.709965,
+        "ece_10": 0.1296951,
+        "first_side_realized_rate": 0.483871,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 14,
+          "misses": 17,
+          "accuracy": 0.451613
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 14,
+          "misses": 17,
+          "accuracy": 0.451613
+        },
+        "consensus_benchmark": {
+          "n": 25,
+          "model_brier_same_sample": 0.2635783,
+          "market_brier": 0.2501511,
+          "market_minus_model_brier": -0.0134272,
+          "market_log_loss": 0.6934496
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.392672,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 8,
+            "mean_probability": 0.464712,
+            "realized_first_side_rate": 0.625
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 13,
+            "mean_probability": 0.547601,
+            "realized_first_side_rate": 0.461538
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 7,
+            "mean_probability": 0.634488,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_TOTAL": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2460162,
+        "log_loss": 0.6850752,
+        "ece_10": 0.2342172,
+        "first_side_realized_rate": 0.387097,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 17,
+          "misses": 14,
+          "accuracy": 0.548387
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 17,
+          "misses": 14,
+          "accuracy": 0.548387
+        },
+        "consensus_benchmark": {
+          "n": 27,
+          "model_brier_same_sample": 0.24207,
+          "market_brier": 0.2500704,
+          "market_minus_model_brier": 0.0080004,
+          "market_log_loss": 0.693288
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.36225,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 5,
+            "mean_probability": 0.462926,
+            "realized_first_side_rate": 0.2
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 19,
+            "mean_probability": 0.563203,
+            "realized_first_side_rate": 0.368421
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 3,
+            "mean_probability": 0.640645,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 2,
+            "mean_probability": 0.721339,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      }
+    },
+    "1200": {
+      "JINGCAI_WIN": {
+        "n": 29,
+        "distinct_days": 3,
+        "brier": 0.2273084,
+        "log_loss": 0.6421991,
+        "ece_10": 0.1582375,
+        "first_side_realized_rate": 0.482759,
+        "candidate_direction_accuracy": {
+          "n": 29,
+          "hits": 18,
+          "misses": 11,
+          "accuracy": 0.62069
+        },
+        "frozen_direction_accuracy": {
+          "n": 29,
+          "hits": 18,
+          "misses": 11,
+          "accuracy": 0.62069
+        },
+        "consensus_benchmark": {
+          "n": 0,
+          "model_brier_same_sample": null,
+          "market_brier": null,
+          "market_minus_model_brier": null,
+          "market_log_loss": null
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 1,
+            "mean_probability": 0.255141,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.348153,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 2,
+            "mean_probability": 0.432667,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 8,
+            "mean_probability": 0.531787,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 7,
+            "mean_probability": 0.640211,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 4,
+            "mean_probability": 0.75165,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 4,
+            "mean_probability": 0.829603,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_HANDICAP": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2555694,
+        "log_loss": 0.7061554,
+        "ece_10": 0.0781878,
+        "first_side_realized_rate": 0.451613,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 18,
+          "misses": 13,
+          "accuracy": 0.580645
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 18,
+          "misses": 13,
+          "accuracy": 0.580645
+        },
+        "consensus_benchmark": {
+          "n": 9,
+          "model_brier_same_sample": 0.2244774,
+          "market_brier": 0.2498187,
+          "market_minus_model_brier": 0.0253414,
+          "market_log_loss": 0.6927846
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 4,
+            "mean_probability": 0.385298,
+            "realized_first_side_rate": 0.25
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 6,
+            "mean_probability": 0.448868,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 13,
+            "mean_probability": 0.538247,
+            "realized_first_side_rate": 0.538462
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 7,
+            "mean_probability": 0.636991,
+            "realized_first_side_rate": 0.571429
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 1,
+            "mean_probability": 0.727693,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_TOTAL": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.250275,
+        "log_loss": 0.6936044,
+        "ece_10": 0.1430858,
+        "first_side_realized_rate": 0.419355,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 15,
+          "misses": 16,
+          "accuracy": 0.483871
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 15,
+          "misses": 16,
+          "accuracy": 0.483871
+        },
+        "consensus_benchmark": {
+          "n": 14,
+          "model_brier_same_sample": 0.2666774,
+          "market_brier": 0.2503004,
+          "market_minus_model_brier": -0.016377,
+          "market_log_loss": 0.693748
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.390116,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 5,
+            "mean_probability": 0.475782,
+            "realized_first_side_rate": 0.4
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 19,
+            "mean_probability": 0.549243,
+            "realized_first_side_rate": 0.368421
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 4,
+            "mean_probability": 0.637302,
+            "realized_first_side_rate": 0.75
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_HANDICAP": {
+        "n": 0,
+        "brier": null,
+        "log_loss": null,
+        "ece_10": null,
+        "first_side_accuracy": null,
+        "candidate_direction_accuracy": null,
+        "frozen_direction_accuracy": null,
+        "consensus_brier": null
+      },
+      "CROWN_TOTAL": {
+        "n": 0,
+        "brier": null,
+        "log_loss": null,
+        "ece_10": null,
+        "first_side_accuracy": null,
+        "candidate_direction_accuracy": null,
+        "frozen_direction_accuracy": null,
+        "consensus_brier": null
+      }
+    },
+    "1400": {
+      "JINGCAI_WIN": {
+        "n": 29,
+        "distinct_days": 3,
+        "brier": 0.2273084,
+        "log_loss": 0.6421991,
+        "ece_10": 0.1582375,
+        "first_side_realized_rate": 0.482759,
+        "candidate_direction_accuracy": {
+          "n": 29,
+          "hits": 18,
+          "misses": 11,
+          "accuracy": 0.62069
+        },
+        "frozen_direction_accuracy": {
+          "n": 29,
+          "hits": 18,
+          "misses": 11,
+          "accuracy": 0.62069
+        },
+        "consensus_benchmark": {
+          "n": 0,
+          "model_brier_same_sample": null,
+          "market_brier": null,
+          "market_minus_model_brier": null,
+          "market_log_loss": null
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 1,
+            "mean_probability": 0.255141,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.348153,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 2,
+            "mean_probability": 0.432667,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 8,
+            "mean_probability": 0.531787,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 7,
+            "mean_probability": 0.640211,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 4,
+            "mean_probability": 0.75165,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 4,
+            "mean_probability": 0.829603,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_HANDICAP": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.254637,
+        "log_loss": 0.7039973,
+        "ece_10": 0.0763437,
+        "first_side_realized_rate": 0.451613,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 18,
+          "misses": 13,
+          "accuracy": 0.580645
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 18,
+          "misses": 13,
+          "accuracy": 0.580645
+        },
+        "consensus_benchmark": {
+          "n": 9,
+          "model_brier_same_sample": 0.2460434,
+          "market_brier": 0.2502886,
+          "market_minus_model_brier": 0.0042453,
+          "market_log_loss": 0.6937245
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 4,
+            "mean_probability": 0.385209,
+            "realized_first_side_rate": 0.25
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 6,
+            "mean_probability": 0.432146,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 13,
+            "mean_probability": 0.540225,
+            "realized_first_side_rate": 0.538462
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 7,
+            "mean_probability": 0.640333,
+            "realized_first_side_rate": 0.571429
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 1,
+            "mean_probability": 0.727693,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_TOTAL": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2485381,
+        "log_loss": 0.6900104,
+        "ece_10": 0.1120352,
+        "first_side_realized_rate": 0.419355,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 15,
+          "misses": 16,
+          "accuracy": 0.483871
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 15,
+          "misses": 16,
+          "accuracy": 0.483871
+        },
+        "consensus_benchmark": {
+          "n": 11,
+          "model_brier_same_sample": 0.2752457,
+          "market_brier": 0.2495209,
+          "market_minus_model_brier": -0.0257247,
+          "market_log_loss": 0.692189
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.390116,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 5,
+            "mean_probability": 0.46357,
+            "realized_first_side_rate": 0.4
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 20,
+            "mean_probability": 0.545729,
+            "realized_first_side_rate": 0.4
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 3,
+            "mean_probability": 0.643229,
+            "realized_first_side_rate": 0.666667
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_HANDICAP": {
+        "n": 29,
+        "distinct_days": 2,
+        "brier": 0.2524414,
+        "log_loss": 0.6994065,
+        "ece_10": 0.1174229,
+        "first_side_realized_rate": 0.413793,
+        "candidate_direction_accuracy": {
+          "n": 29,
+          "hits": 17,
+          "misses": 12,
+          "accuracy": 0.586207
+        },
+        "frozen_direction_accuracy": {
+          "n": 29,
+          "hits": 17,
+          "misses": 12,
+          "accuracy": 0.586207
+        },
+        "consensus_benchmark": {
+          "n": 19,
+          "model_brier_same_sample": 0.2712584,
+          "market_brier": 0.2490132,
+          "market_minus_model_brier": -0.0222452,
+          "market_log_loss": 0.6911735
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.396794,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 6,
+            "mean_probability": 0.446643,
+            "realized_first_side_rate": 0.166667
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 12,
+            "mean_probability": 0.534867,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 7,
+            "mean_probability": 0.630097,
+            "realized_first_side_rate": 0.571429
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 1,
+            "mean_probability": 0.705938,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_TOTAL": {
+        "n": 27,
+        "distinct_days": 2,
+        "brier": 0.2512976,
+        "log_loss": 0.6958448,
+        "ece_10": 0.1382058,
+        "first_side_realized_rate": 0.444444,
+        "candidate_direction_accuracy": {
+          "n": 27,
+          "hits": 13,
+          "misses": 14,
+          "accuracy": 0.481481
+        },
+        "frozen_direction_accuracy": {
+          "n": 27,
+          "hits": 13,
+          "misses": 14,
+          "accuracy": 0.481481
+        },
+        "consensus_benchmark": {
+          "n": 13,
+          "model_brier_same_sample": 0.2116617,
+          "market_brier": 0.2486962,
+          "market_minus_model_brier": 0.0370345,
+          "market_log_loss": 0.6905394
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 1,
+            "mean_probability": 0.375669,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 4,
+            "mean_probability": 0.466326,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 17,
+            "mean_probability": 0.553808,
+            "realized_first_side_rate": 0.411765
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 4,
+            "mean_probability": 0.627467,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 1,
+            "mean_probability": 0.703416,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      }
+    },
+    "1500": {
+      "JINGCAI_WIN": {
+        "n": 29,
+        "distinct_days": 3,
+        "brier": 0.2273084,
+        "log_loss": 0.6421991,
+        "ece_10": 0.1582375,
+        "first_side_realized_rate": 0.482759,
+        "candidate_direction_accuracy": {
+          "n": 29,
+          "hits": 18,
+          "misses": 11,
+          "accuracy": 0.62069
+        },
+        "frozen_direction_accuracy": {
+          "n": 29,
+          "hits": 18,
+          "misses": 11,
+          "accuracy": 0.62069
+        },
+        "consensus_benchmark": {
+          "n": 0,
+          "model_brier_same_sample": null,
+          "market_brier": null,
+          "market_minus_model_brier": null,
+          "market_log_loss": null
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 1,
+            "mean_probability": 0.255141,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.348153,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 2,
+            "mean_probability": 0.432667,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 8,
+            "mean_probability": 0.531787,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 7,
+            "mean_probability": 0.640211,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 4,
+            "mean_probability": 0.75165,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 4,
+            "mean_probability": 0.829603,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_HANDICAP": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2581234,
+        "log_loss": 0.7115274,
+        "ece_10": 0.0837243,
+        "first_side_realized_rate": 0.451613,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 17,
+          "misses": 14,
+          "accuracy": 0.548387
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 17,
+          "misses": 14,
+          "accuracy": 0.548387
+        },
+        "consensus_benchmark": {
+          "n": 5,
+          "model_brier_same_sample": 0.2048075,
+          "market_brier": 0.2520902,
+          "market_minus_model_brier": 0.0472827,
+          "market_log_loss": 0.6973277
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 4,
+            "mean_probability": 0.377412,
+            "realized_first_side_rate": 0.25
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 7,
+            "mean_probability": 0.434906,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 12,
+            "mean_probability": 0.541961,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 6,
+            "mean_probability": 0.650898,
+            "realized_first_side_rate": 0.666667
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 2,
+            "mean_probability": 0.721661,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_TOTAL": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2486833,
+        "log_loss": 0.6903409,
+        "ece_10": 0.1241611,
+        "first_side_realized_rate": 0.419355,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 15,
+          "misses": 16,
+          "accuracy": 0.483871
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 15,
+          "misses": 16,
+          "accuracy": 0.483871
+        },
+        "consensus_benchmark": {
+          "n": 14,
+          "model_brier_same_sample": 0.2544473,
+          "market_brier": 0.249769,
+          "market_minus_model_brier": -0.0046783,
+          "market_log_loss": 0.6926852
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.38095,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 6,
+            "mean_probability": 0.457734,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 20,
+            "mean_probability": 0.539709,
+            "realized_first_side_rate": 0.4
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 3,
+            "mean_probability": 0.643229,
+            "realized_first_side_rate": 0.666667
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_HANDICAP": {
+        "n": 30,
+        "distinct_days": 3,
+        "brier": 0.2565725,
+        "log_loss": 0.7077271,
+        "ece_10": 0.120324,
+        "first_side_realized_rate": 0.433333,
+        "candidate_direction_accuracy": {
+          "n": 30,
+          "hits": 17,
+          "misses": 13,
+          "accuracy": 0.566667
+        },
+        "frozen_direction_accuracy": {
+          "n": 30,
+          "hits": 17,
+          "misses": 13,
+          "accuracy": 0.566667
+        },
+        "consensus_benchmark": {
+          "n": 24,
+          "model_brier_same_sample": 0.2675298,
+          "market_brier": 0.2496356,
+          "market_minus_model_brier": -0.0178942,
+          "market_log_loss": 0.6924182
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 4,
+            "mean_probability": 0.391864,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 6,
+            "mean_probability": 0.442449,
+            "realized_first_side_rate": 0.166667
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 12,
+            "mean_probability": 0.533844,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 7,
+            "mean_probability": 0.630059,
+            "realized_first_side_rate": 0.571429
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 1,
+            "mean_probability": 0.705938,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_TOTAL": {
+        "n": 30,
+        "distinct_days": 3,
+        "brier": 0.2514504,
+        "log_loss": 0.6962596,
+        "ece_10": 0.1061963,
+        "first_side_realized_rate": 0.466667,
+        "candidate_direction_accuracy": {
+          "n": 30,
+          "hits": 15,
+          "misses": 15,
+          "accuracy": 0.5
+        },
+        "frozen_direction_accuracy": {
+          "n": 30,
+          "hits": 15,
+          "misses": 15,
+          "accuracy": 0.5
+        },
+        "consensus_benchmark": {
+          "n": 14,
+          "model_brier_same_sample": 0.2592461,
+          "market_brier": 0.2499592,
+          "market_minus_model_brier": -0.0092868,
+          "market_log_loss": 0.6930656
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.38095,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 7,
+            "mean_probability": 0.46551,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 15,
+            "mean_probability": 0.552151,
+            "realized_first_side_rate": 0.4
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 5,
+            "mean_probability": 0.622074,
+            "realized_first_side_rate": 0.6
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 1,
+            "mean_probability": 0.703416,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      }
+    },
+    "1800": {
+      "JINGCAI_WIN": {
+        "n": 29,
+        "distinct_days": 3,
+        "brier": 0.2273084,
+        "log_loss": 0.6421991,
+        "ece_10": 0.1582375,
+        "first_side_realized_rate": 0.482759,
+        "candidate_direction_accuracy": {
+          "n": 29,
+          "hits": 18,
+          "misses": 11,
+          "accuracy": 0.62069
+        },
+        "frozen_direction_accuracy": {
+          "n": 29,
+          "hits": 18,
+          "misses": 11,
+          "accuracy": 0.62069
+        },
+        "consensus_benchmark": {
+          "n": 0,
+          "model_brier_same_sample": null,
+          "market_brier": null,
+          "market_minus_model_brier": null,
+          "market_log_loss": null
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 1,
+            "mean_probability": 0.255141,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.348153,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 2,
+            "mean_probability": 0.432667,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 8,
+            "mean_probability": 0.531787,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 7,
+            "mean_probability": 0.640211,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 4,
+            "mean_probability": 0.75165,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 4,
+            "mean_probability": 0.829603,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_HANDICAP": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2578968,
+        "log_loss": 0.71105,
+        "ece_10": 0.0842688,
+        "first_side_realized_rate": 0.451613,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 16,
+          "misses": 15,
+          "accuracy": 0.516129
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 16,
+          "misses": 15,
+          "accuracy": 0.516129
+        },
+        "consensus_benchmark": {
+          "n": 4,
+          "model_brier_same_sample": 0.2022385,
+          "market_brier": 0.2490051,
+          "market_minus_model_brier": 0.0467665,
+          "market_log_loss": 0.691157
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 5,
+            "mean_probability": 0.374008,
+            "realized_first_side_rate": 0.4
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 7,
+            "mean_probability": 0.434593,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 11,
+            "mean_probability": 0.549619,
+            "realized_first_side_rate": 0.454545
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 5,
+            "mean_probability": 0.649395,
+            "realized_first_side_rate": 0.6
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 3,
+            "mean_probability": 0.715812,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_TOTAL": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2472722,
+        "log_loss": 0.6873991,
+        "ece_10": 0.1420465,
+        "first_side_realized_rate": 0.387097,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 15,
+          "misses": 16,
+          "accuracy": 0.483871
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 15,
+          "misses": 16,
+          "accuracy": 0.483871
+        },
+        "consensus_benchmark": {
+          "n": 8,
+          "model_brier_same_sample": 0.2790328,
+          "market_brier": 0.2486709,
+          "market_minus_model_brier": -0.0303619,
+          "market_log_loss": 0.6904889
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.371396,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 9,
+            "mean_probability": 0.456077,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 18,
+            "mean_probability": 0.539734,
+            "realized_first_side_rate": 0.388889
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 2,
+            "mean_probability": 0.663168,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_HANDICAP": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2580418,
+        "log_loss": 0.7109779,
+        "ece_10": 0.1349446,
+        "first_side_realized_rate": 0.451613,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 18,
+          "misses": 13,
+          "accuracy": 0.580645
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 18,
+          "misses": 13,
+          "accuracy": 0.580645
+        },
+        "consensus_benchmark": {
+          "n": 25,
+          "model_brier_same_sample": 0.2593007,
+          "market_brier": 0.2495469,
+          "market_minus_model_brier": -0.0097538,
+          "market_log_loss": 0.6922413
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 4,
+            "mean_probability": 0.382765,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 6,
+            "mean_probability": 0.446657,
+            "realized_first_side_rate": 0.166667
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 14,
+            "mean_probability": 0.534865,
+            "realized_first_side_rate": 0.571429
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 6,
+            "mean_probability": 0.634266,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 1,
+            "mean_probability": 0.716916,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_TOTAL": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2524421,
+        "log_loss": 0.6983356,
+        "ece_10": 0.1502374,
+        "first_side_realized_rate": 0.419355,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 17,
+          "misses": 14,
+          "accuracy": 0.548387
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 17,
+          "misses": 14,
+          "accuracy": 0.548387
+        },
+        "consensus_benchmark": {
+          "n": 20,
+          "model_brier_same_sample": 0.2417491,
+          "market_brier": 0.2497043,
+          "market_minus_model_brier": 0.0079552,
+          "market_log_loss": 0.6925557
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.38095,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 8,
+            "mean_probability": 0.466327,
+            "realized_first_side_rate": 0.25
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 17,
+            "mean_probability": 0.557972,
+            "realized_first_side_rate": 0.470588
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 3,
+            "mean_probability": 0.635509,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 1,
+            "mean_probability": 0.703416,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      }
+    },
+    "2100": {
+      "JINGCAI_WIN": {
+        "n": 29,
+        "distinct_days": 3,
+        "brier": 0.2266694,
+        "log_loss": 0.6408622,
+        "ece_10": 0.1590733,
+        "first_side_realized_rate": 0.482759,
+        "candidate_direction_accuracy": {
+          "n": 29,
+          "hits": 18,
+          "misses": 11,
+          "accuracy": 0.62069
+        },
+        "frozen_direction_accuracy": {
+          "n": 29,
+          "hits": 18,
+          "misses": 11,
+          "accuracy": 0.62069
+        },
+        "consensus_benchmark": {
+          "n": 0,
+          "model_brier_same_sample": null,
+          "market_brier": null,
+          "market_minus_model_brier": null,
+          "market_log_loss": null
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 1,
+            "mean_probability": 0.255141,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.348153,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 2,
+            "mean_probability": 0.432667,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 8,
+            "mean_probability": 0.534816,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 7,
+            "mean_probability": 0.640211,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 4,
+            "mean_probability": 0.75165,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 4,
+            "mean_probability": 0.829603,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_HANDICAP": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2502262,
+        "log_loss": 0.6962622,
+        "ece_10": 0.2226753,
+        "first_side_realized_rate": 0.451613,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 14,
+          "misses": 17,
+          "accuracy": 0.451613
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 14,
+          "misses": 17,
+          "accuracy": 0.451613
+        },
+        "consensus_benchmark": {
+          "n": 2,
+          "model_brier_same_sample": 0.2126041,
+          "market_brier": 0.2494514,
+          "market_minus_model_brier": 0.0368473,
+          "market_log_loss": 0.6920496
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 5,
+            "mean_probability": 0.353613,
+            "realized_first_side_rate": 0.2
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 9,
+            "mean_probability": 0.449666,
+            "realized_first_side_rate": 0.666667
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 10,
+            "mean_probability": 0.557121,
+            "realized_first_side_rate": 0.3
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 4,
+            "mean_probability": 0.649218,
+            "realized_first_side_rate": 0.75
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 3,
+            "mean_probability": 0.73584,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_TOTAL": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2468335,
+        "log_loss": 0.6865547,
+        "ece_10": 0.1648946,
+        "first_side_realized_rate": 0.354839,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 17,
+          "misses": 14,
+          "accuracy": 0.548387
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 17,
+          "misses": 14,
+          "accuracy": 0.548387
+        },
+        "consensus_benchmark": {
+          "n": 7,
+          "model_brier_same_sample": 0.2497843,
+          "market_brier": 0.2486864,
+          "market_minus_model_brier": -0.0010979,
+          "market_log_loss": 0.6905196
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.371396,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 12,
+            "mean_probability": 0.457304,
+            "realized_first_side_rate": 0.25
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 15,
+            "mean_probability": 0.536036,
+            "realized_first_side_rate": 0.4
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 2,
+            "mean_probability": 0.663168,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_HANDICAP": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2553532,
+        "log_loss": 0.7051911,
+        "ece_10": 0.0740661,
+        "first_side_realized_rate": 0.451613,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 17,
+          "misses": 14,
+          "accuracy": 0.548387
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 17,
+          "misses": 14,
+          "accuracy": 0.548387
+        },
+        "consensus_benchmark": {
+          "n": 24,
+          "model_brier_same_sample": 0.2509181,
+          "market_brier": 0.2497072,
+          "market_minus_model_brier": -0.0012109,
+          "market_log_loss": 0.6925614
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.384498,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 8,
+            "mean_probability": 0.450967,
+            "realized_first_side_rate": 0.375
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 13,
+            "mean_probability": 0.539339,
+            "realized_first_side_rate": 0.538462
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 6,
+            "mean_probability": 0.636246,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 1,
+            "mean_probability": 0.705938,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_TOTAL": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2526905,
+        "log_loss": 0.6987648,
+        "ece_10": 0.1720873,
+        "first_side_realized_rate": 0.387097,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 15,
+          "misses": 16,
+          "accuracy": 0.483871
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 15,
+          "misses": 16,
+          "accuracy": 0.483871
+        },
+        "consensus_benchmark": {
+          "n": 23,
+          "model_brier_same_sample": 0.2510919,
+          "market_brier": 0.2499732,
+          "market_minus_model_brier": -0.0011186,
+          "market_log_loss": 0.6930938
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.361754,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 7,
+            "mean_probability": 0.471708,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 18,
+            "mean_probability": 0.560391,
+            "realized_first_side_rate": 0.388889
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 3,
+            "mean_probability": 0.641876,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 1,
+            "mean_probability": 0.703416,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      }
+    },
+    "2130": {
+      "JINGCAI_WIN": {
+        "n": 29,
+        "distinct_days": 3,
+        "brier": 0.2266694,
+        "log_loss": 0.6408622,
+        "ece_10": 0.1590733,
+        "first_side_realized_rate": 0.482759,
+        "candidate_direction_accuracy": {
+          "n": 29,
+          "hits": 18,
+          "misses": 11,
+          "accuracy": 0.62069
+        },
+        "frozen_direction_accuracy": {
+          "n": 29,
+          "hits": 18,
+          "misses": 11,
+          "accuracy": 0.62069
+        },
+        "consensus_benchmark": {
+          "n": 0,
+          "model_brier_same_sample": null,
+          "market_brier": null,
+          "market_minus_model_brier": null,
+          "market_log_loss": null
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 1,
+            "mean_probability": 0.255141,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.348153,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 2,
+            "mean_probability": 0.432667,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 8,
+            "mean_probability": 0.534816,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 7,
+            "mean_probability": 0.640211,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 4,
+            "mean_probability": 0.75165,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 4,
+            "mean_probability": 0.829603,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_HANDICAP": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2508934,
+        "log_loss": 0.6976384,
+        "ece_10": 0.2218677,
+        "first_side_realized_rate": 0.451613,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 14,
+          "misses": 17,
+          "accuracy": 0.451613
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 14,
+          "misses": 17,
+          "accuracy": 0.451613
+        },
+        "consensus_benchmark": {
+          "n": 2,
+          "model_brier_same_sample": 0.2126041,
+          "market_brier": 0.2494514,
+          "market_minus_model_brier": 0.0368473,
+          "market_log_loss": 0.6920496
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 5,
+            "mean_probability": 0.353613,
+            "realized_first_side_rate": 0.2
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 9,
+            "mean_probability": 0.452447,
+            "realized_first_side_rate": 0.666667
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 10,
+            "mean_probability": 0.557121,
+            "realized_first_side_rate": 0.3
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 4,
+            "mean_probability": 0.649218,
+            "realized_first_side_rate": 0.75
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 3,
+            "mean_probability": 0.73584,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "JINGCAI_TOTAL": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2473124,
+        "log_loss": 0.68756,
+        "ece_10": 0.1668527,
+        "first_side_realized_rate": 0.354839,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 18,
+          "misses": 13,
+          "accuracy": 0.580645
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 18,
+          "misses": 13,
+          "accuracy": 0.580645
+        },
+        "consensus_benchmark": {
+          "n": 5,
+          "model_brier_same_sample": 0.2295269,
+          "market_brier": 0.2490999,
+          "market_minus_model_brier": 0.0195731,
+          "market_log_loss": 0.6913462
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.371396,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 13,
+            "mean_probability": 0.464323,
+            "realized_first_side_rate": 0.230769
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 14,
+            "mean_probability": 0.539478,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 2,
+            "mean_probability": 0.663168,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_HANDICAP": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.2568729,
+        "log_loss": 0.7083454,
+        "ece_10": 0.0740636,
+        "first_side_realized_rate": 0.451613,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 17,
+          "misses": 14,
+          "accuracy": 0.548387
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 17,
+          "misses": 14,
+          "accuracy": 0.548387
+        },
+        "consensus_benchmark": {
+          "n": 25,
+          "model_brier_same_sample": 0.2554852,
+          "market_brier": 0.2504597,
+          "market_minus_model_brier": -0.0050256,
+          "market_log_loss": 0.6940665
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 3,
+            "mean_probability": 0.392672,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 8,
+            "mean_probability": 0.447892,
+            "realized_first_side_rate": 0.375
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 13,
+            "mean_probability": 0.539339,
+            "realized_first_side_rate": 0.538462
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 6,
+            "mean_probability": 0.636246,
+            "realized_first_side_rate": 0.5
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 1,
+            "mean_probability": 0.705938,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      },
+      "CROWN_TOTAL": {
+        "n": 31,
+        "distinct_days": 3,
+        "brier": 0.251243,
+        "log_loss": 0.6958373,
+        "ece_10": 0.1707769,
+        "first_side_realized_rate": 0.387097,
+        "candidate_direction_accuracy": {
+          "n": 31,
+          "hits": 15,
+          "misses": 16,
+          "accuracy": 0.483871
+        },
+        "frozen_direction_accuracy": {
+          "n": 31,
+          "hits": 15,
+          "misses": 16,
+          "accuracy": 0.483871
+        },
+        "consensus_benchmark": {
+          "n": 24,
+          "model_brier_same_sample": 0.2480082,
+          "market_brier": 0.2508021,
+          "market_minus_model_brier": 0.002794,
+          "market_log_loss": 0.6947516
+        },
+        "calibration_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "n": 2,
+            "mean_probability": 0.361754,
+            "realized_first_side_rate": 0.0
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "n": 7,
+            "mean_probability": 0.471708,
+            "realized_first_side_rate": 0.428571
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "n": 18,
+            "mean_probability": 0.558134,
+            "realized_first_side_rate": 0.388889
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "n": 3,
+            "mean_probability": 0.641876,
+            "realized_first_side_rate": 0.333333
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "n": 1,
+            "mean_probability": 0.703416,
+            "realized_first_side_rate": 1.0
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "n": 0,
+            "mean_probability": null,
+            "realized_first_side_rate": null
+          }
+        ]
+      }
+    }
+  },
+  "latest_pretip_by_market": {
+    "JINGCAI_WIN": {
+      "n": 33,
+      "distinct_days": 4,
+      "brier": 0.2252743,
+      "log_loss": 0.6375965,
+      "ece_10": 0.153389,
+      "first_side_realized_rate": 0.484848,
+      "candidate_direction_accuracy": {
+        "n": 33,
+        "hits": 21,
+        "misses": 12,
+        "accuracy": 0.636364
+      },
+      "frozen_direction_accuracy": {
+        "n": 33,
+        "hits": 21,
+        "misses": 12,
+        "accuracy": 0.636364
+      },
+      "consensus_benchmark": {
+        "n": 0,
+        "model_brier_same_sample": null,
+        "market_brier": null,
+        "market_minus_model_brier": null,
+        "market_log_loss": null
+      },
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "n": 1,
+          "mean_probability": 0.255141,
+          "realized_first_side_rate": 0.0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "n": 3,
+          "mean_probability": 0.330689,
+          "realized_first_side_rate": 0.333333
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "n": 3,
+          "mean_probability": 0.423701,
+          "realized_first_side_rate": 0.0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "n": 9,
+          "mean_probability": 0.535705,
+          "realized_first_side_rate": 0.555556
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "n": 9,
+          "mean_probability": 0.634463,
+          "realized_first_side_rate": 0.444444
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "n": 4,
+          "mean_probability": 0.739313,
+          "realized_first_side_rate": 0.5
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "n": 4,
+          "mean_probability": 0.829603,
+          "realized_first_side_rate": 1.0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        }
+      ]
+    },
+    "JINGCAI_HANDICAP": {
+      "n": 35,
+      "distinct_days": 4,
+      "brier": 0.2495733,
+      "log_loss": 0.6929902,
+      "ece_10": 0.2820322,
+      "first_side_realized_rate": 0.485714,
+      "candidate_direction_accuracy": {
+        "n": 35,
+        "hits": 16,
+        "misses": 19,
+        "accuracy": 0.457143
+      },
+      "frozen_direction_accuracy": {
+        "n": 35,
+        "hits": 16,
+        "misses": 19,
+        "accuracy": 0.457143
+      },
+      "consensus_benchmark": {
+        "n": 4,
+        "model_brier_same_sample": 0.2714594,
+        "market_brier": 0.2467643,
+        "market_minus_model_brier": -0.0246951,
+        "market_log_loss": 0.6866749
+      },
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "n": 6,
+          "mean_probability": 0.361844,
+          "realized_first_side_rate": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "n": 9,
+          "mean_probability": 0.455165,
+          "realized_first_side_rate": 0.888889
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "n": 13,
+          "mean_probability": 0.555705,
+          "realized_first_side_rate": 0.384615
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "n": 4,
+          "mean_probability": 0.647224,
+          "realized_first_side_rate": 0.75
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "n": 3,
+          "mean_probability": 0.720426,
+          "realized_first_side_rate": 0.333333
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        }
+      ]
+    },
+    "JINGCAI_TOTAL": {
+      "n": 35,
+      "distinct_days": 4,
+      "brier": 0.2444587,
+      "log_loss": 0.6821919,
+      "ece_10": 0.1479787,
+      "first_side_realized_rate": 0.371429,
+      "candidate_direction_accuracy": {
+        "n": 35,
+        "hits": 22,
+        "misses": 13,
+        "accuracy": 0.628571
+      },
+      "frozen_direction_accuracy": {
+        "n": 35,
+        "hits": 22,
+        "misses": 13,
+        "accuracy": 0.628571
+      },
+      "consensus_benchmark": {
+        "n": 4,
+        "model_brier_same_sample": 0.3044793,
+        "market_brier": 0.2509788,
+        "market_minus_model_brier": -0.0535005,
+        "market_log_loss": 0.6951048
+      },
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "n": 2,
+          "mean_probability": 0.371396,
+          "realized_first_side_rate": 0.5
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "n": 15,
+          "mean_probability": 0.460974,
+          "realized_first_side_rate": 0.2
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "n": 16,
+          "mean_probability": 0.540387,
+          "realized_first_side_rate": 0.5
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "n": 2,
+          "mean_probability": 0.680626,
+          "realized_first_side_rate": 0.5
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        }
+      ]
+    },
+    "CROWN_HANDICAP": {
+      "n": 35,
+      "distinct_days": 4,
+      "brier": 0.2630943,
+      "log_loss": 0.7200354,
+      "ece_10": 0.1497396,
+      "first_side_realized_rate": 0.485714,
+      "candidate_direction_accuracy": {
+        "n": 35,
+        "hits": 15,
+        "misses": 20,
+        "accuracy": 0.428571
+      },
+      "frozen_direction_accuracy": {
+        "n": 35,
+        "hits": 15,
+        "misses": 20,
+        "accuracy": 0.428571
+      },
+      "consensus_benchmark": {
+        "n": 27,
+        "model_brier_same_sample": 0.2658298,
+        "market_brier": 0.2507491,
+        "market_minus_model_brier": -0.0150807,
+        "market_log_loss": 0.6946459
+      },
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "n": 3,
+          "mean_probability": 0.392672,
+          "realized_first_side_rate": 0.333333
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "n": 9,
+          "mean_probability": 0.466752,
+          "realized_first_side_rate": 0.666667
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "n": 15,
+          "mean_probability": 0.546784,
+          "realized_first_side_rate": 0.466667
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "n": 8,
+          "mean_probability": 0.632735,
+          "realized_first_side_rate": 0.375
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        }
+      ]
+    },
+    "CROWN_TOTAL": {
+      "n": 35,
+      "distinct_days": 4,
+      "brier": 0.2494675,
+      "log_loss": 0.6924268,
+      "ece_10": 0.2027089,
+      "first_side_realized_rate": 0.4,
+      "candidate_direction_accuracy": {
+        "n": 35,
+        "hits": 19,
+        "misses": 16,
+        "accuracy": 0.542857
+      },
+      "frozen_direction_accuracy": {
+        "n": 35,
+        "hits": 19,
+        "misses": 16,
+        "accuracy": 0.542857
+      },
+      "consensus_benchmark": {
+        "n": 30,
+        "model_brier_same_sample": 0.2484868,
+        "market_brier": 0.2501947,
+        "market_minus_model_brier": 0.0017079,
+        "market_log_loss": 0.6935366
+      },
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "n": 2,
+          "mean_probability": 0.36225,
+          "realized_first_side_rate": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "n": 5,
+          "mean_probability": 0.462926,
+          "realized_first_side_rate": 0.2
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "n": 21,
+          "mean_probability": 0.563729,
+          "realized_first_side_rate": 0.380952
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "n": 5,
+          "mean_probability": 0.645062,
+          "realized_first_side_rate": 0.8
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "n": 2,
+          "mean_probability": 0.721339,
+          "realized_first_side_rate": 0.5
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "n": 0,
+          "mean_probability": null,
+          "realized_first_side_rate": null
+        }
+      ]
+    }
+  },
+  "sample_readiness": {
+    "graded_latest_market_rows_total": 173,
+    "minimum_events_per_market_for_research_review": 100,
+    "minimum_distinct_days_per_market_for_research_review": 24,
+    "smallest_market_sample_n": 33,
+    "smallest_market_distinct_days": 4,
+    "status": "INSUFFICIENT_CHRONOLOGICAL_SAMPLE"
+  },
+  "rejections": {
+    "MARKET_NOT_PRETIP_VALID": 86,
+    "PUSH_EXCLUDED": 2
+  },
+  "scoring_policy": "One latest valid pre-tip probability per game/market for primary metrics; per-slot metrics separate; pushes excluded; official final scores only",
+  "production_model_modified": false,
+  "probability_fusion_enabled": false,
+  "betting_ev_or_roi_claimed": false
+}
