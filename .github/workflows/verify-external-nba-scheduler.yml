@@ -1,14 +1,13 @@
-name: Verify external NBA scheduler
+name: Verify exact-time Cloudflare and GitHub scheduler
 on:
   pull_request:
     branches: [main]
     paths:
       - 'scheduler/**'
       - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/football-007-live-capture.yml'
       - '.github/workflows/nba-priority-0630.yml'
       - '.github/workflows/nba-priority-2130.yml'
-      - '.github/workflows/titan007-final-hourly.yml'
-      - '.github/workflows/nba-delivery-health-watchdog.yml'
       - '.github/workflows/verify-external-nba-scheduler.yml'
 permissions: {contents: read}
 jobs:
@@ -19,77 +18,20 @@ jobs:
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
       - run: node scheduler/test-scheduler.mjs
-      - name: Check noon dispatch freezes cohort and passes explicit report slot
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          w=Path('.github/workflows/titan007-three-analysis.yml').read_text()
-          assert 'report_slot:' in w
-          assert 'EXTERNAL_REPORT_SLOT' in w
-          assert '"$EXTERNAL_REPORT_SLOT" = "1200"' in w
-          for slot in ('0630','2130'):
-              p=Path(f'.github/workflows/nba-priority-{slot}.yml').read_text()
-              assert 'workflow_dispatch:' in p
-          print('EXTERNAL_NOON_AND_PRIORITY_DISPATCH_INPUT_PASS')
-          PY
-      - name: Allow Cloudflare 00:30 and 03:30 full reports but no hourly overnight monitoring
-        run: |
-          python3 - <<'PY'
-          import tomllib
-          from pathlib import Path
-          cfg=tomllib.loads(Path('scheduler/wrangler.toml').read_text())
-          crons=cfg['triggers']['crons']
-          expected=[
-              '0,8,18,20,28,35 4,6,7,10 * * *',
-              '0,7,16,20,30,35,40,42,52 13 * * *',
-              '0,10,20,35 14 * * *',
-              '20,30,35,40,42,52 22 * * *',
-              '20,30,35,40,50 5,8,9,11,12,16-21 * * *',
-          ]
-          assert crons==expected,(crons,expected)
-          assert len(crons)<=5,'CLOUDFLARE_FREE_CRON_LIMIT'
-          def expand(field):
-              out=set()
-              for part in field.split(','):
-                  if '-' in part:
-                      a,b=map(int,part.split('-'))
-                      out.update(range(a,b+1))
-                  else:
-                      out.add(int(part))
-              return out
-          ticks=set()
-          for expression in crons:
-              minute,hour,dom,month,weekday=expression.split()
-              assert (dom,month,weekday)==('*','*','*')
-              ticks.update((h,m) for h in expand(hour) for m in expand(minute))
-          old=[
-              ('0,8,18,28','4,6,7,10'),('0,7,16,30,40','13'),
-              ('0,10,20','14'),('20,30,40','22'),('30,40,50','16,19'),
-          ]
-          nba={(h,m) for minutes,hours in old
-               for h in expand(hours) for m in expand(minutes)}
-          football={(h,m) for h in (*range(4,14),*range(16,23)) for m in (20,35)}
-          football|={(h,m) for h in (13,22) for m in (42,52)}
-          assert nba<=ticks,'NBA_BACKUP_CRON_REGRESSION'
-          assert football<=ticks,'FOOTBALL_MISSING_BACKUP_CRON'
-          print('CLOUDFLARE_FIVE_CRON_SHARED_NBA_FOOTBALL_PASS')
-          PY
-      - name: Confirm existing Worker identity and GitHub build integration
+      - name: Verify one Worker and no retry Cron
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import tomllib
-          worker=Path("scheduler/worker.mjs").read_text()
-          config=tomllib.loads(Path("scheduler/wrangler.toml").read_text())
-          assert config["name"]=="nba-external-schedule-watchdog"
-          assert 'const OWNER="noki1022";' in worker
-          assert 'const REPO="mcp-sports-hub";' in worker
-          assert 'const MIDNIGHT_REPORTS=[' in worker
-          assert '"titan007-three-analysis.yml"' in worker
-          assert 'slot:f.slot' in worker
+          c=tomllib.loads(Path('scheduler/wrangler.toml').read_text())
+          assert c['name']=='nba-external-schedule-watchdog'
+          assert c['triggers']['crons']==[
+              '0 4-13,16-22 * * *','30 13,16,19,22 * * *']
+          worker=Path('scheduler/worker.mjs').read_text()
+          assert 'export async function dispatchAt(' in worker
           assert 'export async function dispatchFootballAt(' in worker
-          assert 'FOOTBALL_DISPATCH_ACCEPTED_NOT_COMPLETED' in worker
-          assert 'football-007-live-capture.yml' in worker
-          assert not Path(".github/workflows/deploy-cloudflare-secondary-scheduler.yml").exists()
-          print("EXISTING_CLOUDFLARE_WORKERS_BUILDS_INTEGRATION_PRESERVED")
+          assert 'CANONICAL_RUN_EXISTS_NO_RETRY' in worker
+          assert 'FOOTBALL_CANONICAL_RUN_EXISTS_NO_RETRY' in worker
+          assert not Path('.github/workflows/deploy-cloudflare-secondary-scheduler.yml').exists()
+          print('EXACT_TIME_EXISTING_CLOUDFLARE_WORKER_NO_RESEND_PASS')
           PY

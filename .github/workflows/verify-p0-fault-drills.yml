@@ -1,4 +1,4 @@
-name: P0 isolated NBA end-to-end fault drills
+name: P0 no-resend fault drills
 on:
   pull_request:
     paths:
@@ -17,10 +17,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Simulate trigger misses, timeouts, duplicates, expired retries without sending
+      - name: Verify single-trigger de-dup and absence of retired recovery code
         run: python3 scripts/nba_p0_fault_injection.py
-      - name: Run existing recovery and official Final readiness unit checks
+      - name: Run read-only health and official FINAL readiness unit checks
         run: |
           python3 scripts/nba_delivery_health.py --self-test
-          python3 scripts/nba_delivery_recovery.py --self-test
           python3 analysis/nba_final_review_gate.py --self-test

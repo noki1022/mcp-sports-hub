@@ -6,7 +6,6 @@ on:
       - .github/workflows/titan007-final-hourly.yml
       - scripts/pushplus_five_compact.py
       - scripts/pushplus_mobile.py
-      - scripts/nba_schedule_fallback_push.py
       - .github/workflows/verify-beijing-tipoff-notice.yml
 permissions:
   contents: read
@@ -20,7 +19,6 @@ jobs:
       - run: python3 scripts/nba_tipoff_plan.py --self-test
       - run: python3 scripts/pushplus_five_compact.py --self-test
       - run: python3 scripts/pushplus_mobile.py --mode three --self-test
-      - run: python3 scripts/nba_schedule_fallback_push.py --self-test --target 2026-11-01 --slot 1200
       - name: Read a genuine Nov 1 board and verify 03:00 kickoff plan
         run: |
           python3 scripts/nba_tipoff_plan.py --joined reports/daily/2026-11-01/1400/titan007_three_joined.json --out /tmp/tip.json

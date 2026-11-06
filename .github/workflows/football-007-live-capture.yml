@@ -53,12 +53,8 @@ on:
         required: false
         type: string
   schedule:
-    # UTC: Beijing 12:00-21:00 hourly, 21:30 baseline, 00:00-06:00 silent, 06:30 update.
-    # Every slot captures independently; prior-day history missing never blocks first capture.
+    # One exact trigger per football snapshot; zero late retry slots.
     - cron: "0 4 * * *"
-    # Retry only the canonical 12:00 slot when GitHub drops/delays the first event.
-    - cron: "15 4 * * *"
-    - cron: "30 4 * * *"
     - cron: "0 5 * * *"
     - cron: "0 6 * * *"
     - cron: "0 7 * * *"
@@ -352,7 +348,7 @@ jobs:
 
   football-daytime-push:
     needs: [live-football, archive-football-raw-release]
-    if: needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && ((github.event_name == 'schedule' && contains(fromJSON('["0 4 * * *","15 4 * * *","30 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *"]'), github.event.schedule)) || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && contains(fromJSON('["0 4 * * *","15 4 * * *","30 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *"]'), inputs.recovery_cron)))
+    if: needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && ((github.event_name == 'schedule' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *"]'), github.event.schedule)) || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *"]'), inputs.recovery_cron)))
     runs-on: ubuntu-latest
     timeout-minutes: 6
     permissions:

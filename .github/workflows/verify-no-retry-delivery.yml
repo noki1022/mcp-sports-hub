@@ -1,0 +1,57 @@
+name: Verify exact-time dual scheduler with zero compensation
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scheduler/**'
+      - 'scripts/validate_nba_schedules.py'
+      - 'scripts/nba_fixed_slot_gate.py'
+      - 'scripts/nba_p0_fault_injection.py'
+      - 'scripts/football_cloudflare_recovery.py'
+      - '.github/workflows/titan007-three-analysis.yml'
+      - '.github/workflows/football-007-live-capture.yml'
+      - '.github/workflows/nba-priority-0630.yml'
+      - '.github/workflows/nba-priority-2130.yml'
+      - '.github/workflows/nba-delivery-health-watchdog.yml'
+      - '.github/workflows/verify-no-retry-delivery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: All exact-time slots, no compensation and no fallback sender
+        run: |
+          python3 -m pip install --quiet PyYAML==6.0.2
+          python3 scripts/validate_nba_schedules.py
+          python3 scripts/nba_fixed_slot_gate.py --self-test
+          python3 scripts/nba_delivery_health.py --self-test
+          python3 scripts/nba_p0_fault_injection.py
+          python3 - <<'PY'
+          from pathlib import Path
+          removed=[
+              'scripts/nba_delivery_recovery.py',
+              'scripts/nba_schedule_fallback_push.py',
+              '.github/workflows/pushplus-compact-resend.yml']
+          assert all(not Path(p).exists() for p in removed)
+          watch=Path('.github/workflows/nba-delivery-health-watchdog.yml').read_text()
+          assert 'PUSHPLUS_TOKEN' not in watch and 'actions: write' not in watch
+          assert 'nba_delivery_recovery.py' not in watch and '--send' not in watch
+          evening=Path('.github/workflows/nba-priority-2130.yml').read_text()
+          morning=Path('.github/workflows/nba-priority-0630.yml').read_text()
+          assert evening.count('    - cron: ')==1 and '30 13 * * *' in evening
+          assert morning.count('    - cron: ')==1 and '30 22 * * *' in morning
+          assert '*/10' not in morning and '40 13 * * *' not in evening
+          print('NO_COMPENSATION_SENDER_P0_ACCEPTED')
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exact Cloudflare/GitHub trigger contract and negative retry tests
+        run: node scheduler/test-scheduler.mjs

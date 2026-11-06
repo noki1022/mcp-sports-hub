@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Fail-closed validation for existing Cloudflare Worker's football dispatch.
 
-A recovery dispatch may NOT turn an arbitrary manual request into a
-scheduled push, backdate a capture, or send a stale/off-day report.
+Cloudflare can dispatch ONLY at the canonical scheduled minute. It must
+never retry, compensate or backdate any push.
 Actual source timestamps remain those recorded by the collector.
 """
 from __future__ import annotations
@@ -23,8 +23,6 @@ VALID_SLOTS = frozenset(
 
 def slot_for_cron(expr: str) -> str:
     expr = str(expr or "").strip()
-    if expr in ("15 4 * * *", "30 4 * * *"):
-        return "1200"
     match = re.fullmatch(r"(0|30) (\d{1,2}) \* \* \*", expr)
     if not match:
         raise ValueError("INVALID_FOOTBALL_RECOVERY_CRON")
@@ -64,8 +62,10 @@ def validate(event: str, source: str, day: str, cron: str,
     delay = (local - planned).total_seconds()
     # Even a valid Cloudflare request cannot unlock a new stale report.
     # Late native GH crons are audited separately; do not backdate sources.
-    limit = 75 * 60 if slot == "0630" else 60 * 60
-    if delay < 0 or delay > limit:
+    # This was dispatched at the canonical minute by Cloudflare. Allow GitHub
+    # runner queue delay without manufacturing a second scheduled trigger.
+    # The 60-minute cap also prevents stale or replayed dispatches.
+    if delay < 0 or delay > 60 * 60:
         raise ValueError("RECOVERY_OUTSIDE_SENDING_WINDOW")
     return "CLOUDFLARE_RECOVERY_AUTHORIZED_" + slot
 

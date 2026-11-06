@@ -38,7 +38,8 @@ jobs:
           from pathlib import Path
           s=Path('.github/workflows/nba-priority-0630.yml').read_text()
           h=Path('.github/workflows/titan007-final-hourly.yml').read_text()
-          assert '- cron: "*/10 22-23,0-5 * * *"' in s
+          assert '- cron: "30 22 * * *"' in s
+          assert '- cron: "*/10 22-23,0-5 * * *"' not in s
           assert '06:58' not in s
           assert "steps.presend.outputs.skip != 'true'" in s
           assert '30 14-21 * * *' not in h

@@ -26,8 +26,8 @@ jobs:
           s=Path('.github/workflows/nba-priority-2130.yml').read_text()
           h=Path('.github/workflows/titan007-final-hourly.yml').read_text()
           assert '- cron: "20 13 * * *"' not in s
-          for t in ('30 13 * * *','40 13 * * *'):
-              assert f'- cron: "{t}"' in s
+          assert '- cron: "30 13 * * *"' in s
+          assert '- cron: "40 13 * * *"' not in s
           assert '30 13-22 * * *' not in h
           assert '30 14-21 * * *' not in h
           assert 'workflow_dispatch:' in h and 'schedule:' not in h.split('permissions:',1)[0]

@@ -1,165 +1,38 @@
-name: NBA Beijing scheduled delivery acceptance watchdog
+name: NBA read-only delivery receipt audit (never retry or send)
 on:
   workflow_dispatch:
     inputs:
       slot:
-        description: Canonical Beijing slot (e.g. 2130, 0030)
-        required: false
+        description: Canonical Beijing slot
+        required: true
         type: string
       target_date:
         description: Beijing game display date YYYY-MM-DD
-        required: false
+        required: true
         type: string
-  schedule:
-    # 00:30 Beijing full-report recovery/health checks: +5m, +20m, +35m.
-    - cron: "35 16 * * *"
-    - cron: "50 16 * * *"
-    - cron: "5 17 * * *"
-    # 03:30 Beijing full-report recovery/health checks: +5m, +20m, +35m.
-    - cron: "35 19 * * *"
-    - cron: "50 19 * * *"
-    - cron: "5 20 * * *"
-    # Audit every scheduled hourly NBA delivery at +40m, including 13/16/17/19/20.
-    - cron: "40 4 * * *"
-    - cron: "40 5 * * *"
-    - cron: "40 6 * * *"
-    - cron: "40 7 * * *"
-    - cron: "40 8 * * *"
-    - cron: "40 9 * * *"
-    - cron: "40 10 * * *"
-    - cron: "40 11 * * *"
-    - cron: "40 12 * * *"
-    - cron: "20 13 * * *"
-    # Priority recovery checks: first check at +5 minutes, then final cutoff check.
-    - cron: "35 13 * * *"
-    - cron: "45 13 * * *"
-    - cron: "50 13 * * *"
-    # Late bounded 21:00 retry.
-    - cron: "40 13 * * *"
-    - cron: "55 13 * * *"
-    # No overnight hourly-monitor watchdog after the 21:30 final report.
-    - cron: "35 22 * * *"
-    - cron: "40 22 * * *"
-    - cron: "45 22 * * *"
-    - cron: "50 22 * * *"
-    - cron: "55 22 * * *"
 permissions:
-  actions: write
-  contents: write
-concurrency:
-  group: nba-delivery-health-watchdog-main
-  cancel-in-progress: false
+  contents: read
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 3
     env:
-      GH_HEALTH_SCHEDULE: ${{ github.event.schedule || '' }}
       HEALTH_INPUT_SLOT: ${{ inputs.slot || '' }}
       HEALTH_INPUT_DATE: ${{ inputs.target_date || '' }}
       GITHUB_TOKEN: ${{ github.token }}
-      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
-      - name: Unit test and fetch latest acceptance markers
+      - name: Audit acceptance marker without dispatching or messaging
         run: |
           python3 scripts/nba_delivery_health.py --self-test
-          git pull --ff-only origin main
-      - name: Check scheduled capture and delivery; alert only on missing marker
-        run: |
-          extra=()
-          if [ -n "$HEALTH_INPUT_SLOT" ]; then
-            test -n "$HEALTH_INPUT_DATE"
-            extra=(--slot "$HEALTH_INPUT_SLOT" --target-date "$HEALTH_INPUT_DATE")
-          else
-            extra=(--schedule "$GH_HEALTH_SCHEDULE")
-          fi
-          python3 scripts/nba_delivery_health.py "${extra[@]}" --send \
-            --out nba_delivery_health.json --alert-marker-out reports/delivery-alert-sent/health-check.json
-      - name: Auto-recover a missed fixed-slot trigger when safe
-        # Alert transport failures must not block independently authorized rescue.
-        if: ${{ !cancelled() }}
-        run: |
-          python3 scripts/nba_delivery_recovery.py --self-test
-          RECOVERY_PARAMETERS=$(python3 - <<'PY'
-          import json,os,sys
-          from datetime import datetime
-          from pathlib import Path
-          sys.path.insert(0,"scripts")
-          from nba_delivery_health import infer_slot,expected_workflow,BJ
-          report=Path("nba_delivery_health.json")
-          slot=target=None
-          if report.is_file():
-              try:
-                  record=json.loads(report.read_text(encoding="utf-8"))
-                  slot,target=record["slot"],record["target_date_beijing"]
-              except (OSError,ValueError,KeyError,TypeError):
-                  pass
-          if not slot or not target:
-              slot=os.environ.get("HEALTH_INPUT_SLOT","")
-              target=os.environ.get("HEALTH_INPUT_DATE","")
-              if not slot:
-                  slot,target=infer_slot(os.environ.get("GH_HEALTH_SCHEDULE",""),datetime.now(BJ))
-          expected_workflow(slot)
-          datetime.fromisoformat(target).date()
-          print(slot,target)
-          PY
-          )
-          read -r RECOVERY_SLOT RECOVERY_TARGET <<< "$RECOVERY_PARAMETERS"
-          test -n "$RECOVERY_SLOT" && test -n "$RECOVERY_TARGET"
-          python3 scripts/nba_delivery_recovery.py \
-            --slot "$RECOVERY_SLOT" --target-date "$RECOVERY_TARGET" \
-            --out nba_recovery_result.json
-      - name: Persist a successful recovery dispatch marker
-        if: ${{ !cancelled() }}
-        run: |
-          git add reports/delivery-recovery-dispatched/ 2>/dev/null || true
-          if ! git diff --cached --quiet; then
-            git config user.name github-actions[bot]
-            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-            git commit -m "Record bounded NBA recovery dispatch request"
-            for n in 1 2 3; do
-              if git push origin HEAD:main; then exit 0; fi
-              git pull --rebase origin main
-            done
-            exit 1
-          fi
-      - name: Save unique alert marker when PushPlus accepted
-        if: ${{ !cancelled() }}
-        run: |
-          python3 - <<'PY'
-          import json, pathlib
-          p=pathlib.Path('nba_delivery_health.json')
-          try:
-              r=json.loads(p.read_text())
-          except (OSError,ValueError):
-              r={}
-          if r.get('alert_api_accepted'):
-              src=pathlib.Path('reports/delivery-alert-sent/health-check.json')
-              dst=pathlib.Path('reports/delivery-alert-sent')/r['target_date_beijing']/(r['slot']+'.json')
-              dst.parent.mkdir(parents=True,exist_ok=True)
-              dst.write_bytes(src.read_bytes())
-              src.unlink()
-          PY
-          git add reports/delivery-alert-sent/
-          if ! git diff --cached --quiet; then
-            git config user.name github-actions[bot]
-            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-            git commit -m "Record NBA health alert PushPlus API acceptance"
-            for n in 1 2 3; do
-              if git push origin HEAD:main; then exit 0; fi
-              git pull --rebase origin main
-            done
-            exit 1
-          fi
+          test -n "$HEALTH_INPUT_SLOT" && test -n "$HEALTH_INPUT_DATE"
+          python3 scripts/nba_delivery_health.py --slot "$HEALTH_INPUT_SLOT" --target-date "$HEALTH_INPUT_DATE" --out nba_delivery_health.json
       - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nba-delivery-health-${{ github.run_id }}
-          path: |
-            nba_delivery_health.json
-            nba_recovery_result.json
+          name: nba-delivery-audit-${{ github.run_id }}
+          path: nba_delivery_health.json
           if-no-files-found: ignore
           retention-days: 14

@@ -25,7 +25,8 @@ jobs:
               assert s.index(f'--priority-slot {slot}') < s.index('Install pinned model dependencies')
               if slot=='0630':
                   assert "if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'" in s
-                  assert 'cron: "*/10 22-23,0-5 * * *"' in s
+                  assert 'cron: "30 22 * * *"' in s
+                  assert 'cron: "*/10 22-23,0-5 * * *"' not in s
               else:
                   assert "if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'" in s
                   assert "steps.presend.outputs.skip != 'true'" in s
@@ -34,14 +35,12 @@ jobs:
 
       - name: Verify one-time manual delivery mode and truthful 007 quote coverage
         run: |
-          python3 -m py_compile scripts/nba_fixed_slot_gate.py scripts/nba_schedule_fallback_push.py scripts/titan007_join_beijing_verified.py
+          python3 -m py_compile scripts/nba_fixed_slot_gate.py scripts/titan007_join_beijing_verified.py
           python3 scripts/nba_fixed_slot_gate.py --self-test
-          python3 -m py_compile scripts/nba_delivery_health.py scripts/nba_delivery_recovery.py
+          python3 -m py_compile scripts/nba_delivery_health.py
           python3 scripts/nba_delivery_health.py --self-test
-          python3 scripts/nba_delivery_recovery.py --self-test
           python3 -m py_compile scripts/nba_verified_offday.py
           python3 scripts/nba_verified_offday.py --self-test
-          python3 scripts/nba_schedule_fallback_push.py --self-test --target 2026-11-02 --slot ONCE
           python3 scripts/titan007_join_beijing_verified.py --self-test
           python3 -m py_compile scripts/titan007_join_beijing_verified.py scripts/titan007_top10_companies.py scripts/titan007_jingcai_three_market.py scripts/parse_007_jc_three_market.py scripts/pushplus_five_compact.py analysis/nba_five_markets.py analysis/nba_market_consensus.py analysis/nba_market_consensus_backtest.py
           python3 scripts/pushplus_five_compact.py --self-test
@@ -60,7 +59,10 @@ jobs:
           from pathlib import Path
           w=Path('.github/workflows/titan007-three-analysis.yml').read_text()
           assert 'ONE_TIME_MANUAL_CAPTURE_NO_NOON_LOCK' in w
-          assert '2100|ONCE' in w
+          # The canonical exact-time schedule and no-fallback send contract.
+          assert '- cron: "0 13 * * *"' in w
+          assert 'nba_schedule_fallback_push.py' not in w
+          assert "Failsafe verified NBA schedule PushPlus when full report fails" not in w
           assert 'GITHUB_EVENT_NAME' in Path('scripts/nba_fixed_slot_gate.py').read_text()
           print('ONE_TIME_MANUAL_DELIVERY_AND_MARKET_COVERAGE_PASS')
           PY

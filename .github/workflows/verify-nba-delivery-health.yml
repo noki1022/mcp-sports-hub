@@ -16,53 +16,28 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
-      - name: Test health status, cross-midnight dates and hourly delivery marker
+      - name: Verify read-only acceptance audit with no send or dispatch
         run: |
           python3 -m py_compile scripts/nba_delivery_health.py
           python3 scripts/nba_delivery_health.py --self-test
-          python3 scripts/nba_delivery_recovery.py --self-test
           python3 -m pip install --quiet PyYAML==6.0.2
           python3 scripts/validate_nba_schedules.py
-          # Catch invalid Actions expression usage that ordinary YAML parsing misses.
-          python3 - <<'PY'
-          from pathlib import Path
-          w=Path('.github/workflows/nba-delivery-health-watchdog.yml').read_text()
-          assert "if: " + "$" + "{{ !cancelled() }}" in w
-          assert "RECOVERY_PARAMETERS=" in w
-          assert "GH_HEALTH_SCHEDULE" in w
-          print("WATCHDOG_WORKFLOW_STRUCTURE_PASS")
-          PY
           python3 - <<'PY'
           from pathlib import Path
           import yaml
-          hourly=Path('.github/workflows/titan007-final-hourly.yml').read_text()
-          health=Path('.github/workflows/nba-delivery-health-watchdog.yml').read_text()
-          health_logic=Path('scripts/nba_delivery_health.py').read_text()
-          assert '--require-delivery' in hourly
-          assert 'HOURLY_REPORT_SLOT' in hourly and 'HOURLY_DELIVERY_MARKED' in hourly
-          hourly_gate=hourly.split('      - name: Resolve canonical hourly slot; skip if API already accepted',1)[1].split('      - name: Join Beijing NBA fixtures',1)[0]
-          assert 'export HOURLY_REPORT_SLOT="$slot"' in hourly_gate
-          assert 'test -n "$slot"' in hourly_gate
-          assert 'if: steps.hourly_gate.outputs.skip' in hourly
-          assert 'reports/pushplus-sent/' in hourly
-          assert 'GITHUB_TOKEN:' in health and 'PUSHPLUS_TOKEN:' in health
-          assert 'actions: write' in health
-          assert 'nba_delivery_recovery.py' in health
-          assert "if: " + "$" + "{{ !cancelled() }}" in health
-          assert 'if not slot or not target:' in health
-          assert 'infer_slot(os.environ.get("GH_HEALTH_SCHEDULE",""),datetime.now(BJ))' in health
-          assert 'except (OSError,ValueError)' in health
-          assert '--alert-marker-out' in health
-          assert '55 14-21 * * *' not in health
-          assert 'schedule:' not in hourly.split('permissions:',1)[0]
-          assert 'workflow_dispatch:' in hourly
-          assert '55 14-21 * * *' in health_logic  # legacy parser retained only for manual diagnostics
-          for path in ('.github/workflows/titan007-final-hourly.yml',
-                       '.github/workflows/nba-delivery-health-watchdog.yml'):
-              obj=yaml.safe_load(Path(path).read_text())
-              assert obj['jobs']
-              for job in obj['jobs'].values():
-                  for step in job['steps']:
-                      assert bool('run' in step) != bool('uses' in step)
-          print('NBA_DELIVERY_HEALTH_CI_PASS')
+          w=Path('.github/workflows/nba-delivery-health-watchdog.yml')
+          s=w.read_text()
+          assert 'contents: read' in s
+          assert 'actions: write' not in s
+          assert 'PUSHPLUS_TOKEN' not in s
+          assert '--send' not in s and 'nba_delivery_recovery.py' not in s
+          assert '  schedule:' not in s
+          assert not Path('scripts/nba_delivery_recovery.py').exists()
+          assert not Path('scripts/nba_schedule_fallback_push.py').exists()
+          doc=yaml.safe_load(s)
+          assert doc['jobs']
+          for job in doc['jobs'].values():
+              for step in job['steps']:
+                  assert bool('run' in step)!=bool('uses' in step)
+          print('READ_ONLY_DELIVERY_MONITOR_NO_RESEND_PASS')
           PY

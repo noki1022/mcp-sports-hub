@@ -21,28 +21,16 @@ from nba_delivery_health import ACCEPTED, marker_path
 BEIJING = ZoneInfo("Asia/Shanghai")
 SCHEDULE_SLOTS = {
     "30 16 * * *": "0030",
-    "45 16 * * *": "0030",
-    "0 17 * * *": "0030",
     "30 19 * * *": "0330",
-    "45 19 * * *": "0330",
-    "0 20 * * *": "0330",
     "0 4 * * *": "1200",
     "0 5 * * *": "1300",
+    "0 6 * * *": "1400",
+    "0 7 * * *": "1500",
     "0 8 * * *": "1600",
     "0 9 * * *": "1700",
+    "0 10 * * *": "1800",
     "0 11 * * *": "1900",
     "0 12 * * *": "2000",
-    "15 4 * * *": "1200",
-    "30 4 * * *": "1200",
-    "0 6 * * *": "1400",
-    "15 6 * * *": "1400",
-    "30 6 * * *": "1400",
-    "0 7 * * *": "1500",
-    "15 7 * * *": "1500",
-    "30 7 * * *": "1500",
-    "0 10 * * *": "1800",
-    "15 10 * * *": "1800",
-    "30 10 * * *": "1800",
     "0 13 * * *": "2100",
 }
 FIXED_SLOTS = frozenset(SCHEDULE_SLOTS.values())
@@ -144,11 +132,7 @@ def self_test() -> None:
     for slot in FIXED_SLOTS:
         assert resolve_slot("", slot, now) == slot
     assert resolve_slot("30 16 * * *", "", now) == "0030"
-    assert resolve_slot("45 16 * * *", "", now) == "0030"
-    assert resolve_slot("0 17 * * *", "", now) == "0030"
     assert resolve_slot("30 19 * * *", "", now) == "0330"
-    assert resolve_slot("45 19 * * *", "", now) == "0330"
-    assert resolve_slot("0 20 * * *", "", now) == "0330"
     assert resolve_slot("", "", now) == "1240"
     assert resolve_slot("", "", now, "workflow_dispatch") == "ONCE"
     assert resolve_slot("", "ONCE", now, "workflow_dispatch") == "ONCE"
@@ -226,7 +210,8 @@ def self_test() -> None:
         assert content.index("Recheck verified acceptance before PushPlus") < content.index("Send complete iPhone full-board NBA analysis")
         assert content.index("Recheck verified acceptance before PushPlus") < content.index("Final overnight pretip check immediately before PushPlus")
         assert content.index("Final overnight pretip check immediately before PushPlus") < content.index("Send complete iPhone full-board NBA analysis")
-        assert "steps.final_pretip.outcome != 'failure'" in content
+        assert "id: final_pretip" in content
+        assert "Failsafe verified NBA schedule PushPlus when full report fails" not in content
         assert "overnight_all_games_pretip(Path(\"titan007_three_joined.json\"),target,now)" in content
         for schedule in SCHEDULE_SLOTS:
             assert '    - cron: "' + schedule + '"' in content

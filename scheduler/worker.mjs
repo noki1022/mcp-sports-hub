@@ -1,284 +1,161 @@
 /**
- * Independent Cloudflare Cron watchdog for NBA + 007 model/push workflows.
- * No public write endpoint. Github token is a secret with Actions:write,
- * Contents:read on noki1022/mcp-sports-hub.
+ * Exact-time dual-trigger scheduler. Cloudflare and GitHub BOTH schedule at
+ * the canonical wall-clock minute. No delayed checks, retries, or compensatory
+ * sends. Collection, forecasts and PushPlus remain exclusively in GitHub.
  *
- * Does NOT replace GH-native cron; it guards missed/failed runs. A successful
- * workflow-dispatch response means queued, NOT model success/phone delivery.
+ * A 204 from workflow_dispatch proves ONLY queued, never delivered.
  */
-const OWNER="noki1022";
-const REPO="mcp-sports-hub";
-const BASE="https://api.github.com/repos/"+OWNER+"/"+REPO;
-const DAY_MS=86400000;
+const BASE="https://api.github.com/repos/noki1022/mcp-sports-hub";
 const ACTIVE=new Set(["queued","in_progress","pending","waiting","requested"]);
-// One authoritative daytime delivery schedule: 12:00–21:00 every hour.
-// The additional 13/16/17/19/20 checks use existing Worker Cron ticks;
-// never add a second scheduler, notification sender, or Worker.
-const FIXED=[
-  {hour:12, slot:"1200", attempts:[0,8,18,28], maxDelay:34},
-  {hour:13, slot:"1300", attempts:[20,35], maxDelay:40},
-  {hour:14, slot:"1400", attempts:[0,8,18,28], maxDelay:34},
-  {hour:15, slot:"1500", attempts:[0,8,18,28], maxDelay:34},
-  {hour:16, slot:"1600", attempts:[20,35], maxDelay:40},
-  {hour:17, slot:"1700", attempts:[20,35], maxDelay:40},
-  {hour:18, slot:"1800", attempts:[0,8,18,28], maxDelay:34},
-  {hour:19, slot:"1900", attempts:[20,35], maxDelay:40},
-  {hour:20, slot:"2000", attempts:[20,35], maxDelay:40},
-  {hour:21, slot:"2100", attempts:[0,7,16], maxDelay:19}
-];
-// Explicit full reports only. The disabled 22:30–05:30 *hourly market
-// monitoring* remains disabled. Cloudflare is a backup trigger, not a model.
-const MIDNIGHT_REPORTS=[
-  {hour:0,slot:"0030",attempts:[30,40,50]},
-  {hour:3,slot:"0330",attempts:[30,40,50]}
-];
-
-export function beijingClock(timestamp) {
-  const shifted=new Date(timestamp+8*3600000);
-  const day=shifted.toISOString().slice(0,10);
-  const tomorrow=new Date(shifted.getTime()+DAY_MS).toISOString().slice(0,10);
-  return {day,tomorrow,hour:shifted.getUTCHours(),minute:shifted.getUTCMinutes()};
+const MS_DAY=86400000;
+function clock(time){
+  const t=new Date(time+8*3600000);
+  return {day:t.toISOString().slice(0,10),
+    tomorrow:new Date(t.getTime()+MS_DAY).toISOString().slice(0,10),
+    hour:t.getUTCHours(),minute:t.getUTCMinutes()};
 }
-
-export function plannedJob(timestamp) {
-  const x=beijingClock(timestamp), h=x.hour,m=x.minute;
-  for(const f of FIXED){
-    if(h===f.hour && f.attempts.includes(m)){
-      return {workflow:"titan007-three-analysis.yml",slot:f.slot,
-        target_date:x.tomorrow,start_hour:h,start_minute:0,
-        date:x.day,kind:"full",attempt:m};
-    }
-  }
-  for(const f of MIDNIGHT_REPORTS){
-    if(h===f.hour && f.attempts.includes(m)){
-      return {workflow:"titan007-three-analysis.yml",slot:f.slot,
-        target_date:x.day,start_hour:h,start_minute:30,
-        date:x.day,kind:"full",attempt:m};
-    }
-  }
-  if(h===22 && [0,10,20].includes(m)){
-    return {workflow:"nba-two-market-nightly-2200.yml",slot:"2200",
-      target_date:x.day,start_hour:22,start_minute:0,
-      date:x.day,kind:"night_review",attempt:m};
-  }
-  if(h===21 && [30,40].includes(m)){
-    return {workflow:"nba-priority-2130.yml",slot:"2130",target_date:x.tomorrow,
-      start_hour:21,start_minute:30,date:x.day,kind:"priority",attempt:m};
-  }
-  if(h===6 && [20,30,40].includes(m)){
-    return {workflow:"nba-priority-0630.yml",slot:"0630",target_date:x.day,
-      start_hour:6,start_minute:20,date:x.day,kind:"priority",attempt:m};
-  }
-  // Automatic 22:30–05:30 Beijing HOURLY MARKET monitoring is disabled.
-  // 00:30 and 03:30 are explicit full-board report exceptions only.
+export function plannedJob(timestamp){
+  const t=clock(timestamp), h=t.hour,m=t.minute;
+  if(h>=12&&h<=21&&m===0)return {
+    workflow:"titan007-three-analysis.yml",slot:String(h).padStart(2,"0")+"00",
+    date:t.day,target_date:t.tomorrow,kind:"full"};
+  if((h===0||h===3)&&m===30)return {
+    workflow:"titan007-three-analysis.yml",slot:String(h).padStart(2,"0")+"30",
+    date:t.day,target_date:t.day,kind:"full"};
+  if(h===21&&m===30)return {
+    workflow:"nba-priority-2130.yml",slot:"2130",date:t.day,
+    target_date:t.tomorrow,kind:"priority"};
+  if(h===6&&m===30)return {
+    workflow:"nba-priority-0630.yml",slot:"0630",date:t.day,
+    target_date:t.day,kind:"priority"};
   return null;
 }
-
-function slotStartEpoch(job){
-  const [y,m,d]=job.date.split("-").map(Number);
-  return Date.UTC(y,m-1,d,job.start_hour-8,job.start_minute);
+export function plannedFootballJob(timestamp){
+  const t=clock(timestamp),h=t.hour,m=t.minute;
+  const isHourly=m===0&&((h>=12&&h<=21)||(h>=0&&h<=6));
+  const isPriority=m===30&&(h===21||h===6);
+  if(!isHourly&&!isPriority)return null;
+  const slot=String(h).padStart(2,"0")+(isPriority?"30":"00");
+  const u=(h+16)%24;
+  return {workflow:"football-007-live-capture.yml",slot,date:t.day,
+    cron:(isPriority?30:0)+" "+u+" * * *",
+    kind:isPriority?"football_priority":"football_capture"};
 }
-
-function ghHeaders(env){
-  if(!env.GITHUB_TOKEN)throw new Error("GITHUB_TOKEN_NOT_CONFIGURED");
+function headers(env){
+  if(!env.GITHUB_TOKEN)throw Error("GITHUB_TOKEN_NOT_CONFIGURED");
   return {"Accept":"application/vnd.github+json",
     "Authorization":"Bearer "+env.GITHUB_TOKEN,
     "X-GitHub-Api-Version":"2022-11-28",
-    "User-Agent":"nba-external-watchdog/1.0"};
+    "User-Agent":"exact-sports-scheduler/1.0"};
 }
-
-async function getJson(url,env,fetcher){
-  const response=await fetcher(url,{headers:ghHeaders(env)});
-  if(!response.ok)throw new Error("GITHUB_READ_HTTP_"+response.status);
-  return response.json();
+async function get(url,env,fetcher){
+  const r=await fetcher(url,{headers:headers(env)});
+  if(!r.ok)throw Error("GITHUB_READ_HTTP_"+r.status);
+  return r.json();
 }
-
-async function markerAccepted(job,env,fetcher){
-  if(job.kind==="hourly")return false;
-  const uri=job.kind==="night_review"
-    ? BASE+"/contents/reports/five-market-settled/"+encodeURIComponent(job.target_date)+"/2200.json?ref=main"
-    : BASE+"/contents/reports/pushplus-sent/"+encodeURIComponent(job.target_date)+"/"+job.slot+".json?ref=main";
-  const resp=await fetcher(uri,{headers:ghHeaders(env)});
-  if(resp.status===404)return false;
-  if(!resp.ok)throw new Error("MARKER_READ_HTTP_"+resp.status);
-  const file=await resp.json();
-  if(typeof file.content!=="string")throw new Error("MARKER_CONTENT_MISSING");
-  const raw=atob(file.content.replace(/\s/g,""));
-  let body;try{body=JSON.parse(raw)}catch{throw new Error("BAD_MARKER_JSON")}
-  if(job.kind==="night_review")return body.state==="API_ACCEPTED_NOT_DEVICE_CONFIRMED";
-  return body.slot===job.slot&&body.state==="API_ACCEPTED_NOT_DEVICE_CONFIRMED";
+async function acceptedBasketball(job,env,fetcher){
+  if(job.kind!=="full")return false; // Priority has dedicated gate.
+  const uri=BASE+"/contents/reports/pushplus-sent/"+
+    encodeURIComponent(job.target_date)+"/"+job.slot+".json?ref=main";
+  const r=await fetcher(uri,{headers:headers(env)});
+  if(r.status===404)return false;
+  if(!r.ok)throw Error("NBA_MARKER_READ_HTTP_"+r.status);
+  const p=await r.json();
+  if(typeof p.content!=="string")throw Error("NBA_MARKER_BAD_CONTENT");
+  let data;
+  try{data=JSON.parse(atob(p.content.replace(/\s/g,"")))}
+  catch{throw Error("NBA_MARKER_BAD_JSON")}
+  return data.slot===job.slot&&data.state==="API_ACCEPTED_NOT_DEVICE_CONFIRMED";
 }
-
-// The same full-report workflow serves many slots. Creation time identifies
-// runner availability, NOT which cron fired (native schedules can arrive late).
-export function matchesReportSlot(run,job){
-  if(job.kind!=="full")return true; // priority/review have dedicated workflows
-  const match=/^NBA full report \| slot=(.+) \| date=(.+)$/.exec(run.display_title||"");
-  if(!match)return false; // unlabelled older runs cannot prove current-slot work
-  const native={
-    "30 16 * * *":"0030","45 16 * * *":"0030","0 17 * * *":"0030",
-    "30 19 * * *":"0330","45 19 * * *":"0330","0 20 * * *":"0330",
-    "0 4 * * *":"1200","15 4 * * *":"1200","30 4 * * *":"1200",
-    "0 5 * * *":"1300",
-    "0 6 * * *":"1400","15 6 * * *":"1400","30 6 * * *":"1400",
-    "0 7 * * *":"1500","15 7 * * *":"1500","30 7 * * *":"1500",
-    "0 8 * * *":"1600","0 9 * * *":"1700",
-    "0 10 * * *":"1800","15 10 * * *":"1800","30 10 * * *":"1800",
-    "0 11 * * *":"1900","0 12 * * *":"2000",
-    "0 13 * * *":"2100"
-  };
-  const slot=run.event==="schedule"?native[match[1]]:match[1];
-  if(slot!==job.slot)return false;
-  const day=match[2];
-  if(day!=="auto")return day===job.target_date;
-  const created=Date.parse(run.created_at);
-  if(!Number.isFinite(created))return false;
-  const local=beijingClock(created);
-  return (["0030","0330"].includes(slot)?local.day:local.tomorrow)===job.target_date;
+function matchesBasketball(run,job){
+  if(!["schedule","workflow_dispatch"].includes(run.event))return false;
+  if(job.kind==="priority")return true;
+  const name=run.display_title||"";
+  const m=/^NBA full report \| slot=(.+) \| date=(.+)$/.exec(name);
+  if(!m)return false;
+  if(run.event==="workflow_dispatch")return m[1]===job.slot&&m[2]===job.target_date;
+  const expected=job.slot.slice(2)==="30"
+    ?("30 "+((Number(job.slot.slice(0,2))+16)%24)+" * * *")
+    :("0 "+((Number(job.slot.slice(0,2))+16)%24)+" * * *");
+  return m[1]===expected&&m[2]==="auto";
 }
-
+async function dispatch(workflow,inputs,env,fetcher){
+  const body={ref:"main",...(inputs?{inputs}:{})};
+  const resp=await fetcher(BASE+"/actions/workflows/"+encodeURIComponent(workflow)+"/dispatches",
+    {method:"POST",headers:{...headers(env),"Content-Type":"application/json"},
+     body:JSON.stringify(body)});
+  if(resp.status!==204)throw Error("GITHUB_DISPATCH_HTTP_"+resp.status);
+}
+async function nativeRuns(job,timestamp,env,fetcher,matching){
+  const r=await get(BASE+"/actions/workflows/"+encodeURIComponent(job.workflow)+
+    "/runs?per_page=100&branch=main",env,fetcher);
+  if(!Array.isArray(r.workflow_runs))throw Error("RUN_LIST_UNAVAILABLE");
+  return r.workflow_runs.filter(run=>{
+    const created=Date.parse(run.created_at);
+    return Number.isFinite(created)&&
+      created>=timestamp-120000&&created<=timestamp+120000&&matching(run,job);
+  });
+}
 export async function dispatchAt(timestamp,env,fetcher=fetch){
   const job=plannedJob(timestamp);
   if(!job)return {state:"NO_SLOT"};
-  const h=ghHeaders(env);
-  if(await markerAccepted(job,env,fetcher))
-    return {state:"API_ALREADY_ACCEPTED",slot:job.slot,kind:job.kind};
-  const uri=BASE+"/actions/workflows/"+encodeURIComponent(job.workflow)+"/runs?per_page=30&branch=main";
-  const data=await getJson(uri,env,fetcher);
-  const start=slotStartEpoch(job)-120000;
-  const matching=(data.workflow_runs||[]).filter(run=>{
-    const when=Date.parse(run.created_at);
-    return Number.isFinite(when)&&when>=start&&when<=timestamp+60000&&
-      ["workflow_dispatch","schedule"].includes(run.event)&&matchesReportSlot(run,job);
-  });
-  if(matching.some(x=>ACTIVE.has(x.status)))
-    return {state:"WORKFLOW_RUNNING",slot:job.slot,kind:job.kind};
-  // A completed successful run is never dispatched again merely because
-  // its PushPlus marker is absent: the API may have accepted the message while
-  // the final Git commit failed. Alert/health reconciliation handles that case.
-  if(matching.some(x=>x.conclusion==="success"))
-    return {state:"WORKFLOW_SUCCESS_WITHOUT_ACCEPTED_MARKER",slot:job.slot,kind:job.kind};
-  const body={ref:"main"};
-  if(job.kind==="full")body.inputs={target_date:job.target_date,report_slot:job.slot};
-  if(job.kind==="hourly")body.inputs={target_date:job.target_date};
-  const api=BASE+"/actions/workflows/"+encodeURIComponent(job.workflow)+"/dispatches";
-  const r=await fetcher(api,{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify(body)});
-  if(r.status!==204)throw new Error("GITHUB_DISPATCH_HTTP_"+r.status);
-  return {state:"DISPATCH_ACCEPTED_NOT_COMPLETED",slot:job.slot,
-    target_date:job.target_date,workflow:job.workflow,kind:job.kind};
+  if(await acceptedBasketball(job,env,fetcher))
+    return {state:"API_ALREADY_ACCEPTED",slot:job.slot};
+  const runs=await nativeRuns(job,timestamp,env,fetcher,matchesBasketball);
+  // A completed failure is NOT a reason to retry. Never dispatch again.
+  if(runs.length)return {state:"CANONICAL_RUN_EXISTS_NO_RETRY",slot:job.slot};
+  await dispatch(job.workflow,job.kind==="full"?
+    {target_date:job.target_date,report_slot:job.slot}:null,env,fetcher);
+  return {state:"EXACT_SLOT_DISPATCH_ACCEPTED_NOT_DELIVERED",slot:job.slot};
 }
-
-
-// Football uses the same existing Worker, but a separate canonical slot table.
-// All execution, original bytes, forecasts and PushPlus stay in GitHub Actions.
-// Only inspect after the normal GitHub cron had a chance to fire.
-function footballCronSlot(expr) {
-  const m=/^(\d{1,2}) (\d{1,2}) \* \* \*$/.exec(expr||"");
-  if(!m)return null;
-  const minute=Number(m[1]),utcHour=Number(m[2]);
-  if((minute===15||minute===30)&&utcHour===4)return "1200";
-  if(minute===30&&utcHour===13)return "2130";
-  if(minute===30&&utcHour===22)return "0630";
-  if(minute!==0)return null;
-  if(utcHour>=4&&utcHour<=13)return String(utcHour+8).padStart(2,"0")+"00";
-  if(utcHour>=16&&utcHour<=22)return String(utcHour-16).padStart(2,"0")+"00";
-  return null;
-}
-function footballCanonicalCron(hour,minute) {
-  const u=(hour+16)%24;
-  return minute+" "+u+" * * *";
-}
-export function plannedFootballJob(timestamp){
-  const x=beijingClock(timestamp),h=x.hour,m=x.minute;
-  let minute=0;
-  if((h===21||h===6)&&[42,52].includes(m))minute=30;
-  else if(((h>=12&&h<=21)||(h>=0&&h<=6))&&[20,35].includes(m))minute=0;
-  else return null;
-  return {workflow:"football-007-live-capture.yml",date:x.day,
-    slot:String(h).padStart(2,"0")+String(minute).padStart(2,"0"),
-    cron:footballCanonicalCron(h,minute),start_hour:h,start_minute:minute,
-    kind:minute===30?"football_priority":"football_capture"};
-}
-
-// Dynamic run-name is an explicit, verifiable declaration of the triggering
-// cron, unlike the run creation timestamp (which can be delayed for hours).
-export function matchesFootballSlot(run,job){
+function matchesFootball(run,job){
   if(!["schedule","workflow_dispatch"].includes(run.event))return false;
-  const name=run.display_title||run.name||"";
-  const m=/^Football 007 \| cron=(.+) \| day=(auto|\d{4}-\d{2}-\d{2})$/.exec(name);
-  if(!m||footballCronSlot(m[1])!==job.slot)return false;
-  const created=Date.parse(run.created_at);
-  const planned=slotStartEpoch(job);
-  if(!Number.isFinite(created)||created<planned-120000)return false;
-  if(run.event==="workflow_dispatch")return m[2]===job.date;
-  return m[2]==="auto"&&beijingClock(created).day===job.date;
+  const title=run.display_title||run.name||"";
+  const m=/^Football 007 \| cron=(.+) \| day=(auto|\d{4}-\d{2}-\d{2})$/.exec(title);
+  return !!m&&m[1]===job.cron&&
+    (run.event==="schedule"?m[2]==="auto":m[2]===job.date);
 }
-async function footballClaimExists(job,env,fetcher){
-  if(job.kind==="football_capture"&&job.start_hour<12)return false; // 00-06 silent
-  const tag="football-007-raw-"+job.date.replaceAll("-","");
-  const u=BASE+"/releases/tags/"+encodeURIComponent(tag);
-  const r=await fetcher(u,{headers:ghHeaders(env)});
-  if(r.status===404)return false;
-  if(!r.ok)throw new Error("FOOTBALL_RELEASE_HTTP_"+r.status);
-  const body=await r.json();
-  if(!Array.isArray(body.assets))throw new Error("FOOTBALL_RELEASE_ASSETS_UNAVAILABLE");
-  const prefix="football-push-"+job.date.replaceAll("-","")+"-"+job.slot;
-  return body.assets.some(a=>a&&[prefix+".claim.json",prefix+".accepted.json"].includes(a.name));
-}
-
-// Repeated backup checks must not manufacture a second report. The GitHub
-// workflow also has one per-slot immutable Release claim as the final guard.
 export async function dispatchFootballAt(timestamp,env,fetcher=fetch){
   const job=plannedFootballJob(timestamp);
   if(!job)return {state:"NO_SLOT"};
-  if(await footballClaimExists(job,env,fetcher))
-    return {state:"FOOTBALL_SLOT_ALREADY_CLAIMED",slot:job.slot};
-  const h=ghHeaders(env);
-  const url=BASE+"/actions/workflows/"+encodeURIComponent(job.workflow)+"/runs?per_page=80&branch=main";
-  const data=await getJson(url,env,fetcher);
-  if(!Array.isArray(data.workflow_runs))throw new Error("FOOTBALL_RUN_LIST_UNAVAILABLE");
-  const matching=data.workflow_runs.filter(run=>matchesFootballSlot(run,job)&&
-    Date.parse(run.created_at)<=timestamp+60000);
-  if(matching.some(x=>ACTIVE.has(x.status)))
-    return {state:"FOOTBALL_WORKFLOW_RUNNING",slot:job.slot};
-  if(matching.some(x=>x.conclusion==="success"))
-    return {state:"FOOTBALL_WORKFLOW_SUCCESS",slot:job.slot};
-  const api=BASE+"/actions/workflows/"+encodeURIComponent(job.workflow)+"/dispatches";
-  const payload={ref:"main",inputs:{recovery_source:"cloudflare",
-    recovery_day:job.date,recovery_cron:job.cron}};
-  const r=await fetcher(api,{method:"POST",headers:{...h,"Content-Type":"application/json"},
-    body:JSON.stringify(payload)});
-  if(r.status!==204)throw new Error("FOOTBALL_GITHUB_DISPATCH_HTTP_"+r.status);
-  return {state:"FOOTBALL_DISPATCH_ACCEPTED_NOT_COMPLETED",slot:job.slot,
-    day:job.date,workflow:job.workflow};
+  // The Release claim is the authoritative atomic single-send fence.
+  if(job.kind==="football_priority"||Number(job.slot.slice(0,2))>=12){
+    const uri=BASE+"/releases/tags/football-007-raw-"+
+      job.date.replaceAll("-","");
+    const r=await fetcher(uri,{headers:headers(env)});
+    if(r.status!==404){
+      if(!r.ok)throw Error("FOOTBALL_RELEASE_HTTP_"+r.status);
+      const doc=await r.json();
+      if(!Array.isArray(doc.assets))throw Error("FOOTBALL_ASSETS_UNAVAILABLE");
+      const prefix="football-push-"+job.date.replaceAll("-")+"-"+job.slot;
+      if(doc.assets.some(a=>a&&[prefix+".claim.json",prefix+".accepted.json"].includes(a.name)))
+        return {state:"FOOTBALL_ALREADY_CLAIMED",slot:job.slot};
+    }
+  }
+  const runs=await nativeRuns(job,timestamp,env,fetcher,matchesFootball);
+  if(runs.length)return {state:"FOOTBALL_CANONICAL_RUN_EXISTS_NO_RETRY",slot:job.slot};
+  await dispatch(job.workflow,{recovery_source:"cloudflare",
+    recovery_day:job.date,recovery_cron:job.cron},env,fetcher);
+  return {state:"FOOTBALL_EXACT_DISPATCH_ACCEPTED_NOT_DELIVERED",slot:job.slot};
 }
-
 export default {
-  async scheduled(controller,env,ctx){
-    const scheduledAt=Number(controller.scheduledTime||Date.now());
-    // Do not dispatch old jobs from a delayed external Cron invocation.
-    if(Date.now()-scheduledAt>120000){
-      console.error("WORKER_TICK_LATE",new Date(scheduledAt).toISOString());
+  async scheduled(event,env){
+    const scheduledAt=Number(event.scheduledTime||Date.now());
+    const skew=Date.now()-scheduledAt;
+    if(skew<0||skew>120000){
+      console.error("LATE_CRON_RECORDED_NO_SEND",skew);
       return;
     }
-    // Independent checks: an NBA API failure may not stop football recovery.
-    const checks=[
-      ["NBA",dispatchAt(scheduledAt,env)],
-      ["FOOTBALL",dispatchFootballAt(scheduledAt,env)]
-    ];
-    const settled=await Promise.allSettled(checks.map(x=>x[1]));
-    const errors=[];
-    for(let i=0;i<checks.length;i++){
-      const tag=checks[i][0],r=settled[i];
-      if(r.status==="rejected"){
-        console.error(tag+"_EXTERNAL_SCHEDULE_FAILED",String(r.reason));
-        errors.push(tag);
-      }else if(r.value.state!=="NO_SLOT"){
-        console.log(tag+"_EXTERNAL_SCHEDULE",JSON.stringify(r.value));
-      }
-    }
-    if(errors.length)throw new Error("EXTERNAL_SCHEDULE_FAILED_"+errors.join("_"));
+    const cases=[["NBA",dispatchAt(scheduledAt,env)],
+                 ["FOOTBALL",dispatchFootballAt(scheduledAt,env)]];
+    const results=await Promise.allSettled(cases.map(c=>c[1]));
+    let failures=[];
+    results.forEach((r,i)=>{
+      if(r.status==="rejected"){failures.push(cases[i][0]);console.error(
+        cases[i][0]+"_EXACT_TRIGGER_FAILED",String(r.reason));}
+      else if(r.value.state!=="NO_SLOT")console.log(cases[i][0],JSON.stringify(r.value));
+    });
+    if(failures.length)throw Error("EXACT_TRIGGER_FAILED_"+failures.join("_"));
   },
   async fetch(){return new Response("Not Found",{status:404});}
 };
-

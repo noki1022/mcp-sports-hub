@@ -1,68 +1,14 @@
 #!/usr/bin/env python3
-"""P0 offline fault injection. No PushPlus, GitHub dispatch or NBA network calls."""
-from __future__ import annotations
-import json,tempfile
-from datetime import datetime
+"""Offline P0 contract: never automatically recover or resend any NBA slot."""
 from pathlib import Path
-from unittest.mock import patch
-from zoneinfo import ZoneInfo
-from nba_delivery_health import hourly_slot,inspect,ACCEPTED,run_hint
-from nba_delivery_recovery import decision
-BJ=ZoneInfo("Asia/Shanghai")
-
-def at(v):return datetime.fromisoformat(v)
+from nba_delivery_health import exact_fixed_run_slot
 def test():
-    checks={}
-    for ts,expected in (
-        ("2026-10-31T22:30:00+08:00","2230"),
-        ("2026-10-31T22:58:59+08:00","2230"),
-        ("2026-10-31T23:30:00+08:00","2330"),
-        ("2026-11-01T00:00:00+08:00","2330"),
-        ("2026-11-01T00:30:00+08:00","0030"),
-        ("2026-11-01T05:45:00+08:00","0530")):
-        assert hourly_slot(at(ts))==expected
-    checks["hourly_cron_delayed_and_midnight"]="PASS"
-    with tempfile.TemporaryDirectory() as tmp:
-        root=Path(tmp);day="2026-11-01"
-        t=at("2026-10-31T12:40:00+08:00")
-        assert decision(root,"1200",day,t,[])["action"]=="DISPATCH"
-        assert decision(root,"1200",day,t,None,"GITHUB_TIMEOUT")["action"]=="NO_DISPATCH"
-        checks["missing_fixed_trigger_recovery"]="PASS"
-        checks["api_timeout_fail_closed"]="PASS"
-        failed=[{"event":"schedule","created_at":"2026-10-31T04:00:00Z",
-                   "display_title":"NBA full report | slot=0 4 * * * | date=auto",
-                  "status":"completed","conclusion":"timed_out"}]
-        assert decision(root,"1200",day,t,failed)["action"]=="DISPATCH"
-        checks["failed_or_timeout_retry"]="PASS"
-        active=[{"event":"schedule","created_at":"2026-10-31T04:01:00Z",
-                   "display_title":"NBA full report | slot=0 4 * * * | date=auto",
-                 "status":"in_progress","conclusion":None}]
-        assert decision(root,"1200",day,t,failed+active)["action"]=="NO_DISPATCH"
-        checks["no_parallel_duplicate"]="PASS"
-        mark=root/"reports/pushplus-sent"/day/"1200.json"
-        mark.parent.mkdir(parents=True)
-        mark.write_text(json.dumps({"state":ACCEPTED,"slot":"1200"}))
-        assert decision(root,"1200",day,t,failed)["action"]=="NO_DISPATCH"
-        checks["accepted_marker_dedup"]="PASS"
-        mark.unlink()
-        rec=root/"reports/delivery-recovery-dispatched"/day/"1200.json"
-        rec.parent.mkdir(parents=True)
-        rec.write_text(json.dumps({"state":"DISPATCH_HTTP_204_ACCEPTED_NOT_REPORT_DELIVERED"}))
-        assert decision(root,"1200",day,t,[])["action"]=="NO_DISPATCH"
-        checks["dispatched_once_dedup"]="PASS"
-        assert decision(root,"1200",day,at("2026-10-31T14:00:00+08:00"),[])["action"]=="NO_DISPATCH"
-        checks["no_stale_recovery"]="PASS"
-        assert decision(root,"2130",day,at("2026-10-31T21:45:00+08:00"),[])["action"]=="DISPATCH"
-        cohort=root/"reports/overnight-cohorts"/day/"2130.json"
-        cohort.parent.mkdir(parents=True,exist_ok=True)
-        cohort.write_text(json.dumps({"target_date":day,"source_slot":"2130",
-            "official_games":{"late":{"tip":"2026-11-01T08:00:00+08:00"}},
-            "priced_nba_to_007":{"late":"7282"}}))
-        assert decision(root,"0630",day,at("2026-11-01T06:45:00+08:00"),[])["action"]=="DISPATCH"
-        checks["priority_bounded_recovery"]="PASS"
-        for night_slot,clock in (("0030","2026-11-01T00:35:00+08:00"),
-                                 ("0330","2026-11-01T03:35:00+08:00")):
-            assert decision(root,night_slot,day,at(clock),[])["action"]=="DISPATCH"
-        checks["overnight_full_report_recovery"]="PASS"
-    print("P0_ISOLATED_FAULT_INJECTION",json.dumps(checks,sort_keys=True))
+    r={"event":"schedule","display_title":"NBA full report | slot=0 7 * * * | date=auto"}
+    assert not exact_fixed_run_slot(r,"1600","2026-11-07")
+    assert exact_fixed_run_slot({**r,"display_title":"NBA full report | slot=0 8 * * * | date=auto"},"1600","2026-11-07")
+    assert not Path(__file__).with_name("nba_delivery_recovery.py").exists()
+    assert not Path(__file__).with_name("nba_schedule_fallback_push.py").exists()
+    workflow=Path(".github/workflows/nba-delivery-health-watchdog.yml").read_text()
+    assert "nba_delivery_recovery.py" not in workflow and "--send" not in workflow
+    print("NBA_P0_NO_COMPENSATION_TEST_PASS")
 if __name__=="__main__":test()
