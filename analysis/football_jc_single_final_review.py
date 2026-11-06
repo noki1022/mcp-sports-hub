@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NBA-style concise football JC 3-market review of ONLY frozen 21:30 answer.
+"""NBA-style concise football JC 3-market review of ONLY frozen 21:00 answer.
 
 Requires independently verified 007 full-time result source raw bytes.
 Never re-run model, rewrite frozen answer, infer FT status or grade 06:30.
@@ -12,7 +12,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 import argparse,gzip,json,hashlib,sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-import football_jc_final_2130 as final
+import football_jc_final_2100 as final
 import football_jc_prospective_score as source
 
 BJ=ZoneInfo("Asia/Shanghai")
@@ -74,7 +74,7 @@ def review(locked,results,raw_evidence):
     metrics[key]["unsettled"]+=1
     continue
    line=orig.get("official_home_handicap")
-   # Market on sale recorded at 21:30, not whatever odds show today.
+   # Market on sale recorded at 21:00, not whatever odds show today.
    if key=="hhad" and type(line)is not int:
     entry["markets"][key]={"status":"EXCLUDED_NO_OFFICIAL_LINE","predicted":predicted,"actual":None}
     metrics[key]["excluded"]+=1
