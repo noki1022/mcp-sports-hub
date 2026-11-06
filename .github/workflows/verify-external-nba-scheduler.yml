@@ -40,33 +40,39 @@ jobs:
           cfg=tomllib.loads(Path('scheduler/wrangler.toml').read_text())
           crons=cfg['triggers']['crons']
           expected=[
-              '0,8,18,28 4,6,7,10 * * *',
-              '0,7,16,30,40 13 * * *',
-              '0,10,20 14 * * *',
-              '20,30,40 22 * * *',
-              '30,40,50 16,19 * * *',
+              '0,8,18,20,28,35 4,6,7,10 * * *',
+              '0,7,16,20,30,35,40,42,52 13 * * *',
+              '0,10,20,35 14 * * *',
+              '20,30,35,40,42,52 22 * * *',
+              '20,30,35,40,50 5,8,9,11,12,16-21 * * *',
           ]
-          soccer=[
-              '20,35 4-13,16-21 * * *',
-              '35 22 * * *',
-              '42,52 13,22 * * *',
+          assert crons==expected,(crons,expected)
+          assert len(crons)<=5,'CLOUDFLARE_FREE_CRON_LIMIT'
+          def expand(field):
+              out=set()
+              for part in field.split(','):
+                  if '-' in part:
+                      a,b=map(int,part.split('-'))
+                      out.update(range(a,b+1))
+                  else:
+                      out.add(int(part))
+              return out
+          ticks=set()
+          for expression in crons:
+              minute,hour,dom,month,weekday=expression.split()
+              assert (dom,month,weekday)==('*','*','*')
+              ticks.update((h,m) for h in expand(hour) for m in expand(minute))
+          old=[
+              ('0,8,18,28','4,6,7,10'),('0,7,16,30,40','13'),
+              ('0,10,20','14'),('20,30,40','22'),('30,40,50','16,19'),
           ]
-          assert crons==expected+soccer,(crons,expected+soccer)
-          # NBA-only overnight market monitoring remains disabled; football
-          # night captures are intentionally supported by a separate dispatcher.
-          overnight=set()
-          for expr in expected:
-              minute_field,hour_field,*_=expr.split()
-              minutes=[int(x) for x in minute_field.split(',')]
-              hours=[int(x) for x in hour_field.split(',')]
-              for hour in hours:
-                  for minute in minutes:
-                      utc_minute=hour*60+minute
-                      if 14*60+30 <= utc_minute <= 21*60+30:
-                          assert hour in (16,19) and minute in (30,40,50),(expr,hour,minute)
-                          overnight.add(((hour+8)%24,minute))
-          assert overnight=={(h,m) for h in (0,3) for m in (30,40,50)}
-          print('CLOUDFLARE_TWO_FULL_REPORTS_NO_HOURLY_OVERNIGHT_PASS')
+          nba={(h,m) for minutes,hours in old
+               for h in expand(hours) for m in expand(minutes)}
+          football={(h,m) for h in (*range(4,14),*range(16,23)) for m in (20,35)}
+          football|={(h,m) for h in (13,22) for m in (42,52)}
+          assert nba<=ticks,'NBA_BACKUP_CRON_REGRESSION'
+          assert football<=ticks,'FOOTBALL_MISSING_BACKUP_CRON'
+          print('CLOUDFLARE_FIVE_CRON_SHARED_NBA_FOOTBALL_PASS')
           PY
       - name: Confirm existing Worker identity and GitHub build integration
         run: |
