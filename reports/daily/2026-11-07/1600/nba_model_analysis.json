@@ -1,0 +1,2172 @@
+{
+  "target_display_date": "2026-11-07",
+  "generated_at_utc": "2026-11-06T08:48:34.399662+00:00",
+  "games": [
+    {
+      "game_id": "728309",
+      "nba_game_id": "401909288",
+      "display_date": "2026-11-07",
+      "display_clock": "08:00",
+      "home_team": "夏洛特黄蜂",
+      "away_team": "波士顿凯尔特人",
+      "model_status": "OK",
+      "model_probability": {
+        "home": 0.4001601453522762,
+        "away": 0.5998398546477238
+      },
+      "model_probability_raw": {
+        "home": 0.4001601453522762
+      },
+      "model_calibration_evidence": {
+        "status": "AUDITED",
+        "odds_as_features": false,
+        "modifies_probability": false,
+        "sample_n": 240,
+        "nearest_knot_n": 28,
+        "nearby_5pp_samples": 39,
+        "outside_training_range": false,
+        "calibration_shift_pp": -2.53,
+        "warnings": [
+          "ISOTONIC_LT_1000_TOTAL_SAMPLES_OVERFIT_RISK"
+        ]
+      },
+      "margin_sigma": 15.838792520266011,
+      "total_sigma": 19.857722315458684,
+      "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+      "margin_mean_home_minus_away": -4.006147105969407,
+      "total_mean": 212.3837394779475,
+      "prediction_intervals": {
+        "margin_home_minus_away": {
+          "50": {
+            "low": -14.6892503132655,
+            "high": 6.676956101326685
+          },
+          "80": {
+            "low": -24.304376527220573,
+            "high": 16.292082315281757
+          },
+          "95": {
+            "low": -35.04960993238421,
+            "high": 27.03731572044539
+          }
+        },
+        "total": {
+          "50": {
+            "low": 198.98990931782436,
+            "high": 225.77756963807064
+          },
+          "80": {
+            "low": 186.93504426794738,
+            "high": 237.83243468794763
+          },
+          "95": {
+            "low": 173.46331901480627,
+            "high": 251.30415994108873
+          }
+        }
+      },
+      "data_quality": {
+        "home_recent_games": 5,
+        "away_recent_games": 5,
+        "h2h_games": 5,
+        "max_feature_source_date": "2026-11-04",
+        "quality": "PASS"
+      },
+      "markets": {
+        "full_spread": {
+          "market": "full_spread",
+          "line": -8.5,
+          "p_side1": 0.6116892267798724,
+          "p_side2": 0.38831077322012764,
+          "settlement": {
+            "full_win": 0.6116892267799308,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.38831077322006924
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        },
+        "full_total": {
+          "market": "full_total",
+          "line": 209.5,
+          "p_side1": 0.5577314329396804,
+          "p_side2": 0.4422685670603196,
+          "settlement": {
+            "full_win": 0.5577314329396804,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.4422685670603196
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        }
+      },
+      "gate_reasons": [
+        "INDEPENDENT_MODEL_MISSING"
+      ],
+      "pregame_context": {
+        "fatigue": {
+          "home_rest_days": 2,
+          "away_rest_days": 2,
+          "home_b2b": false,
+          "away_b2b": false,
+          "both_b2b": false,
+          "home_games_previous_4d": 1,
+          "away_games_previous_4d": 1,
+          "minutes_and_travel_adjusted": false
+        },
+        "h2h_recency": {
+          "observed_games": 5,
+          "effective_games": 2.618,
+          "half_life_days": 365.0,
+          "adjusted_margin": -1.769,
+          "adjusted_total_offset": -5.459,
+          "roster_similarity_verified": false
+        },
+        "candidate_features": [
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          1.0,
+          2.0,
+          2.0,
+          2.617615845557366,
+          -1.769378998154304,
+          -5.459330514632377
+        ],
+        "feature_names": [
+          "home_b2b",
+          "away_b2b",
+          "both_b2b",
+          "home_games_previous_4d",
+          "away_games_previous_4d",
+          "home_rest_days",
+          "away_rest_days",
+          "h2h_effective_games",
+          "h2h_recent_margin",
+          "h2h_recent_total_offset"
+        ],
+        "used_in_production_probability": false,
+        "validation": "PENDING_CHRONOLOGICAL_BACKTEST"
+      },
+      "injury_context": {
+        "game_id": "728309",
+        "matchup_key": "BOS@CHA",
+        "source_report_et_date": "2026-11-06",
+        "source_captured_at_utc": "2026-11-06T08:48:34.079014+00:00",
+        "home": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Ajayi, Michael",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Anderson, Christian",
+              "status": "Out",
+              "reason": "G League - On Assignment"
+            },
+            {
+              "name": "Boswell, Kylan",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Diabate, Moussa",
+              "status": "Questionable",
+              "reason": ""
+            },
+            {
+              "name": "Hall, PJ",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Knueppel, Kon",
+              "status": "Out",
+              "reason": "Injury/Illness - Left Hamstring Strain"
+            },
+            {
+              "name": "Schroder, Dennis",
+              "status": "Questionable",
+              "reason": "Injury/Illness - Left Soreness"
+            },
+            {
+              "name": "Steinbach, Hannes",
+              "status": "Out",
+              "reason": "G League - On Assignment"
+            },
+            {
+              "name": "Williams, Grant",
+              "status": "Out",
+              "reason": "Injury/Illness - Right Hamstring Strain"
+            }
+          ],
+          "status_counts": {
+            "Out": 7,
+            "Questionable": 2
+          }
+        },
+        "away": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Carter, Devin",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Cenac Jr., Christopher",
+              "status": "Out",
+              "reason": "G League - On Assignment"
+            },
+            {
+              "name": "Mitchell, Dillon",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Pritchard, Payton",
+              "status": "Questionable",
+              "reason": "Injury/Illness - Right Eye Abrasion"
+            },
+            {
+              "name": "Williams, Amari",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            }
+          ],
+          "status_counts": {
+            "Out": 4,
+            "Questionable": 1
+          }
+        },
+        "source_date_matches_tip": true,
+        "capture_before_tip_verified": true,
+        "parsed_player_ambiguity": false,
+        "quality": "PUBLISHED_AFFECTED",
+        "player_adjustment": "DISABLED_NOT_BACKTESTED",
+        "independent_model_probability_adjusted": false
+      },
+      "injury_adjustment": {
+        "status": "PLAYER_IMPACT_BACKTEST_MISSING_OR_STALE",
+        "adjusted": false,
+        "validation": "NOT_VERIFIED",
+        "players": [],
+        "margin_delta": 0.0,
+        "total_delta": 0.0
+      },
+      "recommendation": "NO_BET"
+    },
+    {
+      "game_id": "728310",
+      "nba_game_id": "401909287",
+      "display_date": "2026-11-07",
+      "display_clock": "08:00",
+      "home_team": "亚特兰大老鹰",
+      "away_team": "华盛顿奇才",
+      "model_status": "OK",
+      "model_probability": {
+        "home": 0.7474532062324308,
+        "away": 0.25254679376756917
+      },
+      "model_probability_raw": {
+        "home": 0.7474532062324308
+      },
+      "model_calibration_evidence": {
+        "status": "AUDITED",
+        "odds_as_features": false,
+        "modifies_probability": false,
+        "sample_n": 240,
+        "nearest_knot_n": 21,
+        "nearby_5pp_samples": 54,
+        "outside_training_range": false,
+        "calibration_shift_pp": 7.36,
+        "warnings": [
+          "ISOTONIC_LT_1000_TOTAL_SAMPLES_OVERFIT_RISK"
+        ]
+      },
+      "margin_sigma": 15.838792520266011,
+      "total_sigma": 19.857722315458684,
+      "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+      "margin_mean_home_minus_away": 10.55650504718499,
+      "total_mean": 222.52911991832863,
+      "prediction_intervals": {
+        "margin_home_minus_away": {
+          "50": {
+            "low": -0.1265981601111026,
+            "high": 21.239608254481084
+          },
+          "80": {
+            "low": -9.741724374066175,
+            "high": 30.854734468436156
+          },
+          "95": {
+            "low": -20.48695777922981,
+            "high": 41.59996787359979
+          }
+        },
+        "total": {
+          "50": {
+            "low": 209.1352897582055,
+            "high": 235.92295007845178
+          },
+          "80": {
+            "low": 197.0804247083285,
+            "high": 247.97781512832876
+          },
+          "95": {
+            "low": 183.6086994551874,
+            "high": 261.44954038146983
+          }
+        }
+      },
+      "data_quality": {
+        "home_recent_games": 5,
+        "away_recent_games": 5,
+        "h2h_games": 5,
+        "max_feature_source_date": "2026-11-04",
+        "quality": "PASS"
+      },
+      "markets": {
+        "full_spread": {
+          "market": "full_spread",
+          "line": 6.5,
+          "p_side1": 0.6010678271568564,
+          "p_side2": 0.39893217284314364,
+          "settlement": {
+            "full_win": 0.6010678271568564,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.3989321728431436
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        },
+        "full_total": {
+          "market": "full_total",
+          "line": 229.5,
+          "p_side1": 0.3627786931774794,
+          "p_side2": 0.6372213068225205,
+          "settlement": {
+            "full_win": 0.36277869317747946,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.6372213068225205
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        }
+      },
+      "gate_reasons": [
+        "INDEPENDENT_MODEL_MISSING"
+      ],
+      "pregame_context": {
+        "fatigue": {
+          "home_rest_days": 2,
+          "away_rest_days": 2,
+          "home_b2b": false,
+          "away_b2b": false,
+          "both_b2b": false,
+          "home_games_previous_4d": 1,
+          "away_games_previous_4d": 1,
+          "minutes_and_travel_adjusted": false
+        },
+        "h2h_recency": {
+          "observed_games": 5,
+          "effective_games": 3.272,
+          "half_life_days": 365.0,
+          "adjusted_margin": 5.373,
+          "adjusted_total_offset": 1.837,
+          "roster_similarity_verified": false
+        },
+        "candidate_features": [
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          1.0,
+          2.0,
+          2.0,
+          3.2723303773828682,
+          5.372567862392578,
+          1.8372851921912805
+        ],
+        "feature_names": [
+          "home_b2b",
+          "away_b2b",
+          "both_b2b",
+          "home_games_previous_4d",
+          "away_games_previous_4d",
+          "home_rest_days",
+          "away_rest_days",
+          "h2h_effective_games",
+          "h2h_recent_margin",
+          "h2h_recent_total_offset"
+        ],
+        "used_in_production_probability": false,
+        "validation": "PENDING_CHRONOLOGICAL_BACKTEST"
+      },
+      "injury_context": {
+        "game_id": "728310",
+        "matchup_key": "WAS@ATL",
+        "source_report_et_date": "2026-11-06",
+        "source_captured_at_utc": "2026-11-06T08:48:34.079014+00:00",
+        "home": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Dennis, RayJ",
+              "status": "Questionable",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Gilbert, Keshon",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Gueye, Mouhamed",
+              "status": "Out",
+              "reason": "Injury/Illness - Left Foot Fracture"
+            },
+            {
+              "name": "Johnson, Jalen",
+              "status": "Questionable",
+              "reason": "Injury/Illness - Left Ankle Sprain"
+            },
+            {
+              "name": "Landale, Jock",
+              "status": "Out",
+              "reason": "Injury/Illness - Left Hip Strain"
+            },
+            {
+              "name": "Newell, Asa",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Veesaar, Henri",
+              "status": "Out",
+              "reason": "Injury/Illness - Right ACL Tear"
+            },
+            {
+              "name": "Wilson, Jalen",
+              "status": "Questionable",
+              "reason": "G League - Two-Way"
+            }
+          ],
+          "status_counts": {
+            "Questionable": 3,
+            "Out": 5
+          }
+        },
+        "away": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Beekman, Reece",
+              "status": "Out",
+              "reason": "Injury/Illness - Right AC Joint Injury"
+            },
+            {
+              "name": "Champagnie, Justin",
+              "status": "Out",
+              "reason": "Injury/Illness - Right Foot Surgery"
+            },
+            {
+              "name": "Davis, Anthony",
+              "status": "Questionable",
+              "reason": "Injury/Illness - Right Ankle Sprain"
+            }
+          ],
+          "status_counts": {
+            "Out": 2,
+            "Questionable": 1
+          }
+        },
+        "source_date_matches_tip": true,
+        "capture_before_tip_verified": true,
+        "parsed_player_ambiguity": false,
+        "quality": "PUBLISHED_AFFECTED",
+        "player_adjustment": "DISABLED_NOT_BACKTESTED",
+        "independent_model_probability_adjusted": false
+      },
+      "injury_adjustment": {
+        "status": "PLAYER_IMPACT_BACKTEST_MISSING_OR_STALE",
+        "adjusted": false,
+        "validation": "NOT_VERIFIED",
+        "players": [],
+        "margin_delta": 0.0,
+        "total_delta": 0.0
+      },
+      "recommendation": "NO_BET"
+    },
+    {
+      "game_id": "728311",
+      "nba_game_id": "401909289",
+      "display_date": "2026-11-07",
+      "display_clock": "08:30",
+      "home_team": "克里夫兰骑士",
+      "away_team": "费城76人",
+      "model_status": "OK",
+      "model_probability": {
+        "home": 0.5485023470660156,
+        "away": 0.45149765293398436
+      },
+      "model_probability_raw": {
+        "home": 0.5485023470660156
+      },
+      "model_calibration_evidence": {
+        "status": "AUDITED",
+        "odds_as_features": false,
+        "modifies_probability": false,
+        "sample_n": 240,
+        "nearest_knot_n": 46,
+        "nearby_5pp_samples": 77,
+        "outside_training_range": false,
+        "calibration_shift_pp": 4.0,
+        "warnings": [
+          "ISOTONIC_LT_1000_TOTAL_SAMPLES_OVERFIT_RISK"
+        ]
+      },
+      "margin_sigma": 15.838792520266011,
+      "total_sigma": 19.857722315458684,
+      "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+      "margin_mean_home_minus_away": 1.9304070206124835,
+      "total_mean": 224.03363260962112,
+      "prediction_intervals": {
+        "margin_home_minus_away": {
+          "50": {
+            "low": -8.75269618668361,
+            "high": 12.613510227908575
+          },
+          "80": {
+            "low": -18.36782240063868,
+            "high": 22.22863644186365
+          },
+          "95": {
+            "low": -29.113055805802315,
+            "high": 32.97386984702728
+          }
+        },
+        "total": {
+          "50": {
+            "low": 210.63980244949798,
+            "high": 237.42746276974427
+          },
+          "80": {
+            "low": 198.58493739962103,
+            "high": 249.48232781962122
+          },
+          "95": {
+            "low": 185.1132121464799,
+            "high": 262.95405307276235
+          }
+        }
+      },
+      "data_quality": {
+        "home_recent_games": 5,
+        "away_recent_games": 5,
+        "h2h_games": 5,
+        "max_feature_source_date": "2026-11-04",
+        "quality": "PASS"
+      },
+      "markets": {
+        "full_spread": {
+          "market": "full_spread",
+          "line": -3.5,
+          "p_side1": 0.6341461745978603,
+          "p_side2": 0.36585382540213973,
+          "settlement": {
+            "full_win": 0.6341461745978636,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.3658538254021363
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        },
+        "full_total": {
+          "market": "full_total",
+          "line": 228.5,
+          "p_side1": 0.4110213723549494,
+          "p_side2": 0.5889786276450506,
+          "settlement": {
+            "full_win": 0.4110213723549494,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.5889786276450506
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        }
+      },
+      "gate_reasons": [
+        "INDEPENDENT_MODEL_MISSING"
+      ],
+      "pregame_context": {
+        "fatigue": {
+          "home_rest_days": 2,
+          "away_rest_days": 2,
+          "home_b2b": false,
+          "away_b2b": false,
+          "both_b2b": false,
+          "home_games_previous_4d": 1,
+          "away_games_previous_4d": 1,
+          "minutes_and_travel_adjusted": false
+        },
+        "h2h_recency": {
+          "observed_games": 5,
+          "effective_games": 3.239,
+          "half_life_days": 365.0,
+          "adjusted_margin": 2.728,
+          "adjusted_total_offset": 1.937,
+          "roster_similarity_verified": false
+        },
+        "candidate_features": [
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          1.0,
+          2.0,
+          2.0,
+          3.238544229126118,
+          2.7283622399145253,
+          1.9365990710922927
+        ],
+        "feature_names": [
+          "home_b2b",
+          "away_b2b",
+          "both_b2b",
+          "home_games_previous_4d",
+          "away_games_previous_4d",
+          "home_rest_days",
+          "away_rest_days",
+          "h2h_effective_games",
+          "h2h_recent_margin",
+          "h2h_recent_total_offset"
+        ],
+        "used_in_production_probability": false,
+        "validation": "PENDING_CHRONOLOGICAL_BACKTEST"
+      },
+      "injury_context": {
+        "game_id": "728311",
+        "matchup_key": "PHI@CLE",
+        "source_report_et_date": "2026-11-06",
+        "source_captured_at_utc": "2026-11-06T08:48:34.079014+00:00",
+        "home": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Allen, Jarrett",
+              "status": "Questionable",
+              "reason": "Injury/Illness - Right Knee Contusion"
+            },
+            {
+              "name": "Diop, Khalifa",
+              "status": "Out",
+              "reason": "G League - On Assignment"
+            }
+          ],
+          "status_counts": {
+            "Questionable": 1,
+            "Out": 1
+          }
+        },
+        "away": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Barlow, Dominick",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Bona, Adem",
+              "status": "Doubtful",
+              "reason": "Injury/Illness - Cervical Spine Sprain"
+            },
+            {
+              "name": "Hukporti, Ariel",
+              "status": "Out",
+              "reason": ""
+            }
+          ],
+          "status_counts": {
+            "Out": 2,
+            "Doubtful": 1
+          }
+        },
+        "source_date_matches_tip": true,
+        "capture_before_tip_verified": true,
+        "parsed_player_ambiguity": false,
+        "quality": "PUBLISHED_AFFECTED",
+        "player_adjustment": "DISABLED_NOT_BACKTESTED",
+        "independent_model_probability_adjusted": false
+      },
+      "injury_adjustment": {
+        "status": "PLAYER_IMPACT_BACKTEST_MISSING_OR_STALE",
+        "adjusted": false,
+        "validation": "NOT_VERIFIED",
+        "players": [],
+        "margin_delta": 0.0,
+        "total_delta": 0.0
+      },
+      "recommendation": "NO_BET"
+    },
+    {
+      "game_id": "728312",
+      "nba_game_id": "401909292",
+      "display_date": "2026-11-07",
+      "display_clock": "09:00",
+      "home_team": "密尔沃基雄鹿",
+      "away_team": "多伦多猛龙",
+      "model_status": "OK",
+      "model_probability": {
+        "home": 0.31847364316976756,
+        "away": 0.6815263568302324
+      },
+      "model_probability_raw": {
+        "home": 0.31847364316976756
+      },
+      "model_calibration_evidence": {
+        "status": "AUDITED",
+        "odds_as_features": false,
+        "modifies_probability": false,
+        "sample_n": 240,
+        "nearest_knot_n": 13,
+        "nearby_5pp_samples": 41,
+        "outside_training_range": false,
+        "calibration_shift_pp": -5.14,
+        "warnings": [
+          "ISOTONIC_LT_1000_TOTAL_SAMPLES_OVERFIT_RISK",
+          "NEAREST_KNOT_LT_20_SAMPLES"
+        ]
+      },
+      "margin_sigma": 15.838792520266011,
+      "total_sigma": 19.857722315458684,
+      "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+      "margin_mean_home_minus_away": -7.475455225857401,
+      "total_mean": 231.40091506398863,
+      "prediction_intervals": {
+        "margin_home_minus_away": {
+          "50": {
+            "low": -18.158558433153495,
+            "high": 3.207647981438691
+          },
+          "80": {
+            "low": -27.773684647108567,
+            "high": 12.822774195393762
+          },
+          "95": {
+            "low": -38.5189180522722,
+            "high": 23.568007600557397
+          }
+        },
+        "total": {
+          "50": {
+            "low": 218.0070849038655,
+            "high": 244.79474522411178
+          },
+          "80": {
+            "low": 205.95221985398854,
+            "high": 256.84961027398873
+          },
+          "95": {
+            "low": 192.4804946008474,
+            "high": 270.32133552712986
+          }
+        }
+      },
+      "data_quality": {
+        "home_recent_games": 5,
+        "away_recent_games": 5,
+        "h2h_games": 5,
+        "max_feature_source_date": "2026-11-04",
+        "quality": "PASS"
+      },
+      "markets": {
+        "full_spread": {
+          "market": "full_spread",
+          "line": -7.5,
+          "p_side1": 0.500618225425752,
+          "p_side2": 0.49938177457424804,
+          "settlement": {
+            "full_win": 0.5006182254259927,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.49938177457400745
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        },
+        "full_total": {
+          "market": "full_total",
+          "line": 231.5,
+          "p_side1": 0.49800938870689065,
+          "p_side2": 0.5019906112931094,
+          "settlement": {
+            "full_win": 0.4980093887068906,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.5019906112931094
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        }
+      },
+      "gate_reasons": [
+        "INDEPENDENT_MODEL_MISSING"
+      ],
+      "pregame_context": {
+        "fatigue": {
+          "home_rest_days": 2,
+          "away_rest_days": 2,
+          "home_b2b": false,
+          "away_b2b": false,
+          "both_b2b": false,
+          "home_games_previous_4d": 1,
+          "away_games_previous_4d": 1,
+          "minutes_and_travel_adjusted": false
+        },
+        "h2h_recency": {
+          "observed_games": 5,
+          "effective_games": 2.423,
+          "half_life_days": 365.0,
+          "adjusted_margin": -3.536,
+          "adjusted_total_offset": 0.311,
+          "roster_similarity_verified": false
+        },
+        "candidate_features": [
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          1.0,
+          2.0,
+          2.0,
+          2.423269926467404,
+          -3.535763945187227,
+          0.31066123226803727
+        ],
+        "feature_names": [
+          "home_b2b",
+          "away_b2b",
+          "both_b2b",
+          "home_games_previous_4d",
+          "away_games_previous_4d",
+          "home_rest_days",
+          "away_rest_days",
+          "h2h_effective_games",
+          "h2h_recent_margin",
+          "h2h_recent_total_offset"
+        ],
+        "used_in_production_probability": false,
+        "validation": "PENDING_CHRONOLOGICAL_BACKTEST"
+      },
+      "injury_context": {
+        "game_id": "728312",
+        "matchup_key": "TOR@MIL",
+        "source_report_et_date": "2026-11-06",
+        "source_captured_at_utc": "2026-11-06T08:48:34.079014+00:00",
+        "home": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Jones, Kam",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Markovic, Bogoljub",
+              "status": "Out",
+              "reason": "G League - On Assignment"
+            },
+            {
+              "name": "Nance, Pete",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Ryan, Cormac",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            }
+          ],
+          "status_counts": {
+            "Out": 4
+          }
+        },
+        "away": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Barnes, Scottie",
+              "status": "Questionable",
+              "reason": ""
+            },
+            {
+              "name": "Bittle, Nate",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Leonard, Kawhi",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "McCullar Jr., Kevin",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Smith, Malachi",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            }
+          ],
+          "status_counts": {
+            "Questionable": 1,
+            "Out": 4
+          }
+        },
+        "source_date_matches_tip": true,
+        "capture_before_tip_verified": true,
+        "parsed_player_ambiguity": false,
+        "quality": "PUBLISHED_AFFECTED",
+        "player_adjustment": "DISABLED_NOT_BACKTESTED",
+        "independent_model_probability_adjusted": false
+      },
+      "injury_adjustment": {
+        "status": "PLAYER_IMPACT_BACKTEST_MISSING_OR_STALE",
+        "adjusted": false,
+        "validation": "NOT_VERIFIED",
+        "players": [],
+        "margin_delta": 0.0,
+        "total_delta": 0.0
+      },
+      "recommendation": "NO_BET"
+    },
+    {
+      "game_id": "728907",
+      "nba_game_id": "401909291",
+      "display_date": "2026-11-07",
+      "display_clock": "09:00",
+      "home_team": "孟菲斯灰熊",
+      "away_team": "俄克拉荷马城雷霆",
+      "model_status": "OK",
+      "model_probability": {
+        "home": 0.29848303633741324,
+        "away": 0.7015169636625868
+      },
+      "model_probability_raw": {
+        "home": 0.29848303633741324
+      },
+      "model_calibration_evidence": {
+        "status": "AUDITED",
+        "odds_as_features": false,
+        "modifies_probability": false,
+        "sample_n": 240,
+        "nearest_knot_n": 13,
+        "nearby_5pp_samples": 44,
+        "outside_training_range": false,
+        "calibration_shift_pp": -5.41,
+        "warnings": [
+          "ISOTONIC_LT_1000_TOTAL_SAMPLES_OVERFIT_RISK",
+          "NEAREST_KNOT_LT_20_SAMPLES"
+        ]
+      },
+      "margin_sigma": 15.838792520266011,
+      "total_sigma": 19.857722315458684,
+      "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+      "margin_mean_home_minus_away": -8.375054088052137,
+      "total_mean": 228.98148953565646,
+      "prediction_intervals": {
+        "margin_home_minus_away": {
+          "50": {
+            "low": -19.05815729534823,
+            "high": 2.3080491192439556
+          },
+          "80": {
+            "low": -28.673283509303303,
+            "high": 11.923175333199028
+          },
+          "95": {
+            "low": -39.418516914466935,
+            "high": 22.668408738362665
+          }
+        },
+        "total": {
+          "50": {
+            "low": 215.58765937553332,
+            "high": 242.3753196957796
+          },
+          "80": {
+            "low": 203.53279432565637,
+            "high": 254.43018474565656
+          },
+          "95": {
+            "low": 190.06106907251524,
+            "high": 267.9019099987977
+          }
+        }
+      },
+      "data_quality": {
+        "home_recent_games": 5,
+        "away_recent_games": 5,
+        "h2h_games": 5,
+        "max_feature_source_date": "2026-11-04",
+        "quality": "PASS"
+      },
+      "markets": {
+        "full_spread": {
+          "market": "full_spread",
+          "line": -3.5,
+          "p_side1": 0.37912029361040045,
+          "p_side2": 0.6208797063895996,
+          "settlement": {
+            "full_win": 0.37912029361067545,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.6208797063893245
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        },
+        "full_total": {
+          "market": "full_total",
+          "line": 225.5,
+          "p_side1": 0.5695865671919206,
+          "p_side2": 0.4304134328080794,
+          "settlement": {
+            "full_win": 0.5695865671919206,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.4304134328080795
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        }
+      },
+      "gate_reasons": [
+        "INDEPENDENT_MODEL_MISSING"
+      ],
+      "pregame_context": {
+        "fatigue": {
+          "home_rest_days": 2,
+          "away_rest_days": 2,
+          "home_b2b": false,
+          "away_b2b": false,
+          "both_b2b": false,
+          "home_games_previous_4d": 1,
+          "away_games_previous_4d": 1,
+          "minutes_and_travel_adjusted": false
+        },
+        "h2h_recency": {
+          "observed_games": 5,
+          "effective_games": 2.249,
+          "half_life_days": 365.0,
+          "adjusted_margin": -3.927,
+          "adjusted_total_offset": -0.271,
+          "roster_similarity_verified": false
+        },
+        "candidate_features": [
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          1.0,
+          2.0,
+          2.0,
+          2.248989002447016,
+          -3.927490633417235,
+          -0.27140627027232217
+        ],
+        "feature_names": [
+          "home_b2b",
+          "away_b2b",
+          "both_b2b",
+          "home_games_previous_4d",
+          "away_games_previous_4d",
+          "home_rest_days",
+          "away_rest_days",
+          "h2h_effective_games",
+          "h2h_recent_margin",
+          "h2h_recent_total_offset"
+        ],
+        "used_in_production_probability": false,
+        "validation": "PENDING_CHRONOLOGICAL_BACKTEST"
+      },
+      "injury_context": {
+        "game_id": "728907",
+        "matchup_key": "OKC@MEM",
+        "source_report_et_date": "2026-11-06",
+        "source_captured_at_utc": "2026-11-06T08:48:34.079014+00:00",
+        "home": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Pippen Jr., Scotty",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Stewart, Isaiah",
+              "status": "Out",
+              "reason": ""
+            }
+          ],
+          "status_counts": {
+            "Out": 2
+          }
+        },
+        "away": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Holmgren, Chet",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Sorber, Thomas",
+              "status": "Out",
+              "reason": "Injury/Illness - Right Knee Surgery"
+            }
+          ],
+          "status_counts": {
+            "Out": 2
+          }
+        },
+        "source_date_matches_tip": true,
+        "capture_before_tip_verified": true,
+        "parsed_player_ambiguity": false,
+        "quality": "PUBLISHED_AFFECTED",
+        "player_adjustment": "DISABLED_NOT_BACKTESTED",
+        "independent_model_probability_adjusted": false
+      },
+      "injury_adjustment": {
+        "status": "PLAYER_IMPACT_BACKTEST_MISSING_OR_STALE",
+        "adjusted": false,
+        "validation": "NOT_VERIFIED",
+        "players": [],
+        "margin_delta": 0.0,
+        "total_delta": 0.0
+      },
+      "recommendation": "NO_BET"
+    },
+    {
+      "game_id": "728908",
+      "nba_game_id": "401909293",
+      "display_date": "2026-11-07",
+      "display_clock": "09:00",
+      "home_team": "新奥尔良鹈鹕",
+      "away_team": "明尼苏达森林狼",
+      "model_status": "OK",
+      "model_probability": {
+        "home": 0.36593682805609934,
+        "away": 0.6340631719439007
+      },
+      "model_probability_raw": {
+        "home": 0.36593682805609934
+      },
+      "model_calibration_evidence": {
+        "status": "AUDITED",
+        "odds_as_features": false,
+        "modifies_probability": false,
+        "sample_n": 240,
+        "nearest_knot_n": 28,
+        "nearby_5pp_samples": 28,
+        "outside_training_range": false,
+        "calibration_shift_pp": -4.51,
+        "warnings": [
+          "ISOTONIC_LT_1000_TOTAL_SAMPLES_OVERFIT_RISK"
+        ]
+      },
+      "margin_sigma": 15.838792520266011,
+      "total_sigma": 19.857722315458684,
+      "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+      "margin_mean_home_minus_away": -5.426912294866236,
+      "total_mean": 238.70827612753249,
+      "prediction_intervals": {
+        "margin_home_minus_away": {
+          "50": {
+            "low": -16.110015502162327,
+            "high": 5.256190912429856
+          },
+          "80": {
+            "low": -25.7251417161174,
+            "high": 14.871317126384929
+          },
+          "95": {
+            "low": -36.47037512128104,
+            "high": 25.61655053154856
+          }
+        },
+        "total": {
+          "50": {
+            "low": 225.31444596740934,
+            "high": 252.10210628765563
+          },
+          "80": {
+            "low": 213.2595809175324,
+            "high": 264.1569713375326
+          },
+          "95": {
+            "low": 199.78785566439126,
+            "high": 277.6286965906737
+          }
+        }
+      },
+      "data_quality": {
+        "home_recent_games": 5,
+        "away_recent_games": 5,
+        "h2h_games": 5,
+        "max_feature_source_date": "2026-11-04",
+        "quality": "PASS"
+      },
+      "markets": {
+        "full_spread": {
+          "market": "full_spread",
+          "line": -4.5,
+          "p_side1": 0.4766665583521851,
+          "p_side2": 0.5233334416478149,
+          "settlement": {
+            "full_win": 0.47666655835227384,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.5233334416477262
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        },
+        "full_total": {
+          "market": "full_total",
+          "line": 230.5,
+          "p_side1": 0.6603264965580473,
+          "p_side2": 0.3396735034419527,
+          "settlement": {
+            "full_win": 0.6603264965580472,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.33967350344195274
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        }
+      },
+      "gate_reasons": [
+        "INDEPENDENT_MODEL_MISSING"
+      ],
+      "pregame_context": {
+        "fatigue": {
+          "home_rest_days": 2,
+          "away_rest_days": 2,
+          "home_b2b": false,
+          "away_b2b": false,
+          "both_b2b": false,
+          "home_games_previous_4d": 1,
+          "away_games_previous_4d": 1,
+          "minutes_and_travel_adjusted": false
+        },
+        "h2h_recency": {
+          "observed_games": 5,
+          "effective_games": 2.64,
+          "half_life_days": 365.0,
+          "adjusted_margin": -3.048,
+          "adjusted_total_offset": 9.321,
+          "roster_similarity_verified": false
+        },
+        "candidate_features": [
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          1.0,
+          2.0,
+          2.0,
+          2.639784584854535,
+          -3.0477669481165237,
+          9.320739967424153
+        ],
+        "feature_names": [
+          "home_b2b",
+          "away_b2b",
+          "both_b2b",
+          "home_games_previous_4d",
+          "away_games_previous_4d",
+          "home_rest_days",
+          "away_rest_days",
+          "h2h_effective_games",
+          "h2h_recent_margin",
+          "h2h_recent_total_offset"
+        ],
+        "used_in_production_probability": false,
+        "validation": "PENDING_CHRONOLOGICAL_BACKTEST"
+      },
+      "injury_context": {
+        "game_id": "728908",
+        "matchup_key": "MIN@NOP",
+        "source_report_et_date": "2026-11-06",
+        "source_captured_at_utc": "2026-11-06T08:48:34.079014+00:00",
+        "home": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Dia, Malik",
+              "status": "Doubtful",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Missi, Yves",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Murphy III, Trey",
+              "status": "Probable",
+              "reason": ""
+            },
+            {
+              "name": "Pierre Jr., Jaron",
+              "status": "Doubtful",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Reese, Julian",
+              "status": "Probable",
+              "reason": "G League - Two-Way"
+            }
+          ],
+          "status_counts": {
+            "Doubtful": 2,
+            "Out": 1,
+            "Probable": 2
+          }
+        },
+        "away": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "DiVincenzo, Donte",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Edwards, Anthony",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Shannon Jr, Terrence",
+              "status": "Questionable",
+              "reason": "Injury/Illness - Left Hip Contusion"
+            }
+          ],
+          "status_counts": {
+            "Out": 2,
+            "Questionable": 1
+          }
+        },
+        "source_date_matches_tip": true,
+        "capture_before_tip_verified": true,
+        "parsed_player_ambiguity": false,
+        "quality": "PUBLISHED_AFFECTED",
+        "player_adjustment": "DISABLED_NOT_BACKTESTED",
+        "independent_model_probability_adjusted": false
+      },
+      "injury_adjustment": {
+        "status": "PLAYER_IMPACT_BACKTEST_MISSING_OR_STALE",
+        "adjusted": false,
+        "validation": "NOT_VERIFIED",
+        "players": [],
+        "margin_delta": 0.0,
+        "total_delta": 0.0
+      },
+      "recommendation": "NO_BET"
+    },
+    {
+      "game_id": "728909",
+      "nba_game_id": "401909290",
+      "display_date": "2026-11-07",
+      "display_clock": "09:00",
+      "home_team": "达拉斯独行侠",
+      "away_team": "犹他爵士",
+      "model_status": "OK",
+      "model_probability": {
+        "home": 0.7120606594418497,
+        "away": 0.2879393405581503
+      },
+      "model_probability_raw": {
+        "home": 0.7120606594418497
+      },
+      "model_calibration_evidence": {
+        "status": "AUDITED",
+        "odds_as_features": false,
+        "modifies_probability": false,
+        "sample_n": 240,
+        "nearest_knot_n": 33,
+        "nearby_5pp_samples": 54,
+        "outside_training_range": false,
+        "calibration_shift_pp": 6.56,
+        "warnings": [
+          "ISOTONIC_LT_1000_TOTAL_SAMPLES_OVERFIT_RISK"
+        ]
+      },
+      "margin_sigma": 15.838792520266011,
+      "total_sigma": 19.857722315458684,
+      "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+      "margin_mean_home_minus_away": 8.860454531241645,
+      "total_mean": 229.04579115387537,
+      "prediction_intervals": {
+        "margin_home_minus_away": {
+          "50": {
+            "low": -1.8226486760544471,
+            "high": 19.543557738537736
+          },
+          "80": {
+            "low": -11.43777489000952,
+            "high": 29.158683952492808
+          },
+          "95": {
+            "low": -22.183008295173153,
+            "high": 39.90391735765645
+          }
+        },
+        "total": {
+          "50": {
+            "low": 215.65196099375223,
+            "high": 242.43962131399852
+          },
+          "80": {
+            "low": 203.59709594387527,
+            "high": 254.49448636387547
+          },
+          "95": {
+            "low": 190.12537069073414,
+            "high": 267.9662116170166
+          }
+        }
+      },
+      "data_quality": {
+        "home_recent_games": 5,
+        "away_recent_games": 5,
+        "h2h_games": 5,
+        "max_feature_source_date": "2026-11-04",
+        "quality": "PASS"
+      },
+      "markets": {
+        "full_spread": {
+          "market": "full_spread",
+          "line": 7.5,
+          "p_side1": 0.5342245913095438,
+          "p_side2": 0.4657754086904562,
+          "settlement": {
+            "full_win": 0.5342245913095439,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.46577540869045614
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        },
+        "full_total": {
+          "market": "full_total",
+          "line": 226.5,
+          "p_side1": 0.551005270708176,
+          "p_side2": 0.44899472929182405,
+          "settlement": {
+            "full_win": 0.551005270708176,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.4489947292918241
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        }
+      },
+      "gate_reasons": [
+        "INDEPENDENT_MODEL_MISSING"
+      ],
+      "pregame_context": {
+        "fatigue": {
+          "home_rest_days": 2,
+          "away_rest_days": 2,
+          "home_b2b": false,
+          "away_b2b": false,
+          "both_b2b": false,
+          "home_games_previous_4d": 1,
+          "away_games_previous_4d": 1,
+          "minutes_and_travel_adjusted": false
+        },
+        "h2h_recency": {
+          "observed_games": 5,
+          "effective_games": 2.503,
+          "half_life_days": 365.0,
+          "adjusted_margin": 2.81,
+          "adjusted_total_offset": 8.574,
+          "roster_similarity_verified": false
+        },
+        "candidate_features": [
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          1.0,
+          2.0,
+          2.0,
+          2.5032274311990466,
+          2.8102886519547527,
+          8.573786979036552
+        ],
+        "feature_names": [
+          "home_b2b",
+          "away_b2b",
+          "both_b2b",
+          "home_games_previous_4d",
+          "away_games_previous_4d",
+          "home_rest_days",
+          "away_rest_days",
+          "h2h_effective_games",
+          "h2h_recent_margin",
+          "h2h_recent_total_offset"
+        ],
+        "used_in_production_probability": false,
+        "validation": "PENDING_CHRONOLOGICAL_BACKTEST"
+      },
+      "injury_context": {
+        "game_id": "728909",
+        "matchup_key": "UTA@DAL",
+        "source_report_et_date": "2026-11-06",
+        "source_captured_at_utc": "2026-11-06T08:48:34.079014+00:00",
+        "home": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Aldama, Santi",
+              "status": "Probable",
+              "reason": "Injury/Illness - Right Knee Surgery"
+            },
+            {
+              "name": "Biberovic, Tarik",
+              "status": "Out",
+              "reason": "Injury/Illness - Right Heel Bursitis"
+            },
+            {
+              "name": "Christie, Max",
+              "status": "Probable",
+              "reason": ""
+            },
+            {
+              "name": "de Larrea, Sergio",
+              "status": "Out",
+              "reason": "Injury/Illness - Right Knee Sprain"
+            },
+            {
+              "name": "Lively II, Dereck",
+              "status": "Out",
+              "reason": "Injury/Illness - Right Foot Surgery"
+            },
+            {
+              "name": "Martin, Caleb",
+              "status": "Available",
+              "reason": "Injury/Illness - Right Thumb Splint"
+            }
+          ],
+          "status_counts": {
+            "Probable": 2,
+            "Out": 3,
+            "Available": 1
+          }
+        },
+        "away": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Alexander, Trey",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            }
+          ],
+          "status_counts": {
+            "Out": 1
+          }
+        },
+        "source_date_matches_tip": true,
+        "capture_before_tip_verified": true,
+        "parsed_player_ambiguity": false,
+        "quality": "PUBLISHED_AFFECTED",
+        "player_adjustment": "DISABLED_NOT_BACKTESTED",
+        "independent_model_probability_adjusted": false
+      },
+      "injury_adjustment": {
+        "status": "PLAYER_IMPACT_BACKTEST_MISSING_OR_STALE",
+        "adjusted": false,
+        "validation": "NOT_VERIFIED",
+        "players": [],
+        "margin_delta": 0.0,
+        "total_delta": 0.0
+      },
+      "recommendation": "NO_BET"
+    },
+    {
+      "game_id": "728910",
+      "nba_game_id": "401909295",
+      "display_date": "2026-11-07",
+      "display_clock": "11:00",
+      "home_team": "萨克拉门托国王",
+      "away_team": "圣安东尼奥马刺",
+      "model_status": "OK",
+      "model_probability": {
+        "home": 0.19374404941292267,
+        "away": 0.8062559505870773
+      },
+      "model_probability_raw": {
+        "home": 0.19374404941292267
+      },
+      "model_calibration_evidence": {
+        "status": "AUDITED",
+        "odds_as_features": false,
+        "modifies_probability": false,
+        "sample_n": 240,
+        "nearest_knot_n": 1,
+        "nearby_5pp_samples": 14,
+        "outside_training_range": false,
+        "calibration_shift_pp": -19.37,
+        "warnings": [
+          "ISOTONIC_0_OR_100_PERCENT_ENDPOINT",
+          "CALIBRATION_SHIFT_GE_15PP",
+          "ISOTONIC_LT_1000_TOTAL_SAMPLES_OVERFIT_RISK",
+          "NEAREST_KNOT_LT_20_SAMPLES"
+        ]
+      },
+      "margin_sigma": 15.838792520266011,
+      "total_sigma": 19.857722315458684,
+      "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+      "margin_mean_home_minus_away": -13.687594203382238,
+      "total_mean": 234.27199449642868,
+      "prediction_intervals": {
+        "margin_home_minus_away": {
+          "50": {
+            "low": -24.370697410678332,
+            "high": -3.0044909960861457
+          },
+          "80": {
+            "low": -33.985823624633404,
+            "high": 6.610635217868927
+          },
+          "95": {
+            "low": -44.731057029797036,
+            "high": 17.355868623032563
+          }
+        },
+        "total": {
+          "50": {
+            "low": 220.87816433630553,
+            "high": 247.66582465655182
+          },
+          "80": {
+            "low": 208.82329928642855,
+            "high": 259.7206897064288
+          },
+          "95": {
+            "low": 195.35157403328745,
+            "high": 273.1924149595699
+          }
+        }
+      },
+      "data_quality": {
+        "home_recent_games": 5,
+        "away_recent_games": 5,
+        "h2h_games": 5,
+        "max_feature_source_date": "2026-11-04",
+        "quality": "PASS"
+      },
+      "markets": {
+        "full_spread": {
+          "market": "full_spread",
+          "line": -15.5,
+          "p_side1": 0.5455508517674804,
+          "p_side2": 0.4544491482325196,
+          "settlement": {
+            "full_win": 0.5455508517716916,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.4544491482283084
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        },
+        "full_total": {
+          "market": "full_total",
+          "line": 229.5,
+          "p_side1": 0.5949547404201908,
+          "p_side2": 0.4050452595798092,
+          "settlement": {
+            "full_win": 0.5949547404201908,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.4050452595798092
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        }
+      },
+      "gate_reasons": [
+        "INDEPENDENT_MODEL_MISSING"
+      ],
+      "pregame_context": {
+        "fatigue": {
+          "home_rest_days": 2,
+          "away_rest_days": 2,
+          "home_b2b": false,
+          "away_b2b": false,
+          "both_b2b": false,
+          "home_games_previous_4d": 1,
+          "away_games_previous_4d": 1,
+          "minutes_and_travel_adjusted": false
+        },
+        "h2h_recency": {
+          "observed_games": 5,
+          "effective_games": 3.053,
+          "half_life_days": 365.0,
+          "adjusted_margin": -6.919,
+          "adjusted_total_offset": 5.515,
+          "roster_similarity_verified": false
+        },
+        "candidate_features": [
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          1.0,
+          2.0,
+          2.0,
+          3.053434736922608,
+          -6.918515838998577,
+          5.514578796073616
+        ],
+        "feature_names": [
+          "home_b2b",
+          "away_b2b",
+          "both_b2b",
+          "home_games_previous_4d",
+          "away_games_previous_4d",
+          "home_rest_days",
+          "away_rest_days",
+          "h2h_effective_games",
+          "h2h_recent_margin",
+          "h2h_recent_total_offset"
+        ],
+        "used_in_production_probability": false,
+        "validation": "PENDING_CHRONOLOGICAL_BACKTEST"
+      },
+      "injury_context": {
+        "game_id": "728910",
+        "matchup_key": "SAS@SAC",
+        "source_report_et_date": "2026-11-06",
+        "source_captured_at_utc": "2026-11-06T08:48:34.079014+00:00",
+        "home": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Murray, Keegan",
+              "status": "Out",
+              "reason": "Injury/Illness - Left Ankle Capsulitis"
+            },
+            {
+              "name": "Pedulla, Sean",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Raynaud, Maxime",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Simmons, Ben",
+              "status": "Out",
+              "reason": ""
+            }
+          ],
+          "status_counts": {
+            "Out": 4
+          }
+        },
+        "away": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Brown, Maliq",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            }
+          ],
+          "status_counts": {
+            "Out": 1
+          }
+        },
+        "source_date_matches_tip": true,
+        "capture_before_tip_verified": true,
+        "parsed_player_ambiguity": false,
+        "quality": "PUBLISHED_AFFECTED",
+        "player_adjustment": "DISABLED_NOT_BACKTESTED",
+        "independent_model_probability_adjusted": false
+      },
+      "injury_adjustment": {
+        "status": "PLAYER_IMPACT_BACKTEST_MISSING_OR_STALE",
+        "adjusted": false,
+        "validation": "NOT_VERIFIED",
+        "players": [],
+        "margin_delta": 0.0,
+        "total_delta": 0.0
+      },
+      "recommendation": "NO_BET"
+    },
+    {
+      "game_id": "728911",
+      "nba_game_id": "401909294",
+      "display_date": "2026-11-07",
+      "display_clock": "11:00",
+      "home_team": "洛杉矶湖人",
+      "away_team": "波特兰开拓者",
+      "model_status": "OK",
+      "model_probability": {
+        "home": 0.5919839989040212,
+        "away": 0.4080160010959788
+      },
+      "model_probability_raw": {
+        "home": 0.5919839989040212
+      },
+      "model_calibration_evidence": {
+        "status": "AUDITED",
+        "odds_as_features": false,
+        "modifies_probability": false,
+        "sample_n": 240,
+        "nearest_knot_n": 31,
+        "nearby_5pp_samples": 77,
+        "outside_training_range": false,
+        "calibration_shift_pp": 5.44,
+        "warnings": [
+          "ISOTONIC_LT_1000_TOTAL_SAMPLES_OVERFIT_RISK"
+        ]
+      },
+      "margin_sigma": 15.838792520266011,
+      "total_sigma": 19.857722315458684,
+      "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+      "margin_mean_home_minus_away": 3.6849194697565153,
+      "total_mean": 231.8012384136928,
+      "prediction_intervals": {
+        "margin_home_minus_away": {
+          "50": {
+            "low": -6.998183737539577,
+            "high": 14.368022677052608
+          },
+          "80": {
+            "low": -16.61330995149465,
+            "high": 23.98314889100768
+          },
+          "95": {
+            "low": -27.358543356658284,
+            "high": 34.72838229617132
+          }
+        },
+        "total": {
+          "50": {
+            "low": 218.40740825356966,
+            "high": 245.19506857381595
+          },
+          "80": {
+            "low": 206.35254320369268,
+            "high": 257.2499336236929
+          },
+          "95": {
+            "low": 192.88081795055157,
+            "high": 270.721658876834
+          }
+        }
+      },
+      "data_quality": {
+        "home_recent_games": 5,
+        "away_recent_games": 5,
+        "h2h_games": 5,
+        "max_feature_source_date": "2026-11-04",
+        "quality": "PASS"
+      },
+      "markets": {
+        "full_spread": {
+          "market": "full_spread",
+          "line": 2.5,
+          "p_side1": 0.5298175446751704,
+          "p_side2": 0.4701824553248296,
+          "settlement": {
+            "full_win": 0.5298175446751717,
+            "half_win": 0.0,
+            "push": 0.0,
+            "half_loss": 0.0,
+            "full_loss": 0.4701824553248284
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        },
+        "full_total": {
+          "market": "full_total",
+          "line": 232.0,
+          "p_side1": 0.4960069400090595,
+          "p_side2": 0.5039930599909406,
+          "settlement": {
+            "full_win": 0.4859647537653562,
+            "half_win": 0.0,
+            "push": 0.020086903554416558,
+            "half_loss": 0.0,
+            "full_loss": 0.49394834268022725
+          },
+          "direction_verified": false,
+          "calibration": {
+            "out_of_sample": true,
+            "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
+            "calibrated_through": "2026-10-30",
+            "sample": 240
+          }
+        }
+      },
+      "gate_reasons": [
+        "INDEPENDENT_MODEL_MISSING"
+      ],
+      "pregame_context": {
+        "fatigue": {
+          "home_rest_days": 2,
+          "away_rest_days": 2,
+          "home_b2b": false,
+          "away_b2b": false,
+          "both_b2b": false,
+          "home_games_previous_4d": 1,
+          "away_games_previous_4d": 1,
+          "minutes_and_travel_adjusted": false
+        },
+        "h2h_recency": {
+          "observed_games": 5,
+          "effective_games": 2.874,
+          "half_life_days": 365.0,
+          "adjusted_margin": -3.597,
+          "adjusted_total_offset": 6.279,
+          "roster_similarity_verified": false
+        },
+        "candidate_features": [
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          1.0,
+          2.0,
+          2.0,
+          2.874219553313199,
+          -3.597452725501819,
+          6.279068393113853
+        ],
+        "feature_names": [
+          "home_b2b",
+          "away_b2b",
+          "both_b2b",
+          "home_games_previous_4d",
+          "away_games_previous_4d",
+          "home_rest_days",
+          "away_rest_days",
+          "h2h_effective_games",
+          "h2h_recent_margin",
+          "h2h_recent_total_offset"
+        ],
+        "used_in_production_probability": false,
+        "validation": "PENDING_CHRONOLOGICAL_BACKTEST"
+      },
+      "injury_context": {
+        "game_id": "728911",
+        "matchup_key": "POR@LAL",
+        "source_report_et_date": "2026-11-06",
+        "source_captured_at_utc": "2026-11-06T08:48:34.079014+00:00",
+        "home": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Carr, Cameron",
+              "status": "Out",
+              "reason": "G League - On Assignment"
+            },
+            {
+              "name": "James, Bronny",
+              "status": "Out",
+              "reason": "G League - On Assignment"
+            },
+            {
+              "name": "Kessler, Walker",
+              "status": "Available",
+              "reason": "Injury/Illness - Left Finger Splint"
+            },
+            {
+              "name": "Mamukelashvili, Sandro",
+              "status": "Questionable",
+              "reason": "Injury/Illness - Illness"
+            }
+          ],
+          "status_counts": {
+            "Out": 2,
+            "Available": 1,
+            "Questionable": 1
+          }
+        },
+        "away": {
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Krejci, Vit",
+              "status": "Out",
+              "reason": "Injury/Illness - Left Ankle Fracture"
+            },
+            {
+              "name": "Morant, Ja",
+              "status": "Out",
+              "reason": "Injury/Illness - Left Hamstring Strain"
+            },
+            {
+              "name": "Sharpe, Shaedon",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Tonje, John",
+              "status": "Out",
+              "reason": "G League - Two-Way"
+            }
+          ],
+          "status_counts": {
+            "Out": 4
+          }
+        },
+        "source_date_matches_tip": true,
+        "capture_before_tip_verified": true,
+        "parsed_player_ambiguity": false,
+        "quality": "PUBLISHED_AFFECTED",
+        "player_adjustment": "DISABLED_NOT_BACKTESTED",
+        "independent_model_probability_adjusted": false
+      },
+      "injury_adjustment": {
+        "status": "PLAYER_IMPACT_BACKTEST_MISSING_OR_STALE",
+        "adjusted": false,
+        "validation": "NOT_VERIFIED",
+        "players": [],
+        "margin_delta": 0.0,
+        "total_delta": 0.0
+      },
+      "recommendation": "NO_BET"
+    }
+  ],
+  "decision": "NO_BET"
+}
