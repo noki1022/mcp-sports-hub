@@ -19,9 +19,6 @@ on:
       - 'analysis/titan007_hourly_history.py'
       - 'scripts/verify_nba_capture_analysis.py'
       - '.github/workflows/nba-full-chain-e2e.yml'
-  schedule:
-    # Daily independent regression of the entire safe replay; NO live sends.
-    - cron: "0 20 * * *"
   workflow_dispatch:
 permissions:
   contents: read
