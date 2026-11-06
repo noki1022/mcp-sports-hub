@@ -10,8 +10,10 @@ class ExactFootball(unittest.TestCase):
   self.assertEqual(validate("workflow_dispatch","","",""),"MANUAL_NON_SENDING")
  def test_exact_slots(self):
   self.assertEqual(slot_for_cron("0 4 * * *"),"1200")
-  self.assertEqual(slot_for_cron("30 13 * * *"),"2130")
-  for old in ("15 4 * * *","30 4 * * *","0 14 * * *"):
+  self.assertEqual(slot_for_cron("0 13 * * *"),"2100")
+  self.assertEqual(slot_for_cron("0 14 * * *"),"2200")
+  self.assertEqual(slot_for_cron("0 15 * * *"),"2300")
+  for old in ("15 4 * * *","30 4 * * *","30 13 * * *","0 16 * * *"):
    with self.assertRaises(ValueError):slot_for_cron(old)
  def test_no_delayed_dispatch(self):
   good=datetime.fromisoformat("2026-11-06T16:00:30+08:00")
