@@ -23,15 +23,12 @@ from zoneinfo import ZoneInfo
 
 BJ=ZoneInfo("Asia/Shanghai")
 ACCEPTED="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
-FIXED={"0030":16,"0330":19,**{f"{h+8:02d}00":h for h in range(4,14)}}
+FIXED={f"{h+8:02d}00":h for h in range(4,16)}
 HOURS={f"{h:02d}30" for h in [22,23,0,1,2,3,4,5]}
 SILENT_SIX={f"{h:02d}30" for h in range(6)}-{"0030","0330"}
 # UTC cron -> (Beijing report slot, display date offset relative to cron date).
-SCHEDULES={
-    "30 16 * * *":("0030",0),
-    "30 19 * * *":("0330",0),
-    **{f"0 {h} * * *":(f"{h+8:02d}00",1) for h in range(4,14)},
-}
+SCHEDULES={f"0 {h} * * *":(f"{h+8:02d}00",1) for h in range(4,16)}
+
 # The UTC day is not necessarily the Beijing day. Explicit mapping via local
 # wall clock below avoids the 00:00 date crossover.
 
