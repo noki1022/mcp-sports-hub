@@ -43,7 +43,7 @@ def prepare(forecast,mode,lock=None,comparison=None,daytime_slot=None,movement=N
     elif mode=="daytime":
         if lock is not None or comparison is not None:
             raise ValueError("DAYTIME_MUST_NOT_READ_YESTERDAY_BASELINE")
-        if daytime_slot not in tuple(f"{h:02d}00" for h in range(12,22)):
+        if daytime_slot not in tuple(f"{h:02d}00" for h in range(12,24)):
             raise ValueError("UNRECOGNIZED_DAYTIME_CAPTURE_SLOT")
         label=daytime_slot[:2]+":00赛前研判"
     else:raise ValueError("INVALID_FOOTBALL_SEND_SLOT")
