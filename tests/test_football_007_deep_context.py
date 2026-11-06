@@ -95,6 +95,17 @@ class DeepContextTest(unittest.TestCase):
              kickoff_beijing=(NOW-timedelta(minutes=1)).isoformat()))
         self.assertIn("AFTER_KICKOFF",doc["games"][0]["reason"])
 
+    def test_source_observed_before_snapshot_is_valid_but_over_10_minutes_is_not(self):
+        # Real live capture: individual analysis requests occur before final
+        # snapshot assembly. Two pretip observations may be reversed.
+        doc=self.run_once(mutate=lambda d:d.update(
+            captured_at_utc=(NOW+timedelta(seconds=55)).isoformat()))
+        self.assertEqual(doc["counts"]["ready"],1)
+        doc=self.run_once(mutate=lambda d:d.update(
+            captured_at_utc=(NOW+timedelta(minutes=25)).isoformat()))
+        self.assertEqual(doc["counts"]["quarantined"],1)
+        self.assertIn("SOURCE_CLOCK",doc["games"][0]["reason"])
+
     def test_team_mismatch_blocks_aggregates(self):
         info=raw_source();info["constract"]["normal"][1]["teamId"]=999
         r=self.run_once(source=info)["games"][0]
