@@ -64,6 +64,38 @@ class TestContextFeatureLedger(unittest.TestCase):
         self.assertEqual(g["personnel"]["source_listed_injuries"],1)
         self.assertEqual(g["home"]["score_finality"],"NOT_INDEPENDENTLY_CONFIRMED_IN_007_NEARMATCHES")
 
+    def test_source_season_and_transfer_are_descriptive_not_player_effects(self):
+        g=fixture()
+        all_home={"total":10,"win":6,"draw":2,"loss":2,"getGoal":19,"lossGoal":10,"point":20,"rank":3}
+        venue_home={"total":5,"win":4,"draw":1,"loss":0,"getGoal":11,"lossGoal":3,"point":13,"rank":2}
+        all_away={"total":10,"win":3,"draw":4,"loss":3,"getGoal":15,"lossGoal":14,"point":13,"rank":9}
+        venue_away={"total":4,"win":1,"draw":2,"loss":1,"getGoal":5,"lossGoal":6,"point":5,"rank":10}
+        g["season_source_facts"]={
+            "status":"SOURCE_REPORTED_007_SEASON_PRETIP",
+            "season_id":"2026-2027",
+            "home":{"source_team_id_007":"11","source_league_id_007":"33",
+                    "season_id":"2026-2027","scopes":{"ALL":all_home,"HOME":venue_home}},
+            "away":{"source_team_id_007":"22","source_league_id_007":"33",
+                    "season_id":"2026-2027","scopes":{"ALL":all_away,"AWAY":venue_away}}}
+        g["transfer_source_facts"]={
+            "status":"007_SOURCE_REPORTED_TRANSFERS_NOT_LINEUP_IMPACT",
+            "home":[{"player_id_007":100,"club_team_id_007":"11","direction":"IN",
+                     "event_at_utc":(CAP-timedelta(days=7)).isoformat()}],
+            "away":[{"player_id_007":200,"club_team_id_007":"22","direction":"OUT",
+                     "event_at_utc":(CAP-timedelta(days=14)).isoformat()}]}
+        r=F.analyze(snapshot(g))["games"][0]
+        self.assertEqual(r["season"]["season_id"],"2026-2027")
+        self.assertEqual(r["season"]["home"]["venue_season_record"]["goals_for_per_match"],2.2)
+        self.assertEqual(r["season"]["away"]["venue_season_record"]["goals_against_per_match"],1.5)
+        self.assertEqual(r["transfers"]["counts_180d"]["home"]["incoming"],1)
+        self.assertEqual(r["transfers"]["counts_180d"]["away"]["outgoing"],1)
+        self.assertIsNone(r["transfers"]["transfer_impact"])
+        g["season_source_facts"]["away"]["source_team_id_007"]="999"
+        self.assertIn("SEASON_TEAM_IDENTITY_DRIFT",F.analyze(snapshot(g))["games"][0]["reason"])
+        g["season_source_facts"]["away"]["source_team_id_007"]="22"
+        g["transfer_source_facts"]["home"][0]["event_at_utc"]=(CAP+timedelta(days=1)).isoformat()
+        self.assertIn("FUTURE_TRANSFER_LEAKAGE",F.analyze(snapshot(g))["games"][0]["reason"])
+
     def test_reversing_all_prices_never_changes_any_feature_row(self):
         base=snapshot()
         flipped=copy.deepcopy(base)
