@@ -6,8 +6,8 @@ def test():
     r={"event":"schedule","display_title":"NBA full report | slot=0 7 * * * | date=auto"}
     assert not exact_fixed_run_slot(r,"1600","2026-11-07")
     assert exact_fixed_run_slot({**r,"display_title":"NBA full report | slot=0 8 * * * | date=auto"},"1600","2026-11-07")
-    recovery=Path(__file__).with_name("nba_delivery_recovery.py").read_text()
-    assert "urllib.request" not in recovery and "dispatches" not in recovery
+    assert not Path(__file__).with_name("nba_delivery_recovery.py").exists()
+    assert not Path(__file__).with_name("nba_schedule_fallback_push.py").exists()
     workflow=Path(".github/workflows/nba-delivery-health-watchdog.yml").read_text()
     assert "nba_delivery_recovery.py" not in workflow and "--send" not in workflow
     print("NBA_P0_NO_COMPENSATION_TEST_PASS")
