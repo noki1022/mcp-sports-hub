@@ -9,7 +9,7 @@ No TTG odds, injury, form or H2H are invented. Raw evidence is gzip archived.
 from __future__ import annotations
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import gzip
 import hashlib
 import json
@@ -95,7 +95,20 @@ def parse_odds(raw):
             "signed_home_handicap":handicap,"odds":hhad}}
     return odds
 
-def parse_fixtures(raw,odds,captured,target=None):
+JC_WEEKDAYS=("周一","周二","周三","周四","周五","周六","周日")
+
+def jc_prefix(day):
+    if not isinstance(day,date):day=date.fromisoformat(day)
+    return JC_WEEKDAYS[day.weekday()]
+
+def validate_jc_scope(games,day):
+    prefix=jc_prefix(day)
+    for game in games:
+        if not re.fullmatch(re.escape(prefix)+r"\d{3}",str(game.get("jc_number") or "")):
+            raise ValueError("FOOTBALL_JC_SALE_DAY_SCOPE_DRIFT")
+    return True
+
+def parse_fixtures(raw,odds,captured,target=None,target_jc_day=None):
     decoded=text_decode(raw)
     sections=decoded.split("$")
     if len(sections)<2:raise ValueError("MISSING_007_SCHEDULE_DOMAIN")
@@ -104,6 +117,7 @@ def parse_fixtures(raw,odds,captured,target=None):
     seen=set()
     future_source_rows=0
     rejected_future_identifiers=0
+    excluded_other_jc_days=0
     for record in sections[1].split("!"):
         if not record.strip():continue
         c=record.strip().split("^")
@@ -117,6 +131,9 @@ def parse_fixtures(raw,odds,captured,target=None):
         if target and tip.date().isoformat()!=target:continue
         future_source_rows+=1
         jcnum=c[4].strip()
+        if target_jc_day and not jcnum.startswith(jc_prefix(target_jc_day)):
+            excluded_other_jc_days+=1
+            continue
         home=c[8].split(",")[0].strip()
         away=c[10].split(",")[0].strip()
         if not home or not away or not re.fullmatch(r"周[一二三四五六日天]\d{3}",jcnum):
@@ -141,23 +158,25 @@ def parse_fixtures(raw,odds,captured,target=None):
             "data_gaps":["RECENT_FIVE_NOT_YET_PARSED","H2H_NOT_YET_PARSED",
                          "INJURIES_NOT_YET_VERIFIED","JC_TTG_ODDS_NOT_IN_PUBLIC_FEED"]})
     games.sort(key=lambda g:(g["kickoff_beijing"],g["match_id"]))
+    if target_jc_day:validate_jc_scope(games,target_jc_day)
     return games,{"total_fixture_ids":len(seen),
                   "future_source_rows_before_identity_filter":future_source_rows,
                   "rejected_future_identity_rows":rejected_future_identifiers,
+                   "excluded_other_jc_sale_days":excluded_other_jc_days,
                   "future_jc_fixtures":len(games),
                   "odds_fixture_ids":len(odds),
                   "had_with_price":sum(bool(g["jc_markets"]["had"]) for g in games),
                   "hhad_with_price":sum(bool((g["jc_markets"]["hhad"] or {}).get("odds")) for g in games),
                   "ttg_with_price":0}
 
-def collect(raw_map,captured,target=None):
+def collect(raw_map,captured,target=None,target_jc_day=None):
     if not isinstance(captured,datetime) or captured.tzinfo is None:
         raise ValueError("CAPTURE_TIMESTAMP_REQUIRED")
     odds=parse_odds(raw_map["jc_odds"])
-    games,coverage=parse_fixtures(raw_map["fixtures"],odds,captured,target)
+    games,coverage=parse_fixtures(raw_map["fixtures"],odds,captured,target,target_jc_day)
     # No future games in a successfully parsed 007 source is NOT a broken fetch.
     # Keep the whole raw evidence + a zero-game manifest, with no fake picks.
-    if not games and coverage["future_source_rows_before_identity_filter"]>0:
+    if not games and coverage["rejected_future_identity_rows"]>0:
         raise RuntimeError("007_FUTURE_ROWS_EXIST_BUT_NO_VERIFIED_JC_IDENTITY__DO_NOT_TREAT_AS_OFFDAY")
     verified_empty=not games
     cp_state="CP_TTG_NOT_CAPTURED"
@@ -193,7 +212,8 @@ def collect(raw_map,captured,target=None):
             for game in games:
                 game["cp_ttg_source_status"]=cp_state
     return {"schema_version":"football-jc-007-v1",
-            "beijing_date":target or captured.astimezone(BJ).date().isoformat(),
+            "beijing_date":target_jc_day or target or captured.astimezone(BJ).date().isoformat(),
+             "jc_sale_day_beijing":target_jc_day or captured.astimezone(BJ).date().isoformat(),
             "captured_at_utc":captured.astimezone(timezone.utc).isoformat(),
             "source_provenance":{"state":("VERIFIED_007_FEEDS_ZERO_FUTURE_JC_FIXTURES" if verified_empty else
                                       "LIVE_007_PUBLIC_FIXTURE_HAD_HHAD_TTG_PARTIAL" if coverage["ttg_with_price"] else
@@ -278,11 +298,15 @@ def enrich_analysis(snapshot,folder):
 
 def main():
     ap=argparse.ArgumentParser()
-    ap.add_argument("--target-date",default=None,help="Beijing kickoff date YYYY-MM-DD, optional")
+    ap.add_argument("--target-date",default=None,help="Legacy explicit Beijing kickoff date for diagnostics only")
+    ap.add_argument("--jc-sale-day",default=None,help="Required for production: Beijing date of 007 周Xnnn numbers")
     ap.add_argument("--out",default="football-output/football_007_snapshot.json")
     ap.add_argument("--raw-dir",default="football-output/raw")
     args=ap.parse_args()
     if args.target_date:datetime.strptime(args.target_date,"%Y-%m-%d")
+    if args.jc_sale_day:
+        date.fromisoformat(args.jc_sale_day)
+        if args.target_date:raise ValueError("MIXED_KICKOFF_AND_JC_DAY_FILTERS")
     start=datetime.now(timezone.utc)
     raw={k:fetch(v) for k,v in FEEDS.items()}
     try:
@@ -303,7 +327,8 @@ def main():
         "capture_completed_at_utc":completed.isoformat(),
         "sources":{k:{"url":(cp_ttg.CP_TTG_URL if k=="cp_ttg" else FEEDS[k]),"sha256":hashlib.sha256(v).hexdigest(),
                       "bytes":len(v)} for k,v in raw.items()}},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    snapshot=collect(raw,completed,args.target_date)
+    scope=args.jc_sale_day or completed.astimezone(BJ).date().isoformat()
+    snapshot=collect(raw,completed,args.target_date,scope)
     snapshot["source_provenance"]["capture_started_at_utc"]=start.isoformat()
     feature_coverage=enrich_analysis(snapshot,folder)
     snapshot["captured_at_utc"]=datetime.now(timezone.utc).isoformat()

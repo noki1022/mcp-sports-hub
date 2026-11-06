@@ -70,7 +70,7 @@ def render(report):
     sport=report.get("sport")
     if sport not in MARKET_ORDER or report.get("schema_version")!="sports-latest-pretip-scoring-v1":
         raise ValueError("ONLY_VERIFIED_PER_MATCH_SCORECARD")
-    if report.get("prediction_source")!="LATEST_VERIFIED_PREKICKOFF_PER_MATCH_IMMUTABLE":
+    if report.get("prediction_source") not in ("LATEST_VERIFIED_PREKICKOFF_PER_MATCH_IMMUTABLE","ONLY_BEIJING_2100_IMMUTABLE_FORECAST"):
         raise ValueError("REVIEW_SOURCE_NOT_PER_MATCH_PRETIP_FINAL")
     if report.get("historical_2130_not_graded_separately") is not True:
         raise ValueError("OLD_2130_MUST_NOT_BE_SECOND_SCORECARD")
@@ -88,7 +88,8 @@ def render(report):
         "<h2 style='font-size:20px;margin:4px 0 7px'>北京时间 ",
         E(str(report.get("beijing_day") or ""))," ",SPORT_NAMES[sport],"逐场复盘</h2>",
         "<p style='font-size:12px;color:#5f7185;margin:0 0 12px'>",
-        "仅按每场最新有效赛前冻结版评分，21:30留档不重复计分。主队在左；未核实赛果不入样。</p>"]
+        ("仅按北京时间21:00原始赛前冻结版评分。" if report.get("prediction_source")=="ONLY_BEIJING_2100_IMMUTABLE_FORECAST"
+         else "历史复盘：仅按每场最新有效赛前冻结版评分，21:30留档不重复计分。")+"主队在左；未核实赛果不入样。</p>"]
     summary=report.get("summary") or {}
     for market in MARKET_ORDER[sport]:
         d=summary.get(market) or {}
@@ -142,3 +143,4 @@ def main():
     print("PER_MATCH_REVIEW_IPHONE_HTML",review.get("sport"),len(review.get("matches",[])))
 
 if __name__=="__main__":main()
+

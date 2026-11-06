@@ -25,7 +25,8 @@ jobs:
               assert s.index(f'--priority-slot {slot}') < s.index('Install pinned model dependencies')
               if slot=='0630':
                   assert "if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'" in s
-                  assert 'cron: "30 22 * * *"' in s
+                  assert 'cron: "30 22 * * *"' not in s
+                  assert '  schedule:' not in s
                   assert 'cron: "*/10 22-23,0-5 * * *"' not in s
               else:
                   assert "if: steps.gate.outputs.skip != 'true' && steps.gate.outputs.sent != 'true'" in s

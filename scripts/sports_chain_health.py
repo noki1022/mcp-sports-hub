@@ -15,7 +15,7 @@ import re
 from zoneinfo import ZoneInfo
 
 BJ = ZoneInfo("Asia/Shanghai")
-FOOTBALL = "Football JC unified analysis, 21:30 locked final, 06:30 update"
+FOOTBALL = "Football JC hourly 12:00–23:00; 21:00 immutable grading baseline"
 NBA_DAY = "Titan007 scheduled full-board NBA analysis and PushPlus delivery"
 NBA_SILENT = "NBA silent 00-06 hourly five-market as-of capture (no PushPlus)"
 NBA_2130 = "NBA PRIORITY 21:30 Beijing pre-cutoff report"
@@ -28,9 +28,10 @@ PATH_TO_WORKFLOW = {
     ".github/workflows/nba-priority-2130.yml": NBA_2130,
     ".github/workflows/nba-priority-0630.yml": NBA_0630,
 }
-PRIORITY = frozenset((FOOTBALL, NBA_2130, NBA_0630))
+PRIORITY = frozenset((FOOTBALL, NBA_DAY))
 MAX_SCHEDULE_LATENESS_MINUTES = 180
 SENDER_NAMES = (
+    "Send complete iPhone full-board NBA analysis",
     "Send phone-friendly three-play integrated forecast",
     "Send exactly one football message per scheduled",
     "Push full-board priority analysis to iPhone",
@@ -54,13 +55,7 @@ def expected_slots(now, horizon_hours=24, grace_minutes=180):
     end = now.astimezone(BJ).date()
     for offset in range((end - start).days + 1):
         day = start + timedelta(days=offset)
-        schedule = [(h, 0, FOOTBALL) for h in range(12, 22)]
-        schedule += [(21, 30, FOOTBALL), (6, 30, FOOTBALL)]
-        schedule += [(h, 0, FOOTBALL) for h in range(7)]
-        schedule += [(h, 0, NBA_DAY) for h in range(12, 22)]
-        schedule += [(21, 30, NBA_2130), (6, 30, NBA_0630)]
-        schedule += [(0, 30, NBA_DAY), (3, 30, NBA_DAY)]
-        schedule += [(h, 0, NBA_SILENT) for h in range(7)]
+        schedule = [(h, 0, sport) for sport in (FOOTBALL, NBA_DAY) for h in range(12, 24)]
         for hour, minute, workflow in schedule:
             planned = datetime(day.year, day.month, day.day, hour, minute, tzinfo=BJ)
             instant = planned.astimezone(timezone.utc)
@@ -95,22 +90,8 @@ def advertised_cron(run):
 
 
 def trigger_candidates(slot):
-    """Actual UTC retry crons that belong to a single canonical Beijing slot."""
-    planned = slot["planned"]
-    local = planned.astimezone(BJ)
-    if slot["workflow"] == NBA_DAY:
-        if (local.hour, local.minute) in ((0, 30), (3, 30)):
-            return [planned + timedelta(minutes=m) for m in (0, 15, 30)]
-        if local.minute == 0 and local.hour in (12, 14, 15, 18):
-            return [planned + timedelta(minutes=m) for m in (0, 15, 30)]
-    if slot["workflow"] == NBA_2130:
-        return [planned, planned + timedelta(minutes=10)]
-    if slot["workflow"] == FOOTBALL:
-        local = planned.astimezone(BJ)
-        if (local.hour, local.minute) == (12, 0):
-            return [planned, planned + timedelta(minutes=15),
-                    planned + timedelta(minutes=30)]
-    return [planned]
+    """Only the original exact-hour trigger is canonical; no compensation."""
+    return [slot["planned"]]
 
 
 def declared_slot_match(slot, run):
@@ -133,7 +114,15 @@ def verified_football_recovery(run, slot):
     This attests workflow arguments and slot identity, not Cloudflare origin.
     Only the external Worker's production logs can prove that origin.
     """
-    if run.get("event") != "workflow_dispatch" or slot["workflow"] != FOOTBALL:
+    if run.get("event") != "workflow_dispatch":
+        return False
+    if slot["workflow"] == NBA_DAY:
+        name = run.get("display_title") or run.get("name") or ""
+        local = slot["planned"].astimezone(BJ)
+        expected = "NBA full report | slot=" + local.strftime("%H%M") + " | date=" + (local.date()+timedelta(days=1)).isoformat()
+        lag = (when(run["created_at"])-slot["planned"]).total_seconds()/60
+        return name == expected and 0 <= lag <= MAX_SCHEDULE_LATENESS_MINUTES
+    if slot["workflow"] != FOOTBALL:
         return False
     name = run.get("display_title") or run.get("name") or ""
     if not isinstance(name, str):
@@ -224,7 +213,7 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
     for run in runs:
         if not isinstance(run, dict) or run.get("event") not in ("schedule", "workflow_dispatch"):
             continue
-        if run["event"] == "workflow_dispatch" and canonical_workflow(run) != FOOTBALL:
+        if run["event"] == "workflow_dispatch" and canonical_workflow(run) not in (FOOTBALL, NBA_DAY):
             continue
         rid = run.get("id")
         if type(rid) is not int or not isinstance(run.get("created_at"), str):
@@ -270,7 +259,7 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
                 problems.append({"severity": "critical", "code": "FOOTBALL_ORIGINAL_RAW_NOT_ARCHIVED",
                                  "workflow": FOOTBALL, "slot": slot["slot_beijing"],
                                  "run_id": run["id"], "release_tag": "football-007-raw-" + day})
-        if slot["workflow"] in PRIORITY and slot["planned"].astimezone(BJ).strftime("%H:%M") in ("21:30","06:30"):
+        if slot["workflow"] in PRIORITY and slot["planned"].astimezone(BJ).strftime("%H:%M") == "21:00":
             jobs = (priority_jobs or {}).get(str(run["id"]))
             proof = priority_send_evidence(run, jobs)
             push_evidence.append({"workflow": slot["workflow"], "beijing_slot": slot["slot_beijing"],
@@ -360,3 +349,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

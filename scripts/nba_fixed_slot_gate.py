@@ -20,8 +20,6 @@ from nba_delivery_health import ACCEPTED, marker_path
 
 BEIJING = ZoneInfo("Asia/Shanghai")
 SCHEDULE_SLOTS = {
-    "30 16 * * *": "0030",
-    "30 19 * * *": "0330",
     "0 4 * * *": "1200",
     "0 5 * * *": "1300",
     "0 6 * * *": "1400",
@@ -32,6 +30,8 @@ SCHEDULE_SLOTS = {
     "0 11 * * *": "1900",
     "0 12 * * *": "2000",
     "0 13 * * *": "2100",
+    "0 14 * * *": "2200",
+    "0 15 * * *": "2300",
 }
 FIXED_SLOTS = frozenset(SCHEDULE_SLOTS.values())
 # GitHub scheduled events were actually 32-34 minutes late on Nov 2.
@@ -131,8 +131,6 @@ def self_test() -> None:
         assert resolve_slot(schedule, "", now) == slot
     for slot in FIXED_SLOTS:
         assert resolve_slot("", slot, now) == slot
-    assert resolve_slot("30 16 * * *", "", now) == "0030"
-    assert resolve_slot("30 19 * * *", "", now) == "0330"
     assert resolve_slot("", "", now) == "1240"
     assert resolve_slot("", "", now, "workflow_dispatch") == "ONCE"
     assert resolve_slot("", "ONCE", now, "workflow_dispatch") == "ONCE"

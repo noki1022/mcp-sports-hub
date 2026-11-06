@@ -86,10 +86,7 @@ jobs:
               if gh release view "$tag" --json assets --jq '.assets[].name' | grep -Fxq "$name"; then
                 mkdir -p "existing-final/$sport/$day"
                 gh release download "$tag" --pattern "$name" --dir "existing-final/$sport/$day"
-                cmp "$file" "existing-final/$sport/$day/$name" || {
-                  echo "::error::FINAL_CONFLICT_REQUIRES_AUDIT $sport $day $name"; exit 1;
-                }
-                echo "IDEMPOTENT_SAME_FINAL $sport $day $name"
+                PYTHONPATH=analysis python -c 'import json,sys; from sport_match_final_registry import verify_existing_final; print(verify_existing_final(json.load(open(sys.argv[1])),json.load(open(sys.argv[2]))))' "existing-final/$sport/$day/$name" "$file"
               else
                 gh release upload "$tag" "$file"
                 echo "APPEND_ONLY_MATCH_FINAL $sport $day $name"
@@ -105,3 +102,4 @@ jobs:
           path: match-finals/
           if-no-files-found: warn
           retention-days: 90
+

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Football-only PushPlus for immutable 21:30 and 06:30 change report.
+"""Football-only PushPlus for immutable 21:00 grading baseline and twelve hourly reports.
 
 The scheduled final's score source is never replaced by an update.
 Requires a separate explicit phase and SHA-matching frozen reference.

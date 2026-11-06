@@ -7,8 +7,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"analysis"))
 import sport_match_final_registry as R
 import sport_match_final_grade as G
 
-T=datetime(2026,11,5,13,30,tzinfo=timezone.utc)
-TIP=T+timedelta(hours=10)
+T=datetime(2026,11,5,13,0,tzinfo=timezone.utc)
+TIP=T+timedelta(hours=10,minutes=30)
 def iso(d):return d.isoformat()
 def football():
   snapshot={"schema_version":"football-jc-007-v1","captured_at_utc":iso(T),
@@ -23,7 +23,7 @@ def football():
            "generated_at_utc":iso(T+timedelta(minutes=1)),
            "games":[{"match_id":"3075305","jc_number":"周四010","home_team":"甲",
                      "away_team":"乙","kickoff_beijing":iso(TIP),"markets":markets}]}
-  bundle=R.make_candidate("football",snapshot,forecast,123,"2130")
+  bundle=R.make_candidate("football",snapshot,forecast,123,"2100")
   return R.publishable_final_documents([bundle],iso(TIP+timedelta(hours=2)))[0]
 def nba():
   snap={"requested_display_date":"2026-11-06","captured_at_utc":iso(T),
@@ -42,7 +42,7 @@ def nba():
             "games":[{"game_id":"142","nba_game_id":"1001","jingcai_number":"周五314",
                       "home_team":"亚特兰大老鹰","away_team":"迈阿密热火","tipoff_beijing":iso(TIP),
                       "markets":markets}]}
-  bundle=R.make_candidate("basketball",snap,forecast,456,"2130")
+  bundle=R.make_candidate("basketball",snap,forecast,456,"2100")
   return R.publishable_final_documents([bundle],iso(TIP+timedelta(hours=2)))[0]
 
 class GradeTest(unittest.TestCase):
@@ -93,7 +93,7 @@ class GradeTest(unittest.TestCase):
     self.assertIn("皇冠让分",html)
     self.assertIn("竞彩大小分",html)
     self.assertIn("周五314",html)
-    self.assertIn("只评价每场最后一次有效赛前冻结版",html)
+    self.assertIn("只评价北京时间21:00原始赛前冻结版",html)
     self.assertNotIn("<script",html)
   def test_phone_scorecard_escapes_source_team_names(self):
     frozen=nba()
@@ -120,3 +120,4 @@ class GradeTest(unittest.TestCase):
     with self.assertRaisesRegex(ValueError,"HASH_MISMATCH"):
       G.validate_final(f)
 if __name__=="__main__":unittest.main()
+

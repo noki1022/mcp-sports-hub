@@ -15,32 +15,20 @@ function clock(time){
     hour:t.getUTCHours(),minute:t.getUTCMinutes()};
 }
 export function plannedJob(timestamp){
-  const t=clock(timestamp), h=t.hour,m=t.minute;
-  if(h>=12&&h<=21&&m===0)return {
+  const t=clock(timestamp),h=t.hour,m=t.minute;
+  if(h>=12&&h<=23&&m===0)return {
     workflow:"titan007-three-analysis.yml",slot:String(h).padStart(2,"0")+"00",
     date:t.day,target_date:t.tomorrow,kind:"full"};
-  if((h===0||h===3)&&m===30)return {
-    workflow:"titan007-three-analysis.yml",slot:String(h).padStart(2,"0")+"30",
-    date:t.day,target_date:t.day,kind:"full"};
-  if(h===21&&m===30)return {
-    workflow:"nba-priority-2130.yml",slot:"2130",date:t.day,
-    target_date:t.tomorrow,kind:"priority"};
-  if(h===6&&m===30)return {
-    workflow:"nba-priority-0630.yml",slot:"0630",date:t.day,
-    target_date:t.day,kind:"priority"};
   return null;
 }
 export function plannedFootballJob(timestamp){
   const t=clock(timestamp),h=t.hour,m=t.minute;
-  const isHourly=m===0&&((h>=12&&h<=21)||(h>=0&&h<=6));
-  const isPriority=m===30&&(h===21||h===6);
-  if(!isHourly&&!isPriority)return null;
-  const slot=String(h).padStart(2,"0")+(isPriority?"30":"00");
-  const u=(h+16)%24;
+  if(!(h>=12&&h<=23&&m===0))return null;
+  const slot=String(h).padStart(2,"0")+"00";
   return {workflow:"football-007-live-capture.yml",slot,date:t.day,
-    cron:(isPriority?30:0)+" "+u+" * * *",
-    kind:isPriority?"football_priority":"football_capture"};
+    cron:"0 "+(h-8)+" * * *",kind:"football_capture"};
 }
+
 function headers(env){
   if(!env.GITHUB_TOKEN)throw Error("GITHUB_TOKEN_NOT_CONFIGURED");
   return {"Accept":"application/vnd.github+json",

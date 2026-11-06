@@ -25,7 +25,7 @@ def assets():
        'hhad':{},'ttg':{}}
     r=dict(sport='football',league='League A',match_id='1',official_game_id='',jc_number='周五001',home_team='H',away_team='A',
         home_id=1,away_id=2,kickoff_utc='2026-11-05T08:00:00Z',capture_utc='2026-11-05T06:00:00Z',generated_utc='2026-11-05T06:10:00Z',
-        run_id='100',planned_slot_beijing='1400',model_version='test',source_snapshot_sha256='a'*64,forecast_sha256='b'*64,markets=p)
+        run_id='100',planned_slot_beijing='2100',model_version='test',source_snapshot_sha256='a'*64,forecast_sha256='b'*64,markets=p)
     r['record_sha256']=digest(r)
     bundle=dict(schema_version='sport-match-pregame-candidates-v1',sport='football',run_id='100',records=[r])
     bundle['bundle_sha256']=digest(bundle)

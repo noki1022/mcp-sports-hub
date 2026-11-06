@@ -27,7 +27,7 @@ on:
       - '.github/workflows/sports-data-lifecycle.yml'
   workflow_run:
     workflows:
-      - 'Football JC unified analysis, 21:30 locked final, 06:30 update'
+      - 'Football JC hourly 12:00–23:00; 21:00 immutable grading baseline'
       - 'Titan007 scheduled full-board NBA analysis and PushPlus delivery'
       - 'NBA PRIORITY 21:30 Beijing pre-cutoff report'
       - 'NBA PRIORITY 06:30 Beijing morning full report'
@@ -155,3 +155,4 @@ jobs:
           path: lifecycle-output/
           if-no-files-found: ignore
           retention-days: 14
+

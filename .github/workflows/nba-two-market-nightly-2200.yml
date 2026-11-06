@@ -2,11 +2,8 @@ name: NBA official-final-triggered five-market postgame review
 on:
   workflow_dispatch:
   schedule:
-    # Check every 15 minutes across late-night/late-start games, Beijing 08:00–23:45.
-    # Official FINAL, not local clock, is the condition for pushing a review.
-    - cron: "*/15 0-15 * * *"
-    # Catch any overnight delayed NBA final without missing the previous Beijing slate.
-    - cron: "*/15 16-23 * * *"
+    # One results-only check daily, never fetch fresh odds or rerun predictions.
+    - cron: "30 16 * * *"
 permissions:
   contents: write
 concurrency:

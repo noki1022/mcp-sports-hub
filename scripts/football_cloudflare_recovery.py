@@ -14,12 +14,7 @@ import re
 from zoneinfo import ZoneInfo
 
 BEIJING = ZoneInfo("Asia/Shanghai")
-VALID_SLOTS = frozenset(
-    [f"{h:02d}00" for h in range(12, 22)]
-    + [f"{h:02d}00" for h in range(0, 7)]
-    + ["2130", "0630"]
-)
-
+VALID_SLOTS = frozenset(f"{h:02d}00" for h in range(12,24))
 
 def slot_for_cron(expr: str) -> str:
     expr = str(expr or "").strip()

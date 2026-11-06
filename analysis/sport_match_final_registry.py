@@ -174,10 +174,14 @@ def select(bundles,as_of):
     chosen=[]
     for key,rows in sorted(grouped.items()):
         rows.sort(key=lambda r:(stamp(r["generated_utc"]),stamp(r["capture_utc"]),int(r["run_id"])))
-        latest=rows[-1]
+        # The official grading baseline is exactly the 21:00 original.
+        # Later 22:00/23:00 forecasts remain independently archived.
+        reference=[r for r in rows if r["planned_slot_beijing"]=="2100"]
+        if not reference:
+            continue  # missing 21:00 is not permission to invent a baseline
+        latest=reference[0]  # First original 21:00 run; a rerun must not replace it.
         tip=stamp(latest["kickoff_utc"])
-        reference=[r for r in rows if r["planned_slot_beijing"]=="2130"]
-        baseline=reference[-1] if reference else None
+        baseline=latest
         lead=(tip-stamp(latest["generated_utc"])).total_seconds()/60
         if lead<3:
             window="WITHIN_3_MINUTES_PRETIP"
@@ -191,7 +195,7 @@ def select(bundles,as_of):
             "home_id":latest["home_id"],"away_id":latest["away_id"],
             "kickoff_utc":latest["kickoff_utc"],
             "state":"LOCKED_AFTER_KICKOFF" if now>=tip else "PENDING_MAY_STILL_CHANGE",
-            "selection_rule":"LATEST_ACTUALLY_GENERATED_VERIFIED_PRETIP",
+            "selection_rule":"ONLY_BEIJING_2100_IMMUTABLE_FORECAST",
             "capture_utc":latest["capture_utc"],"generated_utc":latest["generated_utc"],
             "lead_minutes":round(lead,2),"window":window,
             "run_id":latest["run_id"],"model_version":latest["model_version"],
@@ -199,8 +203,8 @@ def select(bundles,as_of):
             "source_snapshot_sha256":latest["source_snapshot_sha256"],
             "forecast_sha256":latest["forecast_sha256"],
             "original_candidate_sha256":latest["record_sha256"],
-            "comparison_only_2130_sha256":baseline["record_sha256"] if baseline else None,
-            "is_different_from_2130":bool(baseline and baseline["record_sha256"]!=latest["record_sha256"]),
+            "scoring_baseline_2100_sha256":baseline["record_sha256"],
+            "scoring_baseline_unchanged":True,
             "markets":deepcopy(latest["markets"]),"valid_candidate_count":len(rows)})
     output={"schema_version":FINAL_SCHEMA,"as_of_utc":now.isoformat(),
             "scoring_contract":"SCORE_ONLY_LOCKED_AFTER_KICKOFF_USING_ORIGINAL_FORECAST",
@@ -246,6 +250,20 @@ def publish_finals(bundles,as_of,out_dir,grace_minutes=90):
         outputs.append({"path":str(path),"state":state,"match_id":final["match_id"],
                         "sport":final["sport"],"forecast_sha256":final["forecast_sha256"]})
     return outputs
+
+def verify_existing_final(existing, proposed):
+    """Preserve audited pre-migration archives without rewriting historical answers."""
+    for doc in (existing, proposed):
+        require(doc.get("final_sha256")==digest({k:v for k,v in doc.items() if k!="final_sha256"}),
+                "EXISTING_FINAL_HASH_MISMATCH")
+    if existing == proposed:
+        return "IDEMPOTENT_SAME_FINAL"
+    identity=("sport","match_id","official_game_id","home_id","away_id","kickoff_utc","jc_number")
+    require(all(existing.get(k)==proposed.get(k) for k in identity), "FINAL_IDENTITY_CONFLICT")
+    if (existing.get("selection_rule")=="LATEST_ACTUALLY_GENERATED_VERIFIED_PRETIP"
+            and stamp(existing["generated_utc"]) < stamp("2026-11-06T13:00:00+00:00")):
+        return "PRESERVED_HISTORICAL_BASELINE_NOT_REWRITTEN"
+    raise ValueError("FINAL_CONFLICT_REQUIRES_AUDIT")
 
 def save_once(path,document):
     dst=Path(path)
@@ -300,3 +318,4 @@ def main():
             print("PER_MATCH_PRETIP_FINAL",save_once(a.out,result),len(result["matched_games"]))
 
 if __name__=="__main__":main()
+

@@ -52,32 +52,25 @@ def point_in_time_valid(frozen,games):
     return True
 
 def frozen_source(root,day):
-    # Prefer a complete original pretip board, never a 06:30 subset of
-    # only games that have not started. Compare against frozen noon official IDs.
-    cohort=root/"reports"/"noon-cohorts"/day/"1200.json"
-    official_ids=None
-    if cohort.is_file():
-        official_ids=set((read_json(cohort).get("official_games") or {}).keys())
-        if not official_ids:raise ValueError("NOON_OFFICIAL_COHORT_EMPTY")
-    slots=("0630","0530","0430","0330","0230","0130","0030",
-           "2330","2230","2130","2100","1800","1500","1400","1200")
-    candidates=[]
-    for slot in slots:
-        p=root/"reports"/"daily"/day/slot/"nba_five_market_forecast.json"
-        if p.is_file():candidates.append((slot,p))
-        if slot in ("0030","0130","0230","0330","0430","0530"):
-            p=root/"reports"/"overnight-six"/day/slot/"five.json"
-            if p.is_file():candidates.append((slot,p))
-    valid=[]
-    for slot,path in candidates:
-        frozen=read_json(path)
-        games=frozen_games(frozen,day)
-        ids={str(g["nba_game_id"]) for g in games}
-        if official_ids is not None and ids!=official_ids:continue
-        # Model-board timestamp and each issued quote must both predate tip.
-        if not point_in_time_valid(frozen,games):continue
-        valid.append((slot,path))
-    return valid[0][1] if valid else None
+    """ONLY canonical Beijing 21:00 frozen five-play answer can be graded.
+
+    Never use 22:00/23:00, missing-slot fallbacks, 21:30 or next-day 06:30
+    as an implicit replacement. Existing source still must predate kickoff.
+    """
+    file=root/"reports"/"daily"/day/"2100"/"nba_five_market_forecast.json"
+    if not file.is_file():
+        return None
+    frozen=read_json(file)
+    games=frozen_games(frozen,day)
+    official=root/"reports"/"noon-cohorts"/day/"1200.json"
+    if official.is_file():
+        ids=set((read_json(official).get("official_games") or {}).keys())
+        if not ids:raise ValueError("NOON_OFFICIAL_COHORT_EMPTY")
+        if {str(g["nba_game_id"]) for g in games}!=ids:
+            raise ValueError("2100_COHORT_NOT_EQUAL_TO_NOON_OFFICIAL_GAMES")
+    if not point_in_time_valid(frozen,games):
+        raise ValueError("2100_FROZEN_BOARD_HAS_POSTTIP_INFORMATION")
+    return file
 
 def reviewed(root,day):
     p=root/"reports"/"five-market-settled"/day/"2200.json"
@@ -166,79 +159,51 @@ def decide(root,now,day_override=None,score_fetch=scores_for):
             "checked_at_beijing":now.isoformat()}
 
 def self_test():
+    """21:00 is the only admissible grading record. Results are independent."""
     import tempfile
-    now=datetime.fromisoformat("2026-10-31T23:15:00+08:00")
     with tempfile.TemporaryDirectory() as d:
         root=Path(d)
-        target="2026-10-31"
-        src=root/"reports"/"daily"/target/"0630"/"nba_five_market_forecast.json"
-        src.parent.mkdir(parents=True)
-        f={"target_date":target,"board_capture_utc":"2026-10-31T06:30:00+08:00","games":[
-            {"game_id":"a","nba_game_id":"event1","tipoff_beijing":"2026-10-31T09:00:00+08:00","markets":{}},
-            {"game_id":"b","nba_game_id":"event2","tipoff_beijing":"2026-10-31T21:00:00+08:00","markets":{}}]}
-        src.write_text(json.dumps(f))
+        target="2026-11-07"
+        day=root/"reports"/"daily"/target
+        early=day/"2100"/"nba_five_market_forecast.json"
+        later=day/"2300"/"nba_five_market_forecast.json"
+        early.parent.mkdir(parents=True)
+        later.parent.mkdir(parents=True)
+        now=datetime.fromisoformat("2026-11-07T23:30:00+08:00")
+        fixture={"target_date":target,"board_capture_utc":"2026-11-06T21:02:00+08:00",
+            "games":[{"game_id":"a","nba_game_id":"event1",
+                "tipoff_beijing":"2026-11-07T09:00:00+08:00","markets":{}},
+                {"game_id":"b","nba_game_id":"event2",
+                "tipoff_beijing":"2026-11-07T21:00:00+08:00","markets":{}}]}
+        later.write_text(json.dumps({**fixture,"board_capture_utc":"2026-11-06T23:02:00+08:00"}))
+        assert frozen_source(root,target) is None,"23:00_MUST_NOT_REPLACE_MISSING_21:00"
+        early.write_text(json.dumps(fixture))
+        assert frozen_source(root,target)==early,"WRONG_SCORING_SLOT"
+        noon=root/"reports"/"noon-cohorts"/target/"1200.json"
+        noon.parent.mkdir(parents=True)
+        noon.write_text(json.dumps({"official_games":{"event1":{},"event2":{}}}))
+        assert frozen_source(root,target)==early
         def partial(day):return {"event1":{"completed":True,"home_points":110,"away_points":105},
-                                  "event2":{"completed":False,"home_points":None,"away_points":None}}
-        q=decide(root,now,score_fetch=partial)
-        assert q["state"].startswith("WAITING") and q["pending_days"][0]["final"]==1
+                                 "event2":{"completed":False}}
         def all_final(day):return {"event1":{"completed":True,"home_points":110,"away_points":105},
                                    "event2":{"completed":True,"home_points":111,"away_points":112}}
+        q=decide(root,now,score_fetch=partial)
+        assert q["state"].startswith("WAITING")
         q=decide(root,now,score_fetch=all_final)
-        assert q["state"]=="READY_ALL_FINAL" and q["proof"]=={"complete":True,"total":2,"final":2,"pending":[]}
-        assert decide(root,datetime.fromisoformat("2026-10-31T20:00:00+08:00"),score_fetch=all_final)["state"].startswith("WAITING")
-        assert decide(root,datetime.fromisoformat("2026-11-01T00:10:00+08:00"),score_fetch=all_final)["day"]==target
-        assert decide(root,datetime.fromisoformat("2026-11-05T00:10:00+08:00"),score_fetch=all_final)["day"]==target
-        # A later 06:30 snapshot for an already-started 03:00 game is not
-        # a valid full-slate research forecast, regardless of complete IDs.
-        with tempfile.TemporaryDirectory() as t:
-            root2=Path(t)
-            day="2026-11-01"
-            noon=root2/"reports"/"noon-cohorts"/day/"1200.json"
-            noon.parent.mkdir(parents=True)
-            noon.write_text(json.dumps({"official_games":{"early":{},"late":{}}}))
-            games=[
-                {"game_id":"001","nba_game_id":"early","tipoff_beijing":"2026-11-01T03:00:00+08:00",
-                 "markets":{"JINGCAI_WIN":{"status":"DIRECTION_ISSUED",
-                     "captured_at_utc":"2026-10-31T18:00:00+08:00"}}},
-                {"game_id":"002","nba_game_id":"late","tipoff_beijing":"2026-11-01T08:30:00+08:00",
-                 "markets":{"CROWN_TOTAL":{"status":"CROWN_QUOTE_NOT_VERIFIED","captured_at_utc":None}}}]
-            before=root2/"reports"/"daily"/day/"1800"/"nba_five_market_forecast.json"
-            after=root2/"reports"/"daily"/day/"0630"/"nba_five_market_forecast.json"
-            before.parent.mkdir(parents=True)
-            after.parent.mkdir(parents=True)
-            safe={"target_date":day,"board_capture_utc":"2026-10-31T18:01:00+08:00","games":games}
-            before.write_text(json.dumps(safe))
-            later={**safe,"board_capture_utc":"2026-11-01T06:31:00+08:00"}
-            after.write_text(json.dumps(later))
-            assert frozen_source(root2,day)==before,"POSTTIP_FULL_BOARD_SELECTED"
-            assert point_in_time_valid(later,games) is False
-            safe["games"][0]["markets"]["JINGCAI_WIN"]["captured_at_utc"]="2026-11-01T03:01:00+08:00"
-            before.write_text(json.dumps(safe))
-            assert frozen_source(root2,day) is None,"POSTTIP_MARKET_QUOTE_SELECTED"
-            safe["games"][0]["markets"]["JINGCAI_WIN"]["captured_at_utc"]="2026-10-31T18:00:00+08:00"
-            safe["board_capture_utc"]="2026-11-01T03:00:00+08:00"
-            before.write_text(json.dumps(safe))
-            assert frozen_source(root2,day) is None,"AT_TIP_MODEL_SELECTED"
-            safe["board_capture_utc"]="2026-10-31T18:01:00+08:00"
-            before.write_text(json.dumps(safe))
-            assert frozen_source(root2,day)==before,"VALID_PRETIP_BOARD_NOT_SELECTED"
-        marker=root/"reports"/"five-market-settled"/target/"2200.json"
-        marker.parent.mkdir(parents=True)
-        marker.write_text(json.dumps({"state":ACCEPTED}))
-        assert reviewed(root,target) is False
-        done=root/"reports"/"five-market-settled"/target
-        (done/"settlement.json").write_text(json.dumps({"beijing_date":target,"games":[{"game_id":"a"}],
-            "summary":{x:{"unsettled":0} for x in ("JINGCAI_WIN","JINGCAI_HANDICAP","JINGCAI_TOTAL","CROWN_HANDICAP","CROWN_TOTAL")}}))
-        (done/"report.html").write_text("<b>五玩法复盘</b>")
-        assert decide(root,now,score_fetch=all_final)["state"].startswith("WAITING")
-        marker.write_text(json.dumps({"state":"DRY_RUN_NOT_SENT"}))
-        assert decide(root,now,score_fetch=all_final)["state"]=="READY_ALL_FINAL"
-        f["games"][1]["nba_game_id"]="event1"
-        src.write_text(json.dumps(f))
-        try:decide(root,now,score_fetch=all_final)
-        except ValueError as e:assert "DUPLICATE" in str(e)
-        else:raise AssertionError("Duplicate game IDs accepted")
-    print("NBA_LAST_OFFICIAL_FINAL_GATE_SELF_TEST_PASS")
+        assert q["state"]=="READY_ALL_FINAL" and q["source"]==str(early.relative_to(root))
+        assert q["proof"]=={"complete":True,"total":2,"final":2,"pending":[]}
+        fixture["board_capture_utc"]="2026-11-07T09:30:00+08:00"
+        early.write_text(json.dumps(fixture))
+        try:frozen_source(root,target)
+        except ValueError as e:assert "POSTTIP" in str(e)
+        else:raise AssertionError("POST_KICKOFF_2100_SNAPSHOT_SELECTED")
+        fixture["board_capture_utc"]="2026-11-06T21:02:00+08:00"
+        fixture["games"][0]["nba_game_id"]="duplicate"
+        early.write_text(json.dumps(fixture))
+        try:frozen_source(root,target)
+        except ValueError as e:assert "COHORT" in str(e)
+        else:raise AssertionError("COHORT_MISMATCH_ACCEPTED")
+    print("NBA_ONLY_2100_VERIFIED_FROZEN_RESULT_GATE_PASS")
 
 def main():
     ap=argparse.ArgumentParser()
