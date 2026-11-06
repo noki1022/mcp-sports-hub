@@ -51,6 +51,7 @@ class TestLive(unittest.TestCase):
   self.assertEqual(len(s["games"]),2)
   self.assertEqual(s["games"][0]["jc_number"],"周四001")
   self.assertEqual(s["games"][0]["home_team"],"曼联")
+  self.assertEqual(s["games"][0]["league_id_007"],36)
   self.assertEqual(s["games"][0]["away_team"],"阿森纳")
   self.assertEqual(s["games"][0]["kickoff_beijing"],"2026-11-05T18:00:00+08:00")
   self.assertEqual(s["games"][0]["jc_markets"]["hhad"]["signed_home_handicap"],-1)
