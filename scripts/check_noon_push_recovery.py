@@ -25,7 +25,7 @@ assert "env.REPORT_SLOT == '1200'" in s
 assert "scripts/nba_verified_offday.py --self-test" in Path(".github/workflows/ci.yml").read_text()
 assert "--send --require-token --require-delivery" in s
 assert "status.get('state')!='API_ACCEPTED_NOT_DEVICE_CONFIRMED'" in s
-assert "FALLBACK_SLOT=\"${REPORT_SLOT:-}\"" in s
+assert "FALLBACK_SLOT=" not in s
 assert "nba_schedule_fallback_push.py" not in s
 assert "reports/pushplus-sent" in s
 assert '- cron: "15 4 * * *"' not in s
