@@ -32,6 +32,8 @@ class TestLive(unittest.TestCase):
   def parse(raw,game,observed):
    return {'home_last5':[{}]*5,'away_last5':[{}]*5,'h2h':[],
      'injury_source_facts':[],'injury_report_state':'UNVERIFIED','injuries':[],
+     'season_source_facts':{'status':'UNAVAILABLE','home':None,'away':None},
+     'transfer_source_facts':{'status':'UNAVAILABLE','home':[],'away':[]},
      'source_evidence':{'captured_at_utc':observed}}
   with TemporaryDirectory() as tmp,patch.object(live.analysis_007,'get_page',side_effect=fetch),\
        patch.object(live.analysis_007,'extract',side_effect=parse):
