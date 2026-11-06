@@ -5,6 +5,8 @@ on:
     paths:
       - 'scripts/football_007_live_capture.py'
       - 'analysis/football_context_features.py'
+      - 'analysis/football_jc_contextual_challenger.py'
+      - 'tests/test_football_jc_contextual_challenger.py'
       - 'tests/test_football_context_features.py'
       - 'scripts/football_007_asian_companies.py'
       - 'analysis/football_007_asian_real_compare.py'
@@ -96,6 +98,9 @@ jobs:
           python3 -B -m unittest discover -s tests -p test_football_007_cp_totals.py -v
           python3 -B -m unittest discover -s tests -p test_football_007_analysis_extract.py -v
           python3 -B -m unittest discover -s tests -p test_football_jc.py -v
+      - name: Test independent football season plus venue quantification and odds invariance (PR only)
+        if: github.event_name == 'pull_request'
+        run: python3 -B -m unittest discover -s tests -p test_football_jc_contextual_challenger.py -v
       - name: Verify new 007 opponent IDs and context feature integrity (PR only)
         if: github.event_name == 'pull_request'
         run: python3 -B -m unittest discover -s tests -p test_football_context_features.py -v
@@ -194,6 +199,15 @@ jobs:
             --snapshot football-output/football_007_snapshot.json \
             --out football-output/football_context_features.json
           test -s football-output/football_context_features.json
+      - name: Run non-price season venue opponent contextual forecast as challenger only
+        # Read-only experimental forecast, *never* the official prediction
+        # source, no retrigger, no PushPlus and no training autorelease.
+        continue-on-error: true
+        run: |
+          python3 -B analysis/football_jc_contextual_challenger.py \
+            --snapshot football-output/football_007_snapshot.json \
+            --out football-output/football_contextual_challenger.json
+          test -s football-output/football_contextual_challenger.json
       - name: Store timestamp-hashed per-match candidates independently of 21:00 baseline
         env:
           FOOTBALL_SCHEDULE_EXPR: ${{ github.event.schedule || inputs.recovery_cron || '' }}
