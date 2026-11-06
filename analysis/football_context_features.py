@@ -97,6 +97,85 @@ def recent_form(raw,captured,kickoff,expected_venue):
     }
 
 
+def season_summary(game):
+    """Check fixed 007 club/season IDs before using source-reported standings."""
+    season=game.get("season_source_facts") or {}
+    if season.get("status")!="SOURCE_REPORTED_007_SEASON_PRETIP":
+        return {"status":"UNAVAILABLE_OR_NOT_VERIFIED","home":None,"away":None}
+    result={"status":"007_CURRENTPOINTS_SOURCE_REPORTED_NOT_FT_AUDITED",
+            "season_id":season.get("season_id")}
+    for side in ("home","away"):
+        info=season.get(side)
+        if not isinstance(info,dict):
+            raise ValueError("SEASON_SOURCE_SIDE_MISSING")
+        expected=game.get(side+"_team_id_007")
+        if str(expected)!=str(info.get("source_team_id_007")):
+            raise ValueError("SEASON_TEAM_IDENTITY_DRIFT")
+        league=game.get("league_id_007")
+        if league is not None and str(league)!=str(info.get("source_league_id_007")):
+            raise ValueError("SEASON_LEAGUE_IDENTITY_DRIFT")
+        if str(info.get("season_id"))!=str(season.get("season_id")):
+            raise ValueError("SEASON_IDENTITY_DRIFT")
+        scopes=info.get("scopes") or {}
+        all_,venue=scopes.get("ALL"),scopes.get("HOME" if side=="home" else "AWAY")
+        if not isinstance(all_,dict) or not isinstance(venue,dict):
+            raise ValueError("INCOMPLETE_SEASON_SCOPE")
+        for scope in (all_,venue):
+            if any(type(scope.get(k)) is not int or scope[k]<0 for k in ("total","win","draw","loss","getGoal","lossGoal","rank")):
+                raise ValueError("INVALID_SEASON_SOURCE_TOTALS")
+            if scope["total"]!=scope["win"]+scope["draw"]+scope["loss"]:
+                raise ValueError("SEASON_OUTCOME_TOTALS_DRIFT")
+        def rates(x):
+            n=x["total"]
+            if not n:return {"matches":0,"goals_for_per_match":None,
+                            "goals_against_per_match":None,"points_per_match":None,
+                            "rank":x["rank"]}
+            return {"matches":n,
+                    "goals_for_per_match":round(x["getGoal"]/n,4),
+                    "goals_against_per_match":round(x["lossGoal"]/n,4),
+                    "points_per_match":round(x["point"]/n,4) if type(x.get("point")) is int else None,
+                    "rank":x["rank"]}
+        result[side]={"all_competition_season_record":rates(all_),
+                      "venue_season_record":rates(venue)}
+    return result
+
+
+def transfer_summary(game,captured):
+    """Count past source-listed transfers; leave player quality/impact UNKNOWN."""
+    transfers=game.get("transfer_source_facts") or {}
+    if transfers.get("status")!="007_SOURCE_REPORTED_TRANSFERS_NOT_LINEUP_IMPACT":
+        return {"status":"UNAVAILABLE","counts_180d":None,
+                "transfer_impact":None}
+    window=180*86400
+    totals={}
+    for side in ("home","away"):
+        events=transfers.get(side)
+        if not isinstance(events,list) or len(events)>150:
+            raise ValueError("INVALID_TRANSFER_EVENT_ROWS")
+        seen=set()
+        counts={"IN":0,"OUT":0}
+        for event in events:
+            if not isinstance(event,dict):
+                raise ValueError("INVALID_TRANSFER_EVENT")
+            player=event.get("player_id_007")
+            direction=event.get("direction")
+            if type(player) is not int or player<=0 or direction not in counts:
+                raise ValueError("INVALID_TRANSFER_PLAYER_OR_DIRECTION")
+            if str(event.get("club_team_id_007"))!=str(game.get(side+"_team_id_007")):
+                raise ValueError("TRANSFER_TEAM_IDENTITY_DRIFT")
+            stamp=timestamp(event.get("event_at_utc"))
+            if stamp>captured:
+                raise ValueError("FUTURE_TRANSFER_LEAKAGE")
+            key=(player,direction,stamp.isoformat())
+            if key in seen:raise ValueError("DUPLICATE_TRANSFER_EVENT")
+            seen.add(key)
+            if 0<=(captured-stamp).total_seconds()<=window:
+                counts[direction]+=1
+        totals[side]={"incoming":counts["IN"],"outgoing":counts["OUT"]}
+    return {"status":"007_TRANSFER_EVENTS_SOURCED_NOT_CONFIRMED_ROSTER_IMPACT",
+            "counts_180d":totals,"transfer_impact":None}
+
+
 def build_game(game,captured):
     if not isinstance(game,dict):raise ValueError("INVALID_CONTEXT_GAME")
     kickoff=timestamp(game["kickoff_beijing"])
@@ -115,6 +194,8 @@ def build_game(game,captured):
     for item in injuries:
         if not isinstance(item,dict) or timestamp(item["observed_at"])>captured:
             raise ValueError("CONTEXT_INJURY_AFTER_CAPTURE")
+    season=season_summary(game)
+    transfers=transfer_summary(game,captured)
     verified=game.get("injury_report_state")=="VERIFIED"
     confirmed=game.get("injuries") or []
     if confirmed and not verified:raise ValueError("UNVERIFIED_PLAYER_ADJUSTMENT_BLOCKED")
@@ -128,6 +209,8 @@ def build_game(game,captured):
         "home":home,"away":away,
         "h2h":{"count":len(h2h),
                "status":"SOURCE_PRESENT_NOT_INDEPENDENT_FT_VERIFIED" if h2h else "NO_H2H_OBSERVED"},
+        "season":season,
+        "transfers":transfers,
         "personnel":{
             "source_listed_injuries":len(injuries),
             "verified_injuries":len(confirmed) if verified else 0,
