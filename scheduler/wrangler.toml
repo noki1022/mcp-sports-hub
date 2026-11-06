@@ -3,6 +3,6 @@ main = "worker.mjs"
 compatibility_date = "2026-10-30"
 [triggers]
 # ONLY exact canonical slots; never retries, late fallbacks, or recovery ticks.
-# Five Cron limit respected using three expressions.
+# Cloudflare Free Cron limit respected with two expressions.
 # Football silent 00:00–06:00 capture remains, but cannot PushPlus.
-crons = ["0 4-13,16-22 * * *", "30 13,16,19,22 * * *", "0 14 * * *"]
+crons = ["0 4-13,16-22 * * *", "30 13,16,19,22 * * *"]
