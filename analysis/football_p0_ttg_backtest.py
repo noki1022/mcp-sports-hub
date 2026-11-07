@@ -190,12 +190,12 @@ def paired_eval(examples):
             try:losses.append(score(score_grid(h,a,c),y)["log_loss"])
             except ValueError:pass
         holdout[c]={"n":len(losses),"mean_log_loss":round(sum(losses)/len(losses),6) if losses else None}
-    report.update(status="RESEARCH_HOLDOUT_EVALUATED_NO_AUTO_PROMOTION",
-                  "train_n":len(train),"holdout_n":len(test),
-                  "selected_candidate":winner,
-                  "selection_training_only":True,
-                  "holdout":holdout,
-                  "auto_promote":False)
+    report.update({"status":"RESEARCH_HOLDOUT_EVALUATED_NO_AUTO_PROMOTION",
+                   "train_n":len(train),"holdout_n":len(test),
+                   "selected_candidate":winner,
+                   "selection_training_only":True,
+                   "holdout":holdout,
+                   "auto_promote":False})
     return report
 
 
