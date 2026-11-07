@@ -11,6 +11,9 @@ on:
       - 'analysis/football_context_features.py'
       - 'analysis/football_jc_contextual_challenger.py'
       - 'analysis/football_007_deep_context.py'
+      - 'analysis/football_p0_fact_audit.py'
+      - 'analysis/football_p0_ttg_backtest.py'
+      - 'tests/test_football_p0_quant.py'
       - 'tests/test_football_007_deep_context.py'
       - 'tests/test_football_jc_contextual_challenger.py'
       - 'tests/test_football_context_features.py'
@@ -104,6 +107,9 @@ jobs:
           python3 -B -m unittest discover -s tests -p test_football_007_cp_totals.py -v
           python3 -B -m unittest discover -s tests -p test_football_007_analysis_extract.py -v
           python3 -B -m unittest discover -s tests -p test_football_jc.py -v
+      - name: Verify P0 personnel/opponent and distribution research gates (PR only)
+        if: github.event_name == 'pull_request'
+        run: python3 -B -m unittest discover -s tests -p test_football_p0_quant.py -v
       - name: Verify 007 suspension and opponent tier deep source evidence (PR only)
         if: github.event_name == 'pull_request'
         run: python3 -B -m unittest discover -s tests -p test_football_007_deep_context.py -v
@@ -191,6 +197,14 @@ jobs:
             --conversion-out football-output/football_jc_euro_asian.json \
             --out football-output/football_jc_forecast_market.json
           python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast_market.json --html football-output/football_jc_mobile.html
+      - name: Archive P0 player availability and prior opponent study without touching forecasts
+        continue-on-error: true
+        run: |
+          python3 -B analysis/football_p0_fact_audit.py \
+            --snapshot football-output/football_007_snapshot.json \
+            --history-root football-history \
+            --out football-output/football_p0_fact_audit.json
+          test -s football-output/football_p0_fact_audit.json
       - name: Store timestamp-hashed per-match candidates independently of 21:00 baseline
         env:
           FOOTBALL_SCHEDULE_EXPR: ${{ github.event.schedule || inputs.recovery_cron || '' }}
