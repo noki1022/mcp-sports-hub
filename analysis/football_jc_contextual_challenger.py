@@ -12,10 +12,11 @@ starting hypotheses, not fitted model weights. No PushPlus or grading changes.
 from __future__ import annotations
 import argparse
 from collections import defaultdict
-from datetime import datetime,timezone
+from datetime import datetime,timedelta,timezone
 import hashlib
 import json
 import math
+import re
 from pathlib import Path
 import sys
 
@@ -29,6 +30,7 @@ PRIOR_MATCHES=40
 VENUE_PRIOR_GAMES=6
 ALL_PRIOR_GAMES=10
 RECENT_PRIOR_GAMES=8
+MAX_OPPONENT_ARCHIVE_AGE=timedelta(days=7)
 MARKETS={"had":("主胜","平","客胜"),
          "hhad":("让胜","让平","让负"),
          "ttg":("0球","1球","2球","3球","4球","5球","6球","7+球")}
@@ -155,7 +157,49 @@ def current_opponents(games):
     return known
 
 
-def form_effect(recent,season_all,asof,kickoff,league_id,opp_catalog,side):
+def archived_opponents(history, asof):
+    """Latest pre-match standings by verified competition, season and team."""
+    records = {}
+    for snapshot in history:
+        if snapshot.get("schema_version") != "football-jc-007-v1":
+            continue
+        try:
+            captured = stamp(snapshot["captured_at_utc"])
+        except (KeyError, ValueError, TypeError):
+            continue
+        if not asof - MAX_OPPONENT_ARCHIVE_AGE <= captured < asof:
+            continue
+        for game in snapshot.get("games") or []:
+            try:
+                if game.get("analysis_source_status") != "007_EMBEDDED_JSON_VALIDATED":
+                    continue
+                evidence = game["analysis_source_evidence"]
+                observed = stamp(evidence["captured_at_utc"])
+                if (not asof - MAX_OPPONENT_ARCHIVE_AGE <= observed < asof
+                        or max(captured, observed) >= stamp(game["kickoff_beijing"])
+                        or abs((observed - captured).total_seconds()) > 900
+                        or not re.fullmatch(r"[0-9a-f]{64}", evidence["sha256"])):
+                    continue
+                league = str(game["league_id_007"])
+                season, scopes = season_record(game)
+                for side in ("home", "away"):
+                    team = str(game[f"{side}_team_id_007"])
+                    if not league.isdecimal() or not team.isdecimal() or team != str(evidence[f"{side}_team_id"]):
+                        continue
+                    key = league, season, team
+                    previous = records.get(key)
+                    stats = scopes[side]["ALL"]
+                    if previous is None or observed > previous[0]:
+                        records[key] = observed, stats, evidence["sha256"]
+                    elif observed == previous[0] and stats != previous[1]:
+                        records[key] = observed, None, None
+            except (AttributeError, KeyError, ValueError, TypeError, OverflowError):
+                continue
+    return {key: entry for key, entry in records.items() if entry[1] is not None}
+
+
+def form_effect(recent,season_all,asof,kickoff,league_id,opp_catalog,side,
+                *, season_id=None, archive_catalog=None):
     """Time-weighted last5 and per-opponent strength corrections when observed.
 
     Missing opponent strength is UNKNOWN, never rated league-average by fiat.
@@ -166,6 +210,7 @@ def form_effect(recent,season_all,asof,kickoff,league_id,opp_catalog,side):
     seen=set()
     total_w=0.0; attack=0.0;concede=0.0;opponents=0
     last=None
+    archived_matches=[]
     for row in recent:
         if not isinstance(row,dict):raise ValueError("FORM_ITEM_INVALID")
         mid=str(row.get("match_id") or "")
@@ -179,7 +224,13 @@ def form_effect(recent,season_all,asof,kickoff,league_id,opp_catalog,side):
         if type(gf) is not int or type(ga) is not int or not 0<=gf<=30 or not 0<=ga<=30:
             raise ValueError("FORM_SCORE_INVALID")
         weight=2**(-age/38)
-        opp=opp_catalog.get((str(league_id),str(row.get("opponent_team_id_007"))))
+        opponent_id = str(row.get("opponent_team_id_007"))
+        opp = opp_catalog.get((str(league_id), opponent_id))
+        archived = None
+        if opp is None or opp["total"] < 5:
+            archived = (archive_catalog or {}).get((str(league_id), season_id, opponent_id))
+            if archived:
+                opp = archived[1]
         if opp is not None and opp["total"]>=5:
             # Opponent attack/defence correction is capped and only applied
             # with a same-league, pre-capture opponent historical record.
@@ -187,6 +238,10 @@ def form_effect(recent,season_all,asof,kickoff,league_id,opp_catalog,side):
             factor_a=capped((opp["getGoal"]+8*1.35)/(opp["total"]+8)/1.35,.75,1.25)
             gf=gf/(factor_d**.35);ga=ga/(factor_a**.35)
             opponents+=1
+            if archived:
+                archived_matches.append({"recent_match_id": mid, "opponent_id_007": opponent_id,
+                                         "observed_at_utc": archived[0].isoformat(),
+                                         "source_sha256": archived[2]})
         attack+=weight*gf;concede+=weight*ga;total_w+=weight
         if last is None or played>last:last=played
     # Posterior blend with actual season all-venue goals, not market odds.
@@ -204,10 +259,11 @@ def form_effect(recent,season_all,asof,kickoff,league_id,opp_catalog,side):
     density=sum((asof-stamp(r["played_at"])).total_seconds()<14*86400 for r in recent)
     return {"attack":da,"concede":dd,"rest_attack":rest,
             "last_kickoff_gap_days":round(gap,2),"recent14_fixture_count":density,
-            "verified_opponent_strength_matches":opponents,"recent5_count":len(recent)}
+            "verified_opponent_strength_matches":opponents,"recent5_count":len(recent),
+            "archived_opponent_evidence":archived_matches}
 
 
-def main_forecast(game,asof,rates,all_rates,opponents):
+def main_forecast(game,asof,rates,all_rates,opponents,archive_catalog):
     if game.get("analysis_source_status")!="007_EMBEDDED_JSON_VALIDATED":
         raise ValueError("UNVERIFIED_007_ANALYSIS_SOURCE")
     kickoff=stamp(game["kickoff_beijing"])
@@ -218,9 +274,9 @@ def main_forecast(game,asof,rates,all_rates,opponents):
     home=season_effect(teams["home"],"home",h_mu,a_mu)
     away=season_effect(teams["away"],"away",h_mu,a_mu)
     hf=form_effect(game["home_last5"],teams["home"]["ALL"],asof,kickoff,
-                   game["league_id_007"],opponents,"home")
+                   game["league_id_007"],opponents,"home",season_id=season,archive_catalog=archive_catalog)
     af=form_effect(game["away_last5"],teams["away"]["ALL"],asof,kickoff,
-                   game["league_id_007"],opponents,"away")
+                   game["league_id_007"],opponents,"away",season_id=season,archive_catalog=archive_catalog)
     # Multiplicative team-quality adjustments in log-goals space. This is
     # deliberately auditable and shrinkage-regularised, not an odds estimate.
     log_h=math.log(h_mu)+home["attack"]+away["concede"]+hf["attack"]+af["concede"]+hf["rest_attack"]
@@ -272,6 +328,8 @@ def main_forecast(game,asof,rates,all_rates,opponents):
             "home_recent5":hf["recent5_count"],"away_recent5":af["recent5_count"],
             "home_opponent_rated":hf["verified_opponent_strength_matches"],
             "away_opponent_rated":af["verified_opponent_strength_matches"],
+            "home_archived_opponents":hf["archived_opponent_evidence"],
+            "away_archived_opponents":af["archived_opponent_evidence"],
             "home_rest_days":hf["last_kickoff_gap_days"],
             "away_rest_days":af["last_kickoff_gap_days"],
             "injury_status":game.get("injury_report_state","UNAVAILABLE"),
@@ -284,14 +342,15 @@ def main_forecast(game,asof,rates,all_rates,opponents):
     }
 
 
-def run(snapshot):
+def run(snapshot, opponent_history=()):
     if snapshot.get("schema_version")!="football-jc-007-v1":raise ValueError("UNVERIFIED_SNAPSHOT")
     asof=stamp(snapshot["captured_at_utc"])
     league,global_stats=league_rates(snapshot.get("games") or [])
     opponents=current_opponents(snapshot.get("games") or [])
+    archive_catalog=archived_opponents(opponent_history,asof)
     rows=[];rejected=0
     for game in snapshot.get("games") or []:
-        try:row=main_forecast(game,asof,league,global_stats,opponents)
+        try:row=main_forecast(game,asof,league,global_stats,opponents,archive_catalog)
         except (ValueError,KeyError,TypeError,OverflowError,ZeroDivisionError) as error:
             rejected+=1
             row={"match_id":str(game.get("match_id")),"jc_number":game.get("jc_number"),
