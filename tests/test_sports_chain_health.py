@@ -113,6 +113,25 @@ class TestCrossSportHealth(unittest.TestCase):
         self.assertEqual(evidence["device_delivery"], "NOT_VERIFIED")
         self.assertIn("PRIORITY_PUSH_NOT_CONFIRMED", [x["code"] for x in result["issues"]])
 
+    def test_nba_2100_receipt_matches_external_run_even_if_native_run_skipped(self):
+        runs, releases = source()
+        target = next(r for r in runs if r["name"] == H.NBA_DAY
+                      and H.when(r["created_at"]).astimezone(H.BJ).hour == 21)
+        planned = H.when(target["created_at"]) - timedelta(minutes=12)
+        day = (planned.astimezone(H.BJ).date() + timedelta(days=1)).isoformat()
+        target["display_title"] = "NBA full report | slot=0 13 * * * | date=auto"
+        external = dict(target, id=999, event="workflow_dispatch",
+                        created_at=planned.isoformat(),
+                        display_title=f"NBA full report | slot=2100 | date={day}")
+        result = H.audit(runs + [external], releases, BRANCH, NOW,
+                         nba_receipts={(day, "2100"): {"run_id": "999"}})
+        evidence = next(x for x in result["priority_delivery_evidence"] if x["run_id"] == 999)
+        self.assertEqual(evidence["api_step_state"], "API_ACCEPTED_RECEIPT")
+        self.assertEqual(evidence["device_delivery"], "NOT_VERIFIED")
+        slot = next(x for x in result["slots"] if x["run_id"] == 999)
+        self.assertEqual({a["run_id"] for a in slot["attempts"]}, {target["id"], 999})
+        self.assertNotIn("PRIORITY_PUSH_NOT_CONFIRMED", [x["code"] for x in result["issues"]])
+
     def test_successful_send_step_is_not_phone_delivery(self):
         state = H.priority_send_evidence({}, [{"steps": [{
             "name": "Send exactly one football message per scheduled 21:30/06:30",

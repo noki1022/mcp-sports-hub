@@ -58,7 +58,7 @@ def run(repo, out, publish=False, days=7):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     today = datetime.now(ZoneInfo('Asia/Shanghai')).date()
-    health = {'verified': [], 'existing_verified': [], 'pending': [], 'errors': [],
+    health = {'verified': [], 'existing_verified': [], 'pending': [], 'quarantined': [], 'errors': [],
               'publishing': publish, 'predictions_modified': False, 'notifications_sent': 0}
     cache = {}
     for offset in range(days):
@@ -94,6 +94,7 @@ def run(repo, out, publish=False, days=7):
                         # previous calendar date for a UTC/BJ morning tip.
                         urls = ['https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=' +
                                 d.strftime('%Y%m%d') + '&limit=100' for d in (date, date-timedelta(days=1))]
+                    report = None
                     for url in urls:
                         if url not in cache:
                             cache[url] = fetch(url)
@@ -102,8 +103,22 @@ def run(repo, out, publish=False, days=7):
                             report = V.make(final, raw, url, observed)
                             break
                         except ValueError as exc:
+                            if sport == 'football' and str(exc) == '007_KICKOFF_MISMATCH':
+                                source = V.S.football(raw, mid)
+                                quarantine = out/'quarantine'/day/f'{mid}.source.html'
+                                quarantine.parent.mkdir(parents=True, exist_ok=True)
+                                quarantine.write_bytes(raw)
+                                health['quarantined'].append(identity | {
+                                    'reason': str(exc), 'frozen_kickoff_utc': final['kickoff_utc'],
+                                    'source_kickoff_beijing': source['kickoff_beijing'],
+                                    'source_sha256': source['source_sha256'], 'observed_at_utc': observed,
+                                    'source_url': url, 'raw_path': str(quarantine.relative_to(out))})
+                                print(f'::warning::007_KICKOFF_MISMATCH_QUARANTINED {mid}')
+                                break
                             if str(exc) != 'NBA_EVENT_MISSING_OR_DUPLICATE' or url == urls[-1]:
                                 raise
+                    if report is None:
+                        continue
                     destination = out/sport/day/name
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     destination.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True)+'\n')

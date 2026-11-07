@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'analysis'))
 import sports_verified_result_sources as S
@@ -39,6 +40,33 @@ class Results(unittest.TestCase):
                     html().replace('第34轮'.encode(), '决赛'.encode())):
             with self.assertRaises(ValueError):
                 S.football(raw, '3075305')
+
+    def test_kickoff_mismatch_preserves_raw_evidence_without_scoring(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]/"ops"))
+        import sports_result_to_review as job
+        final = football()
+        source_tag = f"sport-pregame-final-football-{final['kickoff_beijing_day']}"
+        raw = html().replace(b"07:30:00", b"07:40:00")
+        with self.assertRaisesRegex(ValueError, "007_KICKOFF_MISMATCH"):
+            V.score(final, raw, iso(TIP + timedelta(hours=3)))
+        source = {"assets": [{"name": "football-3075305.final.json", "id": 1}]}
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            patch.object(job, "release", side_effect=lambda repo, tag: source if tag == source_tag else None),
+            patch.object(job, "asset_bytes", return_value=json.dumps(final).encode()),
+            patch.object(job, "fetch", return_value=(raw, iso(TIP + timedelta(hours=3)))),
+            patch.object(job, "datetime", wraps=job.datetime) as clock,
+            patch.object(job, "gh") as publish,
+        ):
+            clock.now.return_value = TIP.astimezone(job.ZoneInfo("Asia/Shanghai"))
+            result = job.run("fixture/repo", tmp, publish=True, days=1)
+            self.assertFalse(result["errors"])
+            self.assertFalse(result["verified"])
+            item, = result["quarantined"]
+            self.assertEqual(item["frozen_kickoff_utc"], final["kickoff_utc"])
+            self.assertTrue(item["source_kickoff_beijing"].endswith("07:40:00+08:00"))
+            self.assertEqual((Path(tmp)/item["raw_path"]).read_bytes(), raw)
+            publish.assert_not_called()
 
     def test_same_hash_cannot_legitimize_fabricated_score(self):
         final = football()

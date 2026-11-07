@@ -69,8 +69,8 @@ jobs:
           now=datetime.now(timezone.utc)
           slots=list(h.expected_slots(now,24,180))
           grouped=h.chronological_assignments(slots,runs)
-          ids=sorted({run["id"] for ix,(run,_) in grouped.items()
-                      if slots[ix]["workflow"] in h.PRIORITY
+          ids=sorted({run["id"] for ix,attempts in grouped.items()
+                      for run,_ in attempts if slots[ix]["workflow"] in h.PRIORITY
                       and slots[ix]["planned"].astimezone(h.BJ).strftime("%H:%M")
                       == "21:00"})
           for rid in ids[:16]:
@@ -92,6 +92,7 @@ jobs:
             --releases audit-input/releases.json \
             --archive-branch audit-input/nba-archive-branch.json \
             --priority-jobs-dir audit-input/priority-jobs \
+            --nba-receipts-root reports/pushplus-sent \
             --out audit-output/sports-chain-health.json --strict
       - name: Keep read-only diagnostic report, even when the audit detects missing runs
         if: always() && github.event_name != 'pull_request'

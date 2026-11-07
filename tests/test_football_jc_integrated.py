@@ -35,6 +35,22 @@ class IntegratedFootballTest(unittest.TestCase):
         for market in row["markets"].values():
             self.assertAlmostEqual(sum(market["probabilities"].values()), 1, places=5)
 
+    def test_model_upgrade_keeps_version_independent_readers_and_freeze(self):
+        data = snapshot()
+        report = self.forecast(data)
+        report["model_version"] = "football-future-model-v99"
+        locked = final.freeze(data, report, data["beijing_date"], NOW + timedelta(minutes=1))
+        self.assertEqual(locked["model_version"], report["model_version"])
+        self.assertEqual(locked["final_forecast_sha256"], final.sha(report))
+        self.assertTrue(make_candidate("football", data, report, "123", "2100"))
+        for hour in range(12, 24):
+            self.assertIn(f"{hour}:00", prepare(report, "daytime", daytime_slot=f"{hour}00")["title"])
+        report["forecast_schema"] = "unknown-output-format"
+        with self.assertRaisesRegex(ValueError, "MUST_SEND_SINGLE_INTEGRATED"):
+            prepare(report, "daytime", daytime_slot="2100")
+        with self.assertRaisesRegex(ValueError, "ONLY_INTEGRATED"):
+            final.freeze(data, report, data["beijing_date"], NOW + timedelta(minutes=1))
+
     def test_unavailable_context_retains_recent_form_and_verified_injury(self):
         data = snapshot()
         game = data["games"][0]
