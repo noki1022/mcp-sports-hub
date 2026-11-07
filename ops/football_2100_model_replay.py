@@ -92,11 +92,15 @@ def replay(repo, day):
         if snapshot is None:
             raise ValueError("ORIGINAL_2100_CAPTURE_HASH_NOT_FOUND")
         history = []
+        bytes_remaining = 100_000_000
         for offset in (0, 1, 2):
             source_assets = same_day if offset == 0 else raw_assets(repo, day - timedelta(days=offset))
             eligible = [a for a in source_assets if final.as_dt(a["created_at"]) < captured]
-            # Bound read-only CI work while retaining several captures per day.
-            for asset in sorted(eligible, key=lambda a: a["created_at"], reverse=True)[:6]:
+            # Retain all feasible source snapshots, with a bounded download budget.
+            for asset in sorted(eligible, key=lambda a: a["created_at"], reverse=True)[:32]:
+                if not 0 < asset["size"] <= min(4_000_000, bytes_remaining):
+                    continue
+                bytes_remaining -= asset["size"]
                 with zip_asset(repo, asset) as bundle:
                     previous = json.loads(member(bundle, SNAPSHOT))
                     if final.as_dt(previous["captured_at_utc"]) < captured:
@@ -108,6 +112,10 @@ def replay(repo, day):
     movement = compare(snapshot, baseline, movement_trial, results, len(history),
                        covered=lambda row: "market_trend_trial" in row)
     comparison["sustained_market_trend_trial"] = movement
+    opening_trial = trend.apply_opening(snapshot, baseline)
+    comparison["opening_to_latest_trial"] = compare(
+        snapshot, baseline, opening_trial, results, len(history),
+        covered=lambda row: "opening_market_trial" in row)
     return comparison
 
 

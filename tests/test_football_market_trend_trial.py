@@ -35,3 +35,29 @@ class MarketTrendTrial(unittest.TestCase):
                            old["markets"]["had"]["probabilities"]["主胜"])
         self.assertEqual(new["markets"]["ttg"]["probabilities"], old["markets"]["ttg"]["probabilities"])
         self.assertNotIn("market_trend_trial", old)
+
+    def test_opening_and_current_are_compared_in_each_book_even_if_line_moves(self):
+        snapshot, base = with_quotes(shift=.36)
+        game = snapshot["games"][0]
+        forecast = trial.asian.assimilate(snapshot, base, MODEL)
+        old = forecast["games"][0]
+        expected = old["market_assimilation"]["independent_expected_goals"]
+        line = -.25
+        market = trial.asian.euro.asian_fair(
+            trial.asian.euro.grid(expected["home"], expected["away"]), line)
+        for company in game["asian_007"]["companies"]:
+            company["main"]["initial_quote"] = {
+                "signed_home_asian_handicap": line,
+                "source_007_home_gives_goals": -line,
+                "home_water": {"hong_kong_net": market["home_fair_decimal"] - 1},
+                "away_water": {"hong_kong_net": market["away_fair_decimal"] - 1},
+            }
+        new = trial.apply_opening(snapshot, forecast)["games"][0]
+        self.assertAlmostEqual(new["opening_market_trial"]["movement"], .36, places=2)
+        self.assertGreater(new["markets"]["had"]["probabilities"]["主胜"],
+                           old["markets"]["had"]["probabilities"]["主胜"])
+        self.assertEqual(new["markets"]["ttg"]["probabilities"], old["markets"]["ttg"]["probabilities"])
+        # Reject unavailable or conflicting opening evidence for matched books.
+        for company in game["asian_007"]["companies"][:3]:
+            company["main"]["initial_quote"]["source_007_home_gives_goals"] = line
+        self.assertEqual(trial.apply_opening(snapshot, forecast), forecast)
