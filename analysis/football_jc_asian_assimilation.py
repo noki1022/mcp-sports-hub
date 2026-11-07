@@ -288,7 +288,7 @@ def _market_evidence(game,original,captured,model_at):
         "baseline_home":h,"baseline_away":a
     },"SOURCE_VERIFIED"
 
-def _redo_forecast(game,row,new_lh,new_la):
+def rebuild_markets(game,row,new_lh,new_la):
     markets=game.get("jc_markets") or {}
     raw_hh=markets.get("hhad")
     handicap=raw_hh.get("signed_home_handicap") if isinstance(raw_hh,dict) else None
@@ -339,7 +339,7 @@ def football_path(game,row,current,history,captured,model_at):
     return describe(points,asof=model_at.isoformat(),kickoff=game["kickoff_beijing"],tolerance=.005)
 
 
-def assimilate(snapshot,original,model_at=None,history=None):
+def assimilate(snapshot,original,model_at=None,history=None,european_references=None):
     """Preserve original forecast separately; return a new market-aware report."""
     if snapshot.get("schema_version")!="football-jc-007-v1":
         raise ValueError("NOT_FOOTBALL_007_SNAPSHOT")
@@ -387,6 +387,11 @@ def assimilate(snapshot,original,model_at=None,history=None):
             continue
         path=football_path(game,row,evidence,history or [],captured,model_at)
         attenuation=risk_multiplier(path)
+        european_line=(european_references or {}).get(str(game["match_id"]))
+        observed_line=statistics.median(q["line"] for q in evidence["bookmaker_evidence"])
+        european_conflict=european_line is not None and abs(european_line-observed_line)>=.5
+        if european_conflict:
+            attenuation *= .75
         shift=evidence["median_unshrunk_difference_shift"]
         applied=max(-MAX_APPLIED_DIFFERENCE_GOALS,
                     min(MAX_APPLIED_DIFFERENCE_GOALS,BASE_SHRINKAGE*shift))*attenuation
@@ -394,12 +399,15 @@ def assimilate(snapshot,original,model_at=None,history=None):
         new_h,new_a=_goals_at_shift(h,a,applied)
         if abs((new_h+new_a)-(h+a))>1e-9:
             raise ValueError("AH_CANNOT_CHANGE_EXPECTED_TOTAL_GOALS")
-        _redo_forecast(game,row,new_h,new_a)
+        rebuild_markets(game,row,new_h,new_a)
         # Record old expectation and exact update for reproducible comparison.
         row["market_assimilation"]={
             "status":"APPLIED_BOUNDED_007_REAL_ASIAN",
             "dynamic_market_path":path,
             "dynamic_risk_multiplier":attenuation,
+            "european_converted_home_line":european_line,
+            "selected_asian_median_home_line":observed_line,
+            "european_asian_conflict_reduced_market_weight":european_conflict,
             "assumptions":"UNTRAINED_HEURISTIC_MARKET_UPDATE_NOT_CALIBRATED",
             "source_sha256":evidence["source_sha256"],
             "source_captured_at_utc":evidence["source_captured_at_utc"],

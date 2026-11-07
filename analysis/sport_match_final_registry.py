@@ -45,7 +45,7 @@ def make_candidate(sport,snapshot,forecast,run_id,slot=""):
         require(snapshot.get("schema_version")=="football-jc-007-v1","WRONG_FOOTBALL_SOURCE")
         require(forecast.get("source_sha256")==digest(snapshot),"FOOTBALL_SOURCE_HASH_MISMATCH")
         require(forecast.get("model_version") in ("football-jc-poisson-asian-assimilation-v3",
-                "football-jc-poisson-asian-assimilation-v4"),"ONLY_FUSED_FOOTBALL_MODEL_ALLOWED")
+                "football-jc-poisson-asian-assimilation-v4", "football-jc-integrated-v5"),"ONLY_FUSED_FOOTBALL_MODEL_ALLOWED")
         captured=stamp(snapshot["captured_at_utc"])
         require(stamp(forecast["captured_at_utc"])==captured,"FOOTBALL_CAPTURE_DRIFT")
         generated=stamp(forecast["generated_at_utc"])

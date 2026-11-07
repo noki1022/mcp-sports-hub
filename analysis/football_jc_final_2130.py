@@ -16,7 +16,7 @@ from typing import Any
 
 BJ=ZoneInfo("Asia/Shanghai")
 VERSION="football-jc-single-final-2100-v1"
-from football_jc_asian_assimilation import VERSION as FUSED_VERSION  # one producer-owned contract
+from football_jc_integrated import VERSION as FUSED_VERSION
 KEYS=("had","hhad","ttg")
 LABELS={"had":"竞彩胜平负","hhad":"竞彩让球胜平负","ttg":"竞彩总进球数"}
 MAX_DELAY=120 # scheduled 21:00 source window; never relabel a late capture as on-time
