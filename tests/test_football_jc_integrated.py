@@ -4,7 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from test_football_jc_contextual_challenger import NOW, snapshot
+from test_football_jc_contextual_challenger import NOW, season, snapshot
 import football_jc_integrated as integrated
 import football_jc_final_2130 as final
 from football_jc_slot_push import prepare
@@ -12,10 +12,10 @@ from sport_match_final_registry import make_candidate
 
 
 class IntegratedFootballTest(unittest.TestCase):
-    def forecast(self, data):
+    def forecast(self, data, history=()):
         data["games"][0]["source_url"] = "https://zq.titan007.com/analysis/3000123cn.htm"
         with TemporaryDirectory() as directory:
-            return integrated.fuse(data, Path(directory), model_at=NOW + timedelta(seconds=10))[0]
+            return integrated.fuse(data, Path(directory), history, model_at=NOW + timedelta(seconds=10))[0]
 
     def test_season_moves_the_actual_scored_and_pushed_forecast(self):
         original = snapshot()
@@ -50,6 +50,46 @@ class IntegratedFootballTest(unittest.TestCase):
             prepare(report, "daytime", daytime_slot="2100")
         with self.assertRaisesRegex(ValueError, "ONLY_INTEGRATED"):
             final.freeze(data, report, data["beijing_date"], NOW + timedelta(minutes=1))
+
+    def test_archived_opponent_strength_changes_live_probabilities_as_of_capture(self):
+        data = snapshot()
+        opponent = data["games"][0]["home_last5"][0]["opponent_team_id_007"]
+        observed = NOW - timedelta(days=1)
+        archive = snapshot()
+        archive["captured_at_utc"] = observed.isoformat()
+        archived_game = archive["games"][0]
+        archived_game["match_id"] = "3000144"
+        archived_game["home_team_id_007"] = opponent
+        archived_game["season_source_facts"]["home"] = season(opponent, 9)
+        archived_game["analysis_source_evidence"] = {
+            "captured_at_utc": observed.isoformat(), "sha256": "a" * 64,
+            "home_team_id": opponent, "away_team_id": archived_game["away_team_id_007"],
+        }
+        # Strengthen that past opponent's defense and preserve season totals.
+        stats = archived_game["season_source_facts"]["home"]["scopes"]
+        stats["ALL"]["lossGoal"] = 3
+        stats["HOME"]["lossGoal"] = 1
+        stats["AWAY"]["lossGoal"] = 2
+        before = self.forecast(data)["games"][0]
+        after = self.forecast(data, [archive])["games"][0]
+        self.assertGreater(after["goal_expectation"]["home"], before["goal_expectation"]["home"])
+        quality = after["fundamental_fusion"]["season_venue_opponent_rest"]["source_quality"]
+        evidence, = quality["home_archived_opponents"]
+        self.assertEqual(evidence["opponent_id_007"], opponent)
+        self.assertEqual(evidence["source_sha256"], "a" * 64)
+
+        future = deepcopy(archive)
+        future["games"][0]["analysis_source_evidence"]["captured_at_utc"] = NOW.isoformat()
+        previous_season = deepcopy(archive)
+        record = previous_season["games"][0]["season_source_facts"]
+        record["season_id"] = record["home"]["season_id"] = record["away"]["season_id"] = "2025-2026"
+        conflicting = deepcopy(archive)
+        stats = conflicting["games"][0]["season_source_facts"]["home"]["scopes"]
+        stats["ALL"]["lossGoal"] += 4
+        stats["HOME"]["lossGoal"] += 4
+        for history in ([future], [previous_season], [archive, conflicting], [conflicting, archive]):
+            rejected = self.forecast(data, history)["games"][0]
+            self.assertEqual(rejected["markets"], before["markets"])
 
     def test_unavailable_context_retains_recent_form_and_verified_injury(self):
         data = snapshot()

@@ -3,15 +3,25 @@ on:
   pull_request:
     paths:
       - 'analysis/football_jc_prospective_score.py'
+      - 'analysis/football_jc_contextual_challenger.py'
+      - 'analysis/football_jc_integrated.py'
+      - 'ops/football_2100_model_replay.py'
+      - 'ops/football_market_trend_trial.py'
+      - 'tests/test_football_market_trend_trial.py'
       - 'tests/test_football_jc_prospective_score.py'
       - '.github/workflows/football-jc-forward-eval.yml'
   workflow_dispatch:
+    inputs:
+      day:
+        description: Beijing 21:00 frozen board date (YYYY-MM-DD)
+        type: string
+        default: '2026-11-06'
 permissions:
   contents: read
 jobs:
   validate-offline-scoring:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 7
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,5 +32,11 @@ jobs:
       - name: Test independent football pregame-to-final scoring boundary
         run: |
           python3 -B -m unittest discover -s tests -p test_football_jc_prospective_score.py -v
+          python3 -B -m unittest discover -s tests -p test_football_market_trend_trial.py -v
           python3 -B -m py_compile analysis/football_jc_prospective_score.py
           echo "FOOTBALL_JC_FORWARD_EVAL_TESTED_NO_REAL_RESULTS_INVENTED"
+      - name: Compare opponent archive feature against real frozen 21:00 evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPLAY_DAY: ${{ inputs.day || '2026-11-06' }}
+        run: python3 -B ops/football_2100_model_replay.py --repo "$GITHUB_REPOSITORY" --day "$REPLAY_DAY"
