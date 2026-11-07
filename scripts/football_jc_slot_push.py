@@ -10,13 +10,14 @@ import argparse,hashlib,json,os,sys
 from html import escape
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"analysis"))
+import football_forecast_contract as contract
 import football_jc_final_2130 as final
 import football_jc_report as report
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from pushplus_mobile import send, MAX_BYTES
 
 def prepare(forecast,mode,lock=None,comparison=None,daytime_slot=None,movement=None):
-    if forecast.get("model_version")!=final.FUSED_VERSION:
+    if not contract.compatible(forecast):
         raise ValueError("MUST_SEND_SINGLE_INTEGRATED_FOOTBALL_MODEL")
     if not forecast.get("games"):
         raise ValueError("NO_FOOTBALL_GAMES_TO_PUSH")

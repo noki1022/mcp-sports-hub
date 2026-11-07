@@ -133,10 +133,9 @@ def verified_football_recovery(run, slot):
 
 
 def chronological_assignments(slots, runs):
-    """Global minimum-delay matching; never steal an adjacent hourly run.
+    """Group declared runs by original slot, with one fallback for legacy runs.
 
-    A run with an advertised UTC cron must match that exact slot. For workflows
-    without trigger-cron metadata, we infer within 180m and flag lateness.
+    Use time inference only if no declared run covers that slot.
     """
     edges = []
     for i, slot in enumerate(slots):
@@ -157,14 +156,15 @@ def chronological_assignments(slots, runs):
                     continue
             elif lag > MAX_SCHEDULE_LATENESS_MINUTES:
                 continue
-            edges.append((0 if declared else 1, lag, i, run["id"]))
+            edges.append((0 if declared or run["event"] == "workflow_dispatch" else 1, lag, i, run["id"]))
     allocated = {}
     claimed = set()
     by_id = {r["id"]: r for r in runs}
-    for _, lag, index, rid in sorted(edges):
-        if index not in allocated and rid not in claimed:
-            allocated[index] = (by_id[rid], round(lag, 2))
-            claimed.add(rid)
+    for inferred, lag, index, rid in sorted(edges):
+        if rid in claimed or (inferred and index in allocated):
+            continue
+        allocated.setdefault(index, []).append((by_id[rid], round(lag, 2)))
+        claimed.add(rid)
     return allocated
 
 
@@ -203,7 +203,7 @@ def release_assets(releases):
 
 
 def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=180,
-          priority_jobs=None):
+          priority_jobs=None, nba_receipts=None):
     now = now.astimezone(timezone.utc)
     slots = sorted(expected_slots(now, horizon_hours, grace_minutes),
                    key=lambda x: (x["planned"], x["workflow"]))
@@ -225,11 +225,29 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
         unique_runs[rid] = run
     assigned = chronological_assignments(slots, list(unique_runs.values()))
     for i, slot in enumerate(slots):
-        allocation = assigned.get(i)
-        run = allocation[0] if allocation else None
-        lag = allocation[1] if allocation else None
+        attempts = assigned.get(i, [])
+        local = slot["planned"].astimezone(BJ)
+        slot_code = local.strftime("%H%M")
+        day = local.strftime("%Y%m%d")
+        names = artifacts.get("football-007-raw-" + day, set())
+        nba_receipt = (nba_receipts or {}).get(((local.date() + timedelta(days=1)).isoformat(), slot_code))
+        accepted_run_id = None
+        if slot["workflow"] == NBA_DAY and nba_receipt:
+            accepted_run_id = next((r["id"] for r, _ in attempts
+                                    if str(r["id"]) == str(nba_receipt.get("run_id"))), None)
+        receipt = (f"football-push-{day}-{slot_code}.accepted.json" in names
+                   if slot["workflow"] == FOOTBALL else accepted_run_id is not None)
+        # Evaluate all declared attempts. Prefer the run named by the receipt,
+        # then the earliest successful attempt, while keeping every attempt visible.
+        run, lag = min(attempts, key=lambda item: (
+            item[0]["id"] != accepted_run_id,
+            item[0].get("conclusion") != "success", item[1]),
+            default=(None, None))
         scheduled.append({"workflow": slot["workflow"], "beijing_slot": slot["slot_beijing"],
                           "run_id": run.get("id") if run else None,
+                          "attempts": [{"run_id": r["id"], "conclusion": r.get("conclusion"),
+                                        "delay_minutes": delay} for r, delay in attempts],
+                          "pushplus_api_receipt": "ACCEPTED" if receipt else "NOT_OBSERVED",
                           "schedule_delay_minutes": lag,
                           "recovered_via_workflow_dispatch": bool(run and run.get("event") == "workflow_dispatch"),
                           "cron_verified_from_run_name": bool(run and advertised_cron(run))})
@@ -252,20 +270,18 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
                              "workflow": slot["workflow"], "slot": slot["slot_beijing"],
                              "run_id": run["id"], "delay_minutes": lag})
         if slot["workflow"] == FOOTBALL and state == "completed":
-            day = when(run["created_at"]).astimezone(BJ).strftime("%Y%m%d")
-            expected_prefix = f"football-007-raw-{day}-run-{run['id']}-attempt-"
-            names = artifacts.get("football-007-raw-" + day, set())
-            if not any(n.startswith(expected_prefix) and n.endswith(".zip") for n in names):
+            prefixes = tuple(f"football-007-raw-{day}-run-{r['id']}-attempt-" for r, _ in attempts)
+            if not any(n.startswith(prefixes) and n.endswith(".zip") for n in names):
                 problems.append({"severity": "critical", "code": "FOOTBALL_ORIGINAL_RAW_NOT_ARCHIVED",
                                  "workflow": FOOTBALL, "slot": slot["slot_beijing"],
                                  "run_id": run["id"], "release_tag": "football-007-raw-" + day})
         if slot["workflow"] in PRIORITY and slot["planned"].astimezone(BJ).strftime("%H:%M") == "21:00":
             jobs = (priority_jobs or {}).get(str(run["id"]))
-            proof = priority_send_evidence(run, jobs)
+            proof = "API_ACCEPTED_RECEIPT" if receipt else priority_send_evidence(run, jobs)
             push_evidence.append({"workflow": slot["workflow"], "beijing_slot": slot["slot_beijing"],
                                   "run_id": run["id"], "api_step_state": proof,
                                   "device_delivery": "NOT_VERIFIED"})
-            if proof in ("SEND_STEP_FAILED", "SEND_STEP_SKIPPED", "NO_SEND_STEP_FOUND"):
+            if not receipt and proof in ("SEND_STEP_FAILED", "SEND_STEP_SKIPPED", "NO_SEND_STEP_FOUND"):
                 problems.append({"severity": "warning", "code": "PRIORITY_PUSH_NOT_CONFIRMED",
                                  "workflow": slot["workflow"], "slot": slot["slot_beijing"],
                                  "run_id": run["id"], "api_step_state": proof})
@@ -304,6 +320,7 @@ def main():
     p.add_argument("--releases", required=True)
     p.add_argument("--archive-branch", required=True)
     p.add_argument("--priority-jobs-dir")
+    p.add_argument("--nba-receipts-root", type=Path)
     p.add_argument("--out", required=True)
     p.add_argument("--now-utc")
     p.add_argument("--horizon-hours", type=int, default=24)
@@ -332,8 +349,21 @@ def main():
             if not isinstance(data, dict) or not isinstance(data.get("jobs"), list):
                 raise ValueError("BAD_PRIORITY_JOB_RESPONSE")
             priority_jobs[filename.stem] = data["jobs"]
+    nba_receipts = {}
+    if args.nba_receipts_root:
+        for slot in expected_slots(now, args.horizon_hours, args.grace_minutes):
+            if slot["workflow"] != NBA_DAY:
+                continue
+            local = slot["planned"].astimezone(BJ)
+            day, clock = (local.date() + timedelta(days=1)).isoformat(), local.strftime("%H%M")
+            filename = args.nba_receipts_root / day / f"{clock}.json"
+            if filename.is_file():
+                receipt = json.loads(filename.read_text(encoding="utf-8"))
+                if (receipt.get("state") == "API_ACCEPTED_NOT_DEVICE_CONFIRMED"
+                        and receipt.get("slot") == clock and receipt.get("target_date") == day):
+                    nba_receipts[day, clock] = receipt
     result = audit(runs, releases, branch, now, args.horizon_hours, args.grace_minutes,
-                   priority_jobs)
+                   priority_jobs, nba_receipts)
     path = Path(args.out)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")

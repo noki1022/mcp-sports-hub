@@ -13,6 +13,7 @@ import unittest
 from zoneinfo import ZoneInfo
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"analysis"))
 import football_jc_final_2130 as final
+from football_jc_integrated import VERSION as CURRENT_MODEL_VERSION
 import football_jc_asian_assimilation as asian
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts"))
 import football_jc_slot_push as push
@@ -35,7 +36,7 @@ def source(time=START):
             "games":[fixture()]}
 def forecast(snapshot,time=None):
     time=time or START+timedelta(minutes=1)
-    return {"model_version":final.FUSED_VERSION,
+    return {"model_version":CURRENT_MODEL_VERSION,
       "captured_at_utc":snapshot["captured_at_utc"],"generated_at_utc":time.astimezone(timezone.utc).isoformat(),
       "source_sha256":final.sha(snapshot),
       "games":[{"match_id":"3075305","jc_number":"周四010","home_team":"主队","away_team":"客队",
@@ -63,9 +64,7 @@ class TestSingleFinal(unittest.TestCase):
  def test_live_fusion_sender_final_share_producer_version(self):
     # Regression: Nov 6 16:00 capture/model passed but PushPlus rejected
     # the producer's v4 model because final/sender were hardcoded to v3.
-    from football_jc_integrated import VERSION
-    self.assertEqual(final.FUSED_VERSION,VERSION)
-    self.assertEqual(self.forecast["model_version"],VERSION)
+    self.assertEqual(self.forecast["model_version"],CURRENT_MODEL_VERSION)
     preview=push.prepare(self.forecast,"daytime",daytime_slot="1600")
     self.assertIn("16:00",preview["title"])
     self.assertIn("竞彩胜平负",preview["html"])

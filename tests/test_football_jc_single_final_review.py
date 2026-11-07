@@ -6,6 +6,7 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"analysis"))
 import football_jc_single_final_review as review
 import football_jc_final_2130 as final
+from football_jc_integrated import VERSION as CURRENT_MODEL_VERSION
 BJ=timezone(timedelta(hours=8))
 LOCK=datetime(2026,11,5,21,32,tzinfo=BJ)
 TIP=datetime(2026,11,6,19,0,tzinfo=BJ)
@@ -22,7 +23,7 @@ def fixture():
                          "probabilities":{"让胜":.3,"让平":.4,"让负":.3}},
                  "ttg":{"direction":"3球","probabilities":{"2球":.3,"3球":.3,"4球":.2},
                         "goal_selection":{"goals":["2球","3球"]}}}}
- f={"model_version":final.FUSED_VERSION,"generated_at_utc":LOCK.isoformat(),"games":[row]}
+ f={"model_version":CURRENT_MODEL_VERSION,"generated_at_utc":LOCK.isoformat(),"games":[row]}
  locked={"schema_version":final.VERSION,"slot_beijing_date":"2026-11-05",
          "actual_capture_utc":(LOCK-timedelta(minutes=1)).isoformat(),
          "final_forecast_sha256":final.sha(f),"scored_only_from_this_frozen_forecast":True,

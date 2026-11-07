@@ -9,6 +9,7 @@ from pathlib import Path
 
 import football_007_deep_context as deep
 import football_context_features as features
+import football_forecast_contract as contract
 import football_jc_asian_assimilation as asian
 import football_jc_contextual_challenger as context
 import football_jc_dc_shadow as history_model
@@ -118,7 +119,7 @@ def fuse(snapshot, raw_dir, market_history=(), model_at=None):
             references[row["match_id"]] = converted["reference_balanced_asian_line"]
     output = asian.assimilate(snapshot, baseline, model_at=model_at, history=market_history,
                               european_references=references)
-    output.update(model_version=VERSION, model_status="INTEGRATED_PROVISIONAL_WEIGHTS",
+    output.update(model_version=VERSION, forecast_schema=contract.SCHEMA, model_status="INTEGRATED_PROVISIONAL_WEIGHTS",
                   fundamental_weights={"season_context": CONTEXT_WEIGHT,
                                        "historical_strength": HISTORICAL_STRENGTH_WEIGHT,
                                        "low_score_correlation": 0.0},

@@ -16,7 +16,7 @@ from typing import Any
 
 BJ=ZoneInfo("Asia/Shanghai")
 VERSION="football-jc-single-final-2100-v1"
-from football_jc_integrated import VERSION as FUSED_VERSION
+import football_forecast_contract as contract
 KEYS=("had","hhad","ttg")
 LABELS={"had":"竞彩胜平负","hhad":"竞彩让球胜平负","ttg":"竞彩总进球数"}
 MAX_DELAY=120 # scheduled 21:00 source window; never relabel a late capture as on-time
@@ -32,7 +32,7 @@ def sha(obj):
 def source_check(snapshot,forecast):
     if snapshot.get("schema_version")!="football-jc-007-v1":
         raise ValueError("INVALID_FOOTBALL_SOURCE_SCHEMA")
-    if forecast.get("model_version")!=FUSED_VERSION:
+    if not contract.compatible(forecast):
         raise ValueError("ONLY_INTEGRATED_FOOTBALL_JC_MODEL_PERMITTED")
     if forecast.get("source_sha256")!=sha(snapshot):
         raise ValueError("FORECAST_NOT_FROM_007_SNAPSHOT")
@@ -133,7 +133,7 @@ def freeze(snapshot,forecast,scheduled_day,now=None):
        "actual_capture_utc":captured.isoformat(),
        "actual_model_generated_utc":generated.isoformat(),
        "frozen_at_utc":now.isoformat(),
-       "model_version":FUSED_VERSION,
+       "model_version":forecast["model_version"],
        "source_snapshot_sha256":sha(snapshot),
        "final_forecast_sha256":sha(forecast),
        "scored_only_from_this_frozen_forecast":True,
