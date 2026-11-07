@@ -211,6 +211,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: python3 -B scripts/restore_football_market_history.py
+      - name: Restore original prior 007 snapshots for P0 evidence verification (PR only)
+        if: github.event_name == 'pull_request'
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python3 -B scripts/restore_football_market_history.py
+          python3 - <<'PY'
+          from pathlib import Path
+          n=len(list(Path("football-history").glob("football_007_snapshot*.json")))
+          assert n>0, "P0_RESEARCH_CROSSDAY_HISTORY_NOT_RESTORED"
+          print("P0_RESEARCH_CROSSDAY_HISTORY_RESTORED",n)
+          PY
       - name: Generate the unified 007 football forecast for all three markets
         run: |
           python3 -B analysis/football_jc_integrated.py \
