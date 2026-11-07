@@ -11,6 +11,9 @@ on:
       - 'analysis/football_context_features.py'
       - 'analysis/football_jc_contextual_challenger.py'
       - 'analysis/football_007_deep_context.py'
+      - 'analysis/football_p0_fact_audit.py'
+      - 'analysis/football_p0_ttg_backtest.py'
+      - 'tests/test_football_p0_quant.py'
       - 'tests/test_football_007_deep_context.py'
       - 'tests/test_football_jc_contextual_challenger.py'
       - 'tests/test_football_context_features.py'
@@ -104,6 +107,32 @@ jobs:
           python3 -B -m unittest discover -s tests -p test_football_007_cp_totals.py -v
           python3 -B -m unittest discover -s tests -p test_football_007_analysis_extract.py -v
           python3 -B -m unittest discover -s tests -p test_football_jc.py -v
+      - name: Verify P0 personnel/opponent and distribution research gates (PR only)
+        if: github.event_name == 'pull_request'
+        run: python3 -B -m unittest discover -s tests -p test_football_p0_quant.py -v
+      - name: Audit actual frozen 21:00 football goal distribution with verified 007 FT bytes (PR only)
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/football-p0"
+          gh release download football-jc-review-2100-20261106 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'football-jc-review-2100-20261106.zip' \
+            --dir "$RUNNER_TEMP/football-p0"
+          python3 -B analysis/football_p0_ttg_backtest.py \
+            --review-2100-zip "$RUNNER_TEMP/football-p0/football-jc-review-2100-20261106.zip" \
+            --out "$RUNNER_TEMP/football-p0/backtest.json"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          doc=json.loads((Path(os.environ["RUNNER_TEMP"])/"football-p0"/"backtest.json").read_text())
+          assert doc["total_verified_fixtures"]>0
+          assert doc["production_weights_modified"] is False
+          assert doc["promotion_approved"] is False
+          print("P0_GENUINE_FT_TOTAL_DISTRIBUTION",doc["status"],doc["total_verified_fixtures"],
+                doc["candidate_metrics"])
+          PY
       - name: Verify 007 suspension and opponent tier deep source evidence (PR only)
         if: github.event_name == 'pull_request'
         run: python3 -B -m unittest discover -s tests -p test_football_007_deep_context.py -v
@@ -182,6 +211,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: python3 -B scripts/restore_football_market_history.py
+      - name: Restore original prior 007 snapshots for P0 evidence verification (PR only)
+        if: github.event_name == 'pull_request'
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python3 -B scripts/restore_football_market_history.py
+          python3 - <<'PY'
+          from pathlib import Path
+          n=len(list(Path("football-history").glob("football_007_snapshot*.json")))
+          assert n>0, "P0_RESEARCH_CROSSDAY_HISTORY_NOT_RESTORED"
+          print("P0_RESEARCH_CROSSDAY_HISTORY_RESTORED",n)
+          PY
       - name: Generate the unified 007 football forecast for all three markets
         run: |
           python3 -B analysis/football_jc_integrated.py \
@@ -191,6 +234,14 @@ jobs:
             --conversion-out football-output/football_jc_euro_asian.json \
             --out football-output/football_jc_forecast_market.json
           python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast_market.json --html football-output/football_jc_mobile.html
+      - name: Archive P0 player availability and prior opponent study without touching forecasts
+        continue-on-error: true
+        run: |
+          python3 -B analysis/football_p0_fact_audit.py \
+            --snapshot football-output/football_007_snapshot.json \
+            --history-root football-history \
+            --out football-output/football_p0_fact_audit.json
+          test -s football-output/football_p0_fact_audit.json
       - name: Store timestamp-hashed per-match candidates independently of 21:00 baseline
         env:
           FOOTBALL_SCHEDULE_EXPR: ${{ github.event.schedule || inputs.recovery_cron || '' }}
