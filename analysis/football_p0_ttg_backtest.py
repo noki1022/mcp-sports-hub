@@ -8,6 +8,9 @@ No auto-promotion. Holdout is strictly later than selection training period.
 """
 from __future__ import annotations
 import argparse
+import gzip
+import io
+from zipfile import ZipFile
 from datetime import datetime,timezone,timedelta
 import json,math
 from pathlib import Path
@@ -17,6 +20,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parent))
 import football_jc_final_2130 as final_2100
 import sport_match_final_registry as registry
 import sports_verified_review as verifier
+import football_jc_prospective_score as ft
 
 VERSION="football-p0-ttg-distribution-competition-v1"
 CAP=16
@@ -131,6 +135,81 @@ def validated_samples(frozen,finals,reviews):
     return cases
 
 
+def validated_2100_review_archive(blob):
+    """Original 21:00 archive + original 007 FT bytes, not inferred scores.
+
+    Uses already-created official research grading release. Match identity,
+    kickoff, team IDs, original result SHA and generated-before-kickoff are
+    validated BEFORE any sample can enter the distribution study.
+    """
+    if not isinstance(blob,bytes) or not 0<len(blob)<=2_000_000:
+        raise ValueError("VERIFIED_REVIEW_ZIP_SIZE_INVALID")
+    with ZipFile(io.BytesIO(blob)) as archive:
+        names=set(archive.namelist())
+        if "frozen-2100.json" not in names or "verified-results.json" not in names:
+            raise ValueError("VERIFIED_REVIEW_REQUIRED_MEMBERS_MISSING")
+        def member(path,cap):
+            item=archive.getinfo(path)
+            if item.file_size>cap:
+                raise ValueError("VERIFIED_REVIEW_MEMBER_TOO_LARGE")
+            return archive.read(item)
+        locked=json.loads(member("frozen-2100.json",2_000_000))
+        payload=json.loads(member("verified-results.json",2_000_000))
+        if locked.get("schema_version")!="football-jc-single-final-2100-v1" or (
+            locked.get("final_forecast_sha256")!=final_2100.sha(locked["forecast"])):
+            raise ValueError("INVALID_ORIGINAL_2100_FORECAST_HASH")
+        if locked.get("source_snapshot_sha256")!=locked["forecast"].get("source_sha256"):
+            raise ValueError("FROZEN_007_SOURCE_HASH_DRIFT")
+        raw={}
+        for result in payload.get("results") or []:
+            mid=str(result.get("match_id") or "")
+            if not mid.isdecimal() or len(mid)>12 or mid in raw:
+                raise ValueError("DUPLICATE_OR_INVALID_VERIFIED_RESULT_ID")
+            filename=f"raw/{mid}.html.gz"
+            if filename not in names:raise ValueError("MISSING_ORIGINAL_007_FT_RESPONSE")
+            original=member(filename,900_000)
+            with gzip.GzipFile(fileobj=io.BytesIO(original)) as stream:
+                raw[mid]=stream.read(850001)
+            if len(raw[mid])>850000:
+                raise ValueError("OVERSIZE_ORIGINAL_007_RESULT")
+        finals=ft.validate_results(payload,raw)
+        facts={str(g["match_id"]):g for g in locked["snapshot_facts"]}
+        if len(facts)!=len(locked["snapshot_facts"]):
+            raise ValueError("DUPLICATE_21_00_FIXTURE")
+        asof=utc(locked["actual_model_generated_utc"])
+        output=[]
+        for row in locked["forecast"]["games"]:
+            mid=str(row["match_id"])
+            if mid not in finals:continue
+            fact=facts.get(mid)
+            if fact is None or row.get("jc_number")!=fact.get("jc_number"):
+                raise ValueError("FROZEN_007_IDENTITY_MISMATCH")
+            result=finals[mid]
+            ft.verify_join({
+              "match_id":mid,"jc_number":fact["jc_number"],
+              "kickoff_beijing":fact["kickoff_beijing"],
+              "home_team_id_007":fact["home_team_id_007"],
+              "away_team_id_007":fact["away_team_id_007"]},result,asof)
+            if row.get("status")!="RESEARCH_READY":
+                continue
+            goal=row.get("goal_expectation") or {}
+            h,a=goal.get("home"),goal.get("away")
+            if type(h) not in (int,float) or type(a) not in (int,float):
+                continue
+            if not all(math.isfinite(v) and .15<=v<=4.5 for v in (h,a)):
+                continue
+            tip=utc(fact["kickoff_beijing"])
+            if utc(locked["actual_capture_utc"])>=tip or asof>=tip:
+                raise ValueError("FROZEN_FORECAST_NOT_PRETIP")
+            output.append({
+                "match_id":mid,"kickoff_utc":tip.isoformat(),
+                "frozen_model_sha256":locked["final_forecast_sha256"],
+                "verified_review_sha256":result["source_sha256"],
+                "home_lambda":float(h),"away_lambda":float(a),
+                "outcome_bucket":min(7,result["home_goals"]+result["away_goals"])})
+        return output
+
+
 def paired_eval(examples):
     seen=set();data=[]
     for row in examples:
@@ -201,15 +280,24 @@ def paired_eval(examples):
 
 def main():
     parser=argparse.ArgumentParser(description="Verified 21:00 FT total goal competition only")
-    parser.add_argument("--frozen",required=True)
-    parser.add_argument("--final-dir",required=True)
-    parser.add_argument("--review-dir",required=True)
+    parser.add_argument("--frozen")
+    parser.add_argument("--final-dir")
+    parser.add_argument("--review-dir")
+    parser.add_argument("--review-2100-zip")
     parser.add_argument("--out",required=True)
     args=parser.parse_args()
-    def files(folder,suffix):
-        return {p.name.split(".")[0]:json.loads(p.read_text()) for p in Path(folder).glob("*"+suffix)}
-    frozen=json.loads(Path(args.frozen).read_text())
-    examples=validated_samples(frozen,files(args.final_dir,".final.json"),files(args.review_dir,".review.json"))
+    if args.review_2100_zip:
+        if any((args.frozen,args.final_dir,args.review_dir)):
+            parser.error("CHOOSE_ONLY_ONE_VERIFIED_EVIDENCE_MODE")
+        examples=validated_2100_review_archive(Path(args.review_2100_zip).read_bytes())
+    else:
+        if not all((args.frozen,args.final_dir,args.review_dir)):
+            parser.error("MISSING_ORIGINAL_FROZEN_AND_REVIEW_FILES")
+        def files(folder,suffix):
+            return {p.name.split(".")[0].removeprefix("football-"):json.loads(p.read_text())
+                    for p in Path(folder).glob("*"+suffix)}
+        frozen=json.loads(Path(args.frozen).read_text())
+        examples=validated_samples(frozen,files(args.final_dir,".final.json"),files(args.review_dir,".review.json"))
     out=paired_eval(examples)
     target=Path(args.out);target.parent.mkdir(parents=True,exist_ok=True)
     target.write_text(json.dumps(out,ensure_ascii=False,indent=2)+"\n")
