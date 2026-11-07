@@ -2,9 +2,9 @@ name: Sports verified results to immutable per-match review
 on:
   push:
     branches: [main]
-    paths: ['analysis/sports_verified_*.py', 'ops/sports_result_to_review.py', 'ops/football_2100_review.py', 'analysis/football_jc_single_final_review.py', '.github/workflows/sports-verified-results.yml']
+    paths: ['analysis/sports_verified_*.py', 'analysis/sport_match_final_grade.py', 'ops/sports_result_to_review.py', 'ops/football_2100_review.py', 'analysis/football_jc_single_final_review.py', '.github/workflows/sports-verified-results.yml']
   pull_request:
-    paths: ['analysis/sports_verified_*.py', 'ops/sports_result_to_review.py', 'ops/football_2100_review.py', 'analysis/football_jc_single_final_review.py', 'tests/test_football_2100_review.py', 'analysis/nba_per_match_score_review.py', 'tests/test_sports_verified_results.py', '.github/workflows/sports-verified-results.yml']
+    paths: ['analysis/sports_verified_*.py', 'analysis/sport_match_final_grade.py', 'ops/sports_result_to_review.py', 'ops/football_2100_review.py', 'analysis/football_jc_single_final_review.py', 'tests/test_football_2100_review.py', 'analysis/nba_per_match_score_review.py', 'tests/test_sports_verified_results.py', '.github/workflows/sports-verified-results.yml']
   workflow_run:
     workflows: ['Football + NBA immutable per-match latest valid pretip finals']
     types: [completed]

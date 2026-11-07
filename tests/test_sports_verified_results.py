@@ -111,6 +111,17 @@ class Results(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'SWAPPED'):
             G.verify_nba_final_score_identity(final,source)
 
+    def test_verified_espn_wsh_alias_preserves_home_away_check(self):
+        import sport_match_final_grade as G
+        final = nba()
+        final.update(home_team="亚特兰大老鹰", away_team="华盛顿奇才")
+        source = {"completed": True, "home_points": 139, "away_points": 132,
+                  "tip_beijing": iso(TIP), "home_abbr": "ATL", "away_abbr": "WSH"}
+        G.verify_nba_final_score_identity(final, source)
+        source.update(home_abbr="WSH", away_abbr="ATL")
+        with self.assertRaisesRegex(ValueError, "SWAPPED"):
+            G.verify_nba_final_score_identity(final, source)
+
 
 if __name__=='__main__':
     unittest.main()
