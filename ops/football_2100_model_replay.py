@@ -16,6 +16,7 @@ from sports_result_to_review import asset_bytes, release
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "analysis"))
 import football_jc_final_2130 as final
 import football_jc_integrated as model
+import football_jc_market_reading as market
 import football_jc_prospective_score as metrics
 import sports_verified_result_sources as source
 
@@ -106,6 +107,8 @@ def replay(repo, day):
 
 def compare(snapshot, baseline, updated, results, history_count):
     scores = {key: [] for key in metrics.LABELS}
+    market_pairs = {key: [] for key in metrics.LABELS}
+    goals_selections = []
     affected = 0
     covered = 0
     captured = final.as_dt(snapshot["captured_at_utc"])
@@ -126,7 +129,24 @@ def compare(snapshot, baseline, updated, results, history_count):
             if first is None or second is None:
                 continue
             truth = metrics.event_index(key, game, result)
-            scores[key].append((metrics.score(first, truth), metrics.score(second, truth)))
+            first_score = metrics.score(first, truth)
+            second_score = metrics.score(second, truth)
+            scores[key].append((first_score, second_score))
+            try:
+                odds, _ = market.market_quotes(game, key)
+                implied = market.de_vig(odds)
+            except ValueError:
+                implied = None
+            if implied:
+                market_probabilities = implied["multiplicative"]
+                market_pairs[key].append((second_score, metrics.score(market_probabilities, truth)))
+                if key == "ttg":
+                    ordered = sorted(range(len(market_probabilities)),
+                                     key=lambda index: -market_probabilities[index])
+                    market_picks = ordered[:2] if market_probabilities[ordered[1]] >= .10 else ordered[:1]
+                    model_hit = metrics.ttg_dual(new, truth)
+                    if model_hit is not None:
+                        goals_selections.append((model_hit, int(truth in market_picks)))
             changed |= first != second
         affected += changed
     summary = {}
@@ -138,6 +158,20 @@ def compare(snapshot, baseline, updated, results, history_count):
                     "without_archive": round(mean(a[stat] for a, b in rows), 7),
                     "with_archive": round(mean(b[stat] for a, b in rows), 7),
                 }
+        paired_market = market_pairs[key]
+        if paired_market:
+            summary[key]["same_capture_market_comparison"] = {
+                "paired": len(paired_market),
+                **{stat: {"model": round(mean(a[stat] for a, _ in paired_market), 7),
+                          "market": round(mean(b[stat] for _, b in paired_market), 7)}
+                   for stat in ("top1_hit", "log_loss", "brier")},
+            }
+    if goals_selections:
+        summary["ttg"]["up_to_two_goals"] = {
+            "paired": len(goals_selections),
+            "model_hits": sum(model_hit for model_hit, _ in goals_selections),
+            "market_hits": sum(market_hit for _, market_hit in goals_selections),
+        }
     return {"fixtures": len(snapshot["games"]), "verified_results": len(results),
             "historical_snapshots": history_count, "covered_fixtures": covered,
             "changed_scored_fixtures": affected, "markets": summary,
