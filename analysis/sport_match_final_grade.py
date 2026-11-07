@@ -109,11 +109,11 @@ def verify_nba_final_score_identity(final,source):
     away=NAMES.get(final["away_team"])
     registry.require(home is not None and away is not None and home[0]!=away[0],
                      "NBA_UNVERIFIED_FROZEN_TEAM_IDENTITY")
-    # ESPN's verified Golden State scoreboard code is GS, while the
-    # pregame NBA mapping uses GSW. Normalize this source alias, never sides.
+    # Normalize the ESPN scoreboard codes confirmed against official fixtures.
+    # Keep the home and away comparisons independent.
     def canonical(value):
         code=str(value or "").upper()
-        return {"GS":"GSW"}.get(code,code)
+        return {"GS":"GSW", "WSH":"WAS"}.get(code,code)
     registry.require(canonical(source.get("home_abbr"))==home[0] and
                      canonical(source.get("away_abbr"))==away[0],
                      "NBA_OFFICIAL_RESULT_HOME_AWAY_SWAPPED_OR_UNKNOWN")

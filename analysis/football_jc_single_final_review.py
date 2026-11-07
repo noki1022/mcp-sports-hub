@@ -37,10 +37,10 @@ def picks(row,key):
  return [d] if isinstance(d,str) and d else []
 def review(locked,results,raw_evidence):
  if locked.get("schema_version")!=final.VERSION or not locked.get("scored_only_from_this_frozen_forecast"):
-  raise ValueError("ONLY_FROZEN_2130_FINAL_COUNTS")
+  raise ValueError("ONLY_FROZEN_2100_FINAL_COUNTS")
  forecast=locked.get("forecast") or {}
  if locked.get("final_forecast_sha256")!=final.sha(forecast):
-  raise ValueError("2130_FROZEN_FORECAST_TAMPERED")
+  raise ValueError("2100_FROZEN_FORECAST_TAMPERED")
  finals=source.validate_results(results,raw_evidence)
  byid={str(row["match_id"]):row for row in locked["snapshot_facts"]}
  metrics={k:Counter() for k in KEYS}
@@ -95,18 +95,18 @@ def review(locked,results,raw_evidence):
   summary[k]={"hits":v["HIT"],"misses":v["MISS"],"excluded":v["excluded"],
               "unsettled":v["unsettled"],"graded":graded,
               "hit_rate":round(v["HIT"]/graded,6) if graded else None}
- return {"schema_version":"football-jc-2130-single-official-review-v1",
+ return {"schema_version":"football-jc-2100-single-official-review-v1",
          "final_date_beijing":locked["slot_beijing_date"],
-         "reference_only_frozen_2130_sha256":locked["final_forecast_sha256"],
+         "reference_only_frozen_2100_sha256":locked["final_forecast_sha256"],
          "source_result_manifest_sha256":final.sha(results),
          "summary":summary,"games":rows,
-         "scoring_source":"ONLY_2130_FUSED_FROZEN_FORECAST",
+         "scoring_source":"ONLY_2100_FUSED_FROZEN_FORECAST",
          "no_0630_scoring":True,"no_unverified_results_grading":True}
 def render(report):
  html=["<div style='max-width:540px;margin:auto;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;"
        "font-size:14px;line-height:1.6;color:#20354d'>",
        "<h2 style='margin:0 0 8px'>北京时间"+E(report["final_date_beijing"])+" 竞彩足球复盘</h2>",
-       "<div style='font-size:12px;color:#64748b'>仅按21:30冻结版评分｜主队在左、客队在右｜90分钟含补时，不含加时</div>"]
+       "<div style='font-size:12px;color:#64748b'>仅按21:00冻结版评分｜主队在左、客队在右｜90分钟含补时，不含加时</div>"]
  for key in KEYS:
   v=report["summary"][key]
   val=f'{v["hit_rate"]*100:.1f}%（{v["hits"]}/{v["graded"]}）' if v["graded"] else "尚无有效样本"
@@ -116,7 +116,11 @@ def render(report):
               E(LABELS[key])+"</b>　<b>"+E(val)+"</b>"+E(extra)+"</div>")
  for g in report["games"]:
   h,a=g["home_goals"],g["away_goals"]
-  score=f"{h}:{a}" if type(h)is int and type(a)is int else "赛果待核实"
+  exclusions={"007_KICKOFF_MISMATCH":"开赛时间冲突，未入样",
+              "NO_PREKICKOFF_2100_PREDICTION":"21:00前已开赛，未入样",
+              "REGULATION_STAGE_NOT_VERIFIED":"90分钟赛果口径未核实，未入样",
+              "REGULATION_SCORE_AMBIGUOUS":"90分钟比分未核实，未入样"}
+  score=f"{h}:{a}" if type(h)is int and type(a)is int else exclusions.get(g.get("exclusion_reason"),"赛果待核实")
   kickoff=final.as_dt(g["kickoff_beijing"]).astimezone(BJ).strftime("%m月%d日 %H:%M")
   html.append("<div style='border:1px solid #dbe4f0;border-radius:10px;margin:10px 0;padding:10px'>"
               "<b>"+E(g["jc_number"])+"　"+E(g["home_team"])+"（主） vs "+E(g["away_team"])+"（客）</b>"
@@ -128,14 +132,14 @@ def render(report):
    predicted=" / ".join(info["predicted"]) if info["predicted"] else "无有效判断"
    status={"HIT":"命中","MISS":"未中","UNSETTLED":"待赛果核实",
            "EXCLUDED_NO_OFFICIAL_LINE":"官方让球缺失，未入样",
-           "EXCLUDED_NO_DIRECTION":"无有效判断，未入样"}.get(info["status"],"待核")
+           "EXCLUDED_NO_DIRECTION":"无有效判断，未入样","EXCLUDED_RESULT_EVIDENCE":"未入样"}.get(info["status"],"待核")
    extra="　实际："+str(info.get("actual"))+"｜比分"+score if info["status"]=="MISS" else ""
    color="#16834a" if info["status"]=="HIT" else "#c0392b" if info["status"]=="MISS" else "#64748b"
    html.append("<div style='border-top:1px solid #edf1f5;padding:4px 0'>"
                +E(LABELS[key])+"　"+E(predicted+sign)+"　<b style='color:"+color+"'>"
                +E(status)+"</b>"+E(extra)+"</div>")
   html.append("</div>")
- html.append("<p style='color:#64748b;font-size:11px'>未核验终场结果不计入命中率；不使用06:30改判追改历史评分。</p></div>")
+ html.append("<p style='color:#64748b;font-size:11px'>命中率以21:00冻结版和已核验的90分钟赛果计算。</p></div>")
  return "".join(html)
 def main():
  p=argparse.ArgumentParser()
@@ -160,5 +164,5 @@ def main():
  d.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n")
  h=Path(a.html);h.parent.mkdir(parents=True,exist_ok=True)
  h.write_text(render(result))
- print("FOOTBALL_ONLY_2130_REVIEW",sum(x["graded"] for x in result["summary"].values()))
+ print("FOOTBALL_ONLY_2100_REVIEW",sum(x["graded"] for x in result["summary"].values()))
 if __name__=="__main__":main()
