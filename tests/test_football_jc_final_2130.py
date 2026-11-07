@@ -60,11 +60,12 @@ class TestSingleFinal(unittest.TestCase):
     changed["games"][0]["jc_number"]="周五010"
     with self.assertRaisesRegex(ValueError,"FROZEN_JC_OFFICIAL_WEEKDAY_DRIFT"):
         final.freeze(wrong,changed,"2026-11-05",START+timedelta(minutes=3))
- def test_live_v4_fusion_sender_final_share_producer_version(self):
+ def test_live_fusion_sender_final_share_producer_version(self):
     # Regression: Nov 6 16:00 capture/model passed but PushPlus rejected
     # the producer's v4 model because final/sender were hardcoded to v3.
-    self.assertEqual(final.FUSED_VERSION,asian.VERSION)
-    self.assertEqual(self.forecast["model_version"],asian.VERSION)
+    from football_jc_integrated import VERSION
+    self.assertEqual(final.FUSED_VERSION,VERSION)
+    self.assertEqual(self.forecast["model_version"],VERSION)
     preview=push.prepare(self.forecast,"daytime",daytime_slot="1600")
     self.assertIn("16:00",preview["title"])
     self.assertIn("竞彩胜平负",preview["html"])

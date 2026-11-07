@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'scripts/football_007_live_capture.py'
+      - 'analysis/football_jc_integrated.py'
+      - 'analysis/football_jc_dc_shadow.py'
+      - 'tests/test_football_jc_integrated.py'
       - 'analysis/football_context_features.py'
       - 'analysis/football_jc_contextual_challenger.py'
       - 'analysis/football_007_deep_context.py'
@@ -105,7 +108,9 @@ jobs:
         run: python3 -B -m unittest discover -s tests -p test_football_007_deep_context.py -v
       - name: Test independent football season plus venue quantification and odds invariance (PR only)
         if: github.event_name == 'pull_request'
-        run: python3 -B -m unittest discover -s tests -p test_football_jc_contextual_challenger.py -v
+        run: |
+          python3 -B -m unittest discover -s tests -p test_football_jc_contextual_challenger.py -v
+          python3 -B -m unittest discover -s tests -p test_football_jc_integrated.py -v
       - name: Verify new 007 opponent IDs and context feature integrity (PR only)
         if: github.event_name == 'pull_request'
         run: python3 -B -m unittest discover -s tests -p test_football_context_features.py -v
@@ -176,52 +181,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: python3 -B scripts/restore_football_market_history.py
-      - name: Analyze JC 3 markets from form and directly fuse verified multi-book Asian lines
+      - name: Generate the unified 007 football forecast for all three markets
         run: |
-          python3 -B analysis/football_jc_probability.py --input football-output/football_007_snapshot.json --out football-output/football_jc_forecast.json
-          python3 -B analysis/football_jc_asian_assimilation.py \
-            --snapshot football-output/football_007_snapshot.json \
-            --baseline football-output/football_jc_forecast.json \
-            --out football-output/football_jc_forecast_market.json
-          python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast_market.json --html football-output/football_jc_mobile.html
-      - name: Independently audit feature-only football probabilities without odds-led predictions
-        # Optional isolated research output, never input to live answers or
-        # 21:00 scoring. Any failure is reported, but production proceeds.
-        continue-on-error: true
-        run: |
-          python3 -B analysis/football_jc_unified_research.py \
-            --snapshot football-output/football_007_snapshot.json \
-            --baseline football-output/football_jc_forecast.json \
-            --asian football-output/football_jc_forecast_market.json \
-            --out football-output/football_independent_research.json
-          test -s football-output/football_independent_research.json
-      - name: "Audit point-in-time football context: opponent IDs, venue, rest, personnel evidence"
-        # Read-only: no model update, no PushPlus, no scoring change.
-        # Results live alongside the existing raw archive and source hash.
-        continue-on-error: true
-        run: |
-          python3 -B analysis/football_context_features.py \
-            --snapshot football-output/football_007_snapshot.json \
-            --out football-output/football_context_features.json
-          test -s football-output/football_context_features.json
-      - name: Run non-price season venue opponent contextual forecast as challenger only
-        # Read-only experimental forecast, *never* the official prediction
-        # source, no retrigger, no PushPlus and no training autorelease.
-        continue-on-error: true
-        run: |
-          python3 -B analysis/football_jc_contextual_challenger.py \
-            --snapshot football-output/football_007_snapshot.json \
-            --out football-output/football_contextual_challenger.json
-          test -s football-output/football_contextual_challenger.json
-      - name: Extract deeper non-market football 007 context from verified raw pages
-        # Research only; no prediction/PushPlus path reads this result.
-        continue-on-error: true
-        run: |
-          python3 -B analysis/football_007_deep_context.py \
+          python3 -B analysis/football_jc_integrated.py \
             --snapshot football-output/football_007_snapshot.json \
             --raw-dir football-output/raw \
-            --out football-output/football_007_deep_context.json
-          test -s football-output/football_007_deep_context.json
+            --fundamentals-out football-output/football_jc_forecast.json \
+            --conversion-out football-output/football_jc_euro_asian.json \
+            --out football-output/football_jc_forecast_market.json
+          python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast_market.json --html football-output/football_jc_mobile.html
       - name: Store timestamp-hashed per-match candidates independently of 21:00 baseline
         env:
           FOOTBALL_SCHEDULE_EXPR: ${{ github.event.schedule || inputs.recovery_cron || '' }}
@@ -282,13 +250,6 @@ jobs:
             --forecast football-output/football_jc_forecast_market.json \
             --day "$BJ_DAY" --out football-output/football_jc_final_2100.json
           test -s football-output/football_jc_final_2100.json
-      - name: Mandatory isolated euro-to-Asian interpretation of each football JC snapshot
-        run: |
-          python3 -B analysis/football_jc_euro_asian.py \
-            --snapshot football-output/football_007_snapshot.json \
-            --baseline football-output/football_jc_forecast.json \
-            --out football-output/football_jc_euro_asian.json
-          test -s football-output/football_jc_euro_asian.json
       - name: Compare real 007 bookmaker Asian opening/current lines with theory (no auto model override)
         run: |
           python3 -B analysis/football_007_asian_real_compare.py \

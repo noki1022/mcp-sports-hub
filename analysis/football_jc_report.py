@@ -126,11 +126,9 @@ def render(report,comparison=None,mode=None,movement=None):
         detail_injury = ("007伤停名单 "+esc(listed)+"人（出场待核实）") if isinstance(listed,int) and listed>0 else "伤停待核实"
         details += "　历史交锋 " + esc(quality.get("h2h")) + "　" + detail_injury
         expectations = game.get("goal_expectation") or {}
-        score = game.get("top_score") or {}
         if expectations:
             context = ("模型进球预期：主 " + esc(expectations.get("home"))
-                       + " / 客 " + esc(expectations.get("away"))
-                       + "　候选比分 " + esc(score.get("home")) + ":" + esc(score.get("away")))
+                       + " / 客 " + esc(expectations.get("away")))
         else:
             context = "数据未达到建模要求：" + esc(game.get("reason", "未提供有效赛前统计"))
         market_html = "".join(market_card(k, n, (game.get("markets") or {}).get(k) or {})
