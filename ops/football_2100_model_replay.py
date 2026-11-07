@@ -12,6 +12,7 @@ from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
 from sports_result_to_review import asset_bytes, release
+import football_market_trend_trial as trend
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "analysis"))
 import football_jc_final_2130 as final
@@ -102,20 +103,26 @@ def replay(repo, day):
                         history.append(previous)
         baseline = model.fuse(snapshot, root, history, model_at=generated, opponent_history=())[0]
         updated = model.fuse(snapshot, root, history, model_at=generated)[0]
-    return compare(snapshot, baseline, updated, results, len(history))
+    comparison = compare(snapshot, baseline, updated, results, len(history))
+    movement_trial = trend.apply(snapshot, baseline)
+    movement = compare(snapshot, baseline, movement_trial, results, len(history),
+                       covered=lambda row: "market_trend_trial" in row)
+    comparison["sustained_market_trend_trial"] = movement
+    return comparison
 
 
-def compare(snapshot, baseline, updated, results, history_count):
+def compare(snapshot, baseline, updated, results, history_count, *, covered=None):
     scores = {key: [] for key in metrics.LABELS}
     market_pairs = {key: [] for key in metrics.LABELS}
     goals_selections = []
     affected = 0
-    covered = 0
+    covered_count = 0
     captured = final.as_dt(snapshot["captured_at_utc"])
     for game, old, new in zip(snapshot["games"], baseline["games"], updated["games"]):
         mid = str(game["match_id"])
         quality = (new.get("fundamental_fusion") or {}).get("season_venue_opponent_rest", {}).get("source_quality", {})
-        covered += bool(quality.get("home_archived_opponents") or quality.get("away_archived_opponents"))
+        covered_count += (covered(new) if covered else
+                          bool(quality.get("home_archived_opponents") or quality.get("away_archived_opponents")))
         result = results.get(mid)
         if result is None:
             continue
@@ -173,7 +180,7 @@ def compare(snapshot, baseline, updated, results, history_count):
             "market_hits": sum(market_hit for _, market_hit in goals_selections),
         }
     return {"fixtures": len(snapshot["games"]), "verified_results": len(results),
-            "historical_snapshots": history_count, "covered_fixtures": covered,
+            "historical_snapshots": history_count, "covered_fixtures": covered_count,
             "changed_scored_fixtures": affected, "markets": summary,
             "scope": "RETROSPECTIVE_SAME_SNAPSHOT_FEATURE_COMPARISON"}
 
