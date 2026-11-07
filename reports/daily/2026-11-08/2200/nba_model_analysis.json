@@ -1,6 +1,6 @@
 {
   "target_display_date": "2026-11-08",
-  "generated_at_utc": "2026-11-07T14:00:49.458320+00:00",
+  "generated_at_utc": "2026-11-07T14:39:19.272824+00:00",
   "games": [
     {
       "game_id": "728313",
@@ -11,11 +11,11 @@
       "away_team": "丹佛掘金",
       "model_status": "OK",
       "model_probability": {
-        "home": 0.2507125754756713,
-        "away": 0.7492874245243287
+        "home": 0.2507125754756712,
+        "away": 0.7492874245243288
       },
       "model_probability_raw": {
-        "home": 0.2507125754756713
+        "home": 0.2507125754756712
       },
       "model_calibration_evidence": {
         "status": "AUDITED",
@@ -33,23 +33,23 @@
           "NEAREST_KNOT_LT_20_SAMPLES"
         ]
       },
-      "margin_sigma": 15.894597095162021,
+      "margin_sigma": 15.894597095162025,
       "total_sigma": 19.65461270800731,
       "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
-      "margin_mean_home_minus_away": -10.685128011745155,
+      "margin_mean_home_minus_away": -10.68512801174516,
       "total_mean": 227.21676472482594,
       "prediction_intervals": {
         "margin_home_minus_away": {
           "50": {
-            "low": -21.405870832811715,
-            "high": 0.035614809321403484
+            "low": -21.405870832811722,
+            "high": 0.03561480932139993
           },
           "80": {
-            "low": -31.05487387356748,
-            "high": 9.684617850077172
+            "low": -31.05487387356749,
+            "high": 9.68461785007717
           },
           "95": {
-            "low": -41.837965794875345,
+            "low": -41.83796579487536,
             "high": 20.46770977138504
           }
         },
@@ -79,14 +79,14 @@
         "full_spread": {
           "market": "full_spread",
           "line": -7.5,
-          "p_side1": 0.42058755124243163,
-          "p_side2": 0.5794124487575684,
+          "p_side1": 0.4205875512424315,
+          "p_side2": 0.5794124487575685,
           "settlement": {
-            "full_win": 0.4205875512434584,
+            "full_win": 0.4205875512434583,
             "half_win": 0.0,
             "push": 0.0,
             "half_loss": 0.0,
-            "full_loss": 0.5794124487565415
+            "full_loss": 0.5794124487565416
           },
           "direction_verified": false,
           "calibration": {
@@ -170,7 +170,7 @@
         "game_id": "728313",
         "matchup_key": "DEN@IND",
         "source_report_et_date": "2026-11-07",
-        "source_captured_at_utc": "2026-11-07T14:00:49.171167+00:00",
+        "source_captured_at_utc": "2026-11-07T14:39:19.077994+00:00",
         "home": {
           "report_state": "PUBLISHED",
           "players": [
@@ -269,24 +269,24 @@
           "ISOTONIC_LT_1000_TOTAL_SAMPLES_OVERFIT_RISK"
         ]
       },
-      "margin_sigma": 15.894597095162021,
+      "margin_sigma": 15.894597095162025,
       "total_sigma": 19.65461270800731,
       "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
-      "margin_mean_home_minus_away": 9.725298606524541,
+      "margin_mean_home_minus_away": 9.725298606524545,
       "total_mean": 222.91059641436388,
       "prediction_intervals": {
         "margin_home_minus_away": {
           "50": {
-            "low": -0.995444214542017,
-            "high": 20.446041427591098
+            "low": -0.9954442145420153,
+            "high": 20.446041427591105
           },
           "80": {
             "low": -10.644447255297786,
-            "high": 30.09504446834687
+            "high": 30.095044468346877
           },
           "95": {
-            "low": -21.42753917660565,
-            "high": 40.878136389654735
+            "low": -21.427539176605656,
+            "high": 40.87813638965474
           }
         },
         "total": {
@@ -315,14 +315,14 @@
         "full_spread": {
           "market": "full_spread",
           "line": 6.5,
-          "p_side1": 0.580400406847408,
-          "p_side2": 0.419599593152592,
+          "p_side1": 0.5804004068474081,
+          "p_side2": 0.4195995931525919,
           "settlement": {
-            "full_win": 0.5804004068474081,
+            "full_win": 0.5804004068474082,
             "half_win": 0.0,
             "push": 0.0,
             "half_loss": 0.0,
-            "full_loss": 0.41959959315259193
+            "full_loss": 0.4195995931525918
           },
           "direction_verified": false,
           "calibration": {
@@ -406,7 +406,7 @@
         "game_id": "728314",
         "matchup_key": "BKN@ATL",
         "source_report_et_date": "2026-11-07",
-        "source_captured_at_utc": "2026-11-07T14:00:49.171167+00:00",
+        "source_captured_at_utc": "2026-11-07T14:39:19.077994+00:00",
         "home": {
           "report_state": "NOT_SUBMITTED",
           "players": [],
@@ -419,6 +419,11 @@
               "name": "Bilodeau, Tyler",
               "status": "Out",
               "reason": "G League - Two-Way"
+            },
+            {
+              "name": "Clowney, Noah",
+              "status": "Questionable",
+              "reason": "Injury/Illness - Illness"
             },
             {
               "name": "Demin, Egor",
@@ -437,7 +442,7 @@
             },
             {
               "name": "Powell, Drake",
-              "status": "Questionable",
+              "status": "Available",
               "reason": "G League - On Assignment"
             },
             {
@@ -448,7 +453,8 @@
           ],
           "status_counts": {
             "Out": 5,
-            "Questionable": 1
+            "Questionable": 1,
+            "Available": 1
           }
         },
         "source_date_matches_tip": true,
@@ -477,11 +483,11 @@
       "away_team": "纽约尼克斯",
       "model_status": "OK",
       "model_probability": {
-        "home": 0.5475191294271261,
-        "away": 0.4524808705728739
+        "home": 0.5475191294271262,
+        "away": 0.4524808705728738
       },
       "model_probability_raw": {
-        "home": 0.5475191294271261
+        "home": 0.5475191294271262
       },
       "model_calibration_evidence": {
         "status": "AUDITED",
@@ -496,24 +502,24 @@
           "ISOTONIC_LT_1000_TOTAL_SAMPLES_OVERFIT_RISK"
         ]
       },
-      "margin_sigma": 15.894597095162021,
+      "margin_sigma": 15.894597095162025,
       "total_sigma": 19.65461270800731,
       "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
-      "margin_mean_home_minus_away": 1.897749088132011,
+      "margin_mean_home_minus_away": 1.8977490881320151,
       "total_mean": 222.48062068343197,
       "prediction_intervals": {
         "margin_home_minus_away": {
           "50": {
-            "low": -8.822993732934547,
-            "high": 12.61849190919857
+            "low": -8.822993732934545,
+            "high": 12.618491909198575
           },
           "80": {
-            "low": -18.471996773690318,
-            "high": 22.267494949954337
+            "low": -18.471996773690314,
+            "high": 22.267494949954347
           },
           "95": {
             "low": -29.255088694998182,
-            "high": 33.050586871262205
+            "high": 33.05058687126221
           }
         },
         "total": {
@@ -542,14 +548,14 @@
         "full_spread": {
           "market": "full_spread",
           "line": -5.5,
-          "p_side1": 0.679186573153881,
-          "p_side2": 0.320813426846119,
+          "p_side1": 0.6791865731538811,
+          "p_side2": 0.3208134268461189,
           "settlement": {
-            "full_win": 0.6791865731538855,
+            "full_win": 0.6791865731538856,
             "half_win": 0.0,
             "push": 0.0,
             "half_loss": 0.0,
-            "full_loss": 0.3208134268461144
+            "full_loss": 0.3208134268461143
           },
           "direction_verified": false,
           "calibration": {
@@ -633,7 +639,7 @@
         "game_id": "728315",
         "matchup_key": "NYK@CLE",
         "source_report_et_date": "2026-11-07",
-        "source_captured_at_utc": "2026-11-07T14:00:49.171167+00:00",
+        "source_captured_at_utc": "2026-11-07T14:39:19.077994+00:00",
         "home": {
           "report_state": "NOT_SUBMITTED",
           "players": [],
@@ -678,11 +684,11 @@
       "away_team": "华盛顿奇才",
       "model_status": "OK",
       "model_probability": {
-        "home": 0.8467067438567462,
-        "away": 0.15329325614325384
+        "home": 0.8467067438567464,
+        "away": 0.15329325614325362
       },
       "model_probability_raw": {
-        "home": 0.8467067438567462
+        "home": 0.8467067438567464
       },
       "model_calibration_evidence": {
         "status": "AUDITED",
@@ -700,24 +706,24 @@
           "NEAREST_KNOT_LT_20_SAMPLES"
         ]
       },
-      "margin_sigma": 15.894597095162021,
+      "margin_sigma": 15.894597095162025,
       "total_sigma": 19.65461270800731,
       "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
-      "margin_mean_home_minus_away": 16.25080769000368,
+      "margin_mean_home_minus_away": 16.250807690003693,
       "total_mean": 224.83430266554484,
       "prediction_intervals": {
         "margin_home_minus_away": {
           "50": {
-            "low": 5.530064868937121,
-            "high": 26.971550511070237
+            "low": 5.530064868937133,
+            "high": 26.971550511070255
           },
           "80": {
-            "low": -4.118938171818648,
-            "high": 36.620553551826006
+            "low": -4.1189381718186375,
+            "high": 36.62055355182602
           },
           "95": {
-            "low": -14.902030093126513,
-            "high": 47.40364547313387
+            "low": -14.902030093126506,
+            "high": 47.40364547313389
           }
         },
         "total": {
@@ -746,14 +752,14 @@
         "full_spread": {
           "market": "full_spread",
           "line": 11.5,
-          "p_side1": 0.6174897290464513,
-          "p_side2": 0.3825102709535487,
+          "p_side1": 0.6174897290464516,
+          "p_side2": 0.3825102709535484,
           "settlement": {
-            "full_win": 0.6174897290464513,
+            "full_win": 0.6174897290464516,
             "half_win": 0.0,
             "push": 0.0,
             "half_loss": 0.0,
-            "full_loss": 0.3825102709535487
+            "full_loss": 0.38251027095354845
           },
           "direction_verified": false,
           "calibration": {
@@ -765,15 +771,15 @@
         },
         "full_total": {
           "market": "full_total",
-          "line": 222.5,
-          "p_side1": 0.547269686081344,
-          "p_side2": 0.45273031391865604,
+          "line": 223.5,
+          "p_side1": 0.5270624082673919,
+          "p_side2": 0.4729375917326081,
           "settlement": {
-            "full_win": 0.547269686081344,
+            "full_win": 0.5270624082673919,
             "half_win": 0.0,
             "push": 0.0,
             "half_loss": 0.0,
-            "full_loss": 0.4527303139186561
+            "full_loss": 0.4729375917326081
           },
           "direction_verified": false,
           "calibration": {
@@ -837,14 +843,14 @@
         "game_id": "728912",
         "matchup_key": "WAS@OKC",
         "source_report_et_date": "2026-11-07",
-        "source_captured_at_utc": "2026-11-07T14:00:49.171167+00:00",
+        "source_captured_at_utc": "2026-11-07T14:39:19.077994+00:00",
         "home": {
           "report_state": "NOT_LISTED",
           "players": [],
           "status_counts": {}
         },
         "away": {
-          "report_state": "NOT_SUBMITTED",
+          "report_state": "NOT_LISTED",
           "players": [],
           "status_counts": {}
         },
@@ -874,11 +880,11 @@
       "away_team": "奥兰多魔术",
       "model_status": "OK",
       "model_probability": {
-        "home": 0.5884320334292384,
-        "away": 0.41156796657076156
+        "home": 0.5884320334292382,
+        "away": 0.4115679665707618
       },
       "model_probability_raw": {
-        "home": 0.5884320334292384
+        "home": 0.5884320334292382
       },
       "model_calibration_evidence": {
         "status": "AUDITED",
@@ -894,37 +900,37 @@
           "NEAREST_KNOT_LT_20_SAMPLES"
         ]
       },
-      "margin_sigma": 15.894597095162021,
+      "margin_sigma": 15.894597095162025,
       "total_sigma": 19.65461270800731,
       "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
-      "margin_mean_home_minus_away": 3.552655889296917,
-      "total_mean": 219.92877451966925,
+      "margin_mean_home_minus_away": 3.552655889296907,
+      "total_mean": 219.92877451966922,
       "prediction_intervals": {
         "margin_home_minus_away": {
           "50": {
-            "low": -7.168086931769642,
-            "high": 14.273398710363475
+            "low": -7.168086931769653,
+            "high": 14.273398710363466
           },
           "80": {
-            "low": -16.81708997252541,
-            "high": 23.922401751119246
+            "low": -16.817089972525423,
+            "high": 23.92240175111924
           },
           "95": {
-            "low": -27.600181893833273,
-            "high": 34.70549367242711
+            "low": -27.60018189383329,
+            "high": 34.7054936724271
           }
         },
         "total": {
           "50": {
             "low": 206.67193970789856,
-            "high": 233.18560933143993
+            "high": 233.18560933143988
           },
           "80": {
-            "low": 194.74037474598052,
-            "high": 245.11717429335798
+            "low": 194.7403747459805,
+            "high": 245.11717429335795
           },
           "95": {
-            "low": 181.40644157112467,
+            "low": 181.40644157112465,
             "high": 258.4511074682138
           }
         }
@@ -940,14 +946,14 @@
         "full_spread": {
           "market": "full_spread",
           "line": 5.5,
-          "p_side1": 0.4512451464612701,
-          "p_side2": 0.5487548535387299,
+          "p_side1": 0.45124514646126984,
+          "p_side2": 0.5487548535387301,
           "settlement": {
-            "full_win": 0.45124514646127145,
+            "full_win": 0.45124514646127123,
             "half_win": 0.0,
             "push": 0.0,
             "half_loss": 0.0,
-            "full_loss": 0.5487548535387285
+            "full_loss": 0.5487548535387288
           },
           "direction_verified": false,
           "calibration": {
@@ -960,14 +966,14 @@
         "full_total": {
           "market": "full_total",
           "line": 222.5,
-          "p_side1": 0.44795866858017347,
-          "p_side2": 0.5520413314198265,
+          "p_side1": 0.44795866858017286,
+          "p_side2": 0.5520413314198271,
           "settlement": {
-            "full_win": 0.4479586685801734,
+            "full_win": 0.44795866858017286,
             "half_win": 0.0,
             "push": 0.0,
             "half_loss": 0.0,
-            "full_loss": 0.5520413314198266
+            "full_loss": 0.5520413314198271
           },
           "direction_verified": false,
           "calibration": {
@@ -1031,26 +1037,88 @@
         "game_id": "728913",
         "matchup_key": "ORL@GSW",
         "source_report_et_date": "2026-11-07",
-        "source_captured_at_utc": "2026-11-07T14:00:49.171167+00:00",
+        "source_captured_at_utc": "2026-11-07T14:39:19.077994+00:00",
         "home": {
-          "report_state": "NOT_LISTED",
-          "players": [],
-          "status_counts": {}
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Butler III, Jimmy",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Green, Draymond",
+              "status": "Questionable",
+              "reason": ""
+            },
+            {
+              "name": "Moody, Moses",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Payton II, Gary",
+              "status": "Questionable",
+              "reason": ""
+            },
+            {
+              "name": "Porzingis, Kristaps",
+              "status": "Out",
+              "reason": "Not With Team"
+            },
+            {
+              "name": "Santos, Gui",
+              "status": "Questionable",
+              "reason": "Injury/Illness - Left Knee Tendinitis"
+            }
+          ],
+          "status_counts": {
+            "Out": 3,
+            "Questionable": 3
+          }
         },
         "away": {
-          "report_state": "NOT_LISTED",
-          "players": [],
-          "status_counts": {}
+          "report_state": "PUBLISHED",
+          "players": [
+            {
+              "name": "Banchero, Paolo",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Isaac, Jonathan",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Nelson, Izaiyah",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Penda, Noah",
+              "status": "Out",
+              "reason": ""
+            },
+            {
+              "name": "Suggs, Jalen",
+              "status": "Out",
+              "reason": ""
+            }
+          ],
+          "status_counts": {
+            "Out": 5
+          }
         },
         "source_date_matches_tip": true,
         "capture_before_tip_verified": true,
         "parsed_player_ambiguity": false,
-        "quality": "UNKNOWN_OR_UNSUBMITTED",
+        "quality": "PUBLISHED_AFFECTED",
         "player_adjustment": "DISABLED_NOT_BACKTESTED",
         "independent_model_probability_adjusted": false
       },
       "injury_adjustment": {
-        "status": "PENDING_OFFICIAL_INJURY",
+        "status": "PLAYER_IMPACT_BACKTEST_MISSING_OR_STALE",
         "adjusted": false,
         "validation": "NOT_VERIFIED",
         "players": [],
@@ -1087,24 +1155,24 @@
           "ISOTONIC_LT_1000_TOTAL_SAMPLES_OVERFIT_RISK"
         ]
       },
-      "margin_sigma": 15.894597095162021,
+      "margin_sigma": 15.894597095162025,
       "total_sigma": 19.65461270800731,
       "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
-      "margin_mean_home_minus_away": -5.724709463160744,
+      "margin_mean_home_minus_away": -5.724709463160746,
       "total_mean": 226.7701727255826,
       "prediction_intervals": {
         "margin_home_minus_away": {
           "50": {
-            "low": -16.4454522842273,
+            "low": -16.445452284227308,
             "high": 4.996033357905814
           },
           "80": {
-            "low": -26.094455324983073,
-            "high": 14.645036398661583
+            "low": -26.094455324983077,
+            "high": 14.645036398661585
           },
           "95": {
-            "low": -36.87754724629094,
-            "high": 25.428128319969446
+            "low": -36.877547246290945,
+            "high": 25.428128319969453
           }
         },
         "total": {
@@ -1133,14 +1201,14 @@
         "full_spread": {
           "market": "full_spread",
           "line": -6.5,
-          "p_side1": 0.5194514884960632,
-          "p_side2": 0.48054851150393685,
+          "p_side1": 0.519451488496063,
+          "p_side2": 0.48054851150393696,
           "settlement": {
-            "full_win": 0.5194514884961972,
+            "full_win": 0.519451488496197,
             "half_win": 0.0,
             "push": 0.0,
             "half_loss": 0.0,
-            "full_loss": 0.4805485115038029
+            "full_loss": 0.480548511503803
           },
           "direction_verified": false,
           "calibration": {
@@ -1224,7 +1292,7 @@
         "game_id": "728914",
         "matchup_key": "HOU@PHX",
         "source_report_et_date": "2026-11-07",
-        "source_captured_at_utc": "2026-11-07T14:00:49.171167+00:00",
+        "source_captured_at_utc": "2026-11-07T14:39:19.077994+00:00",
         "home": {
           "report_state": "PUBLISHED",
           "players": [
@@ -1257,15 +1325,10 @@
               "name": "Adams, Steven",
               "status": "Out",
               "reason": "Injury/Illness - Right Soleus Strain"
-            },
-            {
-              "name": "Capela, Clint",
-              "status": "Out",
-              "reason": "Injury/Illness - Right Ankle Sprain"
             }
           ],
           "status_counts": {
-            "Out": 2
+            "Out": 1
           }
         },
         "source_date_matches_tip": true,
@@ -1294,11 +1357,11 @@
       "away_team": "圣安东尼奥马刺",
       "model_status": "OK",
       "model_probability": {
-        "home": 0.4533304473729953,
+        "home": 0.45333044737299527,
         "away": 0.5466695526270047
       },
       "model_probability_raw": {
-        "home": 0.4533304473729953
+        "home": 0.45333044737299527
       },
       "model_calibration_evidence": {
         "status": "AUDITED",
@@ -1314,24 +1377,24 @@
           "NEAREST_KNOT_LT_20_SAMPLES"
         ]
       },
-      "margin_sigma": 15.894597095162021,
+      "margin_sigma": 15.894597095162025,
       "total_sigma": 19.65461270800731,
       "model_version": "nba-independent-v4-gaussian-active-isotonic-shadow",
-      "margin_mean_home_minus_away": -1.863662592990123,
+      "margin_mean_home_minus_away": -1.8636625929901256,
       "total_mean": 225.88242836275626,
       "prediction_intervals": {
         "margin_home_minus_away": {
           "50": {
-            "low": -12.58440541405668,
-            "high": 8.857080228076436
+            "low": -12.584405414056686,
+            "high": 8.857080228076434
           },
           "80": {
-            "low": -22.23340845481245,
-            "high": 18.506083268832203
+            "low": -22.233408454812455,
+            "high": 18.506083268832207
           },
           "95": {
-            "low": -33.01650037612031,
-            "high": 29.289175190140067
+            "low": -33.01650037612033,
+            "high": 29.289175190140075
           }
         },
         "total": {
@@ -1360,14 +1423,14 @@
         "full_spread": {
           "market": "full_spread",
           "line": -5.5,
-          "p_side1": 0.5904793466238868,
-          "p_side2": 0.4095206533761132,
+          "p_side1": 0.5904793466238867,
+          "p_side2": 0.4095206533761133,
           "settlement": {
-            "full_win": 0.5904793466239115,
+            "full_win": 0.5904793466239114,
             "half_win": 0.0,
             "push": 0.0,
             "half_loss": 0.0,
-            "full_loss": 0.40952065337608845
+            "full_loss": 0.40952065337608856
           },
           "direction_verified": false,
           "calibration": {
@@ -1451,7 +1514,7 @@
         "game_id": "728915",
         "matchup_key": "SAS@POR",
         "source_report_et_date": "2026-11-07",
-        "source_captured_at_utc": "2026-11-07T14:00:49.171167+00:00",
+        "source_captured_at_utc": "2026-11-07T14:39:19.077994+00:00",
         "home": {
           "report_state": "NOT_SUBMITTED",
           "players": [],

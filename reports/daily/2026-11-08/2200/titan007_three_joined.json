@@ -1,6 +1,6 @@
 {
-  "captured_at_utc": "2026-11-07T14:00:44.434516+00:00",
-  "crown_quote_captured_at_utc": "2026-11-07T14:00:44.434516+00:00",
+  "captured_at_utc": "2026-11-07T14:39:14.138494+00:00",
+  "crown_quote_captured_at_utc": "2026-11-07T14:39:14.138494+00:00",
   "crown_source_id": "3",
   "requested_display_date": "2026-11-08",
   "date_standard": "Asia/Shanghai derived from UTC start",
@@ -85,32 +85,32 @@
   ],
   "site_query_dates": {
     "2026-11-08": {
-      "source_rows": 607,
-      "market_rows": 104,
+      "source_rows": 617,
+      "market_rows": 108,
       "id3_state": "AVAILABLE",
       "nba_rows": 7
     },
-    "2026-11-07": {
-      "source_rows": 675,
-      "market_rows": 199,
-      "id3_state": "AVAILABLE",
-      "nba_rows": 9
-    },
     "2026-11-09": {
-      "source_rows": 212,
+      "source_rows": 218,
       "market_rows": 0,
       "id3_state": "AVAILABLE",
       "nba_rows": 7
     }
   },
   "match_rejections": {
-    "NOT_OFFICIAL_BEIJING_MATCHUP": 16
+    "NOT_OFFICIAL_BEIJING_MATCHUP": 7
   },
   "missing_id3_diagnostics": [],
   "source_rejections": {
     "identity_rejected": 0
   },
-  "source_query_errors": [],
+  "source_query_errors": [
+    {
+      "site_date": "2026-11-07",
+      "source": "SCOREBOARD",
+      "error": "URLError"
+    }
+  ],
   "unmatched_nba_fixtures": [],
   "nba_cba_games": [
     {
@@ -147,7 +147,7 @@
         }
       },
       "quote_freshness": "CURRENT_CAPTURE",
-      "quote_captured_at_utc": "2026-11-07T14:00:44.434516+00:00"
+      "quote_captured_at_utc": "2026-11-07T14:39:14.138494+00:00"
     },
     {
       "game_id": "728314",
@@ -183,7 +183,7 @@
         }
       },
       "quote_freshness": "CURRENT_CAPTURE",
-      "quote_captured_at_utc": "2026-11-07T14:00:44.434516+00:00"
+      "quote_captured_at_utc": "2026-11-07T14:39:14.138494+00:00"
     },
     {
       "game_id": "728315",
@@ -219,7 +219,7 @@
         }
       },
       "quote_freshness": "CURRENT_CAPTURE",
-      "quote_captured_at_utc": "2026-11-07T14:00:44.434516+00:00"
+      "quote_captured_at_utc": "2026-11-07T14:39:14.138494+00:00"
     },
     {
       "game_id": "728912",
@@ -241,21 +241,21 @@
           "opening": {},
           "current": {
             "line": 11.5,
-            "first_side_water": 0.9,
-            "second_side_water": 0.96
+            "first_side_water": 0.88,
+            "second_side_water": 0.98
           }
         },
         "full_total": {
           "opening": {},
           "current": {
-            "line": 222.5,
-            "first_side_water": 0.87,
-            "second_side_water": 0.97
+            "line": 223.5,
+            "first_side_water": 0.92,
+            "second_side_water": 0.92
           }
         }
       },
       "quote_freshness": "CURRENT_CAPTURE",
-      "quote_captured_at_utc": "2026-11-07T14:00:44.434516+00:00"
+      "quote_captured_at_utc": "2026-11-07T14:39:14.138494+00:00"
     },
     {
       "game_id": "728913",
@@ -291,7 +291,7 @@
         }
       },
       "quote_freshness": "CURRENT_CAPTURE",
-      "quote_captured_at_utc": "2026-11-07T14:00:44.434516+00:00"
+      "quote_captured_at_utc": "2026-11-07T14:39:14.138494+00:00"
     },
     {
       "game_id": "728914",
@@ -327,7 +327,7 @@
         }
       },
       "quote_freshness": "CURRENT_CAPTURE",
-      "quote_captured_at_utc": "2026-11-07T14:00:44.434516+00:00"
+      "quote_captured_at_utc": "2026-11-07T14:39:14.138494+00:00"
     },
     {
       "game_id": "728915",
@@ -363,7 +363,7 @@
         }
       },
       "quote_freshness": "CURRENT_CAPTURE",
-      "quote_captured_at_utc": "2026-11-07T14:00:44.434516+00:00"
+      "quote_captured_at_utc": "2026-11-07T14:39:14.138494+00:00"
     }
   ],
   "markets_joined_for_date": 7,
@@ -378,8 +378,8 @@
     "missing_market_games": 0,
     "status": "MARKETS_AVAILABLE"
   },
-  "all_scoreboard_matches": 1056,
-  "all_untargeted_market_matches": 249,
+  "all_scoreboard_matches": 707,
+  "all_untargeted_market_matches": 108,
   "market_opening_not_available": true,
   "time_zone": "Asia/Shanghai (verified UTC fixture)",
   "water_orientation": "UNVERIFIED; original market slots",
