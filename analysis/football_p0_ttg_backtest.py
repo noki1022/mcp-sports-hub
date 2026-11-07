@@ -2,8 +2,10 @@
 """P0 proper-scoring football total-goals distribution competition.
 
 Inputs: original frozen 21:00 forecast + immutable per-match final + review
-with ORIGINAL 007 FT response bytes. Never use odds or postgame revised
-intensities. Competing grids share exactly the same pregame lambda_home/away.
+with ORIGINAL 007 FT response bytes. Never directly read odds or postgame
+revised intensities. Production's original lambdas may already include bounded
+Asian market assimilation; this study isolates only the distribution family,
+not the causal value of bookmaker inputs. All grids share identical lambdas.
 No auto-promotion. Holdout is strictly later than selection training period.
 """
 from __future__ import annotations
@@ -224,7 +226,9 @@ def paired_eval(examples):
         data.append((t,mid,float(row["home_lambda"]),float(row["away_lambda"]),y))
     data.sort(key=lambda x:(x[0],x[1]))
     report={"schema_version":VERSION,"total_verified_fixtures":len(data),
-      "market_price_input":False,"same_pregame_intensities_for_all_candidates":True,
+      "market_prices_directly_read_by_benchmark":False,
+      "pregame_lambdas_may_already_include_bounded_market_assimilation":True,
+      "same_pregame_intensities_for_all_candidates":True,
       "candidate_metrics":{},"promotion_approved":False,
       "production_weights_modified":False}
     results={c:[] for c in CANDIDATES}
