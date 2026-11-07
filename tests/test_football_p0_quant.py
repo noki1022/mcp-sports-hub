@@ -101,6 +101,18 @@ class TestP0TotalDistribution(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"DUPLICATE"):
             goal.paired_eval(wrong)
 
+    def test_fake_review_archive_without_original_007_bytes_fails_closed(self):
+        from io import BytesIO
+        from zipfile import ZipFile
+        buf=BytesIO()
+        with ZipFile(buf,"w") as z:
+            z.writestr("frozen-2100.json",'{"schema_version":"invalid"}')
+            z.writestr("verified-results.json",'{"schema_version":"football-007-final-results-v1","results":[]}')
+        with self.assertRaisesRegex(ValueError,"INVALID_ORIGINAL_2100_FORECAST_HASH"):
+            goal.validated_2100_review_archive(buf.getvalue())
+        with self.assertRaisesRegex(ValueError,"VERIFIED_REVIEW"):
+            goal.validated_2100_review_archive(b"")
+    
     def test_no_frozen_original_or_real_result_bytes_is_no_admission(self):
         doc={"schema_version":"football-jc-single-final-2100-v1",
              "final_forecast_sha256":"a"*64,"forecast":{"model_version":"x","games":[]},
