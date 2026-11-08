@@ -1,6 +1,6 @@
 {
-  "captured_at_utc": "2026-11-08T14:00:48.418202+00:00",
-  "crown_quote_captured_at_utc": "2026-11-08T14:00:48.418202+00:00",
+  "captured_at_utc": "2026-11-08T14:37:16.162863+00:00",
+  "crown_quote_captured_at_utc": "2026-11-08T14:37:16.162863+00:00",
   "crown_source_id": "3",
   "requested_display_date": "2026-11-09",
   "date_standard": "Asia/Shanghai derived from UTC start",
@@ -85,148 +85,33 @@
   ],
   "site_query_dates": {
     "2026-11-09": {
-      "source_rows": 269,
-      "market_rows": 0,
-      "id3_state": "UNAVAILABLE",
+      "source_rows": 271,
+      "market_rows": 68,
+      "id3_state": "AVAILABLE",
       "nba_rows": 7
     },
     "2026-11-08": {
       "source_rows": 720,
-      "market_rows": 216,
+      "market_rows": 218,
       "id3_state": "AVAILABLE",
       "nba_rows": 7
     },
     "2026-11-10": {
-      "source_rows": 141,
+      "source_rows": 143,
       "market_rows": 0,
       "id3_state": "AVAILABLE",
       "nba_rows": 8
     }
   },
   "match_rejections": {
-    "NO_DATE_MARKET_FOR_GAME_ID": 7,
     "NOT_OFFICIAL_BEIJING_MATCHUP": 15
   },
-  "missing_id3_diagnostics": [
-    {
-      "007_game_id": "728316",
-      "nba_game_id": "401909945",
-      "home": "CHI",
-      "away": "PHI",
-      "site_date": "2026-11-09",
-      "site_clock": "04:30",
-      "id3_dated_market": "MISSING"
-    },
-    {
-      "007_game_id": "728317",
-      "nba_game_id": "401909946",
-      "home": "DET",
-      "away": "LAL",
-      "site_date": "2026-11-09",
-      "site_clock": "07:00",
-      "id3_dated_market": "MISSING"
-    },
-    {
-      "007_game_id": "728916",
-      "nba_game_id": "401909947",
-      "home": "MIN",
-      "away": "UTA",
-      "site_date": "2026-11-09",
-      "site_clock": "08:00",
-      "id3_dated_market": "MISSING"
-    },
-    {
-      "007_game_id": "728917",
-      "nba_game_id": "401909948",
-      "home": "DAL",
-      "away": "BKN",
-      "site_date": "2026-11-09",
-      "site_clock": "08:30",
-      "id3_dated_market": "MISSING"
-    },
-    {
-      "007_game_id": "728318",
-      "nba_game_id": "401909949",
-      "home": "MIL",
-      "away": "BOS",
-      "site_date": "2026-11-09",
-      "site_clock": "09:00",
-      "id3_dated_market": "MISSING"
-    },
-    {
-      "007_game_id": "728918",
-      "nba_game_id": "401909951",
-      "home": "SAC",
-      "away": "MIA",
-      "site_date": "2026-11-09",
-      "site_clock": "10:00",
-      "id3_dated_market": "MISSING"
-    },
-    {
-      "007_game_id": "728919",
-      "nba_game_id": "401909950",
-      "home": "LAC",
-      "away": "NOP",
-      "site_date": "2026-11-09",
-      "site_clock": "10:00",
-      "id3_dated_market": "MISSING"
-    }
-  ],
+  "missing_id3_diagnostics": [],
   "source_rejections": {
-    "identity_rejected": 0,
-    "ID3_SOURCE_UNAVAILABLE": 1
+    "identity_rejected": 0
   },
-  "source_query_errors": [
-    {
-      "site_date": "2026-11-09",
-      "source": "CROWN_ID3",
-      "error": "URLError"
-    }
-  ],
-  "unmatched_nba_fixtures": [
-    {
-      "nba_game_id": "401909945",
-      "home": "CHI",
-      "away": "PHI",
-      "reason": "NO_VERIFIED_CURRENT_OR_ARCHIVED_MARKET"
-    },
-    {
-      "nba_game_id": "401909946",
-      "home": "DET",
-      "away": "LAL",
-      "reason": "NO_VERIFIED_CURRENT_OR_ARCHIVED_MARKET"
-    },
-    {
-      "nba_game_id": "401909947",
-      "home": "MIN",
-      "away": "UTA",
-      "reason": "NO_VERIFIED_CURRENT_OR_ARCHIVED_MARKET"
-    },
-    {
-      "nba_game_id": "401909948",
-      "home": "DAL",
-      "away": "BKN",
-      "reason": "NO_VERIFIED_CURRENT_OR_ARCHIVED_MARKET"
-    },
-    {
-      "nba_game_id": "401909949",
-      "home": "MIL",
-      "away": "BOS",
-      "reason": "NO_VERIFIED_CURRENT_OR_ARCHIVED_MARKET"
-    },
-    {
-      "nba_game_id": "401909950",
-      "home": "LAC",
-      "away": "NOP",
-      "reason": "NO_VERIFIED_CURRENT_OR_ARCHIVED_MARKET"
-    },
-    {
-      "nba_game_id": "401909951",
-      "home": "SAC",
-      "away": "MIA",
-      "reason": "NO_VERIFIED_CURRENT_OR_ARCHIVED_MARKET"
-    }
-  ],
+  "source_query_errors": [],
+  "unmatched_nba_fixtures": [],
   "nba_cba_games": [
     {
       "game_id": "728316",
@@ -246,17 +131,23 @@
       "markets": {
         "full_spread": {
           "opening": {},
-          "current": {},
-          "status": "NO_VERIFIED_ID3_SPREAD"
+          "current": {
+            "line": -9.5,
+            "first_side_water": 0.88,
+            "second_side_water": 0.98
+          }
         },
         "full_total": {
           "opening": {},
-          "current": {},
-          "status": "NO_VERIFIED_ID3_TOTAL"
+          "current": {
+            "line": 237.5,
+            "first_side_water": 0.89,
+            "second_side_water": 0.95
+          }
         }
       },
       "quote_freshness": "CURRENT_CAPTURE",
-      "quote_captured_at_utc": "2026-11-08T14:00:48.418202+00:00"
+      "quote_captured_at_utc": "2026-11-08T14:37:16.162863+00:00"
     },
     {
       "game_id": "728317",
@@ -276,17 +167,23 @@
       "markets": {
         "full_spread": {
           "opening": {},
-          "current": {},
-          "status": "NO_VERIFIED_ID3_SPREAD"
+          "current": {
+            "line": 4.5,
+            "first_side_water": 0.9,
+            "second_side_water": 0.96
+          }
         },
         "full_total": {
           "opening": {},
-          "current": {},
-          "status": "NO_VERIFIED_ID3_TOTAL"
+          "current": {
+            "line": 221.5,
+            "first_side_water": 0.96,
+            "second_side_water": 0.88
+          }
         }
       },
       "quote_freshness": "CURRENT_CAPTURE",
-      "quote_captured_at_utc": "2026-11-08T14:00:48.418202+00:00"
+      "quote_captured_at_utc": "2026-11-08T14:37:16.162863+00:00"
     },
     {
       "game_id": "728916",
@@ -306,17 +203,23 @@
       "markets": {
         "full_spread": {
           "opening": {},
-          "current": {},
-          "status": "NO_VERIFIED_ID3_SPREAD"
+          "current": {
+            "line": 11.5,
+            "first_side_water": 0.96,
+            "second_side_water": 0.9
+          }
         },
         "full_total": {
           "opening": {},
-          "current": {},
-          "status": "NO_VERIFIED_ID3_TOTAL"
+          "current": {
+            "line": 224.5,
+            "first_side_water": 0.97,
+            "second_side_water": 0.87
+          }
         }
       },
       "quote_freshness": "CURRENT_CAPTURE",
-      "quote_captured_at_utc": "2026-11-08T14:00:48.418202+00:00"
+      "quote_captured_at_utc": "2026-11-08T14:37:16.162863+00:00"
     },
     {
       "game_id": "728917",
@@ -336,17 +239,23 @@
       "markets": {
         "full_spread": {
           "opening": {},
-          "current": {},
-          "status": "NO_VERIFIED_ID3_SPREAD"
+          "current": {
+            "line": 7.5,
+            "first_side_water": 0.93,
+            "second_side_water": 0.93
+          }
         },
         "full_total": {
           "opening": {},
-          "current": {},
-          "status": "NO_VERIFIED_ID3_TOTAL"
+          "current": {
+            "line": 222.5,
+            "first_side_water": 0.85,
+            "second_side_water": 0.99
+          }
         }
       },
       "quote_freshness": "CURRENT_CAPTURE",
-      "quote_captured_at_utc": "2026-11-08T14:00:48.418202+00:00"
+      "quote_captured_at_utc": "2026-11-08T14:37:16.162863+00:00"
     },
     {
       "game_id": "728318",
@@ -366,17 +275,23 @@
       "markets": {
         "full_spread": {
           "opening": {},
-          "current": {},
-          "status": "NO_VERIFIED_ID3_SPREAD"
+          "current": {
+            "line": -12.5,
+            "first_side_water": 1.0,
+            "second_side_water": 0.86
+          }
         },
         "full_total": {
           "opening": {},
-          "current": {},
-          "status": "NO_VERIFIED_ID3_TOTAL"
+          "current": {
+            "line": 222.5,
+            "first_side_water": 0.92,
+            "second_side_water": 0.92
+          }
         }
       },
       "quote_freshness": "CURRENT_CAPTURE",
-      "quote_captured_at_utc": "2026-11-08T14:00:48.418202+00:00"
+      "quote_captured_at_utc": "2026-11-08T14:37:16.162863+00:00"
     },
     {
       "game_id": "728918",
@@ -396,17 +311,23 @@
       "markets": {
         "full_spread": {
           "opening": {},
-          "current": {},
-          "status": "NO_VERIFIED_ID3_SPREAD"
+          "current": {
+            "line": -10.5,
+            "first_side_water": 0.88,
+            "second_side_water": 0.98
+          }
         },
         "full_total": {
           "opening": {},
-          "current": {},
-          "status": "NO_VERIFIED_ID3_TOTAL"
+          "current": {
+            "line": 238.5,
+            "first_side_water": 0.97,
+            "second_side_water": 0.87
+          }
         }
       },
       "quote_freshness": "CURRENT_CAPTURE",
-      "quote_captured_at_utc": "2026-11-08T14:00:48.418202+00:00"
+      "quote_captured_at_utc": "2026-11-08T14:37:16.162863+00:00"
     },
     {
       "game_id": "728919",
@@ -426,38 +347,44 @@
       "markets": {
         "full_spread": {
           "opening": {},
-          "current": {},
-          "status": "NO_VERIFIED_ID3_SPREAD"
+          "current": {
+            "line": -1.5,
+            "first_side_water": 0.93,
+            "second_side_water": 0.93
+          }
         },
         "full_total": {
           "opening": {},
-          "current": {},
-          "status": "NO_VERIFIED_ID3_TOTAL"
+          "current": {
+            "line": 226.5,
+            "first_side_water": 0.86,
+            "second_side_water": 0.98
+          }
         }
       },
       "quote_freshness": "CURRENT_CAPTURE",
-      "quote_captured_at_utc": "2026-11-08T14:00:48.418202+00:00"
+      "quote_captured_at_utc": "2026-11-08T14:37:16.162863+00:00"
     }
   ],
-  "markets_joined_for_date": 0,
+  "markets_joined_for_date": 7,
   "verified_fixture_ids_for_date": 7,
   "nba_cba_joined_for_date": 7,
-  "nba_markets_missing": 7,
+  "nba_markets_missing": 0,
   "crown_quote_coverage": {
-    "spread_games": 0,
-    "total_games": 0,
-    "any_market_games": 0,
-    "complete_crown_games": 0,
-    "missing_market_games": 7,
-    "status": "SCHEDULE_ONLY_NO_VERIFIED_007_MARKETS"
+    "spread_games": 7,
+    "total_games": 7,
+    "any_market_games": 7,
+    "complete_crown_games": 7,
+    "missing_market_games": 0,
+    "status": "MARKETS_AVAILABLE"
   },
-  "all_scoreboard_matches": 922,
-  "all_untargeted_market_matches": 216,
+  "all_scoreboard_matches": 924,
+  "all_untargeted_market_matches": 243,
   "market_opening_not_available": true,
   "time_zone": "Asia/Shanghai (verified UTC fixture)",
   "water_orientation": "UNVERIFIED; original market slots",
   "company_identity": "UNVERIFIED",
-  "report_quality": "SCHEDULE_ONLY_NO_VERIFIED_007_MARKETS",
+  "report_quality": "MARKETS_AVAILABLE",
   "recommendations": [],
   "quote_recovery": {
     "schema_version": "verified-007-archive-recovery-v1",
