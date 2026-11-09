@@ -126,6 +126,27 @@ export async function dispatchFootballAt(timestamp,env,fetcher=fetch){
     recovery_day:job.date,recovery_cron:job.cron},env,fetcher);
   return {state:"FOOTBALL_EXACT_DISPATCH_ACCEPTED_NOT_DELIVERED",slot:job.slot};
 }
+export function plannedPostgameJobs(timestamp){
+  const utc=new Date(timestamp),hour=utc.getUTCHours(),minute=utc.getUTCMinutes();
+  if(utc.getUTCSeconds()!==0||utc.getUTCMilliseconds()!==0)return [];
+  if(minute===0&&hour===5)return ["football-review-push-1300.yml"];
+  if(minute===25)return ["sports-per-match-finalizer.yml"];
+  if(minute===50)return ["sports-verified-results.yml"];
+  if(minute===30&&hour===16)return ["nba-two-market-nightly-2200.yml"];
+  return [];
+}
+
+export async function dispatchPostgameAt(workflow,timestamp,env,fetcher=fetch){
+  if(!plannedPostgameJobs(timestamp).includes(workflow))return {state:"NO_SLOT"};
+  const slot=new Date(timestamp).toISOString();
+  const runs=await nativeRuns({workflow},timestamp,env,fetcher,run=>
+    run.event==="schedule" ||
+    (run.event==="workflow_dispatch"&&run.display_title==="Cloudflare | slot="+slot));
+  if(runs.length)return {state:"POSTGAME_CANONICAL_RUN_EXISTS_NO_RETRY",slot};
+  await dispatch(workflow,{cloudflare_slot_utc:slot},env,fetcher);
+  return {state:"POSTGAME_EXACT_SLOT_DISPATCH_ACCEPTED_NOT_DELIVERED",slot};
+}
+
 export default {
   async scheduled(event,env){
     const scheduledAt=Number(event.scheduledTime||Date.now());
@@ -135,7 +156,9 @@ export default {
       return;
     }
     const cases=[["NBA",dispatchAt(scheduledAt,env)],
-                 ["FOOTBALL",dispatchFootballAt(scheduledAt,env)]];
+                 ["FOOTBALL",dispatchFootballAt(scheduledAt,env)],
+                 ...plannedPostgameJobs(scheduledAt).map(workflow=>
+                   [workflow,dispatchPostgameAt(workflow,scheduledAt,env)])];
     const results=await Promise.allSettled(cases.map(c=>c[1]));
     let failures=[];
     results.forEach((r,i)=>{

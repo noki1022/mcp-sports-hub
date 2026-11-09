@@ -1,6 +1,12 @@
 name: NBA official-final-triggered five-market postgame review
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot_utc != '' && format('Cloudflare | slot={0}', inputs.cloudflare_slot_utc) || github.workflow }}
 on:
   workflow_dispatch:
+    inputs:
+      cloudflare_slot_utc:
+        description: 'Original Cloudflare cron timestamp in UTC'
+        required: false
+        type: string
   schedule:
     # One results-only check daily, never fetch fresh odds or rerun predictions.
     - cron: "30 16 * * *"
@@ -11,16 +17,26 @@ concurrency:
   cancel-in-progress: false
 jobs:
   settle-and-notify:
+    if: github.ref == 'refs/heads/main' && github.run_attempt == '1' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot_utc != ''))
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
+      - name: Validate original scheduler slot
+        env:
+          CLOUDFLARE_SLOT_UTC: ${{ inputs.cloudflare_slot_utc }}
+        run: python -B scripts/sports_postgame_slot.py nba-review
       - name: Check last frozen game has official Final before review
         run: |
           git pull --ff-only origin main
-          python3 analysis/nba_final_review_gate.py --github-env "$GITHUB_ENV" \
+          day="$(TZ=Asia/Shanghai date --date=yesterday +%F)"
+          if [ -f "reports/five-market-settled/$day/push.claim.json" ]; then
+            echo "NBA_REVIEW_ALREADY_CLAIMED $day"
+            exit 0
+          fi
+          python3 analysis/nba_final_review_gate.py --day "$day" --github-env "$GITHUB_ENV" \
             --status-out nba_final_review_readiness.json \
             --scores-out nba_final_review_scores.json
       - name: Settle five locked directions against official completed NBA scores
@@ -75,8 +91,21 @@ jobs:
         if: env.RUN_REPORT == 'true'
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          CLOUDFLARE_SLOT_UTC: ${{ inputs.cloudflare_slot_utc }}
         run: |
           dir="reports/five-market-settled/$REVIEW_DAY"
+          test -n "$PUSHPLUS_TOKEN"
+          python3 analysis/nba_five_market_review_push.py --settlement "$dir/settlement.json" \
+            --preview "$dir/report.html" --status "$dir/2200.json"
+          python -B scripts/sports_postgame_slot.py nba-review
+          # A create-only Contents API write is atomic across both trigger sources.
+          claim="$(printf '{"review_day_beijing":"%s","run_id":"%s"}\n' "$REVIEW_DAY" "$GITHUB_RUN_ID" | base64 -w0)"
+          gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$dir/push.claim.json" \
+            --silent --field branch=main --field message="Claim NBA review delivery $REVIEW_DAY" \
+            --field content="$claim"
+          git pull --ff-only origin main
+          python -B scripts/sports_postgame_slot.py nba-review
           python3 analysis/nba_five_market_review_push.py --settlement "$dir/settlement.json" \
             --preview "$dir/report.html" --status "$dir/2200.json" --send
           python3 - <<'PY'

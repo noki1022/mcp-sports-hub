@@ -8,6 +8,7 @@ invalid marker as permission to resend.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import re
@@ -105,19 +106,41 @@ def marker_is_accepted(blob: str, slot: str) -> bool:
     return True
 
 
-def remote_accepted(slot: str, target: str) -> bool:
-    relative = marker_path(Path("."), slot, target).as_posix()
+def remote_exists(relative: str) -> bool:
     tree = subprocess.run(["git", "ls-tree", "origin/main", "--", relative],
                           text=True, capture_output=True, check=False)
     if tree.returncode:
         raise RuntimeError("REMOTE_LEDGER_UNAVAILABLE_ABORT")
-    if not tree.stdout.strip():
+    return bool(tree.stdout.strip())
+
+
+def remote_accepted(slot: str, target: str) -> bool:
+    relative = marker_path(Path("."), slot, target).as_posix()
+    if not remote_exists(relative):
         return False
     show = subprocess.run(["git", "show", "origin/main:" + relative],
                           text=True, capture_output=True, check=False)
     if show.returncode:
         raise RuntimeError("REMOTE_PUSHPLUS_MARKER_UNREADABLE_ABORT")
     return marker_is_accepted(show.stdout, slot)
+
+def claim_path(slot: str, target: str) -> str:
+    return f"reports/pushplus-claims/{target}/{slot}.json"
+
+
+def claim_fixed_send(slot: str, target: str) -> None:
+    if slot not in FIXED_SLOTS:
+        return
+    if remote_accepted(slot, target):
+        raise RuntimeError("NBA_FIXED_PUSH_ALREADY_ACCEPTED")
+    content = json.dumps({"slot": slot, "target_date": target,
+                          "run_id": os.environ["GITHUB_RUN_ID"]}).encode()
+    path = claim_path(slot, target)
+    subprocess.run(["gh", "api", "--method", "PUT", "--silent",
+                    f"repos/{os.environ['GITHUB_REPOSITORY']}/contents/{path}",
+                    "--field", "branch=main", "--field", f"message=Claim NBA slot {target} {slot}",
+                    "--field", "content=" + base64.b64encode(content).decode()], check=True)
+    print("NBA_FIXED_PUSH_CLAIMED", target, slot)
 
 
 def append_env(key: str, value: str) -> None:
@@ -182,6 +205,8 @@ def self_test() -> None:
             "nba_cba_games":[{"start_time_beijing":"2026-11-02T04:30+08:00"},
                              {"start_time_beijing":"2026-11-02T04:00+08:00"}]}),encoding="utf-8")
         assert not overnight_all_games_pretip(board,"2026-11-02",datetime.fromisoformat("2026-11-02T04:02+08:00"))
+    assert marker_path(Path("."), "2200", "2026-11-09") == Path("reports/pushplus-sent/2026-11-09/2200.json")
+    assert claim_path("2200", "2026-11-09") == "reports/pushplus-claims/2026-11-09/2200.json"
     assert marker_is_accepted(json.dumps({"state": ACCEPTED, "slot": "1200"}), "1200")
     for invalid in ('{}', '{"state":"PENDING","slot":"1200"}', '{"state":"API_ACCEPTED_NOT_DEVICE_CONFIRMED","slot":"1800"}', 'not-json'):
         try:
@@ -222,7 +247,7 @@ def self_test() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--phase", choices=("preflight", "recheck"))
+    parser.add_argument("--phase", choices=("preflight", "recheck", "claim"))
     parser.add_argument("--priority-slot", choices=("2130", "0630"),
                         help="Explicit priority preflight, bypass fixed cron mapping")
     parser.add_argument("--self-test", action="store_true")
@@ -243,6 +268,8 @@ def main() -> None:
         append_env("REPORT_SLOT", slot)
     else:
         slot = os.environ["REPORT_SLOT"]
+    if args.phase == "claim":
+        return claim_fixed_send(slot, target)
     # Overnight analysis only: fail closed if the workflow wakes up too late
     # or if any verified game is already too close to kickoff. A stale skip
     # is NOT a successful delivery and must not write an accepted marker.
@@ -264,10 +291,12 @@ def main() -> None:
     accepted = remote_accepted(slot, target)
     append_env("REPORT_ALREADY_SENT", "true" if accepted else "false")
     if args.phase == "preflight":
+        claimed = slot in FIXED_SLOTS and remote_exists(claim_path(slot, target))
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as file:
-            verdict = "true" if accepted else "false"
-            file.write("skip=" + verdict + "\n")
-            file.write("sent=" + verdict + "\n")
+            file.write(f"skip={str(accepted or claimed).lower()}\nsent={str(accepted).lower()}\n")
+        if claimed and not accepted:
+            print("NBA_FIXED_PUSH_ALREADY_CLAIMED", target, slot)
+            return
     print("FIXED_SLOT_" + args.phase.upper(), target, slot,
           "API_ALREADY_ACCEPTED" if accepted else "READY_FOR_ANALYSIS")
 

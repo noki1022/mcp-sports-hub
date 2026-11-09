@@ -113,7 +113,8 @@ def verify_nba_final_score_identity(final,source):
     # Keep the home and away comparisons independent.
     def canonical(value):
         code=str(value or "").upper()
-        return {"GS":"GSW", "WSH":"WAS"}.get(code,code)
+        return {"GS":"GSW", "WSH":"WAS", "NY":"NYK", "SA":"SAS",
+                "NO":"NOP", "UTAH":"UTA"}.get(code,code)
     registry.require(canonical(source.get("home_abbr"))==home[0] and
                      canonical(source.get("away_abbr"))==away[0],
                      "NBA_OFFICIAL_RESULT_HOME_AWAY_SWAPPED_OR_UNKNOWN")

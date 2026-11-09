@@ -2,7 +2,6 @@ name = "nba-external-schedule-watchdog"
 main = "worker.mjs"
 compatibility_date = "2026-10-30"
 [triggers]
-# ONLY exact canonical slots; never retries, late fallbacks, or recovery ticks.
-# Exactly one Cloudflare cron expression, for twelve original hourly triggers.
-# No overnight, 21:30, 06:30 or follow-up attempts.
-crons = ["0 4-15 * * *"]
+# Original GitHub slots: hourly analysis, shared archive/settlement, and NBA review.
+# Football review shares the existing 13:00 Beijing trigger.
+crons = ["0 4-15 * * *", "25,50 * * * *", "30 16 * * *"]

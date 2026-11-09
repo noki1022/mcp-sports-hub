@@ -4,6 +4,11 @@ on:
     branches: [main]
     paths:
       - 'scheduler/**'
+      - 'scripts/sports_postgame_slot.py'
+      - '.github/workflows/football-review-push-1300.yml'
+      - '.github/workflows/nba-two-market-nightly-2200.yml'
+      - '.github/workflows/sports-per-match-finalizer.yml'
+      - '.github/workflows/sports-verified-results.yml'
       - '.github/workflows/titan007-three-analysis.yml'
       - '.github/workflows/football-007-live-capture.yml'
       - '.github/workflows/nba-priority-0630.yml'
@@ -25,12 +30,13 @@ jobs:
           import tomllib
           c=tomllib.loads(Path('scheduler/wrangler.toml').read_text())
           assert c['name']=='nba-external-schedule-watchdog'
-          assert c['triggers']['crons']==['0 4-15 * * *']
+          assert c['triggers']['crons']==["0 4-15 * * *", "25,50 * * * *", "30 16 * * *"]
           worker=Path('scheduler/worker.mjs').read_text()
           assert 'export async function dispatchAt(' in worker
           assert 'export async function dispatchFootballAt(' in worker
           assert 'CANONICAL_RUN_EXISTS_NO_RETRY' in worker
           assert 'FOOTBALL_CANONICAL_RUN_EXISTS_NO_RETRY' in worker
           assert not Path('.github/workflows/deploy-cloudflare-secondary-scheduler.yml').exists()
+          assert 'export async function dispatchPostgameAt(' in worker
           print('EXACT_TIME_EXISTING_CLOUDFLARE_WORKER_NO_RESEND_PASS')
           PY

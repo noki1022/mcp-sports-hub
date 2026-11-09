@@ -1,9 +1,15 @@
 name: Football + NBA immutable per-match latest valid pretip finals
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot_utc != '' && format('Cloudflare | slot={0}', inputs.cloudflare_slot_utc) || github.workflow }}
 on:
   schedule:
     # Every hour after candidate archives have had time to finish.
     - cron: "25 * * * *"
   workflow_dispatch:
+    inputs:
+      cloudflare_slot_utc:
+        description: 'Original Cloudflare cron timestamp in UTC'
+        required: false
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -11,6 +17,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   freeze-per-match:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 18
     permissions:
@@ -25,6 +32,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Validate original scheduler slot
+        env:
+          CLOUDFLARE_SLOT_UTC: ${{ inputs.cloudflare_slot_utc }}
+        run: python -B scripts/sports_postgame_slot.py per-match-finalizer
       - name: Retrieve only small SHA-protected candidate assets, not large raw archive zips
         run: |
           mkdir -p registry-inputs/football registry-inputs/basketball

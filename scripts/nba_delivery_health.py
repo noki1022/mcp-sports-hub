@@ -67,12 +67,10 @@ def expected_workflow(slot:str)->str:
     if slot in FIXED or slot=="ONCE" or slot.startswith("ONCE-"):return "titan007-three-analysis.yml"
     if slot=="2130":return "nba-priority-2130.yml"
     if slot=="0630":return "nba-priority-0630.yml"
-    if slot=="2200":return "nba-two-market-nightly-2200.yml"
     if slot in HOURS:return "titan007-final-hourly.yml"
     raise ValueError("UNKNOWN_HEALTH_SLOT")
 
 def marker_path(root:Path,slot:str,target:str)->Path:
-    if slot=="2200":return root/"reports/five-market-settled"/target/"2200.json"
     return root/"reports/pushplus-sent"/target/(slot+".json")
 
 def accepted_marker(root:Path,slot:str,target:str)->bool:
@@ -81,8 +79,7 @@ def accepted_marker(root:Path,slot:str,target:str)->bool:
     try:
         obj=json.loads(path.read_text(encoding="utf-8"))
     except (ValueError,OSError):return False
-    return (obj.get("state")==ACCEPTED and
-            (slot=="2200" or obj.get("slot",slot)==slot))
+    return obj.get("state")==ACCEPTED and obj.get("slot",slot)==slot
 
 def scheduled_start(slot:str,target:str)->datetime:
     day=datetime.fromisoformat(target).date()
