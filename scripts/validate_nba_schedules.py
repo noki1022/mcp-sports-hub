@@ -16,6 +16,7 @@ PRODUCTION={
     "titan007-three-analysis.yml":HOURS,
     "football-007-live-capture.yml":HOURS,
 }
+FOOTBALL_REVIEW_PUSH="football-review-push-1300.yml"
 QUIET_ALLOW={
     "sports-per-match-finalizer.yml",
     "sports-integrity-and-leakage-gates.yml",
@@ -50,12 +51,15 @@ def crons(name):
 
 def main():
     files={p.name for p in WF.glob("*.yml")}
-    assert set(PRODUCTION)|QUIET_ALLOW|DISABLED <= files
+    assert set(PRODUCTION)|QUIET_ALLOW|DISABLED|{FOOTBALL_REVIEW_PUSH} <= files
     scheduled={name for name in files if crons(name)}
-    unexpected=scheduled-(set(PRODUCTION)|QUIET_ALLOW)
+    unexpected=scheduled-(set(PRODUCTION)|QUIET_ALLOW|{FOOTBALL_REVIEW_PUSH})
     assert not unexpected,("EXTRA_SCHEDULED_WORKFLOWS",sorted(unexpected))
     for name,expected in PRODUCTION.items():
         assert crons(name)==expected,("NOT_EXACT_TWELVE_SLOTS",name,crons(name))
+    assert crons(FOOTBALL_REVIEW_PUSH)==["0 5 * * *"],"FOOTBALL_REVIEW_MUST_RUN_AT_BEIJING_1300"
+    review_workflow=load(FOOTBALL_REVIEW_PUSH)
+    assert set(review_workflow.get("on",review_workflow.get(True)))=={"schedule","pull_request"}
     for name in DISABLED:
         assert not crons(name),("OLD_PREMATCH_SCHEDULE_STILL_ACTIVE",name)
     cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
