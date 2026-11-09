@@ -1,4 +1,5 @@
 name: Sports verified results to immutable per-match review
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot_utc != '' && format('Cloudflare | slot={0}', inputs.cloudflare_slot_utc) || github.workflow }}
 on:
   push:
     branches: [main]
@@ -10,9 +11,14 @@ on:
     types: [completed]
     branches: [main]
   schedule:
-    # Hourly recovery; GitHub cron is best effort. No odds or notification job.
+    # Fixed hourly verification. No odds or notification job.
     - cron: '50 * * * *'
   workflow_dispatch:
+    inputs:
+      cloudflare_slot_utc:
+        description: 'Original Cloudflare cron timestamp in UTC'
+        required: false
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -30,6 +36,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Validate original scheduler slot
+        env:
+          CLOUDFLARE_SLOT_UTC: ${{ inputs.cloudflare_slot_utc }}
+        run: python -B scripts/sports_postgame_slot.py verified-results
       - name: Verify raw result replay and reject wrong or unfinished results
         run: |
           python -m unittest discover -s tests -p test_sports_verified_results.py -v
@@ -90,6 +100,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Validate original scheduler slot
+        env:
+          CLOUDFLARE_SLOT_UTC: ${{ inputs.cloudflare_slot_utc }}
+        run: python -B scripts/sports_postgame_slot.py verified-results
       - name: Verify frozen 21:00 settlement and missing result boundaries
         run: python -m unittest discover -s tests -p test_football_2100_review.py -v
       - name: Rehearse daily 21:00 settlement against verified 007 results

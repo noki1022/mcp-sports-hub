@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {plannedJob,plannedFootballJob,dispatchAt,dispatchFootballAt} from "./worker.mjs";
+import {plannedJob,plannedFootballJob,dispatchAt,dispatchFootballAt,plannedPostgameJobs,dispatchPostgameAt} from "./worker.mjs";
 const at=s=>Date.parse(s);
 const toml=readFileSync(new URL("./wrangler.toml",import.meta.url),"utf8");
-assert.ok(toml.includes('crons = ["0 4-15 * * *"]'));
+assert.ok(toml.includes('crons = ["0 4-15 * * *", "25,50 * * * *", "30 16 * * *"]'));
 for(let hour=12;hour<=23;hour++){
   const ts=Date.UTC(2026,10,6,hour-8,0);
   const slot=String(hour)+"00";
@@ -46,3 +46,30 @@ assert.equal((await dispatchAt(at("2026-11-06T08:00:00Z"),
  {GITHUB_TOKEN:"test"},exists)).state,"CANONICAL_RUN_EXISTS_NO_RETRY");
 console.log("TWELVE_HOURLY_SLOTS_CLOUDFLARE_GITHUB_TEST_PASS");
 await import("./test-football-scheduler.mjs");
+
+const postgameCases=[
+  ["2026-11-06T05:00:00Z","football-review-push-1300.yml"],
+  ["2026-11-06T16:30:00Z","nba-two-market-nightly-2200.yml"],
+  ["2026-11-06T23:25:00Z","sports-per-match-finalizer.yml"],
+  ["2026-11-06T00:50:00Z","sports-verified-results.yml"],
+];
+for(const [stamp,workflow] of postgameCases){
+  const ts=at(stamp);
+  assert.deepEqual(plannedPostgameJobs(ts),[workflow]);
+  assert.deepEqual(plannedPostgameJobs(ts+60000),[]);
+  assert.equal((await dispatchPostgameAt(workflow,ts+60000,{},fake)).state,"NO_SLOT");
+  assert.equal((await dispatchPostgameAt(workflow,ts,{GITHUB_TOKEN:"test"},fake)).state,
+    "POSTGAME_EXACT_SLOT_DISPATCH_ACCEPTED_NOT_DELIVERED");
+  assert.deepEqual(sent.pop().inputs,{cloudflare_slot_utc:new Date(ts).toISOString()});
+  for(const event of ["schedule","workflow_dispatch"]){
+    const existing=async url=>{
+      assert.ok(url.includes("/runs?"),"Must not dispatch again after a canonical failure");
+      return {ok:true,json:async()=>({workflow_runs:[
+        {event,created_at:stamp,conclusion:"failure",
+         display_title:"Cloudflare | slot="+new Date(ts).toISOString()}]})};
+    };
+    assert.equal((await dispatchPostgameAt(workflow,ts,{GITHUB_TOKEN:"test"},existing)).state,
+      "POSTGAME_CANONICAL_RUN_EXISTS_NO_RETRY");
+  }
+}
+console.log("POSTGAME_FOUR_EXACT_SLOTS_NO_RETRY_PASS");

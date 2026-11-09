@@ -122,6 +122,20 @@ class Results(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "SWAPPED"):
             G.verify_nba_final_score_identity(final, source)
 
+    def test_live_espn_aliases_still_reject_reversed_sides(self):
+        import sport_match_final_grade as G
+        for name, abbreviation in (("纽约尼克斯", "NY"), ("圣安东尼奥马刺", "SA"),
+                                   ("新奥尔良鹈鹕", "NO"), ("犹他爵士", "UTAH")):
+            with self.subTest(abbreviation=abbreviation):
+                final = nba()
+                final.update(home_team="亚特兰大老鹰", away_team=name)
+                source = {"completed": True, "home_points": 112, "away_points": 100,
+                          "tip_beijing": iso(TIP), "home_abbr": "ATL", "away_abbr": abbreviation}
+                G.verify_nba_final_score_identity(final, source)
+                source.update(home_abbr=abbreviation, away_abbr="ATL")
+                with self.assertRaisesRegex(ValueError, "SWAPPED"):
+                    G.verify_nba_final_score_identity(final, source)
+
 
 if __name__=='__main__':
     unittest.main()

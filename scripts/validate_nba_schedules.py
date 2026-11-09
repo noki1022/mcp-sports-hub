@@ -58,12 +58,23 @@ def main():
     for name,expected in PRODUCTION.items():
         assert crons(name)==expected,("NOT_EXACT_TWELVE_SLOTS",name,crons(name))
     assert crons(FOOTBALL_REVIEW_PUSH)==["0 5 * * *"],"FOOTBALL_REVIEW_MUST_RUN_AT_BEIJING_1300"
+    postgame={
+        FOOTBALL_REVIEW_PUSH: "0 5 * * *",
+        "nba-two-market-nightly-2200.yml": "30 16 * * *",
+        "sports-per-match-finalizer.yml": "25 * * * *",
+        "sports-verified-results.yml": "50 * * * *",
+    }
+    for name, expected in postgame.items():
+        assert crons(name)==[expected],("INCORRECT_POSTGAME_SLOT",name)
+        workflow=load(name)
+        events=workflow.get("on",workflow.get(True))
+        assert "cloudflare_slot_utc" in events["workflow_dispatch"]["inputs"],name
     review_workflow=load(FOOTBALL_REVIEW_PUSH)
-    assert set(review_workflow.get("on",review_workflow.get(True)))=={"schedule","pull_request"}
+    assert set(review_workflow.get("on",review_workflow.get(True)))=={"schedule","pull_request","workflow_dispatch"}
     for name in DISABLED:
         assert not crons(name),("OLD_PREMATCH_SCHEDULE_STILL_ACTIVE",name)
     cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
-    assert cloud["triggers"]["crons"]==["0 4-15 * * *"],"CLOUDFLARE_HAS_EXTRA_CRON"
+    assert cloud["triggers"]["crons"]==["0 4-15 * * *", "25,50 * * * *", "30 16 * * *"],"CLOUDFLARE_HAS_EXTRA_CRON"
     worker=(ROOT/"scheduler/worker.mjs").read_text()
     assert "h>=12&&h<=23&&m===0" in worker
     assert "EXACT_SLOT" in worker and "NO_RETRY" in worker
