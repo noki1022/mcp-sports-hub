@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'ops/sports_lifecycle.py'
+      - 'analysis/football_p0_ttg_backtest.py'
       - 'ops/sports_learning_dataset.py'
       - 'ops/sports_candidate_archive.py'
       - 'analysis/sports_weight_learning.py'
@@ -14,6 +15,7 @@ on:
   pull_request:
     paths:
       - 'ops/sports_lifecycle.py'
+      - 'analysis/football_p0_ttg_backtest.py'
       - 'ops/sports_learning_dataset.py'
       - 'ops/sports_candidate_archive.py'
       - 'analysis/sports_weight_learning.py'
@@ -133,12 +135,12 @@ jobs:
           (root/'manifest.json').write_text(json.dumps(manifest,sort_keys=True,indent=2)+'\n')
           PY
           fi
-          month="$(TZ=Asia/Shanghai date +%Y%m)"
-          tag="sports-data-lifecycle-$month"
+          day="$(TZ=Asia/Shanghai date +%Y%m%d)"
+          tag="sports-data-lifecycle-$day"
           archive="sports-lifecycle-${GITHUB_RUN_ID}-attempt-${GITHUB_RUN_ATTEMPT}.tar.gz"
           tar -czf "$archive" lifecycle-output/
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --target "$GITHUB_SHA" --title "Sports data audit $month" \
+            gh release create "$tag" --target "$GITHUB_SHA" --title "Sports data audit $day" \
               --notes 'Derived dataset manifests, admission gaps, and research-only weight evaluations. No automatic production model promotion.'
           fi
           gh release upload "$tag" "$archive"

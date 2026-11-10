@@ -12,6 +12,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'analysis'))
 from sports_weight_learning import research
 from sports_analysis_features import coverage
 from sports_learning_dataset import build,digest
+from football_p0_ttg_backtest import load_verified_2100_review
 
 
 def gh(path,binary=False):
@@ -64,6 +65,16 @@ def audit_zip(raw):
                 'zip_sha256':hashlib.sha256(raw).hexdigest(),'snapshot_identity':identity}
 
 
+def audit_review_zip(raw):
+    """Reparse all archived 007 FT bytes and bind them to the frozen forecast."""
+    locked, finals = load_verified_2100_review(raw)
+    return {'scope':'FOOTBALL_21_00_FROZEN_FORECAST_AND_ORIGINAL_007_FINALS',
+            'declared_sources_verified':len(finals),
+            'zip_sha256':hashlib.sha256(raw).hexdigest(),
+            'review_day_beijing':locked['slot_beijing_date'],
+            'frozen_forecast_sha256':locked['final_forecast_sha256']}
+
+
 def cached_asset(repo,asset,raw_zip,cache,month):
     """A cache hit requires the CURRENT GitHub digest, never just a filename.
 
@@ -111,33 +122,39 @@ def run(repo,out,days=120,inventory=None,cache_dir=None):
             if not data:break
             releases.extend(data);page+=1
     else:releases=inventory['releases']
-    assets=[];catalog=[];errors=[];raw_audits=[];used=0;cache_hits=0;snapshots={}
-    def remember_raw(asset_id,audit,verification):
+    assets=[];catalog=[];errors=[];raw_audits=[];review_audits=[];used=0;cache_hits=0;snapshots={}
+    release_inventory=[]
+    def remember_zip(asset_id,audit,verification,review_zip):
         identity=audit.get('snapshot_identity')
         if identity is not None:
             key=identity['source_sha256']
             if key in snapshots and snapshots[key]!=identity:raise ValueError('CONFLICTING_SNAPSHOT_IDENTITY_RECEIPTS')
             snapshots[key]=identity
-        raw_audits.append({'id':asset_id,'verification':verification,
+        target = review_audits if review_zip else raw_audits
+        target.append({'id':asset_id,'verification':verification,
             **{k:v for k,v in audit.items() if k!='snapshot_identity'}})
     prefixes=('football-007-raw-','nba-silent-actual-','sport-pregame-final-','sport-verified-review-','nba-one-verified-per-match-review-','football-')
     for release in releases:
         tag=release['tag_name']
         if not tag.startswith(prefixes):continue
+        archive_assets = release.get('assets', [])
+        release_inventory.append({'tag':tag, 'assets':len(archive_assets),
+                                  'bytes':sum(asset['size'] for asset in archive_assets)})
         # Asset clock rather than release creation: late archive backfills remain visible.
-        for asset in release.get('assets',[]):
+        for asset in archive_assets:
             created=datetime.fromisoformat(asset['created_at'].replace('Z','+00:00'))
             if created<since:continue
             name=asset['name'];size=asset['size']
             catalog.append({'tag':tag,'id':asset['id'],'name':name,'bytes':size,'created_at':asset['created_at'],'digest':asset.get('digest')})
             wanted=name.endswith('.json') and ('.final.' in name or 'candidates' in name or 'review' in name)
-            raw_zip=tag.startswith('football-007-raw-') and name.endswith('.zip')
-            if not wanted and not raw_zip:continue
-            cached=cached_asset(repo,asset,raw_zip,cache,month)
+            review_zip=tag.startswith('football-jc-review-2100-') and name==tag+'.zip'
+            audit_archive=review_zip or (tag.startswith('football-007-raw-') and name.endswith('.zip'))
+            if not wanted and not audit_archive:continue
+            cached=cached_asset(repo,asset,audit_archive,cache,month)
             if cached is not None:
                 cache_hits+=1
-                if raw_zip:
-                    remember_raw(asset['id'],cached,'PRIOR_BYTE_AUDIT_CURRENT_DIGEST_UNCHANGED');continue
+                if audit_archive:
+                    remember_zip(asset['id'],cached,'PRIOR_BYTE_AUDIT_CURRENT_DIGEST_UNCHANGED',review_zip);continue
                 try:
                     assets.append({'id':asset['id'],'created_at':asset['created_at'],'document':json.loads(cached)})
                     continue
@@ -150,10 +167,10 @@ def run(repo,out,days=120,inventory=None,cache_dir=None):
                 if len(raw)!=size:raise ValueError('ASSET_LENGTH_MISMATCH')
                 expected=asset.get('digest')
                 if expected and expected!='sha256:'+hashlib.sha256(raw).hexdigest():raise ValueError('REMOTE_ASSET_DIGEST_MISMATCH')
-                if raw_zip:
-                    audit=audit_zip(raw)
+                if audit_archive:
+                    audit=audit_review_zip(raw) if review_zip else audit_zip(raw)
                     save_cache(repo,asset,audit,True,cache,month)
-                    remember_raw(asset['id'],audit,'BYTES_CHECKED_THIS_RUN');continue
+                    remember_zip(asset['id'],audit,'BYTES_CHECKED_THIS_RUN',review_zip);continue
                 doc=json.loads(raw)
                 save_cache(repo,asset,raw,False,cache,month)
                 assets.append({'id':asset['id'],'created_at':asset['created_at'],'document':doc})
@@ -177,7 +194,8 @@ def run(repo,out,days=120,inventory=None,cache_dir=None):
         'repository':repo,'git_size_approx_mib':size_mib,'capacity':capacity,
         'code_commit':os.environ.get('LIFECYCLE_CODE_SHA','UNRECORDED_LOCAL_TEST'),
         'release_assets':len(catalog),'release_bytes':sum(a['bytes'] for a in catalog),
-        'inventory_lookback_days':days,'football_raw_audits':raw_audits,'errors':errors,
+        'inventory_lookback_days':days,'football_raw_audits':raw_audits,
+        'football_2100_review_audits':review_audits,'all_time_evidence_release_count':len(release_inventory),'errors':errors,
         'download_bytes':used,'digest_validated_cache_hits':cache_hits,
         'training_admission':admission,'training_groups':len(study['groups']),
         'learning_readiness':readiness,'hash_bound_snapshot_identities':len(snapshots),
@@ -187,6 +205,8 @@ def run(repo,out,days=120,inventory=None,cache_dir=None):
         'production_weights_modified':False,'deleted_original_files':0}
     for filename,doc in [('catalog.json',catalog),('health.json',report),('weight-research.json',study)]:
         (out/filename).write_text(json.dumps(doc,ensure_ascii=False,indent=2)+'\n')
+    (out/'archive-release-index.json').write_text(json.dumps(sorted(release_inventory, key=lambda item:item['tag']),
+                                                          ensure_ascii=False,indent=2)+'\n')
     (out/'dataset.jsonl').write_text(''.join(json.dumps(r,ensure_ascii=False,sort_keys=True)+'\n' for r in rows))
     manifest={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in out.iterdir() if p.is_file() and p.name!='manifest.json'}
     (out/'manifest.json').write_text(json.dumps(manifest,sort_keys=True,indent=2)+'\n')
