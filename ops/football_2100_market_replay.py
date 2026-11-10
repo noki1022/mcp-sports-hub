@@ -4,6 +4,7 @@ import argparse
 from datetime import date, timedelta
 from io import BytesIO
 import json
+import math
 from pathlib import Path
 from statistics import mean
 import sys
@@ -13,6 +14,8 @@ from zipfile import ZipFile
 from sports_result_to_review import asset_bytes, release
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "analysis"))
+import football_jc_asian_assimilation as asian
+import football_jc_dc_shadow as history_model
 import football_jc_final_2130 as frozen
 import football_jc_integrated as integrated
 import football_jc_market_reading as quotes
@@ -98,7 +101,102 @@ def summarize_totals(rows):
     }
 
 
-def paired_rows(snapshot, finals, forecasts, asof):
+def recent_correction(rows, rating, asof):
+    """Return neutral-venue and venue-plus-opponent residuals on identical matches."""
+    if rating is None:
+        return None
+    neutral = (rating["base_h"] + rating["base_a"]) / 2
+    attack, concede, venue_attack, venue_concede, full_attack, full_concede = [6 * neutral] * 6
+    covered = 0
+    for row in rows:
+        opponent = str(row.get("opponent_team_id_007"))
+        if rating["games"].get(opponent, 0) < 5 or row.get("venue") not in ("HOME", "AWAY"):
+            continue
+        age = (asof - scoring.utc(row["played_at"])).total_seconds() / 86400
+        if age < 0.125:
+            continue
+        weight = 2 ** (-age / 38)
+        venue_for, venue_against = rating["base_h"], rating["base_a"]
+        if row["venue"] == "AWAY":
+            venue_for, venue_against = venue_against, venue_for
+        gf, ga = weight * row["goals_for"], weight * row["goals_against"]
+        attack += gf
+        concede += ga
+        vf, va = gf * neutral / venue_for, ga * neutral / venue_against
+        venue_attack += vf
+        venue_concede += va
+        full_attack += vf / math.exp(rating["defense"][opponent])
+        full_concede += va / math.exp(rating["attack"][opponent])
+        covered += 1
+    if covered < 3:
+        return None
+    # Fixed research coefficients, chosen before looking at match outcomes.
+    def residual(updated, original):
+        return max(-0.10, min(0.10, 0.25 * math.log(updated / original)))
+
+    return {"venue_only": (residual(venue_attack, attack), residual(venue_concede, concede)),
+            "venue_and_opponent": (residual(full_attack, attack), residual(full_concede, concede))}
+
+
+def opponent_candidates(snapshot, raw_dir, forecast):
+    history, _ = history_model.collect_historical(snapshot, raw_dir)
+    asof = scoring.utc(snapshot["captured_at_utc"])
+    output = {}
+    for game, row in zip(snapshot["games"], forecast["games"]):
+        if row.get("status") != "RESEARCH_READY":
+            continue
+        recent = {side: game.get(f"{side}_last5") or [] for side in ("home", "away")}
+        excluded = {str(item["match_id"]) for rows in recent.values() for item in rows}
+        # Exclude the target teams' recent-five results from the opponent fit.
+        # This prevents using a score to estimate the opponent used to adjust that same score.
+        training = [item for item in history if item["match_id"] not in excluded]
+        rating = history_model.exponential_strength_fit(training, asof)
+        home = recent_correction(recent["home"], rating, asof)
+        away = recent_correction(recent["away"], rating, asof)
+        if not home or not away:
+            continue
+        base = row["goal_expectation"]
+        variants = {"model": row}
+        for name in ("venue_only", "venue_and_opponent"):
+            ha, hc = home[name]
+            aa, ac = away[name]
+            lam_home = max(0.15, min(4.5, base["home"] * math.exp(ha + ac)))
+            lam_away = max(0.15, min(4.5, base["away"] * math.exp(aa + hc)))
+            variants[name] = asian.rebuild_markets(game, dict(row), lam_home, lam_away)
+        output[str(game["match_id"])] = variants
+    return output
+
+
+def opponent_trial(variants, key, truth):
+    scores = {}
+    for name, row in variants.items():
+        p = scoring.get_probs(row, key, "baseline")
+        if p is None:
+            return None
+        ranked = sorted(range(len(p)), key=p.__getitem__, reverse=True)
+        picks = ranked[:2] if key == "ttg" and p[ranked[1]] >= 0.10 else ranked[:1]
+        scores[name] = {**scoring.score(p, truth), "picks": picks,
+                        "up_to_two_hit": int(truth in picks)}
+    return scores
+
+
+def summarize_opponents(rows, key):
+    cases = [row["opponent_trial"] for row in rows if row["market"] == key and row.get("opponent_trial")]
+    if not cases:
+        return {"paired": 0}
+    metrics = ("log_loss", "brier", "top1_hit")
+    if key == "ttg":
+        metrics += ("up_to_two_hit",)
+    return {
+        "paired": len(cases),
+        "scores": {name: {metric: round(mean(row[name][metric] for row in cases), 6)
+                          for metric in metrics} for name in cases[0]},
+        "picks_changed_with_opponent": sum(
+            set(row["venue_only"]["picks"]) != set(row["venue_and_opponent"]["picks"]) for row in cases),
+    }
+
+
+def paired_rows(snapshot, finals, forecasts, asof, opponents):
     rows = []
     for index, game in enumerate(snapshot["games"]):
         match_id = str(game["match_id"])
@@ -136,6 +234,7 @@ def paired_rows(snapshot, finals, forecasts, asof):
                 "hourly_changed_direction": top(probabilities["instant"]) != top(probabilities["hourly"]),
                 "predictions": {name: scoring.LABELS[key][top(p)] for name, p in probabilities.items()},
                 "scores": {name: scoring.score(p, truth) for name, p in probabilities.items()},
+                "opponent_trial": opponent_trial(opponents[match_id], key, truth) if match_id in opponents else None,
                 "total_goals_trial": total_goals_trial(probabilities["hourly"], market, truth)
                 if key == "ttg" and market is not None else None,
             })
@@ -157,9 +256,10 @@ def replay_day(repo, day):
         snapshot, history = load_captures(repo, day, captured, lock["source_snapshot_sha256"], Path(temporary))
         hourly, fundamentals, _ = integrated.fuse(snapshot, Path(temporary), history, model_at=asof)
         instant = integrated.fuse(snapshot, Path(temporary), model_at=asof)[0]
+        opponents = opponent_candidates(snapshot, Path(temporary), hourly)
     forecasts = dict(zip(VARIANTS, (fundamentals, instant, hourly, lock["forecast"])))
     return {"day": day.isoformat(), "history_snapshots": len(history),
-            "verified_results": len(results), "rows": paired_rows(snapshot, results, forecasts, asof)}
+            "verified_results": len(results), "rows": paired_rows(snapshot, results, forecasts, asof, opponents)}
 
 
 def summarize(rows):
@@ -196,8 +296,9 @@ def main():
                  "verified_results": day["verified_results"]} for day in days]
     total_goals = {"all": summarize_totals(rows),
                    "by_day": {day["day"]: summarize_totals(day["rows"]) for day in days}}
-    report = {"scope": "FIXED_21_00_RETROSPECTIVE_NO_FITTING", "days": metadata,
-              "summary": summary, "total_goals_trial": total_goals}
+    opponent_summary = {key: summarize_opponents(rows, key) for key in scoring.LABELS}
+    report = {"scope": "FIXED_21_00_RETROSPECTIVE_NO_OUTCOME_TUNING", "days": metadata,
+              "summary": summary, "total_goals_trial": total_goals, "opponent_trial": opponent_summary}
     args.out.write_text(json.dumps({**report, "fixtures": days}, ensure_ascii=False, indent=2) + "\n")
     print("FOOTBALL_MARKET_REPLAY", json.dumps(report, ensure_ascii=False))
 
