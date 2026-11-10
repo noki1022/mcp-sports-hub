@@ -63,6 +63,41 @@ def top(probabilities):
     return max(range(len(probabilities)), key=probabilities.__getitem__)
 
 
+# Fixed before replay. This pilot does not select a weight from these results.
+TOTAL_MARKET_WEIGHT = 0.20
+
+
+def total_goals_trial(model, market, truth):
+    model_total = sum(model)
+    blended = [(1 - TOTAL_MARKET_WEIGHT) * p / model_total + TOTAL_MARKET_WEIGHT * q
+               for p, q in zip(model, market)]
+    variants = {"model": model, "market_20pct": blended, "market_only": market}
+    output = {}
+    for name, probabilities in variants.items():
+        ranked = sorted(range(len(probabilities)), key=probabilities.__getitem__, reverse=True)
+        picks = ranked[:2] if probabilities[ranked[1]] >= 0.10 else ranked[:1]
+        output[name] = {**scoring.score(probabilities, truth),
+                        "up_to_two_hit": int(truth in picks), "picks": picks}
+    return output
+
+
+def summarize_totals(rows):
+    cases = [row["total_goals_trial"] for row in rows if row.get("total_goals_trial")]
+    if not cases:
+        return {"paired": 0}
+    return {
+        "paired": len(cases),
+        "market_weight": TOTAL_MARKET_WEIGHT,
+        "picks_changed": sum(set(row["model"]["picks"]) != set(row["market_20pct"]["picks"])
+                             for row in cases),
+        "scores": {
+            name: {metric: round(mean(row[name][metric] for row in cases), 6)
+                   for metric in ("log_loss", "brier", "top1_hit", "up_to_two_hit")}
+            for name in cases[0]
+        },
+    }
+
+
 def paired_rows(snapshot, finals, forecasts, asof):
     rows = []
     for index, game in enumerate(snapshot["games"]):
@@ -101,6 +136,8 @@ def paired_rows(snapshot, finals, forecasts, asof):
                 "hourly_changed_direction": top(probabilities["instant"]) != top(probabilities["hourly"]),
                 "predictions": {name: scoring.LABELS[key][top(p)] for name, p in probabilities.items()},
                 "scores": {name: scoring.score(p, truth) for name, p in probabilities.items()},
+                "total_goals_trial": total_goals_trial(probabilities["hourly"], market, truth)
+                if key == "ttg" and market is not None else None,
             })
     return rows
 
@@ -157,7 +194,10 @@ def main():
                         "opposes_official_odds": summarize([r for r in subset if r["opposes_official_odds"]])}
     metadata = [{"day": day["day"], "history_snapshots": day["history_snapshots"],
                  "verified_results": day["verified_results"]} for day in days]
-    report = {"scope": "FIXED_21_00_RETROSPECTIVE_NO_FITTING", "days": metadata, "summary": summary}
+    total_goals = {"all": summarize_totals(rows),
+                   "by_day": {day["day"]: summarize_totals(day["rows"]) for day in days}}
+    report = {"scope": "FIXED_21_00_RETROSPECTIVE_NO_FITTING", "days": metadata,
+              "summary": summary, "total_goals_trial": total_goals}
     args.out.write_text(json.dumps({**report, "fixtures": days}, ensure_ascii=False, indent=2) + "\n")
     print("FOOTBALL_MARKET_REPLAY", json.dumps(report, ensure_ascii=False))
 
