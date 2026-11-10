@@ -2,12 +2,12 @@
 
 Missing data is quarantined by reason, never invented, deleted or auto-promoted.
 """
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 import sys
 import math
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'analysis'))
-from sports_weight_learning import clock,validate
+from sports_weight_learning import clock,validate,vector
 from sport_match_final_registry import check_bundle,digest
 
 LABELS={'had':['主胜','平','客胜'],'hhad':['让胜','让平','让负'],
@@ -64,9 +64,24 @@ def league_for(original, snapshots):
     return game['league']
 
 
+def summarize_basketball_model(rows):
+    groups = defaultdict(list)
+    for (version, market, _), (probability, hit) in rows.items():
+        groups[version, market].append((probability, hit))
+    return [
+        {'model_version':version, 'market':market, 'settled_matches':len(pairs),
+         'hit_rate':round(sum(hit for _,hit in pairs)/len(pairs),6),
+         'mean_selected_probability':round(sum(p for p,_ in pairs)/len(pairs),6),
+         'brier_binary':round(sum((p-hit)**2 for p,hit in pairs)/len(pairs),6),
+         'log_loss':round(-sum(math.log(max(1e-12,p if hit else 1-p)) for p,hit in pairs)/len(pairs),6)}
+        for (version,market),pairs in sorted(groups.items())
+    ]
+
+
 def build(assets, snapshots=None):
     snapshots = snapshots or {}
     candidates={};finals=[];reviews=[];rejected=Counter();rows=[];quarantine=[]
+    basketball_model = {}
     for asset in assets:
         try:
             d=asset['document']
@@ -142,14 +157,7 @@ def build(assets, snapshots=None):
                         if m['direction'] not in (first,second):raise ValueError('INVALID_MARKET_DIRECTION')
                         selected=m['model_direction_probability'];pfirst=selected if m['direction']==first else 1-selected
                         p=[pfirst,1-pfirst]
-                        ctx=m['market_consensus'];price=ctx['same_line_price_consensus']
-                        if price['status']!='AVAILABLE_SAME_LINE_MEDIAN' or price['orientation_status']!='USER_CONFIRMED':raise ValueError('NO_SAME_LINE_MARKET')
-                        if price['first_side_direction']!=first or price['second_side_direction']!=second:raise ValueError('MARKET_SIDE_MISMATCH')
                         if result.get('line')!=m.get('line') or result.get('direction')!=m.get('direction'):raise ValueError('RESULT_MARKET_DRIFT')
-                        # Consensus raw spread is HOME GIVES; JC is HOME RECEIVES.
-                        expected=-m['line'] if market=='JINGCAI_HANDICAP' else m.get('line')
-                        if expected is None or abs(price['reference_line']-expected)>1e-8:raise ValueError('MARKET_LINE_MISMATCH')
-                        q=[price['first_side_probability'],price['second_side_probability']]
                         y=0 if (m['direction']==first)==(result['outcome']=='HIT') else 1
                         line=m.get('signed_home_handicap') if market.endswith('HANDICAP') else m.get('line')
                         if market.endswith('HANDICAP'):
@@ -157,7 +165,21 @@ def build(assets, snapshots=None):
                             if line!=signed or result.get('signed_home_handicap')!=line:raise ValueError('HANDICAP_SIGN_MISMATCH')
                         value=home-away if market=='JINGCAI_WIN' else home-away+line if market.endswith('HANDICAP') else home+away-line
                         if abs(value)<1e-8 or y!=(0 if value>0 else 1):raise ValueError('LABEL_DISAGREES_WITH_SCORE')
-                        feature=max((f['capture_utc'],m['captured_at_utc'],price['latest_source_capture_utc']),key=clock)
+                        model_feature=max((f['capture_utc'],m['captured_at_utc']),key=clock)
+                        if not clock(model_feature)<=clock(f['generated_utc'])<clock(f['kickoff_utc'])<clock(review['created_at']):
+                            raise ValueError('TIME_LEAKAGE')
+                        vector(p)
+                        if 'result_evidence' in review['document']:
+                            key=(f['model_version'],market,f['match_id'])
+                            basketball_model[key]=(selected, int(result['outcome']=='HIT'))
+                        price=(m.get('market_consensus') or {}).get('same_line_price_consensus') or {}
+                        if price.get('status')!='AVAILABLE_SAME_LINE_MEDIAN' or price.get('orientation_status')!='USER_CONFIRMED':raise ValueError('NO_SAME_LINE_MARKET')
+                        if price['first_side_direction']!=first or price['second_side_direction']!=second:raise ValueError('MARKET_SIDE_MISMATCH')
+                        # Consensus raw spread is HOME GIVES; JC is HOME RECEIVES.
+                        expected=-m['line'] if market=='JINGCAI_HANDICAP' else m.get('line')
+                        if expected is None or abs(price['reference_line']-expected)>1e-8:raise ValueError('MARKET_LINE_MISMATCH')
+                        q=[price['first_side_probability'],price['second_side_probability']]
+                        feature=max((model_feature,price['latest_source_capture_utc']),key=clock)
                     r={'sport':f['sport'],'league':league,'event_id':str(f['match_id']),'market':market,'line':line,
                        'model_version':f['model_version'],
                        'kickoff':f['kickoff_utc'],'asof':f['generated_utc'],'feature_asof':feature,
@@ -178,4 +200,5 @@ def build(assets, snapshots=None):
     unique={digest(r):r for r in rows}
     return list(unique.values()),{'candidate_records_with_pretip_publication':len(candidates),'final_files':len(finals),'review_files':len(reviews),
         'admitted_event_markets':len(unique),'quarantine_reasons':dict(rejected),
+        'basketball_frozen_model_scorecard':summarize_basketball_model(basketball_model),
         'quarantined_events':list({digest(r):r for r in quarantine}.values()),'source_files_deleted':0}

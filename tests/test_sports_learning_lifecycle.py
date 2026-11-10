@@ -127,6 +127,23 @@ class AdmissionTests(unittest.TestCase):
         d['review_sha256']=digest({k:v for k,v in d.items() if k!='review_sha256'})
         rows,report=build(a+[bad]);self.assertEqual(rows,[])
         self.assertIn('CONFLICTING_REVIEWS',report['quarantine_reasons'])
+    def test_nba_model_can_be_scored_without_admitting_missing_market_comparator(self):
+        a=nba_assets()
+        a[0]['document']['records'][0]['markets']['JINGCAI_TOTAL'].pop('market_consensus')
+        a[-1]['document']['result_evidence']={'test':True}
+        reseal(a)
+        with patch('sports_verified_review.verify') as verify:
+            rows,report=build(a+a)
+        verify.assert_called()
+        self.assertEqual(rows,[])
+        self.assertIn('NO_SAME_LINE_MARKET',report['quarantine_reasons'])
+        model=report['basketball_frozen_model_scorecard']
+        self.assertEqual(len(model),1)
+        self.assertEqual(model[0]['settled_matches'],1)
+        self.assertEqual(model[0]['hit_rate'],1.0)
+        self.assertEqual(model[0]['mean_selected_probability'],.6)
+        self.assertEqual(model[0]['brier_binary'],.16)
+
     def test_nba_complement_and_score_checked(self):
         rows,_=build(nba_assets());self.assertEqual(len(rows),1)
         self.assertEqual(rows[0]['probabilities'],[.4,.6]);self.assertEqual(rows[0]['outcome'],1)
