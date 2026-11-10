@@ -1,6 +1,10 @@
 name: NBA official-final-triggered five-market postgame review
 run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot_utc != '' && format('Cloudflare | slot={0}', inputs.cloudflare_slot_utc) || github.workflow }}
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/nba-two-market-nightly-2200.yml'
+      - 'scheduler/**'
   workflow_dispatch:
     inputs:
       cloudflare_slot_utc:
@@ -12,11 +16,42 @@ on:
     - cron: "30 16 * * *"
 permissions:
   contents: write
-concurrency:
-  group: nba-five-market-review-2200
-  cancel-in-progress: false
 jobs:
+  verify-frozen-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Rehearse the missed review against the original 21:00 forecast
+        run: |
+          python3 -B analysis/nba_final_review_gate.py --self-test
+          python3 -B analysis/nba_final_review_gate.py --day 2026-11-09
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          doc=json.loads(Path("nba_final_review_readiness.json").read_text())
+          assert doc["state"]=="READY_ALL_FINAL", doc
+          assert doc["source"]=="reports/daily/2026-11-09/2100/nba_five_market_forecast.json", doc
+          PY
+          python3 -B analysis/nba_five_market_settlement.py \
+            --forecast reports/daily/2026-11-09/2100/nba_five_market_forecast.json \
+            --day 2026-11-09 --scores nba_final_review_scores.json --out nba-review-preview.json
+          python3 -B analysis/nba_five_market_review_push.py --settlement nba-review-preview.json \
+            --preview nba-review-preview.html --status nba-review-preview-status.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-original-2100-review-preview
+          path: nba-review-preview.html
+
   settle-and-notify:
+    concurrency:
+      group: nba-five-market-review-2200
+      cancel-in-progress: false
     if: github.ref == 'refs/heads/main' && github.run_attempt == '1' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot_utc != ''))
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -46,8 +81,36 @@ jobs:
           python3 analysis/nba_five_market_settlement.py --self-test
           python3 analysis/nba_five_market_settlement.py --forecast "$FROZEN_FORECAST" --day "$REVIEW_DAY" \
             --scores nba_final_review_scores.json --out "reports/five-market-settled/$REVIEW_DAY/settlement.json"
+      - name: Send one iPhone five-market review
+        if: env.RUN_REPORT == 'true'
+        env:
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          CLOUDFLARE_SLOT_UTC: ${{ inputs.cloudflare_slot_utc }}
+        run: |
+          dir="reports/five-market-settled/$REVIEW_DAY"
+          test -n "$PUSHPLUS_TOKEN"
+          python3 analysis/nba_five_market_review_push.py --settlement "$dir/settlement.json" \
+            --preview "$dir/report.html" --status "$dir/2200.json"
+          python -B scripts/sports_postgame_slot.py nba-review
+          # A create-only Contents API write is atomic across both trigger sources.
+          claim="$(printf '{"review_day_beijing":"%s","run_id":"%s"}\n' "$REVIEW_DAY" "$GITHUB_RUN_ID" | base64 -w0)"
+          gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$dir/push.claim.json" \
+            --silent --field branch=main --field message="Claim NBA review delivery $REVIEW_DAY" \
+            --field content="$claim"
+          python -B scripts/sports_postgame_slot.py nba-review
+          python3 analysis/nba_five_market_review_push.py --settlement "$dir/settlement.json" \
+            --preview "$dir/report.html" --status "$dir/2200.json" --send
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          d=os.environ["REVIEW_DAY"]
+          p=Path("reports/five-market-settled")/d/"2200.json"
+          assert json.loads(p.read_text())["state"]=="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
+          PY
       - name: Replay chronological five-market shadow probabilities against official finals
         if: env.RUN_REPORT == 'true'
+        continue-on-error: true
         run: |
           python3 analysis/nba_dynamic_five_market_replay.py \
             --daily-root reports/daily \
@@ -67,6 +130,7 @@ jobs:
           PY
       - name: Score multi-company consensus against exact frozen pretip captures
         if: env.RUN_REPORT == 'true'
+        continue-on-error: true
         run: |
           python3 analysis/nba_market_consensus_backtest.py --self-test
           python3 analysis/nba_market_consensus_backtest.py \
@@ -75,6 +139,7 @@ jobs:
             --out "reports/five-market-settled/$REVIEW_DAY/market_consensus_scorecard.json"
       - name: Score frozen independent model probabilities against official Final (read-only)
         if: env.RUN_REPORT == 'true'
+        continue-on-error: true
         run: |
           folder="${FROZEN_FORECAST%/*}"
           slot="${folder##*/}"
@@ -87,42 +152,15 @@ jobs:
           else
             echo "NO_FROZEN_INDEPENDENT_MODEL_TO_SCORE"
           fi
-      - name: Send one iPhone five-market review
-        if: env.RUN_REPORT == 'true'
-        env:
-          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-          CLOUDFLARE_SLOT_UTC: ${{ inputs.cloudflare_slot_utc }}
-        run: |
-          dir="reports/five-market-settled/$REVIEW_DAY"
-          test -n "$PUSHPLUS_TOKEN"
-          python3 analysis/nba_five_market_review_push.py --settlement "$dir/settlement.json" \
-            --preview "$dir/report.html" --status "$dir/2200.json"
-          python -B scripts/sports_postgame_slot.py nba-review
-          # A create-only Contents API write is atomic across both trigger sources.
-          claim="$(printf '{"review_day_beijing":"%s","run_id":"%s"}\n' "$REVIEW_DAY" "$GITHUB_RUN_ID" | base64 -w0)"
-          gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$dir/push.claim.json" \
-            --silent --field branch=main --field message="Claim NBA review delivery $REVIEW_DAY" \
-            --field content="$claim"
-          git pull --ff-only origin main
-          python -B scripts/sports_postgame_slot.py nba-review
-          python3 analysis/nba_five_market_review_push.py --settlement "$dir/settlement.json" \
-            --preview "$dir/report.html" --status "$dir/2200.json" --send
-          python3 - <<'PY'
-          import json,os
-          from pathlib import Path
-          d=os.environ["REVIEW_DAY"]
-          p=Path("reports/five-market-settled")/d/"2200.json"
-          assert json.loads(p.read_text())["state"]=="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
-          PY
       - name: Archive frozen five-market settlement and accepted marker
         if: env.RUN_REPORT == 'true'
         run: |
+          git pull --ff-only origin main
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add "reports/five-market-settled/$REVIEW_DAY"
           git diff --cached --quiet && exit 0
-          git commit -m "Archive 22:00 five-market NBA settlement $REVIEW_DAY"
+          git commit -m "Archive 00:30 five-market NBA settlement $REVIEW_DAY"
           for n in 1 2 3; do
             if git push origin HEAD:main; then exit 0; fi
             git pull --rebase origin main
