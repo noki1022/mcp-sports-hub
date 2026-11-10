@@ -4,6 +4,7 @@ Missing data is quarantined by reason, never invented, deleted or auto-promoted.
 """
 from collections import Counter, defaultdict
 from pathlib import Path
+from statistics import NormalDist, mean
 import sys
 import math
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'analysis'))
@@ -78,10 +79,28 @@ def summarize_basketball_model(rows):
     ]
 
 
+def nba_total_variance_trial(rows):
+    normal = NormalDist()
+    groups = defaultdict(list)
+    for (version, market, _), (p, hit, direction, actual, predicted) in rows.items():
+        wider = normal.cdf(normal.inv_cdf(p) / 1.15) if 0 < p < 1 else p
+        for side in ("ALL", direction):
+            groups[version,market,side].append((p, wider, hit, actual, predicted))
+    return [
+        {'model_version':version, 'market':market, 'direction':side, 'settled_matches':len(pairs),
+         'hit_rate':round(mean(hit for _,_,hit,_,_ in pairs),6),
+         'base_brier':round(mean((p-hit)**2 for p,_,hit,_,_ in pairs),6),
+         'wider_15pct_brier':round(mean((w-hit)**2 for _,w,hit,_,_ in pairs),6),
+         'mean_total_error_actual_minus_model':round(mean(actual-predicted for _,_,_,actual,predicted in pairs),3)}
+        for (version,market,side),pairs in sorted(groups.items())
+    ]
+
+
 def build(assets, snapshots=None):
     snapshots = snapshots or {}
     candidates={};finals=[];reviews=[];rejected=Counter();rows=[];quarantine=[]
     basketball_model = {}
+    basketball_totals = {}
     for asset in assets:
         try:
             d=asset['document']
@@ -171,7 +190,11 @@ def build(assets, snapshots=None):
                         vector(p)
                         if 'result_evidence' in review['document']:
                             key=(f['model_version'],market,f['match_id'])
-                            basketball_model[key]=(selected, int(result['outcome']=='HIT'))
+                            hit = int(result['outcome']=='HIT')
+                            basketball_model[key]=(selected, hit)
+                            predicted = (original.get('evidence') or {}).get('model_total')
+                            if market.endswith('TOTAL') and type(predicted) in (int,float) and math.isfinite(predicted):
+                                basketball_totals[key]=(selected, hit, m['direction'], home+away, predicted)
                         price=(m.get('market_consensus') or {}).get('same_line_price_consensus') or {}
                         if price.get('status')!='AVAILABLE_SAME_LINE_MEDIAN' or price.get('orientation_status')!='USER_CONFIRMED':raise ValueError('NO_SAME_LINE_MARKET')
                         if price['first_side_direction']!=first or price['second_side_direction']!=second:raise ValueError('MARKET_SIDE_MISMATCH')
@@ -201,4 +224,5 @@ def build(assets, snapshots=None):
     return list(unique.values()),{'candidate_records_with_pretip_publication':len(candidates),'final_files':len(finals),'review_files':len(reviews),
         'admitted_event_markets':len(unique),'quarantine_reasons':dict(rejected),
         'basketball_frozen_model_scorecard':summarize_basketball_model(basketball_model),
+        'basketball_total_variance_trial':nba_total_variance_trial(basketball_totals),
         'quarantined_events':list({digest(r):r for r in quarantine}.values()),'source_files_deleted':0}
