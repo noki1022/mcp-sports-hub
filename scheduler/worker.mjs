@@ -139,6 +139,12 @@ export function plannedPostgameJobs(timestamp){
 export async function dispatchPostgameAt(workflow,timestamp,env,fetcher=fetch){
   if(!plannedPostgameJobs(timestamp).includes(workflow))return {state:"NO_SLOT"};
   const slot=new Date(timestamp).toISOString();
+  // NBA review dispatches independently at the original minute. GitHub serializes
+  // both jobs and the immutable Release claim fences the single actual send.
+  if(workflow==="nba-two-market-nightly-2200.yml"){
+    await dispatch(workflow,{cloudflare_slot_utc:slot},env,fetcher);
+    return {state:"POSTGAME_EXACT_SLOT_DISPATCH_ACCEPTED_NOT_DELIVERED",slot};
+  }
   const runs=await nativeRuns({workflow},timestamp,env,fetcher,run=>
     run.event==="schedule" ||
     (run.event==="workflow_dispatch"&&run.display_title==="Cloudflare | slot="+slot));

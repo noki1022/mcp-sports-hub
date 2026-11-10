@@ -61,6 +61,18 @@ for(const [stamp,workflow] of postgameCases){
   assert.equal((await dispatchPostgameAt(workflow,ts,{GITHUB_TOKEN:"test"},fake)).state,
     "POSTGAME_EXACT_SLOT_DISPATCH_ACCEPTED_NOT_DELIVERED");
   assert.deepEqual(sent.pop().inputs,{cloudflare_slot_utc:new Date(ts).toISOString()});
+  if(workflow==="nba-two-market-nightly-2200.yml"){
+    let posts=0;
+    const direct=async (url,options)=>{
+      assert.ok(url.endsWith("/dispatches"));
+      assert.equal(options.method,"POST");
+      posts++;
+      return {status:204};
+    };
+    await dispatchPostgameAt(workflow,ts,{GITHUB_TOKEN:"test"},direct);
+    assert.equal(posts,1);
+    continue;
+  }
   for(const event of ["schedule","workflow_dispatch"]){
     const existing=async url=>{
       assert.ok(url.includes("/runs?"),"Must not dispatch again after a canonical failure");
