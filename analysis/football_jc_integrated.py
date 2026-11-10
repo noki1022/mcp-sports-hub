@@ -17,7 +17,7 @@ import football_jc_euro_asian as euro
 import football_jc_probability as core
 from sports_dynamic_inputs import read_history
 
-VERSION = "football-jc-integrated-v5"
+VERSION = "football-jc-integrated-v6"
 CONTEXT_WEIGHT = .65
 HISTORICAL_STRENGTH_WEIGHT = .20
 
@@ -59,12 +59,14 @@ def deep_adjustments(evidence, game):
     return adjustments
 
 
-def fuse(snapshot, raw_dir, market_history=(), model_at=None):
+def fuse(snapshot, raw_dir, market_history=(), model_at=None, *, opponent_history=None):
     baseline = core.run(snapshot)
     captured = core.when(snapshot["captured_at_utc"])
     eligible = [game for game, row in zip(snapshot["games"], baseline["games"])
                 if row["status"] == "RESEARCH_READY"]
-    season = {row["match_id"]: row for row in context.run({**snapshot, "games": eligible})["games"]}
+    context_result = context.run({**snapshot, "games": eligible},
+                                 market_history if opponent_history is None else opponent_history)
+    season = {row["match_id"]: row for row in context_result["games"]}
     quality = features.analyze(snapshot)
     depth = deep.run(snapshot, raw_dir)
     verified_depth = {r["match_id"] for r in depth["games"] if r.get("source_raw_sha256")}
@@ -148,7 +150,13 @@ def main():
                            (args.conversion_out, conversion)):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print("FOOTBALL_INTEGRATED", forecast["game_count"], forecast["market_assimilation_counts"])
+    covered = 0
+    for row in forecast["games"]:
+        evidence = row.get("fundamental_fusion", {}).get("season_venue_opponent_rest", {})
+        quality = evidence.get("source_quality", {})
+        covered += bool(quality.get("home_archived_opponents") or quality.get("away_archived_opponents"))
+    print("FOOTBALL_INTEGRATED", forecast["game_count"], forecast["market_assimilation_counts"],
+          "archived_opponent_covered_matches", covered)
 
 
 if __name__ == "__main__":
