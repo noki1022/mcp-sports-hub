@@ -51,6 +51,23 @@ class FootballPushPayloadTests(unittest.TestCase):
         self.assertIn("67.0%", html)
         self.assertEqual(revised["title"], original["title"])
 
+    def test_compact_preview_pairs_each_pick_with_its_own_odds(self):
+        forecast = self.forecast(1)
+        markets = forecast["games"][0]["markets"]
+        markets["had"].update(direction_probability=0.374,
+                              probabilities={"主胜": 0.374, "平": 0.268, "客胜": 0.358},
+                              jc_odds=[2.3, 3.25, 2.52])
+        markets["hhad"].update(direction_probability=0.626, jc_odds=[5.25, 3.85, 1.45])
+        markets["ttg"].update(jc_odds=[17, 6.25, 3.55, 3.15, 5.15, 8.3, 14, 20],
+                              goal_selection={"goals": ["2球", "3球"], "combined_probability": 0.47})
+        html = compact_html(forecast, None, "daytime", None)
+        self.assertIn("主胜 37.4%</b>（赔率 2.3）", html)
+        self.assertIn("客胜 35.8%（赔率 2.52），方向接近", html)
+        self.assertIn("主队 -1 球，<b>让负 62.6%</b>（赔率 1.45）", html)
+        self.assertIn("2球（赔率 3.55） / 3球（赔率 3.15），合计 <b>47.0%</b>", html)
+        self.assertNotIn("RESEARCH_READY", html)
+        self.assertNotIn("3.25", html)
+
     def test_small_report_remains_unchanged(self):
         original = {"title": "t", "html": "<p>完整原始报告</p>"}
         revised = fit_payload(original, self.forecast(1), None, "final", None, "TEST")
