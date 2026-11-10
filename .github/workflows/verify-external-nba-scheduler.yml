@@ -30,7 +30,7 @@ jobs:
           import tomllib
           c=tomllib.loads(Path('scheduler/wrangler.toml').read_text())
           assert c['name']=='nba-external-schedule-watchdog'
-          assert c['triggers']['crons']==["0 4-15 * * *", "25,50 * * * *", "30 16 * * *"]
+          assert c['triggers']['crons']==["0 4-15 * * *", "25,50 * * * *"]
           worker=Path('scheduler/worker.mjs').read_text()
           assert 'export async function dispatchAt(' in worker
           assert 'export async function dispatchFootballAt(' in worker
@@ -38,5 +38,19 @@ jobs:
           assert 'FOOTBALL_CANONICAL_RUN_EXISTS_NO_RETRY' in worker
           assert not Path('.github/workflows/deploy-cloudflare-secondary-scheduler.yml').exists()
           assert 'export async function dispatchPostgameAt(' in worker
+          import sys
+          from datetime import datetime
+          sys.path.insert(0, "scripts")
+          from sports_postgame_slot import validate
+          now=datetime.fromisoformat("2026-11-06T07:00:15+00:00")
+          ref="refs/heads/main"
+          validate("nba-review","schedule","",now,ref)
+          validate("nba-review","workflow_dispatch","2026-11-06T07:00:00Z",now,ref)
+          try:
+              validate("nba-review","workflow_dispatch","2026-11-06T16:30:00Z",now,ref)
+          except ValueError as exc:
+              assert str(exc)=="POSTGAME_CLOUDFLARE_NONCANONICAL_SLOT"
+          else:
+              raise AssertionError("OLD_NBA_REVIEW_SLOT_ACCEPTED")
           print('EXACT_TIME_EXISTING_CLOUDFLARE_WORKER_NO_RESEND_PASS')
           PY
