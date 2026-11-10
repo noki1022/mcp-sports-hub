@@ -8,7 +8,7 @@ from football_jc_capture_slot import MAX_ORIGINAL_SEND_LAG_SECONDS
 
 SLOTS = {
     "football-review": (5, 0),
-    "nba-review": (16, 30),
+    "nba-review": (7, 0),
     "per-match-finalizer": (None, 25),
     "verified-results": (None, 50),
 }

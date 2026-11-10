@@ -3,8 +3,8 @@ main = "worker.mjs"
 compatibility_date = "2026-10-30"
 [triggers]
 # Original GitHub slots: hourly analysis, shared archive/settlement, and NBA review.
-# Football review shares the existing 13:00 Beijing trigger.
-crons = ["0 4-15 * * *", "25,50 * * * *", "30 16 * * *"]
+# Both reviews share the existing hourly triggers at 13:00 and 15:00 Beijing.
+crons = ["0 4-15 * * *", "25,50 * * * *"]
 
 [observability]
 enabled = true

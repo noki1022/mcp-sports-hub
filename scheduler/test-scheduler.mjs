@@ -3,7 +3,7 @@ import {readFileSync} from "node:fs";
 import {plannedJob,plannedFootballJob,dispatchAt,dispatchFootballAt,plannedPostgameJobs,dispatchPostgameAt} from "./worker.mjs";
 const at=s=>Date.parse(s);
 const toml=readFileSync(new URL("./wrangler.toml",import.meta.url),"utf8");
-assert.ok(toml.includes('crons = ["0 4-15 * * *", "25,50 * * * *", "30 16 * * *"]'));
+assert.ok(toml.includes('crons = ["0 4-15 * * *", "25,50 * * * *"]'));
 for(let hour=12;hour<=23;hour++){
   const ts=Date.UTC(2026,10,6,hour-8,0);
   const slot=String(hour)+"00";
@@ -47,9 +47,13 @@ assert.equal((await dispatchAt(at("2026-11-06T08:00:00Z"),
 console.log("TWELVE_HOURLY_SLOTS_CLOUDFLARE_GITHUB_TEST_PASS");
 await import("./test-football-scheduler.mjs");
 
+const nbaReviewAt = at("2026-11-06T07:00:00Z");
+assert.equal(plannedJob(nbaReviewAt).slot,"1500");
+assert.equal(plannedFootballJob(nbaReviewAt).slot,"1500");
+assert.deepEqual(plannedPostgameJobs(at("2026-11-06T16:30:00Z")),[]);
 const postgameCases=[
   ["2026-11-06T05:00:00Z","football-review-push-1300.yml"],
-  ["2026-11-06T16:30:00Z","nba-two-market-nightly-2200.yml"],
+  ["2026-11-06T07:00:00Z","nba-two-market-nightly-2200.yml"],
   ["2026-11-06T23:25:00Z","sports-per-match-finalizer.yml"],
   ["2026-11-06T00:50:00Z","sports-verified-results.yml"],
 ];
