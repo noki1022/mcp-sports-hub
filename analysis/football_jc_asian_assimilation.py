@@ -37,8 +37,8 @@ import football_jc_euro_asian as euro
 from sports_market_path import describe, risk_multiplier
 from sports_dynamic_inputs import read_history
 
-VERSION="football-jc-poisson-asian-assimilation-v4"
-ASSIMILATION="007_AH_PREFERRED_5_BOOKMAKER_DIVERGENCE_RISK_V4"
+VERSION="football-jc-poisson-asian-assimilation-v5"
+ASSIMILATION="007_AH_PREFERRED_5_BOOKMAKER_TIERED_RISK_V5"
 SOURCE_VERSION="football-jc-poisson-research-v1"
 MAX_SNAPSHOT_BYTES=20_000_000
 MIN_COMPANIES=5
@@ -339,6 +339,19 @@ def football_path(game,row,current,history,captured,model_at):
     return describe(points,asof=model_at.isoformat(),kickoff=game["kickoff_beijing"],tolerance=.005)
 
 
+def football_market_risk(path):
+    """Preserve data-quality safeguards and separate reversals from split quotes."""
+    if path["status"] == "COVERAGE_CHANGED" or (path.get("last_gap_hours") or 0) > 3:
+        return risk_multiplier(path)
+    if path["status"] == "REVERSAL" or path.get("last_direction_reversed"):
+        return 0.5
+    breadth = path.get("last_move_breadth")
+    narrow_move = path.get("last_change_same_books") and breadth is not None and breadth < 0.6
+    if path.get("opposing_company_moves") or narrow_move:
+        return 0.75
+    return 1.0
+
+
 def assimilate(snapshot,original,model_at=None,history=None,european_references=None):
     """Preserve original forecast separately; return a new market-aware report."""
     if snapshot.get("schema_version")!="football-jc-007-v1":
@@ -386,7 +399,7 @@ def assimilate(snapshot,original,model_at=None,history=None,european_references=
             counts["left_independent"]+=1
             continue
         path=football_path(game,row,evidence,history or [],captured,model_at)
-        attenuation=risk_multiplier(path)
+        attenuation=football_market_risk(path)
         european_line=(european_references or {}).get(str(game["match_id"]))
         observed_line=statistics.median(q["line"] for q in evidence["bookmaker_evidence"])
         european_conflict=european_line is not None and abs(european_line-observed_line)>=.5

@@ -17,7 +17,7 @@ import football_jc_euro_asian as euro
 import football_jc_probability as core
 from sports_dynamic_inputs import read_history
 
-VERSION = "football-jc-integrated-v5"
+VERSION = "football-jc-integrated-v6"
 CONTEXT_WEIGHT = .65
 HISTORICAL_STRENGTH_WEIGHT = .20
 
