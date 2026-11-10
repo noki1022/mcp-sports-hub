@@ -9,6 +9,7 @@ from pathlib import Path
 from statistics import mean
 import sys
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 from zipfile import ZipFile
 
 from sports_result_to_review import asset_bytes, release
@@ -22,7 +23,7 @@ import football_jc_market_reading as quotes
 import football_jc_prospective_score as scoring
 from football_p0_ttg_backtest import load_verified_2100_review
 
-VARIANTS = ("fundamentals", "instant", "hourly", "frozen_production")
+VARIANTS = ("fundamentals", "instant", "hourly", "frozen_production", "legacy_hourly")
 RAW = "football-output/"
 MAX_ASSETS_PER_DAY = 32
 
@@ -256,8 +257,10 @@ def replay_day(repo, day):
         snapshot, history = load_captures(repo, day, captured, lock["source_snapshot_sha256"], Path(temporary))
         hourly, fundamentals, _ = integrated.fuse(snapshot, Path(temporary), history, model_at=asof)
         instant = integrated.fuse(snapshot, Path(temporary), model_at=asof)[0]
+        with patch.object(asian, "football_market_risk", asian.risk_multiplier):
+            legacy = integrated.fuse(snapshot, Path(temporary), history, model_at=asof)[0]
         opponents = opponent_candidates(snapshot, Path(temporary), hourly)
-    forecasts = dict(zip(VARIANTS, (fundamentals, instant, hourly, lock["forecast"])))
+    forecasts = dict(zip(VARIANTS, (fundamentals, instant, hourly, lock["forecast"], legacy)))
     return {"day": day.isoformat(), "history_snapshots": len(history),
             "verified_results": len(results), "rows": paired_rows(snapshot, results, forecasts, asof, opponents)}
 
@@ -274,6 +277,20 @@ def summarize(rows):
             "direction_changed": sum(r["hourly_changed_direction"] for r in rows),
             "corrected_by_hourly": delta.count(1), "harmed_by_hourly": delta.count(-1),
             "scores": scores}
+
+
+def policy_effect(rows):
+    result = {}
+    for key in scoring.LABELS:
+        pairs = [row["scores"] for row in rows if row["market"] == key]
+        if pairs:
+            result[key] = {
+                "paired": len(pairs),
+                **{metric: round(mean(pair["hourly"][metric] - pair["legacy_hourly"][metric]
+                                      for pair in pairs), 6)
+                   for metric in ("log_loss", "brier", "top1_hit")},
+            }
+    return result
 
 
 def main():
@@ -298,7 +315,9 @@ def main():
                    "by_day": {day["day"]: summarize_totals(day["rows"]) for day in days}}
     opponent_summary = {key: summarize_opponents(rows, key) for key in scoring.LABELS}
     report = {"scope": "FIXED_21_00_RETROSPECTIVE_NO_OUTCOME_TUNING", "days": metadata,
-              "summary": summary, "total_goals_trial": total_goals, "opponent_trial": opponent_summary}
+              "summary": summary, "total_goals_trial": total_goals, "opponent_trial": opponent_summary,
+              "new_market_policy": {"all": policy_effect(rows),
+                                    "by_day": {day["day"]: policy_effect(day["rows"]) for day in days}}}
     args.out.write_text(json.dumps({**report, "fixtures": days}, ensure_ascii=False, indent=2) + "\n")
     print("FOOTBALL_MARKET_REPLAY", json.dumps(report, ensure_ascii=False))
 

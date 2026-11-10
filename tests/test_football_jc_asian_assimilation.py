@@ -79,6 +79,19 @@ def with_quotes(n=8,shift=0.36,source_diff_minutes=1,
     return s,core.run(s)
 
 class FusionTests(unittest.TestCase):
+ def test_market_path_applies_one_disagreement_penalty_but_preserves_quality_guard(self):
+    path = {"status": "DIVERGING", "opposing_company_moves": True,
+            "last_change_same_books": 0.04, "last_move_breadth": 0.4,
+            "last_gap_hours": 1}
+    self.assertEqual(fuse.risk_multiplier(path), 0.25)
+    self.assertEqual(fuse.football_market_risk(path), 0.75)
+    reversal = {**path, "last_direction_reversed": True}
+    self.assertEqual(fuse.football_market_risk(reversal), 0.5)
+    stale = {**path, "last_gap_hours": 4}
+    self.assertEqual(fuse.football_market_risk(stale), fuse.risk_multiplier(stale))
+    coverage_gap = {**path, "status": "COVERAGE_CHANGED"}
+    self.assertEqual(fuse.football_market_risk(coverage_gap), fuse.risk_multiplier(coverage_gap))
+
  def test_strict_market_quote_adjusts_had_and_hhad_but_not_total_goals(self):
     s,base=with_quotes()
     original=copy.deepcopy(base)
