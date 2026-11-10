@@ -8,7 +8,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT/'analysis'),str(ROOT/'ops')]
 from sports_weight_learning import prepare,research,validate
 from sports_learning_dataset import build,digest
-from sports_lifecycle import audit_zip,run,cached_asset,save_cache
+from sports_lifecycle import audit_review_zip,audit_zip,run,cached_asset,save_cache
 from sport_match_final_registry import publishable_final_documents
 from sports_candidate_archive import plan as publication_plan,publish
 
@@ -159,6 +159,16 @@ class ArchiveTests(unittest.TestCase):
             z.writestr('football-output/raw/manifest.json',json.dumps(m))
             z.writestr('football-output/raw/fixtures.txt.gz',gzip.compress(data+b'bad' if tampered else data))
         return out.getvalue()
+    def test_review_replay_receipt_binds_frozen_and_original_result_hashes(self):
+        raw = b"test review archive"
+        lock = {'slot_beijing_date':'2026-11-05','final_forecast_sha256':'a'*64}
+        with patch('sports_lifecycle.load_verified_2100_review', return_value=(lock, {'1':{},'2':{}})) as validate:
+            receipt = audit_review_zip(raw)
+        validate.assert_called_once_with(raw)
+        self.assertEqual(receipt['declared_sources_verified'],2)
+        self.assertEqual(receipt['frozen_forecast_sha256'],'a'*64)
+        self.assertEqual(receipt['zip_sha256'],hashlib.sha256(raw).hexdigest())
+
     def test_exact_byte_restore(self):self.assertEqual(audit_zip(self.raw())['declared_sources_verified'],1)
     def test_corruption_is_not_success(self):
         with self.assertRaises(ValueError):audit_zip(self.raw(True))
@@ -193,6 +203,9 @@ class ArchiveTests(unittest.TestCase):
             report=run('test/repo',tmp,days=366,inventory=metadata)
             self.assertEqual(report['deleted_original_files'],0)
             self.assertTrue((Path(tmp)/'manifest.json').is_file())
+            index=json.loads((Path(tmp)/'archive-release-index.json').read_text())
+            self.assertEqual(index[0]['tag'],'football-007-raw-20261105')
+            self.assertEqual(index[0]['assets'],3)
             self.assertEqual(report['training_admission']['admitted_event_markets'],1)
             self.assertEqual(report['learning_readiness'],'INSUFFICIENT_INDEPENDENT_HISTORY')
 
