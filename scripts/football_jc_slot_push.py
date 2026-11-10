@@ -7,7 +7,6 @@ Uses the same compact HTML sender interface as NBA, not its data/model.
 """
 from __future__ import annotations
 import argparse,hashlib,json,os,sys
-from html import escape
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"analysis"))
 import football_forecast_contract as contract
@@ -48,40 +47,13 @@ def prepare(forecast,mode,lock=None,comparison=None,daytime_slot=None,movement=N
             raise ValueError("UNRECOGNIZED_DAYTIME_CAPTURE_SLOT")
         label=daytime_slot[:2]+":00赛前研判"
     else:raise ValueError("INVALID_FOOTBALL_SEND_SLOT")
-    title="北京时间"+str(forecast.get("beijing_date"))+" 足球球赛研判｜"+label
-    html=report.render(forecast,comparison,mode if mode in ("final","update") else "research",movement)
+    title="北京时间"+str(forecast.get("beijing_date"))+" 足球研判｜"+label
+    html=report.render_push(forecast, comparison, movement)
     return {"title":title,"html":html}
 
 def compact_html(forecast,comparison,mode,movement):
-    """Small loss-aware layout: every match and all three JC verdicts remain visible."""
-    e=lambda v: escape("—" if v is None else str(v),quote=True)
-    parts=["<html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>",
-           "<body style='font:14px/1.5 -apple-system,Arial;padding:8px'>",
-           "<h3>北京时间 "+e(forecast.get("beijing_date"))+" 足球球赛研判</h3>"]
-    for g in forecast.get("games",[]):
-        parts.append("<div style='border-top:1px solid #ddd;padding:8px 0'><b>"+
-                     e(g.get("jc_number"))+" "+e(g.get("league"))+" "+
-                     e(g.get("home_team"))+"（主） vs "+e(g.get("away_team"))+"（客）</b>"+
-                     "<div>北京时间 "+e(report.beijing_clock(g.get("kickoff_beijing")))+"</div>")
-        for key,name in report.MARKETS:
-            m=(g.get("markets") or {}).get(key) or {}
-            direction=m.get("direction") or "暂无有效判断"
-            probability=m.get("direction_probability")
-            if key=="ttg" and (m.get("goal_selection") or {}).get("goals"):
-                selection=m["goal_selection"]
-                direction="/".join(map(str,selection["goals"]))
-                probability=selection.get("combined_probability")
-            handicap=m.get("signed_home_handicap")
-            if key=="hhad":
-                direction=str(direction)+"（主"+(f"{handicap:+g}" if isinstance(handicap,(int,float)) else "盘口待核")+"）"
-            try: pct=f"{float(probability)*100:.1f}%" if probability is not None else "—"
-            except (ValueError,TypeError): pct="—"
-            parts.append("<div><b>"+e(name)+"：</b>"+e(direction)+" "+pct+"</div>")
-        q=g.get("data_quality") or {}
-        parts.append("<small>伤停："+("名单待核" if q.get("injury_listed_players_unconfirmed") else "待核实")+
-                     "｜数据状态："+e(g.get("status"))+"</small></div>")
-    parts.append("<small>概率未经充分回测校准；仅供研究。采集："+e(forecast.get("captured_at_utc"))+"</small></body></html>")
-    return "".join(parts)
+    return report.render_push(forecast, comparison, include_notes=False)
+
 
 def payload_size(payload,token):
     return len(json.dumps({"token":token,"title":payload["title"],

@@ -164,6 +164,105 @@ def render(report,comparison=None,mode=None,movement=None):
     )
 
 
+
+# The order is the 007竞彩 quote order, independent of the model's ranking.
+PUSH_OPTIONS = {
+    "had": ("主胜", "平", "客胜"),
+    "hhad": ("让胜", "让平", "让负"),
+    "ttg": tuple(f"{n}球" for n in range(7)) + ("7+球",),
+}
+
+
+def push_market_line(key, name, market):
+    options = PUSH_OPTIONS[key]
+    odds = market.get("jc_odds")
+    probs = market.get("probabilities") or {}
+    direction = market.get("direction")
+    probability = market.get("direction_probability")
+    prefix = f"<b>{name}</b>　"
+    if key == "hhad":
+        handicap = market.get("signed_home_handicap")
+        prefix += (f"主队 {handicap:+d} 球，" if type(handicap) is int else "让球待核，")
+
+    def quote(option):
+        if isinstance(odds, (list, tuple)) and len(odds) == len(options) and option in options:
+            value = odds[options.index(option)]
+            if value is not None and value != "":
+                return f"（赔率 {esc(value)}）"
+        return "（赔率缺失）"
+
+    if not direction or probability is None:
+        return prefix + "暂无有效判断"
+    if key == "ttg":
+        selection = market.get("goal_selection") or {}
+        goals = [str(goal) if str(goal).endswith("球") else f"{goal}球"
+                 for goal in selection.get("goals", [])]
+        if goals:
+            picks = " / ".join(esc(goal) + quote(goal) for goal in goals)
+            combined = selection.get("combined_probability")
+            return prefix + picks + (f"，合计 <b>{percent(combined)}</b>" if combined is not None else "")
+    line = prefix + f"<b>{esc(direction)} {percent(probability)}</b>" + quote(direction)
+    if key == "had" and direction in options:
+        alternatives = [(side, probs[side]) for side in options
+                        if side != direction and probs.get(side) is not None]
+        if alternatives:
+            side, runner_up = max(alternatives, key=lambda entry: entry[1])
+            if abs(probability - runner_up) < 0.03:
+                line += f" / {side} {percent(runner_up)}{quote(side)}，方向接近"
+    return line
+
+
+def push_movement_note(movement, game, captured):
+    if not movement:
+        return ""
+    if movement.get("schema_version") != "football-007-asof-hourly-movement-v1":
+        raise ValueError("UNVERIFIED_FOOTBALL_MOVEMENT_SCHEMA")
+    item = next((row for row in movement.get("games", [])
+                 if str(row.get("match_id")) == str(game.get("match_id"))), None)
+    if not item:
+        return ""
+    if item.get("current_capture_utc") != captured:
+        raise ValueError("MOVEMENT_FROM_DIFFERENT_007_CAPTURE")
+    notes = []
+    for change in item.get("changes", []):
+        key = change.get("market")
+        name = dict(MARKETS).get(key)
+        kind = change.get("kind")
+        before, after = change.get("before"), change.get("after")
+        if kind == "JC_HANDICAP_CHANGED" and type(before) is int and type(after) is int:
+            notes.append(f"主队让球 {before:+d} → {after:+d}")
+        elif kind == "MODEL_DIRECTION_REVERSED" and name and before and after:
+            notes.append(f"{name} {before} → {after}")
+        elif kind == "MODEL_PROBABILITY_MOVEMENT_PP" and name:
+            market = (game.get("markets") or {}).get(key) or {}
+            direction = market.get("direction")
+            probability = market.get("direction_probability")
+            delta = (change.get("percentage_point_change") or {}).get(direction)
+            if probability is not None and delta is not None and abs(delta) >= 5:
+                notes.append(f"{name} {direction} {percent(probability - delta / 100)} → {percent(probability)}")
+    return "<div>较上次　" + esc(" · ".join(notes)) + "</div>" if notes else ""
+
+
+def render_push(forecast, comparison=None, movement=None, *, include_notes=True):
+    date = esc(forecast.get("beijing_date"))
+    cards = []
+    for game in forecast.get("games", []):
+        title = f"{esc(game.get('jc_number'))}｜{esc(game.get('home_team'))}（主） vs {esc(game.get('away_team'))}（客）"
+        kickoff = esc(beijing_clock(game.get("kickoff_beijing")))
+        markets = game.get("markets") or {}
+        lines = "".join(f"<div>{push_market_line(key, name, markets.get(key) or {})}</div>"
+                        for key, name in MARKETS)
+        notes = change_notes(comparison, str(game.get("match_id")))
+        if include_notes:
+            notes += push_movement_note(movement, game, forecast.get("captured_at_utc"))
+        cards.append(f"<section style='margin:8px 0;padding:8px 0;border-top:1px solid #ddd'>"
+                     f"<b>{title}</b><div>北京时间 {kickoff}</div>{lines}{notes}</section>")
+    return ("<!doctype html><html lang='zh-CN'><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<body style='font:14px/1.5 -apple-system,Arial;padding:8px'>"
+            f"<h3>北京时间 {date} 足球研判</h3>{''.join(cards)}</body></html>")
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--forecast", required=True)
