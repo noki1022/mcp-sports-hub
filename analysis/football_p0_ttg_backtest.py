@@ -137,12 +137,12 @@ def validated_samples(frozen,finals,reviews):
     return cases
 
 
-def validated_2100_review_archive(blob):
+def load_verified_2100_review(blob):
     """Original 21:00 archive + original 007 FT bytes, not inferred scores.
 
     Uses already-created official research grading release. Match identity,
     kickoff, team IDs, original result SHA and generated-before-kickoff are
-    validated BEFORE any sample can enter the distribution study.
+    validated from the original 007 response.
     """
     if not isinstance(blob,bytes) or not 0<len(blob)<=2_000_000:
         raise ValueError("VERIFIED_REVIEW_ZIP_SIZE_INVALID")
@@ -175,41 +175,46 @@ def validated_2100_review_archive(blob):
             if len(raw[mid])>850000:
                 raise ValueError("OVERSIZE_ORIGINAL_007_RESULT")
         finals=ft.validate_results(payload,raw)
-        facts={str(g["match_id"]):g for g in locked["snapshot_facts"]}
-        if len(facts)!=len(locked["snapshot_facts"]):
-            raise ValueError("DUPLICATE_21_00_FIXTURE")
-        asof=utc(locked["actual_model_generated_utc"])
-        output=[]
-        for row in locked["forecast"]["games"]:
-            mid=str(row["match_id"])
-            if mid not in finals:continue
-            fact=facts.get(mid)
-            if fact is None or row.get("jc_number")!=fact.get("jc_number"):
-                raise ValueError("FROZEN_007_IDENTITY_MISMATCH")
-            result=finals[mid]
-            ft.verify_join({
-              "match_id":mid,"jc_number":fact["jc_number"],
-              "kickoff_beijing":fact["kickoff_beijing"],
-              "home_team_id_007":fact["home_team_id_007"],
-              "away_team_id_007":fact["away_team_id_007"]},result,asof)
-            if row.get("status")!="RESEARCH_READY":
-                continue
-            goal=row.get("goal_expectation") or {}
-            h,a=goal.get("home"),goal.get("away")
-            if type(h) not in (int,float) or type(a) not in (int,float):
-                continue
-            if not all(math.isfinite(v) and .15<=v<=4.5 for v in (h,a)):
-                continue
-            tip=utc(fact["kickoff_beijing"])
-            if utc(locked["actual_capture_utc"])>=tip or asof>=tip:
-                raise ValueError("FROZEN_FORECAST_NOT_PRETIP")
-            output.append({
-                "match_id":mid,"kickoff_utc":tip.isoformat(),
-                "frozen_model_sha256":locked["final_forecast_sha256"],
-                "verified_review_sha256":result["source_sha256"],
-                "home_lambda":float(h),"away_lambda":float(a),
-                "outcome_bucket":min(7,result["home_goals"]+result["away_goals"])})
-        return output
+    return locked, finals
+
+
+def validated_2100_review_archive(blob):
+    locked, finals = load_verified_2100_review(blob)
+    facts={str(g["match_id"]):g for g in locked["snapshot_facts"]}
+    if len(facts)!=len(locked["snapshot_facts"]):
+        raise ValueError("DUPLICATE_21_00_FIXTURE")
+    asof=utc(locked["actual_model_generated_utc"])
+    output=[]
+    for row in locked["forecast"]["games"]:
+        mid=str(row["match_id"])
+        if mid not in finals:continue
+        fact=facts.get(mid)
+        if fact is None or row.get("jc_number")!=fact.get("jc_number"):
+            raise ValueError("FROZEN_007_IDENTITY_MISMATCH")
+        result=finals[mid]
+        ft.verify_join({
+          "match_id":mid,"jc_number":fact["jc_number"],
+          "kickoff_beijing":fact["kickoff_beijing"],
+          "home_team_id_007":fact["home_team_id_007"],
+          "away_team_id_007":fact["away_team_id_007"]},result,asof)
+        if row.get("status")!="RESEARCH_READY":
+            continue
+        goal=row.get("goal_expectation") or {}
+        h,a=goal.get("home"),goal.get("away")
+        if type(h) not in (int,float) or type(a) not in (int,float):
+            continue
+        if not all(math.isfinite(v) and .15<=v<=4.5 for v in (h,a)):
+            continue
+        tip=utc(fact["kickoff_beijing"])
+        if utc(locked["actual_capture_utc"])>=tip or asof>=tip:
+            raise ValueError("FROZEN_FORECAST_NOT_PRETIP")
+        output.append({
+            "match_id":mid,"kickoff_utc":tip.isoformat(),
+            "frozen_model_sha256":locked["final_forecast_sha256"],
+            "verified_review_sha256":result["source_sha256"],
+            "home_lambda":float(h),"away_lambda":float(a),
+            "outcome_bucket":min(7,result["home_goals"]+result["away_goals"])})
+    return output
 
 
 def paired_eval(examples):

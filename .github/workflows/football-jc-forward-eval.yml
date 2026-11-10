@@ -2,6 +2,8 @@ name: Football JC prospective scoring (research only)
 on:
   pull_request:
     paths:
+      - 'ops/football_2100_market_replay.py'
+      - 'analysis/football_p0_ttg_backtest.py'
       - 'analysis/football_jc_prospective_score.py'
       - 'tests/test_football_jc_prospective_score.py'
       - '.github/workflows/football-jc-forward-eval.yml'
@@ -24,3 +26,24 @@ jobs:
           python3 -B -m unittest discover -s tests -p test_football_jc_prospective_score.py -v
           python3 -B -m py_compile analysis/football_jc_prospective_score.py
           echo "FOOTBALL_JC_FORWARD_EVAL_TESTED_NO_REAL_RESULTS_INVENTED"
+
+  replay-verified-market-history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compare fundamentals, instantaneous market and hourly market history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -B ops/football_2100_market_replay.py --repo "$GITHUB_REPOSITORY" \
+            --day 2026-11-06 --day 2026-11-07 --day 2026-11-08 --out football-market-replay.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-2100-market-replay
+          path: football-market-replay.json
