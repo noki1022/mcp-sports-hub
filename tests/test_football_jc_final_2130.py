@@ -12,6 +12,7 @@ import sys
 import unittest
 from zoneinfo import ZoneInfo
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"analysis"))
+import football_forecast_contract as contract
 import football_jc_final_2130 as final
 from football_jc_integrated import VERSION as CURRENT_MODEL_VERSION
 import football_jc_asian_assimilation as asian
@@ -36,7 +37,7 @@ def source(time=START):
             "games":[fixture()]}
 def forecast(snapshot,time=None):
     time=time or START+timedelta(minutes=1)
-    return {"model_version":CURRENT_MODEL_VERSION,
+    return {"model_version":CURRENT_MODEL_VERSION, "forecast_schema":contract.SCHEMA,
       "captured_at_utc":snapshot["captured_at_utc"],"generated_at_utc":time.astimezone(timezone.utc).isoformat(),
       "source_sha256":final.sha(snapshot),
       "games":[{"match_id":"3075305","jc_number":"周四010","home_team":"主队","away_team":"客队",
@@ -70,6 +71,7 @@ class TestSingleFinal(unittest.TestCase):
     self.assertIn("竞彩胜平负",preview["html"])
     stale=copy.deepcopy(self.forecast)
     stale["model_version"]="football-jc-poisson-asian-assimilation-v3"
+    stale.pop("forecast_schema")
     with self.assertRaisesRegex(ValueError,"MUST_SEND_SINGLE_INTEGRATED_FOOTBALL_MODEL"):
         push.prepare(stale,"daytime",daytime_slot="1600")
  def test_2100_cli_reports_frozen_snapshot_facts_not_legacy_games(self):
