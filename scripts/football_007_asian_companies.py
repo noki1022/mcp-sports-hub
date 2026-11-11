@@ -20,6 +20,8 @@ from datetime import datetime,timezone
 import gzip, hashlib,json,math,re,urllib.parse,urllib.request,urllib.error
 from pathlib import Path
 
+from football_007_analysis_extract import retry_timeout
+
 ROOT="https://m.titan007.com/"
 API="https://m.titan007.com/HandicapDataInterface.ashx"
 SCHEMA="football-007-asian-multi-company-v1"
@@ -190,7 +192,7 @@ def collect(snapshot,raw_dir,workers=3):
     def task(game):
         mid=str(game["match_id"])
         try:
-            raw,received=get_one(game)
+            raw,received=retry_timeout(get_one, game)
             return mid,raw,received,None
         except (OSError,ValueError,RuntimeError) as err:
             return mid,None,None,type(err).__name__+":"+str(err)[:130]
