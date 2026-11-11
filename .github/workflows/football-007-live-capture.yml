@@ -43,7 +43,6 @@ on:
       - 'tests/test_football_jc_market_reading.py'
       - 'scripts/football_007_analysis_extract.py'
       - 'tests/test_football_007_analysis_extract.py'
-      - 'scripts/football_007_mobile_probe.py'
       - 'scripts/football_007_deep_probe.py'
       - 'scripts/football_007_jc_market_probe.py'
       - 'scripts/football_007_cp_probe.py'
@@ -200,9 +199,6 @@ jobs:
             --snapshot football-output/football_007_snapshot.json \
             --raw-dir football-output/raw \
             --out football-output/football_007_snapshot.json
-      - name: Audit actual 007 mobile H2H recent-form and injury source structure
-        if: github.event_name != 'schedule'
-        run: python3 -B scripts/football_007_mobile_probe.py
       - name: Restore previous football raw snapshots for same-book dynamic analysis
         if: github.event_name != 'pull_request'
         continue-on-error: true
