@@ -26,17 +26,26 @@ RESULT_SCHEMA = "football-007-final-results-v1"
 def settle(bundles, day, now, load_result):
     prefix = "周" + "一二三四五六日"[day.weekday()]
     scheduled = {}
+    original_runs = []
     for bundle in bundles:
         registry.check_bundle(bundle)
-        if bundle["sport"] != "football" or any(
+        if bundle["sport"] != "football":
+            raise ValueError("FOOTBALL_REVIEW_EXPECTED_FOOTBALL_BUNDLE")
+        slots = {row["planned_slot_beijing"] for row in bundle["records"]}
+        if not slots or slots == {"MANUAL"}:
+            continue
+        if len(slots) != 1 or any(not registry.is_official_football_slot(slot) for slot in slots):
+            raise ValueError("FOOTBALL_REVIEW_NONCANONICAL_CAPTURE")
+        if any(
             not re.fullmatch(prefix + r"\d{3}", row.get("jc_number") or "")
             for row in bundle["records"]
         ):
             raise ValueError("FOOTBALL_REVIEW_SALE_DAY_MISMATCH")
+        original_runs.append(bundle)
         for row in bundle["records"]:
             scheduled[row["match_id"]] = row
     finals = registry.publishable_final_documents(
-        bundles, now.isoformat(), grace_minutes=0, football_latest=True)
+        original_runs, now.isoformat(), grace_minutes=0, football_latest=True)
 
     def collect(final):
         mid = final["match_id"]

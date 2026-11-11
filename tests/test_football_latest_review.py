@@ -42,6 +42,7 @@ class LatestFootballReview(unittest.TestCase):
             candidate(4, T + timedelta(hours=2), "2300", direction="客胜"),
             candidate(5, T + timedelta(hours=3), "2300", direction=None),
             candidate(6, TIP - timedelta(minutes=1), "2300"),
+            candidate(7, T + timedelta(hours=4), "MANUAL"),
         ]
         now = TIP + timedelta(hours=4)
         early_result = html().replace(b"3075305", b"3075306").replace(

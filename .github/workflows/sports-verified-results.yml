@@ -7,7 +7,7 @@ on:
   pull_request:
     paths: ['analysis/sports_verified_*.py', 'analysis/sport_match_final_grade.py', 'ops/sports_result_to_review.py', 'ops/football_latest_review.py', 'analysis/sport_match_final_registry.py', 'analysis/sport_match_final_review_html.py', 'tests/test_football_latest_review.py', 'analysis/nba_per_match_score_review.py', 'tests/test_sports_verified_results.py', '.github/workflows/sports-verified-results.yml']
   workflow_run:
-    workflows: ['NBA immutable per-match pretip finals']
+    workflows: ['Football + NBA immutable per-match latest valid pretip finals']
     types: [completed]
     branches: [main]
   schedule:
@@ -50,7 +50,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: python ops/sports_result_to_review.py --repo "$GH_REPO" --sport basketball
+        run: python ops/sports_result_to_review.py --repo "$GH_REPO"
       - uses: actions/upload-artifact@v4
         if: always() && github.event_name == 'pull_request'
         with:
@@ -81,7 +81,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: python ops/sports_result_to_review.py --repo "$GH_REPO" --sport basketball --publish
+        run: python ops/sports_result_to_review.py --repo "$GH_REPO" --publish
       - uses: actions/upload-artifact@v4
         if: always()
         with:

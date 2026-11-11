@@ -172,6 +172,10 @@ def has_football_prediction(row):
                for key,m in row["markets"].items())
 
 
+def is_official_football_slot(slot):
+    return bool(re.fullmatch(r"(?:1[2-9]|2[0-3])00",str(slot or "")))
+
+
 def select(bundles,as_of,*,football_latest=False):
     now=stamp(as_of)
     grouped={}
@@ -180,6 +184,8 @@ def select(bundles,as_of,*,football_latest=False):
     for bundle in bundles:
         check_bundle(bundle)
         for r in bundle["records"]:
+            if football_latest and r["sport"]=="football" and not is_official_football_slot(r["planned_slot_beijing"]):
+                continue
             k=(r["sport"],r["match_id"])
             identity=tuple(r.get(t) for t in ("official_game_id","jc_number","home_team","away_team",
                                              "home_id","away_id","kickoff_utc"))
@@ -267,9 +273,9 @@ def publishable_final_documents(bundles,as_of,grace_minutes=90,*,football_latest
         finished.append(final)
     return finished
 
-def publish_finals(bundles,as_of,out_dir,grace_minutes=90):
+def publish_finals(bundles,as_of,out_dir,grace_minutes=90,*,football_latest=False):
     outputs=[]
-    for final in publishable_final_documents(bundles,as_of,grace_minutes):
+    for final in publishable_final_documents(bundles,as_of,grace_minutes,football_latest=football_latest):
         # One append-once file per sport, official match id, kickoff Beijing day.
         directory=Path(out_dir)/final["sport"]/final["kickoff_beijing_day"]
         path=directory/(final["sport"]+"-"+final["match_id"]+".final.json")
@@ -323,6 +329,7 @@ def main():
     q.add_argument("--bundle-dir")
     q.add_argument("--as-of",required=True)
     q.add_argument("--grace-minutes",type=int,default=90)
+    q.add_argument("--football-latest",action="store_true")
     q.add_argument("--out-dir",required=True)
     a=p.parse_args()
     if a.command=="emit":
@@ -338,7 +345,7 @@ def main():
         require(bool(paths),"MISSING_SNAPSHOT_CANDIDATES")
         docs=[json.loads(x.read_text(encoding="utf-8")) for x in paths]
         if a.command=="finalize":
-            outputs=publish_finals(docs,a.as_of,a.out_dir,a.grace_minutes)
+            outputs=publish_finals(docs,a.as_of,a.out_dir,a.grace_minutes,football_latest=a.football_latest)
             print("MATCH_FINAL_APPEND_ONLY",len(outputs),sum(x["state"]=="CREATED_APPEND_ONCE" for x in outputs))
         else:
             result=select(docs,a.as_of)
