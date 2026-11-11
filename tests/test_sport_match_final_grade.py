@@ -6,6 +6,8 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"analysis"))
 import sport_match_final_registry as R
 import sport_match_final_grade as G
+from football_forecast_contract import SCHEMA as FOOTBALL_FORECAST_SCHEMA
+from football_jc_integrated import VERSION as FOOTBALL_MODEL_VERSION
 
 T=datetime(2026,11,5,13,0,tzinfo=timezone.utc)
 TIP=T+timedelta(hours=10,minutes=30)
@@ -18,7 +20,8 @@ def football():
   markets={"had":{"direction":"主胜","jc_odds":[1.8,3.3,4.0]},
            "hhad":{"direction":"让负","signed_home_handicap":-1,"jc_odds":[1.8,3.3,4.0]},
            "ttg":{"goal_selection":{"goals":["2球","3球"]},"jc_odds":[3.0]*8}}
-  forecast={"model_version":__import__("football_jc_asian_assimilation").VERSION,
+  forecast={"forecast_schema":FOOTBALL_FORECAST_SCHEMA,
+           "model_version":FOOTBALL_MODEL_VERSION,
            "source_sha256":R.digest(snapshot),"captured_at_utc":iso(T),
            "generated_at_utc":iso(T+timedelta(minutes=1)),
            "games":[{"match_id":"3075305","jc_number":"周四010","home_team":"甲",
