@@ -11,12 +11,22 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import re
+from urllib.error import URLError
 import urllib.request
 from zoneinfo import ZoneInfo
 
 MAX_HTML=850000
 MOBILE_ROOT="https://m.titan007.com/analy/Analysis/"
 UTC=timezone.utc
+
+def retry_timeout(fetch, target):
+    """Retry one transport timeout within the current capture."""
+    try:
+        return fetch(target)
+    except (TimeoutError, URLError) as error:
+        if not isinstance(getattr(error, "reason", error), TimeoutError):
+            raise
+    return fetch(target)
 
 def get_page(match_id):
     mid=str(match_id)

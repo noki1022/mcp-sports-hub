@@ -232,7 +232,7 @@ def analysis_pages(games):
         if datetime.fromisoformat(game['kickoff_beijing']).astimezone(timezone.utc)<=datetime.now(timezone.utc):
             return None,None,None
         try:
-            raw=analysis_007.get_page(game['match_id'])
+            raw=analysis_007.retry_timeout(analysis_007.get_page, game["match_id"])
             return raw,datetime.now(timezone.utc).isoformat(),None
         except (OSError,ValueError,TypeError,KeyError,RuntimeError) as exc:
             return None,None,exc
@@ -241,7 +241,7 @@ def analysis_pages(games):
 
 
 def enrich_analysis(snapshot,folder):
-    """Attempt each future 007 game once. A blocked page never blocks live odds."""
+    """Capture each future game's 007 page independently of live odds."""
     coverage={"attempted":0,"raw_saved":0,"parsed":0,"home_recent_ge3":0,
               "away_recent_ge3":0,"both_recent5":0,
               "h2h_with_results":0,"injury_fact_matches":0,

@@ -46,6 +46,8 @@ def prepare(forecast,mode,lock=None,comparison=None,daytime_slot=None,movement=N
         if daytime_slot not in tuple(f"{h:02d}00" for h in range(12,24)):
             raise ValueError("UNRECOGNIZED_DAYTIME_CAPTURE_SLOT")
         label=daytime_slot[:2]+":00赛前研判"
+        if all(game.get("status") == "INSUFFICIENT_FORM" for game in forecast["games"]):
+            label=daytime_slot[:2]+":00赛前数据不足"
     else:raise ValueError("INVALID_FOOTBALL_SEND_SLOT")
     title="北京时间"+str(forecast.get("beijing_date"))+" 足球研判｜"+label
     html=report.render_push(forecast, comparison, movement)

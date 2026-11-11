@@ -250,9 +250,16 @@ def render_push(forecast, comparison=None, movement=None, *, include_notes=True)
         title = f"{esc(game.get('jc_number'))}｜{esc(game.get('home_team'))}（主） vs {esc(game.get('away_team'))}（客）"
         kickoff = esc(beijing_clock(game.get("kickoff_beijing")))
         markets = game.get("markets") or {}
-        lines = "".join(f"<div>{push_market_line(key, name, markets.get(key) or {})}</div>"
-                        for key, name in MARKETS)
+        if game.get("status") == "INSUFFICIENT_FORM":
+            lines = "<div>007 赛前战绩不足，三个玩法均未生成判断。</div>"
+        else:
+            lines = "".join(f"<div>{push_market_line(key, name, markets.get(key) or {})}</div>"
+                            for key, name in MARKETS)
         notes = change_notes(comparison, str(game.get("match_id")))
+        archived_form = (game.get("data_quality") or {}).get("archived_form_007")
+        if archived_form:
+            observed = esc(beijing_clock(archived_form["observed_at_utc"]))
+            notes += f"<div>近况和交锋沿用北京时间 {observed} 的 007 赛前资料。</div>"
         if include_notes:
             notes += push_movement_note(movement, game, forecast.get("captured_at_utc"))
         cards.append(f"<section style='margin:8px 0;padding:8px 0;border-top:1px solid #ddd'>"
