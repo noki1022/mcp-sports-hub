@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 from zipfile import ZipFile
 
 from test_sport_match_final_grade import T, TIP, iso
@@ -58,14 +59,27 @@ class LatestFootballReview(unittest.TestCase):
         self.assertEqual(report["summary"]["had"]["graded"], 2)
         self.assertEqual(report["summary"]["had"]["misses"], 1)
         self.assertEqual(report["summary"]["hhad"]["graded"], 0)
+        by_id = {row["match_id"]: row for row in report["matches"]}
+        self.assertEqual(by_id["3075305"]["analysis_capture_utc"], iso(T + timedelta(hours=2)))
+        self.assertEqual(by_id["3075305"]["analysis_generated_utc"], iso(T + timedelta(hours=2, minutes=1)))
         with TemporaryDirectory() as tmp:
             archive = Path(tmp) / "review.zip"
             with ZipFile(archive, "w") as z:
                 z.writestr("review.json", json.dumps(report))
             payload = sender.prepare(archive, T.date(), "fixture/repo", "")
-            self.assertIn("评分版本", payload["html"])
+            timings = ("开赛 11月06日 07:30:00", "抓取 11月05日 23:00:00", "分析完成 11月05日 23:01:00",
+                       "开赛 11月05日 18:00:00", "抓取 11月05日 17:00:00", "分析完成 11月05日 17:01:00")
+            for label in timings:
+                self.assertIn(label, payload["html"])
             self.assertIn("比分2:1", payload["html"])
             self.assertIn("football-jc-review-latest-20261105", payload["html"])
+            with patch.object(sender, "MAX_BYTES", sender.payload_size(payload, "") - 1):
+                compact = sender.prepare(archive, T.date(), "fixture/repo", "")
+            self.assertIn("开赛、抓取、分析完成", compact["html"])
+            for label in ("11/06 07:30:00", "11/05 23:00:00", "11/05 23:01:00",
+                          "11/05 18:00:00", "11/05 17:00:00", "11/05 17:01:00"):
+                self.assertIn(label, compact["html"])
+            self.assertIn("完整复盘归档", compact["html"])
             with self.assertRaisesRegex(ValueError, "EXPECTED_PREVIOUS_DAY"):
                 sender.prepare(archive, T.date() + timedelta(days=1), "fixture/repo", "")
 
@@ -85,6 +99,7 @@ class LatestFootballReview(unittest.TestCase):
         report, _, _, _, _ = review.settle(
             [candidate(1, T, "2100", direction=None)], T.date(), now, lambda mid: (html(), iso(now)))
         row, = report["matches"]
+        self.assertIsNone(row["analysis_capture_utc"])
         self.assertIsNone(row["analysis_generated_utc"])
         self.assertEqual(report["summary"]["had"]["excluded"], 1)
         self.assertEqual(report["summary"]["had"]["graded"], 0)

@@ -72,10 +72,13 @@ def settle(bundles, day, now, load_result):
     raw_evidence = {mid: raw for mid, _, raw, _ in results if raw is not None}
     issues = {mid: reason for mid, _, _, reason in results if reason}
     rows, totals = grading.football_grade(finals, manifest, raw_evidence)
+    for row, final in zip(rows, finals, strict=True):
+        row["analysis_capture_utc"] = final["capture_utc"] if row.get("analysis_generated_utc") else None
     for mid in sorted(scheduled.keys() - {row["match_id"] for row in rows}):
         match = scheduled[mid]
         issues[mid] = "PREMATCH_SELECTION_STILL_OPEN"
         row = {key: match[key] for key in ("match_id", "jc_number", "home_team", "away_team", "kickoff_utc")}
+        row["analysis_capture_utc"] = None
         row["markets"] = {key: {"status": "UNSETTLED"} for key in grading.LABELS["football"]}
         for count in totals.values():
             count["UNSETTLED"] += 1
