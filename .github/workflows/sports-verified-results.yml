@@ -3,9 +3,9 @@ run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot
 on:
   push:
     branches: [main]
-    paths: ['analysis/sports_verified_*.py', 'analysis/sport_match_final_grade.py', 'ops/sports_result_to_review.py', 'ops/football_2100_review.py', 'analysis/football_jc_single_final_review.py', '.github/workflows/sports-verified-results.yml']
+    paths: ['analysis/sports_verified_*.py', 'analysis/sport_match_final_grade.py', 'ops/sports_result_to_review.py', 'ops/football_latest_review.py', 'analysis/sport_match_final_registry.py', 'analysis/sport_match_final_review_html.py', '.github/workflows/sports-verified-results.yml']
   pull_request:
-    paths: ['analysis/sports_verified_*.py', 'analysis/sport_match_final_grade.py', 'ops/sports_result_to_review.py', 'ops/football_2100_review.py', 'analysis/football_jc_single_final_review.py', 'tests/test_football_2100_review.py', 'analysis/nba_per_match_score_review.py', 'tests/test_sports_verified_results.py', '.github/workflows/sports-verified-results.yml']
+    paths: ['analysis/sports_verified_*.py', 'analysis/sport_match_final_grade.py', 'ops/sports_result_to_review.py', 'ops/football_latest_review.py', 'analysis/sport_match_final_registry.py', 'analysis/sport_match_final_review_html.py', 'tests/test_football_latest_review.py', 'analysis/nba_per_match_score_review.py', 'tests/test_sports_verified_results.py', '.github/workflows/sports-verified-results.yml']
   workflow_run:
     workflows: ['Football + NBA immutable per-match latest valid pretip finals']
     types: [completed]
@@ -89,37 +89,7 @@ jobs:
           path: verified-results/
           retention-days: 14
 
-  validate-football-daily-2100:
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Validate original scheduler slot
-        env:
-          CLOUDFLARE_SLOT_UTC: ${{ inputs.cloudflare_slot_utc }}
-        run: python -B scripts/sports_postgame_slot.py verified-results
-      - name: Verify frozen 21:00 settlement and missing result boundaries
-        run: python -m unittest discover -s tests -p test_football_2100_review.py -v
-      - name: Rehearse daily 21:00 settlement against verified 007 results
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python ops/football_2100_review.py --repo "$GITHUB_REPOSITORY" --out football-2100-reviews
-      - uses: actions/upload-artifact@v4
-        if: always() && github.event_name == 'pull_request'
-        with:
-          name: football-2100-review-rehearsal-${{ github.run_id }}-${{ github.run_attempt }}
-          path: football-2100-reviews/
-          if-no-files-found: ignore
-          retention-days: 14
-  football-daily-2100:
-    needs: validate-football-daily-2100
+  football-daily-review:
     if: >-
       github.event_name != 'pull_request' && github.ref == 'refs/heads/main' &&
       (github.event_name != 'workflow_run' ||
@@ -138,14 +108,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Archive daily 21:00 scorecard with raw 007 result evidence
+      - name: Validate original scheduler slot
+        env:
+          CLOUDFLARE_SLOT_UTC: ${{ inputs.cloudflare_slot_utc }}
+        run: python -B scripts/sports_postgame_slot.py verified-results
+      - name: Archive one previous-day football scorecard with verified 007 result evidence
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python ops/football_2100_review.py --repo "$GITHUB_REPOSITORY" --out football-2100-reviews --publish
+        run: python ops/football_latest_review.py --repo "$GITHUB_REPOSITORY" --out football-latest-reviews --publish
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: football-2100-review-${{ github.run_id }}-${{ github.run_attempt }}
-          path: football-2100-reviews/
+          name: football-latest-review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: football-latest-reviews/
           if-no-files-found: ignore
           retention-days: 14

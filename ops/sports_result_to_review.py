@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 import urllib.request
+from urllib.error import URLError
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -141,7 +142,14 @@ def run(repo, out, publish=False, days=7):
                             'frozen_home': final['home_team'], 'frozen_away': final['away_team'],
                             'official_game_id': final['official_game_id'],
                             'source': V.S.basketball(raw, final['official_game_id'])}
-                    pending = reason in ('FOOTBALL_NOT_FINAL', 'NBA_NOT_FINAL', 'NBA_EVENT_MISSING_OR_DUPLICATE',
+                    if sport == 'football' and (
+                        isinstance(exc, TimeoutError)
+                        or isinstance(exc, URLError) and isinstance(exc.reason, TimeoutError)
+                    ):
+                        identity['source_error'] = reason
+                        reason = 'FOOTBALL_RESULT_SOURCE_TIMEOUT'
+                    pending = reason in ('FOOTBALL_NOT_FINAL', 'FOOTBALL_RESULT_SOURCE_TIMEOUT',
+                                         'NBA_NOT_FINAL', 'NBA_EVENT_MISSING_OR_DUPLICATE',
                                          'REGULATION_STAGE_NOT_VERIFIED', 'REGULATION_SCORE_AMBIGUOUS', 'RESULT_OBSERVED_TOO_EARLY')
                     health['pending' if pending else 'errors'].append(identity | {'reason': reason})
     (out/'health.json').write_text(json.dumps(health, ensure_ascii=False, indent=2)+'\n')

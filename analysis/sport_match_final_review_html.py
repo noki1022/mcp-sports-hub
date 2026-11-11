@@ -66,7 +66,7 @@ def actual_market(sport,k,data,h,a):
     x=h+a-n
     return "走盘" if abs(x)<1e-9 else "大分" if x>0 else "小分"
 
-def render(report):
+def render(report, *, include_matches=True):
     sport=report.get("sport")
     if sport not in MARKET_ORDER or report.get("schema_version")!="sports-latest-pretip-scoring-v1":
         raise ValueError("ONLY_VERIFIED_PER_MATCH_SCORECARD")
@@ -89,6 +89,7 @@ def render(report):
         E(str(report.get("beijing_day") or ""))," ",SPORT_NAMES[sport],"逐场复盘</h2>",
         "<p style='font-size:12px;color:#5f7185;margin:0 0 12px'>",
         ("仅按北京时间21:00原始赛前冻结版评分。" if report.get("prediction_source")=="ONLY_BEIJING_2100_IMMUTABLE_FORECAST"
+         else "每场按开球前最后一份有效分析评分。" if sport=="football"
          else "历史复盘：仅按每场最新有效赛前冻结版评分，21:30留档不重复计分。")+"主队在左；未核实赛果不入样。</p>"]
     summary=report.get("summary") or {}
     for market in MARKET_ORDER[sport]:
@@ -103,7 +104,8 @@ def render(report):
         out.append("<div style='background:white;padding:7px 9px;border-bottom:1px solid #e9edf4'>"
                    "<b>"+MARKET_NAMES[market]+"</b>　<b>"+E(value)+"</b>"+
                    ("　"+E("　".join(more)) if more else "")+"</div>")
-    for row in sorted(report.get("matches") or [],key=lambda r:(str(r.get("kickoff_utc") or r.get("tipoff_beijing") or ""),str(r.get("match_id") or r.get("game_id") or ""))):
+    matches = (report.get("matches") or []) if include_matches else []
+    for row in sorted(matches,key=lambda r:(str(r.get("kickoff_utc") or r.get("tipoff_beijing") or ""),str(r.get("match_id") or r.get("game_id") or ""))):
         score,h,a=result_score(sport,row)
         title=str(row.get("jc_number") or row.get("jingcai_number") or "官方编号未核实")
         home=str(row.get("home_team") or "主队待核")
@@ -113,6 +115,10 @@ def render(report):
                    "border:1px solid #dae2eb;border-radius:11px'>",
                    "<b>"+E(title)+"　"+E(home)+"（主） vs "+E(away)+"（客）</b>",
                    "<div style='font-size:12px;color:#66798c'>"+E(tip)+"　比分 <b>"+E(score)+"</b></div>"])
+        if "analysis_generated_utc" in row:
+            value=row["analysis_generated_utc"]
+            out.append("<div style='font-size:12px;color:#66798c'>"+
+                       (E("评分版本 "+clock(value)) if value else "无有效赛前判断")+"</div>")
         markets=row.get("markets") or {}
         for m in MARKET_ORDER[sport]:
             x=markets.get(m) or {}

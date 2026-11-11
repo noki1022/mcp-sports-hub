@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+from urllib.error import URLError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'analysis'))
 import sports_verified_result_sources as S
@@ -24,6 +25,27 @@ def html():
 
 
 class Results(unittest.TestCase):
+    def test_football_source_timeout_keeps_the_result_pending(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]/"ops"))
+        import sports_result_to_review as job
+        final = football()
+        tag = f"sport-pregame-final-football-{final['kickoff_beijing_day']}"
+        release = {"assets": [{"name": "football-3075305.final.json", "id": 1}]}
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            patch.object(job, "release", side_effect=lambda repo, name: release if name == tag else None),
+            patch.object(job, "asset_bytes", return_value=json.dumps(final).encode()),
+            patch.object(job, "fetch", side_effect=URLError(TimeoutError("TLS handshake timed out"))),
+            patch.object(job, "datetime", wraps=job.datetime) as clock,
+            patch.object(job, "gh") as publish,
+        ):
+            clock.now.return_value = TIP.astimezone(job.ZoneInfo("Asia/Shanghai"))
+            health = job.run("fixture/repo", tmp, publish=True, days=1)
+        self.assertEqual(health["pending"][0]["reason"], "FOOTBALL_RESULT_SOURCE_TIMEOUT")
+        self.assertFalse(health["errors"])
+        self.assertFalse(health["verified"])
+        publish.assert_not_called()
+
     def test_real_header_shape_replays_three_markets(self):
         final = football()
         report = V.make(final, html(), 'https://m.titan007.com/analy/Analysis/3075305.htm', iso(TIP+timedelta(hours=2)))

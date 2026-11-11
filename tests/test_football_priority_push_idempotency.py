@@ -8,12 +8,12 @@ class TestFootballPriority(unittest.TestCase):
     def setUpClass(cls):
         cls.workflow=(ROOT/".github/workflows/football-007-live-capture.yml").read_text()
         cls.priority=cls.workflow.split("  football-daytime-push:",1)[1]
-    def test_original_evidence_and_2100_lock_before_push(self):
+    def test_original_evidence_before_push_at_every_slot(self):
         self.assertIn("needs.archive-football-raw-release.result == 'success'",self.priority)
         self.assertIn("needs.live-football.result == 'success'",self.priority)
-        self.assertIn("needs.archive-football-2100-final.result == 'success'",self.priority)
+        self.assertNotIn("archive-football-2100-final",self.priority)
         self.assertIn("if: always() && !cancelled()",self.priority)
-        self.assertIn("IMMUTABLE_2100_FORECAST_CONFLICT_NO_DIVERGENT_PUSH",self.workflow)
+        self.assertNotIn("archive-football-2100-final:",self.workflow)
     def test_atomic_claim_before_send_and_no_overwrite(self):
         self.assertLess(self.priority.index('gh release upload "$tag" "$claim"'),self.priority.index('--status-out football-output/football_jc_send_status.json --send'))
         self.assertIn("if: steps.claim.outputs.skip != 'true'",self.priority)

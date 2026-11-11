@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Production schedule and immutability guard for both sports.
 
-One twelve-hour analysis window, 12:00–23:00 Beijing; 21:00 immutable
-graded forecast; no other automatic pregame PushPlus sender.
+One twelve-hour analysis window, 12:00–23:00 Beijing. NBA uses its
+21:00 freeze. Football reviews the latest valid pre-kickoff version per match.
 Existing independent result validation and long-term backups are retained.
 """
 from pathlib import Path
@@ -88,9 +88,15 @@ def main():
     assert "reports/daily/" in basket
     assert "football_007_live_capture.py" in football
     assert "--jc-sale-day" in football
-    assert "football_jc_final_2100.json" in football
-    assert "football-jc-final-2100-" in football
-    assert "archive-football-2100-final" in football
+    assert "football_jc_final_2100.json" not in football
+    assert "archive-football-2100-final" not in football
+    assert "football_match_candidates.json" in football
+    daily=load("sports-verified-results.yml")["jobs"]
+    assert "football-daily-2100" not in daily
+    assert any("ops/football_latest_review.py" in step.get("run","")
+               for step in daily["football-daily-review"]["steps"])
+    assert any("football-jc-review-latest-" in step.get("run","")
+               for step in review_workflow["jobs"]["send"]["steps"])
     assert "football-daytime-push:" in football
     assert "football-final-and-morning-push:" not in football
     assert "30 13 * * *" not in football and "30 22 * * *" not in football
@@ -105,7 +111,7 @@ def main():
     for forbidden in ("scripts/nba_delivery_recovery.py","scripts/nba_schedule_fallback_push.py",
                       ".github/workflows/pushplus-compact-resend.yml"):
         assert not (ROOT/forbidden).exists(),forbidden
-    print("SCHEDULE_12_HOURS_FOOTBALL_007_WEEKDAY_AND_2100_SCORE_GUARD_PASS")
+    print("SCHEDULE_12_HOURS_FOOTBALL_LATEST_PRETIP_AND_NBA_2100_GUARD_PASS")
 
 if __name__=="__main__":
     main()

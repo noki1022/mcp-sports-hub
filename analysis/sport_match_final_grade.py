@@ -68,9 +68,12 @@ def football_grade(finals,results,raw_evidence):
         for key in LABELS["football"]:
             m=f["markets"][key]
             prices=m.get("jc_odds")
-            predicted=(m.get("goal_selection") or {}).get("goals") if key=="ttg" else [m.get("direction")]
-            if not isinstance(predicted,list):predicted=[]
-            predicted=[v for v in predicted if isinstance(v,str) and v]
+            if f.get("selection_rule")==registry.LATEST_FOOTBALL:
+                predicted=registry.football_picks(key,m)
+            else:
+                predicted=(m.get("goal_selection") or {}).get("goals") if key=="ttg" else [m.get("direction")]
+                if not isinstance(predicted,list):predicted=[]
+                predicted=[v for v in predicted if isinstance(v,str) and v]
             actual=None
             if res is not None:
                 if key=="had":actual="主胜" if h>a else "平" if h==a else "客胜"
@@ -86,7 +89,9 @@ def football_grade(finals,results,raw_evidence):
             total[key][status]+=1
             info["markets"][key]={"direction":predicted,"actual":actual,"status":status,
                                     "official_home_handicap":line if key=="hhad" else None}
-        if f.get("selection_rule")=="ONLY_BEIJING_2100_IMMUTABLE_FORECAST":
+        if f.get("selection_rule")==registry.LATEST_FOOTBALL:
+            info["analysis_generated_utc"]=f["generated_utc"] if registry.has_football_prediction(f) else None
+        elif f.get("selection_rule")==registry.LEGACY_2100:
             info["selection_rule"]=f["selection_rule"]
         graded.append(info)
     return graded,total
