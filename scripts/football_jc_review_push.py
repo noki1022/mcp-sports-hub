@@ -31,7 +31,7 @@ def prepare(archive, day, repo, token):
     payload = {"title": f"北京时间{day.month}月{day.day}日 竞彩足球复盘",
                "html": render(report) + link}
     if payload_size(payload, token) > MAX_BYTES:
-        payload["html"] = render(report, include_matches=False) + link
+        payload["html"] = render(report, timing_only=True) + link
     if payload_size(payload, token) > MAX_BYTES:
         raise ValueError("FOOTBALL_REVIEW_PUSH_PAYLOAD_TOO_LARGE")
     return payload

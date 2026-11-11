@@ -22,12 +22,29 @@ MARKET_ORDER={
 OUTCOME={"HIT":"命中","MISS":"未中","PUSH":"走盘","UNSETTLED":"待赛果核实"}
 BJ=ZoneInfo("Asia/Shanghai")
 
-def clock(value):
+def clock(value, *, seconds=False, compact=False):
+    missing="时间待核" if seconds else "开赛时间待核"
     try:
         d=datetime.fromisoformat(str(value).replace("Z","+00:00"))
-        return d.astimezone(BJ).strftime("%m月%d日 %H:%M") if d.tzinfo else "开赛时间待核"
+        fmt="%m/%d %H:%M:%S" if compact else "%m月%d日 %H:%M:%S" if seconds else "%m月%d日 %H:%M"
+        return d.astimezone(BJ).strftime(fmt) if d.tzinfo else missing
     except (ValueError,TypeError):
-        return "开赛时间待核"
+        return missing
+
+
+def football_analysis_time(row, *, compact=False):
+    generated=row.get("analysis_generated_utc")
+    if generated:
+        captured=row.get("analysis_capture_utc")
+        if compact:
+            return clock(captured,seconds=True,compact=True)+" · "+clock(generated,seconds=True,compact=True)
+        capture_label="抓取 "+clock(captured,seconds=True) if captured else "抓取时间未记录"
+        return "评分版本｜"+capture_label+"　分析完成 "+clock(generated,seconds=True)
+    if "analysis_generated_utc" in row:
+        return "无有效赛前判断"
+    if "analysis_capture_utc" in row:
+        return "赛前版本待锁定"
+    return "评分版本时间未记录"
 
 def result_score(sport,row):
     if sport=="football":
@@ -66,7 +83,7 @@ def actual_market(sport,k,data,h,a):
     x=h+a-n
     return "走盘" if abs(x)<1e-9 else "大分" if x>0 else "小分"
 
-def render(report, *, include_matches=True):
+def render(report, *, include_matches=True, timing_only=False):
     sport=report.get("sport")
     if sport not in MARKET_ORDER or report.get("schema_version")!="sports-latest-pretip-scoring-v1":
         raise ValueError("ONLY_VERIFIED_PER_MATCH_SCORECARD")
@@ -105,20 +122,25 @@ def render(report, *, include_matches=True):
                    "<b>"+MARKET_NAMES[market]+"</b>　<b>"+E(value)+"</b>"+
                    ("　"+E("　".join(more)) if more else "")+"</div>")
     matches = (report.get("matches") or []) if include_matches else []
+    if timing_only and sport=="football":
+        out.append("<p>北京时间｜每场依次为开赛、抓取、分析完成</p>")
     for row in sorted(matches,key=lambda r:(str(r.get("kickoff_utc") or r.get("tipoff_beijing") or ""),str(r.get("match_id") or r.get("game_id") or ""))):
         score,h,a=result_score(sport,row)
         title=str(row.get("jc_number") or row.get("jingcai_number") or "官方编号未核实")
         home=str(row.get("home_team") or "主队待核")
         away=str(row.get("away_team") or "客队待核")
-        tip=clock(row.get("kickoff_utc") or row.get("tipoff_beijing"))
+        tip=clock(row.get("kickoff_utc") or row.get("tipoff_beijing"),seconds=sport=="football",compact=timing_only and sport=="football")
+        if timing_only and sport=="football":
+            out.append("<div><b>"+E(title)+"</b>　"+E(tip)+"<br>"+
+                       E(football_analysis_time(row,compact=True))+"　比分 "+E(score)+"</div>")
+            continue
         out.extend(["<section style='margin:9px 0;padding:11px;background:white;",
                    "border:1px solid #dae2eb;border-radius:11px'>",
                    "<b>"+E(title)+"　"+E(home)+"（主） vs "+E(away)+"（客）</b>",
-                   "<div style='font-size:12px;color:#66798c'>"+E(tip)+"　比分 <b>"+E(score)+"</b></div>"])
-        if "analysis_generated_utc" in row:
-            value=row["analysis_generated_utc"]
-            out.append("<div style='font-size:12px;color:#66798c'>"+
-                       (E("评分版本 "+clock(value)) if value else "无有效赛前判断")+"</div>")
+                   "<div style='font-size:12px;color:#66798c'>"+("开赛 " if sport=="football" else "")+
+                   E(tip)+"　比分 <b>"+E(score)+"</b></div>"])
+        if sport=="football" and ("analysis_capture_utc" in row or "analysis_generated_utc" in row):
+            out.append("<div style='font-size:12px;color:#66798c'>"+E(football_analysis_time(row))+"</div>")
         markets=row.get("markets") or {}
         for m in MARKET_ORDER[sport]:
             x=markets.get(m) or {}
