@@ -13,7 +13,11 @@ on:
     paths:
       - '.github/workflows/football-review-push-1300.yml'
       - 'scripts/football_jc_review_push.py'
-      - 'analysis/football_jc_single_final_review.py'
+      - 'analysis/sport_match_final_review_html.py'
+      - 'analysis/sport_match_final_grade.py'
+      - 'analysis/sport_match_final_registry.py'
+      - 'ops/football_latest_review.py'
+      - 'tests/test_football_latest_review.py'
 
 permissions:
   contents: read
@@ -30,31 +34,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Render the existing official 22-match review without sending
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          tag=football-jc-review-2100-20261108
-          gh release download "$tag" --pattern "$tag.zip"
-          python -B scripts/football_jc_review_push.py --archive "$tag.zip" \
-            --day 2026-11-08 --repo "$GITHUB_REPOSITORY" --preview review-preview.html
-          python - <<'PY'
-          from pathlib import Path
-          html = Path("review-preview.html").read_text(encoding="utf-8")
-          assert html.count("最终比分") == 22
-          assert all(label in html for label in ("竞彩胜平负", "竞彩让球胜平负", "竞彩总进球数", "未中", "完整复盘归档"))
-          PY
-          if python -B scripts/football_jc_review_push.py --archive "$tag.zip" \
-            --day 2026-11-07 --repo "$GITHUB_REPOSITORY" --preview wrong-day.html; then
-            echo "::error::Review sender accepted a different scoring day"
-            exit 1
-          fi
-      - uses: actions/upload-artifact@v4
-        with:
-          name: football-review-1300-preview
-          path: review-preview.html
-          retention-days: 14
-
+      - name: Rehearse per-match selection, verified scoring and PushPlus preview without sending
+        run: python -B -m unittest discover -s tests -p test_football_latest_review.py -v
   send:
     if: github.ref == 'refs/heads/main' && github.run_attempt == '1' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot_utc != ''))
     runs-on: ubuntu-latest
@@ -79,13 +60,13 @@ jobs:
         run: |
           python -B scripts/football_jc_capture_slot.py --send-window 1300
           day="$(TZ=Asia/Shanghai date --date=yesterday +%F)"
-          tag="football-jc-review-2100-${day//-/}"
+          tag="football-jc-review-latest-${day//-/}"
           claim="$tag-push-1300.claim.json"
           receipt="$tag-push-1300.accepted.json"
           endpoint="repos/$GITHUB_REPOSITORY/releases/tags/$tag"
           if ! gh api "$endpoint" --jq '.assets[].name' > assets.txt 2> release-error.txt; then
             if grep -Fq 'HTTP 404' release-error.txt; then
-              echo "::notice::No verified 21:00 football review is archived for $day"
+              echo "::notice::No verified per-match football review is archived for $day"
               exit 0
             fi
             cat release-error.txt >&2
@@ -115,6 +96,6 @@ jobs:
           name: football-review-1300-delivery
           path: |
             review-preview.html
-            football-jc-review-2100-*-push-1300.accepted.json
+            football-jc-review-latest-*-push-1300.accepted.json
           if-no-files-found: ignore
           retention-days: 14

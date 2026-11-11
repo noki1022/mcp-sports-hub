@@ -54,7 +54,7 @@ def fetch(url):
     return raw, datetime.now(timezone.utc).isoformat()
 
 
-def run(repo, out, publish=False, days=7):
+def run(repo, out, publish=False, days=7, sports=("football", "basketball")):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     today = datetime.now(ZoneInfo('Asia/Shanghai')).date()
@@ -63,7 +63,7 @@ def run(repo, out, publish=False, days=7):
     cache = {}
     for offset in range(days):
         day = (today-timedelta(days=offset)).strftime('%Y%m%d')
-        for sport in ('football', 'basketball'):
+        for sport in sports:
             source = release(repo, f'sport-pregame-final-{sport}-{day}')
             if source is None:
                 continue
@@ -156,7 +156,9 @@ if __name__ == '__main__':
     parser.add_argument('--repo', required=True)
     parser.add_argument('--out', default='verified-results')
     parser.add_argument('--publish', action='store_true')
+    parser.add_argument('--sport', choices=('football', 'basketball'))
     args = parser.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', args.repo):
         raise SystemExit('INVALID_REPOSITORY')
-    run(args.repo, args.out, args.publish)
+    sports = (args.sport,) if args.sport else ("football", "basketball")
+    run(args.repo, args.out, args.publish, sports=sports)

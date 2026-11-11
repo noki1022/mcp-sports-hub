@@ -19,6 +19,8 @@ import football_forecast_contract as football_contract
 
 SCHEMA="sport-match-pregame-candidates-v1"
 FINAL_SCHEMA="sport-match-pregame-final-v1"
+LATEST_FOOTBALL="LATEST_ACTUALLY_GENERATED_VERIFIED_PRETIP"
+LEGACY_2100="ONLY_BEIJING_2100_IMMUTABLE_FORECAST"
 SPORT_MARKETS={
     "football":("had","hhad","ttg"),
     "basketball":("JINGCAI_WIN","JINGCAI_HANDICAP","JINGCAI_TOTAL","CROWN_HANDICAP","CROWN_TOTAL"),
@@ -154,7 +156,23 @@ def check_bundle(b):
         require(stamp(r["capture_utc"])<=stamp(r["generated_utc"])<tip,"POST_KICKOFF_OR_REVERSED_CANDIDATE")
         require(set(r["markets"])==set(SPORT_MARKETS[r["sport"]]),"MARKET_COVERAGE_DRIFT")
 
-def select(bundles,as_of):
+def football_picks(key, market):
+    if key=="ttg":
+        picks=(market.get("goal_selection") or {}).get("goals")
+        valid={f"{n}球" for n in range(7)} | {"7+球"}
+    else:
+        picks=[market.get("direction")]
+        valid={"主胜","平","客胜"} if key=="had" else {"让胜","让平","让负"}
+    return [p for p in picks if isinstance(p,str) and p in valid] if isinstance(picks,list) else []
+
+
+def has_football_prediction(row):
+    return any(m.get("jc_odds") is not None and football_picks(key,m)
+               and (key!="hhad" or type(m.get("signed_home_handicap")) is int)
+               for key,m in row["markets"].items())
+
+
+def select(bundles,as_of,*,football_latest=False):
     now=stamp(as_of)
     grouped={}
     seen_records=set()
@@ -176,14 +194,20 @@ def select(bundles,as_of):
     chosen=[]
     for key,rows in sorted(grouped.items()):
         rows.sort(key=lambda r:(stamp(r["generated_utc"]),stamp(r["capture_utc"]),int(r["run_id"])))
-        # The official grading baseline is exactly the 21:00 original.
-        # Later 22:00/23:00 forecasts remain independently archived.
-        reference=[r for r in rows if r["planned_slot_beijing"]=="2100"]
-        if not reference:
-            continue  # missing 21:00 is not permission to invent a baseline
-        latest=reference[0]  # First original 21:00 run; a rerun must not replace it.
+        use_latest=football_latest and key[0]=="football"
+        if use_latest:
+            # An empty later analysis must not displace an earlier usable one.
+            # If all are empty, keep the fixture for the review without scoring it.
+            eligible=[r for r in rows if has_football_prediction(r)]
+            latest=max(eligible or rows,key=lambda r:(stamp(r["capture_utc"]),
+                                                      -stamp(r["generated_utc"]).timestamp(),
+                                                      -int(r["run_id"])))
+        else:
+            reference=[r for r in rows if r["planned_slot_beijing"]=="2100"]
+            if not reference:
+                continue
+            latest=reference[0]
         tip=stamp(latest["kickoff_utc"])
-        baseline=latest
         lead=(tip-stamp(latest["generated_utc"])).total_seconds()/60
         if lead<3:
             window="WITHIN_3_MINUTES_PRETIP"
@@ -191,13 +215,13 @@ def select(bundles,as_of):
             window="LAST_3_TO_30_MINUTES"
         else:
             window="EARLIER_VALID_PRETIP"
-        chosen.append({
+        row={
             "sport":key[0],"match_id":key[1],
             "official_game_id":latest["official_game_id"],
             "home_id":latest["home_id"],"away_id":latest["away_id"],
             "kickoff_utc":latest["kickoff_utc"],
             "state":"LOCKED_AFTER_KICKOFF" if now>=tip else "PENDING_MAY_STILL_CHANGE",
-            "selection_rule":"ONLY_BEIJING_2100_IMMUTABLE_FORECAST",
+            "selection_rule":LATEST_FOOTBALL if use_latest else LEGACY_2100,
             "capture_utc":latest["capture_utc"],"generated_utc":latest["generated_utc"],
             "lead_minutes":round(lead,2),"window":window,
             "run_id":latest["run_id"],"model_version":latest["model_version"],
@@ -205,9 +229,10 @@ def select(bundles,as_of):
             "source_snapshot_sha256":latest["source_snapshot_sha256"],
             "forecast_sha256":latest["forecast_sha256"],
             "original_candidate_sha256":latest["record_sha256"],
-            "scoring_baseline_2100_sha256":baseline["record_sha256"],
-            "scoring_baseline_unchanged":True,
-            "markets":deepcopy(latest["markets"]),"valid_candidate_count":len(rows)})
+            "markets":deepcopy(latest["markets"]),"valid_candidate_count":len(eligible if use_latest else rows)}
+        if not use_latest:
+            row.update(scoring_baseline_2100_sha256=latest["record_sha256"],scoring_baseline_unchanged=True)
+        chosen.append(row)
     output={"schema_version":FINAL_SCHEMA,"as_of_utc":now.isoformat(),
             "scoring_contract":"SCORE_ONLY_LOCKED_AFTER_KICKOFF_USING_ORIGINAL_FORECAST",
             "selection_is_not_a_claim_of_greater_predictive_accuracy":True,
@@ -215,11 +240,11 @@ def select(bundles,as_of):
     output["registry_sha256"]=digest(output)
     return output
 
-def publishable_final_documents(bundles,as_of,grace_minutes=90):
+def publishable_final_documents(bundles,as_of,grace_minutes=90,*,football_latest=False):
     """Only mature kickoff-time finals; stable bytes, no postgame data input."""
     require(type(grace_minutes) is int and 0<=grace_minutes<=1440,"INVALID_FINALIZATION_GRACE")
     now=stamp(as_of)
-    idx=select(bundles,as_of)
+    idx=select(bundles,as_of,football_latest=football_latest)
     finished=[]
     for row in idx["matched_games"]:
         if row["state"]!="LOCKED_AFTER_KICKOFF":

@@ -1,4 +1,4 @@
-name: Football JC hourly 12:00–23:00; 21:00 immutable grading baseline
+name: Football JC hourly 12:00–23:00
 run-name: ${{ github.event_name == 'schedule' && format('Football 007 | cron={0} | day=auto', github.event.schedule) || github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && format('Football 007 | cron={0} | day={1}', inputs.recovery_cron, inputs.recovery_day) || 'Football 007 | manual' }}
 on:
   pull_request:
@@ -276,28 +276,6 @@ jobs:
             --current football-output/football_match_candidates.json \
             --history-dir $RUNNER_TEMP/football-prior-candidates \
             --out football-output/football_capture_movement.json
-      - name: Freeze ONLY 21:00 official JC-day forecast for later verified results
-        if: (github.event_name == 'schedule' && github.event.schedule == '0 13 * * *') || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && inputs.recovery_cron == '0 13 * * *')
-        run: |
-          BJ_DAY="$(TZ=Asia/Shanghai date +%Y-%m-%d)"
-          if python3 -c 'import json,sys;sys.exit(0 if not json.load(open("football-output/football_007_snapshot.json")).get("games") else 1)'; then
-            echo "NO_VERIFIED_OFFICIAL_JC_SALE_DAY_FIXTURES" > football-output/no_future_fixtures.txt
-            exit 0
-          fi
-          python3 - <<'PY'
-          import json,os,re
-          doc=json.load(open("football-output/football_007_snapshot.json"))
-          day=os.environ.get("BJ_DAY","")
-          assert doc.get("jc_sale_day_beijing")==doc.get("beijing_date")
-          assert doc["games"],"NO_VERIFIED_JC_DAY_GAMES_TO_FREEZE"
-          expected="周"+"一二三四五六日"[__import__("datetime").date.fromisoformat(doc["beijing_date"]).weekday()]
-          assert all(re.fullmatch(re.escape(expected)+r"\d{3}",g["jc_number"]) for g in doc["games"])
-          PY
-          python3 -B analysis/football_jc_final_2130.py --mode freeze \
-            --snapshot football-output/football_007_snapshot.json \
-            --forecast football-output/football_jc_forecast_market.json \
-            --day "$BJ_DAY" --out football-output/football_jc_final_2100.json
-          test -s football-output/football_jc_final_2100.json
       - name: Compare real 007 bookmaker Asian opening/current lines with theory (no auto model override)
         run: |
           python3 -B analysis/football_007_asian_real_compare.py \
@@ -312,42 +290,6 @@ jobs:
           name: football-007-live-source-evidence
           path: football-output/
           retention-days: 90
-
-  archive-football-2100-final:
-    needs: live-football
-    if: needs.live-football.result == 'success' && ((github.event_name == 'schedule' && github.event.schedule == '0 13 * * *') || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && inputs.recovery_cron == '0 13 * * *'))
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: write
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GH_REPO: ${{ github.repository }}
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: football-007-live-source-evidence
-          path: football-output
-      - name: Create immutable 21:00 final asset (never overwrite)
-        run: |
-          if [ -s football-output/no_future_fixtures.txt ]; then
-            echo "NO_FOOTBALL_MATCHES_NO_2100_BASELINE_TO_CREATE"
-            exit 0
-          fi
-          test -s football-output/football_jc_final_2100.json
-          BJ_DAY="$(TZ=Asia/Shanghai date +%Y%m%d)"
-          tag="football-jc-final-2100-$BJ_DAY"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            mkdir -p existing-2100
-            gh release download "$tag" --pattern football_jc_final_2100.json --dir existing-2100
-            python3 -c 'import json; a=json.load(open("existing-2100/football_jc_final_2100.json")); b=json.load(open("football-output/football_jc_final_2100.json")); assert a["final_forecast_sha256"] == b["final_forecast_sha256"], "IMMUTABLE_2100_FORECAST_CONFLICT_NO_DIVERGENT_PUSH"'
-            echo "FINAL_ALREADY_FROZEN_NO_OVERWRITE=$tag"
-            exit 0
-          fi
-          gh release create "$tag" football-output/football_jc_final_2100.json \
-            --target main --title "Football 21:00 immutable scoring baseline $BJ_DAY" \
-            --notes "Immutable 21:00 scoring baseline. Official scoring uses only the original 21:00 forecast with independently verified full-time results."
-          echo "FOOTBALL_SINGLE_FINAL_ARCHIVED=$tag"
 
   archive-football-raw-release:
     needs: live-football
@@ -396,8 +338,8 @@ jobs:
 
 
   football-daytime-push:
-    needs: [live-football, archive-football-raw-release, archive-football-2100-final]
-    if: always() && !cancelled() && ((github.event.schedule || inputs.recovery_cron) != '0 13 * * *' || needs.archive-football-2100-final.result == 'success') && needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && ((github.event_name == 'schedule' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","0 14 * * *","0 15 * * *"]'), github.event.schedule)) || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","0 14 * * *","0 15 * * *"]'), inputs.recovery_cron)))
+    needs: [live-football, archive-football-raw-release]
+    if: always() && !cancelled() && needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && ((github.event_name == 'schedule' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","0 14 * * *","0 15 * * *"]'), github.event.schedule)) || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","0 14 * * *","0 15 * * *"]'), inputs.recovery_cron)))
     runs-on: ubuntu-latest
     timeout-minutes: 6
     permissions:

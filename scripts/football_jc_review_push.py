@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Send an already settled 21:00 football review without re-scoring it."""
+"""Send the already settled previous-sale-day football review."""
 import argparse
 from datetime import date, datetime, timedelta
 import hashlib
@@ -11,7 +11,7 @@ import sys
 from zipfile import ZipFile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "analysis"))
-from football_jc_single_final_review import render
+from sport_match_final_review_html import render
 from football_jc_final_2130 import BJ
 from football_jc_capture_slot import validate_send_window
 from football_jc_slot_push import payload_size
@@ -21,18 +21,17 @@ from pushplus_mobile import MAX_BYTES, save_status, send
 def prepare(archive, day, repo, token):
     with ZipFile(archive) as bundle:
         report = json.loads(bundle.read("review.json"))
-    if (report.get("schema_version") != "football-jc-2100-single-official-review-v1"
-            or report.get("final_date_beijing") != day.isoformat()
-            or report.get("scoring_source") != "ONLY_2100_FUSED_FROZEN_FORECAST"
-            or not report.get("games")):
-        raise ValueError("EXPECTED_PREVIOUS_DAY_OFFICIAL_FOOTBALL_2100_REVIEW")
-    tag = f"football-jc-review-2100-{day:%Y%m%d}"
+    if (report.get("sport") != "football" or report.get("beijing_day") != day.isoformat()
+            or report.get("prediction_source") != "LATEST_VERIFIED_PREKICKOFF_PER_MATCH_IMMUTABLE"
+            or not report.get("matches")):
+        raise ValueError("EXPECTED_PREVIOUS_DAY_PER_MATCH_FOOTBALL_REVIEW")
+    tag = f"football-jc-review-latest-{day:%Y%m%d}"
     url = escape(f"https://github.com/{repo}/releases/tag/{tag}", quote=True)
     link = f'<p><a href="{url}">完整复盘归档</a></p>'
     payload = {"title": f"北京时间{day.month}月{day.day}日 竞彩足球复盘",
                "html": render(report) + link}
     if payload_size(payload, token) > MAX_BYTES:
-        payload["html"] = render({**report, "games": []}) + link
+        payload["html"] = render(report, include_matches=False) + link
     if payload_size(payload, token) > MAX_BYTES:
         raise ValueError("FOOTBALL_REVIEW_PUSH_PAYLOAD_TOO_LARGE")
     return payload
