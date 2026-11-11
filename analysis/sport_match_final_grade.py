@@ -68,7 +68,12 @@ def football_grade(finals,results,raw_evidence):
         for key in LABELS["football"]:
             m=f["markets"][key]
             prices=m.get("jc_odds")
-            predicted=registry.football_picks(key,m)
+            if f.get("selection_rule")==registry.LATEST_FOOTBALL:
+                predicted=registry.football_picks(key,m)
+            else:
+                predicted=(m.get("goal_selection") or {}).get("goals") if key=="ttg" else [m.get("direction")]
+                if not isinstance(predicted,list):predicted=[]
+                predicted=[v for v in predicted if isinstance(v,str) and v]
             actual=None
             if res is not None:
                 if key=="had":actual="主胜" if h>a else "平" if h==a else "客胜"

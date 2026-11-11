@@ -19,7 +19,7 @@ import football_forecast_contract as football_contract
 
 SCHEMA="sport-match-pregame-candidates-v1"
 FINAL_SCHEMA="sport-match-pregame-final-v1"
-LATEST_FOOTBALL="LATEST_ACTUALLY_GENERATED_VERIFIED_PRETIP"
+LATEST_FOOTBALL="LATEST_VALID_FOOTBALL_PREKICKOFF_CAPTURE"
 LEGACY_2100="ONLY_BEIJING_2100_IMMUTABLE_FORECAST"
 SPORT_MARKETS={
     "football":("had","hhad","ttg"),

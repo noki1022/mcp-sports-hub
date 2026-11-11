@@ -15,6 +15,7 @@ import football_jc_review_push as sender
 import football_latest_review as review
 from football_forecast_contract import SCHEMA
 import sport_match_final_registry as registry
+import sports_verified_review
 
 
 def candidate(run, captured, slot, direction="主胜", tip=TIP, match_id="3075305", delay=1):
@@ -87,6 +88,16 @@ class LatestFootballReview(unittest.TestCase):
         self.assertIsNone(row["analysis_generated_utc"])
         self.assertEqual(report["summary"]["had"]["excluded"], 1)
         self.assertEqual(report["summary"]["had"]["graded"], 0)
+
+    def test_historical_per_match_review_keeps_its_original_schema(self):
+        now = TIP + timedelta(hours=4)
+        old, = registry.publishable_final_documents([candidate(1, T, "2100")], iso(now))
+        old["selection_rule"] = "LATEST_ACTUALLY_GENERATED_VERIFIED_PRETIP"
+        old.pop("final_sha256")
+        old["final_sha256"] = registry.digest(old)
+        report = sports_verified_review.score(old, html(), iso(now))
+        self.assertNotIn("analysis_generated_utc", report["matches"][0])
+        self.assertEqual(report["summary"]["had"]["hits"], 1)
 
 
 if __name__ == "__main__":
