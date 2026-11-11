@@ -27,6 +27,9 @@ jobs:
         run: python3 -B scripts/football_007_analysis_live_smoke.py
       - name: Audit live 007 football form recent five H2H and injury page links
         run: python3 -B scripts/football_007_form_h2h_injury_probe.py football-output/analysis-source-audit
+      - name: Audit actual 007 mobile H2H recent-form and injury source structure
+        if: github.event_name == 'workflow_dispatch'
+        run: python3 -B scripts/football_007_mobile_probe.py
       - name: Archive source evidence for offline parser engineering
         if: always()
         uses: actions/upload-artifact@v4
