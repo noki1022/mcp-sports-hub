@@ -34,6 +34,18 @@ class Results(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "REGULATION_STAGE_NOT_VERIFIED"):
             S.football(knockout, 3075305)
 
+    def test_nations_league_header_accepts_group_phase_only(self):
+        cup = html().replace(b'_isCup="1"', b'_isCup="2"')
+        for division in ("A", "C"):
+            stage = f'<div id="head"><div class="league">欧国联&nbsp{division}联赛&nbsp11-13 03:45&nbsp微雨</div></div>'
+            raw = cup.replace("<div>巴西甲 第34轮</div>".encode(), stage.encode())
+            self.assertEqual(S.football(raw, 3075305)["away_goals"], 1)
+            with self.assertRaisesRegex(ValueError, "FOOTBALL_NOT_FINAL"):
+                S.football(raw.replace(b"matchState=-1", b"matchState=0"), 3075305)
+            knockout = raw.replace(f"{division}联赛".encode(), "半准决赛".encode())
+            with self.assertRaisesRegex(ValueError, "REGULATION_STAGE_NOT_VERIFIED"):
+                S.football(knockout, 3075305)
+
     def test_football_source_timeout_keeps_the_result_pending(self):
         sys.path.insert(0, str(Path(__file__).resolve().parents[1]/"ops"))
         import sports_result_to_review as job
