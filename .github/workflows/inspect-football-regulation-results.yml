@@ -1,0 +1,35 @@
+name: Read-only football regulation result source inspection
+on:
+  push:
+    branches: [codex/inspect-football-regulation-results]
+    paths: ['.github/workflows/inspect-football-regulation-results.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Inspect Sporttery result format and archived 007 fixture identities
+        run: |
+          python3 - <<'PY'
+          import json
+          from urllib.request import Request, urlopen
+          from urllib.parse import urlencode
+          query = urlencode(dict(matchPage=1,matchBeginDate="2026-11-11",matchEndDate="2026-11-12",
+                                leagueId="",pageSize=200,pageNo=1,isFix=0,pcOrWap=1))
+          url = "https://webapi.sporttery.cn/gateway/jc/football/getMatchResultV1.qry?" + query
+          req = Request(url, headers={"User-Agent":"Football Regulation Results Audit/1.0",
+                                     "Accept":"application/json","Referer":"https://www.sporttery.cn/jc/zqsgkj/"})
+          with urlopen(req, timeout=18) as response:
+              doc=json.loads(response.read(1000001))
+          rows=(doc.get("value") or {}).get("matchResult") or []
+          print("SPORTTERY_ENVELOPE",doc.get("errorCode"),len(rows))
+          keys=("matchNumStr","matchDate","matchTime","homeTeam","awayTeam","allHomeTeam","allAwayTeam",
+                "sectionsNo999","matchResultStatus","poolStatus","goalLine")
+          for row in rows:
+              if str(row.get("matchNumStr","")).startswith("周三"):
+                  print("SPORTTERY_RESULT",json.dumps({k:row.get(k) for k in keys},ensure_ascii=False))
+          if not any(str(row.get("matchNumStr","")).startswith("周三") for row in rows):
+              raise SystemExit("NO_EXPECTED_RESULTS")
+          PY
