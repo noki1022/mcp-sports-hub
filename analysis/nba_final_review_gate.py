@@ -8,7 +8,7 @@ excluding an unplayed event. No post-tip replacement of forecasts/odds.
 """
 from __future__ import annotations
 import argparse,json
-from datetime import datetime,timedelta,timezone
+from datetime import date,datetime,timedelta,timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from nba_nightly_two_market_settlement import scores_for
@@ -122,17 +122,33 @@ def completion(frozen,day,scores):
     return {"complete":len(pending)==0,"total":len(games),
             "final":len(completed),"pending":pending}
 
-def decide(root,now,day_override=None,score_fetch=scores_for):
+def tracked_days(root,today):
+    reviews=root/"reports"/"five-market-settled"
+    days=[today]
+    for marker in sorted(reviews.glob("????-??-??/awaiting-finals.json")):
+        day=marker.parent.name
+        try:
+            earlier=date.fromisoformat(day).isoformat()
+        except ValueError:
+            continue
+        if earlier<today and not (marker.parent/"push.claim.json").is_file():
+            days.append(earlier)
+    return days
+
+
+def decide(root,now,day_override=None,score_fetch=scores_for,*,include_pending=False):
     now=now.astimezone(BJ)
     if day_override:
         datetime.fromisoformat(day_override).date()
-        days=[day_override]
+        days=tracked_days(root,day_override) if include_pending else [day_override]
     else:
         # Review yesterday's long/late slate even after local midnight; then
         # consider today's games. Never replace one day's roster with another.
         days=[(now.date()-timedelta(days=n)).isoformat() for n in range(7, -1, -1)]
     pending_days=[]
     for day in days:
+        if include_pending and (root/"reports"/"five-market-settled"/day/"push.claim.json").is_file():
+            continue
         path=frozen_source(root,day)
         if path is None or reviewed(root,day):continue
         frozen=read_json(path)
@@ -192,6 +208,17 @@ def self_test():
         q=decide(root,now,score_fetch=all_final)
         assert q["state"]=="READY_ALL_FINAL" and q["source"]==str(early.relative_to(root))
         assert q["proof"]=={"complete":True,"total":2,"final":2,"pending":[]}
+        tomorrow="2026-11-08"
+        midnight=datetime.fromisoformat("2026-11-08T00:25:00+08:00")
+        live=lambda score_fetch:decide(root,midnight,tomorrow,score_fetch,include_pending=True)
+        assert live(all_final)["state"].startswith("WAITING"),"UNTRACKED_HISTORICAL_DAY_REPLAYED"
+        review=root/"reports"/"five-market-settled"/target
+        review.mkdir(parents=True)
+        (review/"awaiting-finals.json").write_text("{}")
+        assert live(partial)["pending_days"][0]["day"]==target
+        assert live(all_final)["day"]==target
+        (review/"push.claim.json").write_text("{}")
+        assert live(all_final)["state"].startswith("WAITING"),"CLAIMED_DAY_SENT_AGAIN"
         fixture["board_capture_utc"]="2026-11-07T09:30:00+08:00"
         early.write_text(json.dumps(fixture))
         try:frozen_source(root,target)
@@ -209,13 +236,18 @@ def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--root",default=".")
     ap.add_argument("--day",default="",help="Optional explicit Beijing slate day for manual recovery")
+    ap.add_argument("--include-pending",action="store_true",
+                    help="Continue previously tracked and unclaimed production cohorts")
     ap.add_argument("--status-out",default="nba_final_review_readiness.json")
     ap.add_argument("--scores-out",default="nba_final_review_scores.json")
     ap.add_argument("--github-env",default="",help="Append RUN_REPORT and REVIEW_DAY only when fully ready")
     ap.add_argument("--self-test",action="store_true")
     a=ap.parse_args()
     if a.self_test:return self_test()
-    o=decide(Path(a.root).resolve(),datetime.now(BJ),a.day or None)
+    if a.include_pending and not a.day:
+        ap.error("--include-pending requires the current --day")
+    o=decide(Path(a.root).resolve(),datetime.now(BJ),a.day or None,
+             include_pending=a.include_pending)
     proof=dict(o)
     scores=proof.pop("scores",None)
     Path(a.status_out).write_text(json.dumps(proof,ensure_ascii=False,indent=2)+"\n")
@@ -224,6 +256,9 @@ def main():
     if a.github_env:
         with open(a.github_env,"a",encoding="utf-8") as f:
             f.write("RUN_REPORT="+("true" if o["state"]=="READY_ALL_FINAL" else "false")+"\n")
+            pending=o.get("pending_days",o.get("pending_other_days",[]))
+            if a.include_pending and any(row["day"]==a.day for row in pending):
+                f.write("NBA_REVIEW_WAITING_DAY="+a.day+"\n")
             if o["state"]=="READY_ALL_FINAL":
                 f.write("REVIEW_DAY="+o["day"]+"\n")
                 f.write("FROZEN_FORECAST="+o["source"]+"\n")

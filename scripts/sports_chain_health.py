@@ -202,8 +202,44 @@ def release_assets(releases):
     return data
 
 
+def review_evidence(releases, nba_root, now, grace_minutes):
+    """Audit archived scorecards and provider receipts independently of run badges."""
+    local = now.astimezone(BJ)
+    mature = local - timedelta(minutes=grace_minutes)
+    delivery_day = mature.date() - timedelta(days=mature.hour < 13)
+    football_day = delivery_day - timedelta(days=1)
+    stamp = football_day.strftime("%Y%m%d")
+    tags = {row.get("tag_name"): {asset["name"] for asset in row.get("assets", [])}
+            for row in releases}
+    tag = "football-jc-review-latest-" + stamp
+    assets = tags.get(tag, set())
+    rows = [{
+        "sport": "football", "day": football_day.isoformat(),
+        "archive": f"{tag}.zip" in assets,
+        "claimed": f"{tag}-push-1300.claim.json" in assets,
+        "accepted": f"{tag}-push-1300.accepted.json" in assets,
+        "raw_evidence_observed": bool(tags.get("football-007-raw-" + stamp)),
+    }]
+    days = {local.date().isoformat(), (local.date() - timedelta(days=1)).isoformat()}
+    for marker in nba_root.glob("????-??-??/awaiting-finals.json"):
+        if not (marker.parent / "2200.json").is_file():
+            days.add(marker.parent.name)
+    for day in sorted(days):
+        folder = nba_root / day
+        receipt = folder / "2200.json"
+        data = json.loads(receipt.read_text(encoding="utf-8")) if receipt.is_file() else {}
+        rows.append({
+            "sport": "nba", "day": day,
+            "archive": all((folder / name).is_file() for name in ("settlement.json", "report.html")),
+            "claimed": (folder / "push.claim.json").is_file(),
+            "accepted": data.get("date") == day and data.get("state") == "API_ACCEPTED_NOT_DEVICE_CONFIRMED",
+            "tracking_official_finals": (folder / "awaiting-finals.json").is_file(),
+        })
+    return rows
+
+
 def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=180,
-          priority_jobs=None, nba_receipts=None):
+          priority_jobs=None, nba_receipts=None, nba_reviews_root=None):
     now = now.astimezone(timezone.utc)
     slots = sorted(expected_slots(now, horizon_hours, grace_minutes),
                    key=lambda x: (x["planned"], x["workflow"]))
@@ -275,6 +311,10 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
                 problems.append({"severity": "critical", "code": "FOOTBALL_ORIGINAL_RAW_NOT_ARCHIVED",
                                  "workflow": FOOTBALL, "slot": slot["slot_beijing"],
                                  "run_id": run["id"], "release_tag": "football-007-raw-" + day})
+        if not receipt and nba_reviews_root is not None:
+            problems.append({"severity": "warning", "code": "PREGAME_PUSH_RECEIPT_NOT_OBSERVED",
+                             "workflow": slot["workflow"], "slot": slot["slot_beijing"],
+                             "run_id": run["id"]})
         if slot["workflow"] in PRIORITY and slot["planned"].astimezone(BJ).strftime("%H:%M") == "21:00":
             jobs = (priority_jobs or {}).get(str(run["id"]))
             proof = "API_ACCEPTED_RECEIPT" if receipt else priority_send_evidence(run, jobs)
@@ -290,6 +330,19 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
         branch_sha = ((archive_branch.get("commit") or {}).get("sha") or None)
     if not isinstance(branch_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", branch_sha):
         problems.append({"severity": "critical", "code": "NBA_LONG_TERM_RAW_BRANCH_UNAVAILABLE"})
+    reviews = (review_evidence(releases, nba_reviews_root, now, grace_minutes)
+               if nba_reviews_root is not None else [])
+    for review in reviews:
+        code = None
+        if review["accepted"] and not review["archive"]:
+            code = "REVIEW_RECEIPT_WITHOUT_ARCHIVE"
+        elif not review["accepted"] and (review["claimed"] or review["archive"]):
+            code = "REVIEW_PUSH_RECEIPT_NOT_OBSERVED"
+        elif review.get("raw_evidence_observed") and not review["archive"]:
+            code = "FOOTBALL_REVIEW_ARCHIVE_NOT_OBSERVED"
+        if code:
+            problems.append({"severity": "warning", "code": code,
+                             "workflow": review["sport"], "slot": review["day"]})
     critical = sum(p["severity"] == "critical" for p in problems)
     warnings = sum(p["severity"] == "warning" for p in problems)
     covered = len(scheduled)
@@ -302,6 +355,7 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
             "critical_count": critical, "warning_count": warnings,
             "status": "CRITICAL" if critical else "WARNING" if warnings else "OK",
             "issues": problems, "slots": scheduled, "priority_delivery_evidence": push_evidence,
+            "review_delivery_evidence": reviews,
             "limitations": [
                 "Cloudflare recovery workflow_dispatch run-name is slot evidence, NOT proof of Worker origin without Worker Cron logs",
                 "Actual schedule trigger expression is unavailable for non-dynamic GitHub runs; time-only association can be ambiguous",
@@ -321,6 +375,7 @@ def main():
     p.add_argument("--archive-branch", required=True)
     p.add_argument("--priority-jobs-dir")
     p.add_argument("--nba-receipts-root", type=Path)
+    p.add_argument("--nba-reviews-root", type=Path)
     p.add_argument("--out", required=True)
     p.add_argument("--now-utc")
     p.add_argument("--horizon-hours", type=int, default=24)
@@ -363,7 +418,7 @@ def main():
                         and receipt.get("slot") == clock and receipt.get("target_date") == day):
                     nba_receipts[day, clock] = receipt
     result = audit(runs, releases, branch, now, args.horizon_hours, args.grace_minutes,
-                   priority_jobs, nba_receipts)
+                   priority_jobs, nba_receipts, args.nba_reviews_root)
     path = Path(args.out)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")

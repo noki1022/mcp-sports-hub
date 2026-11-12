@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Cross-sport scheduled-capture audit must not mistake CI for true evidence."""
 import copy
+import json
+from tempfile import TemporaryDirectory
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import sys
@@ -210,6 +212,35 @@ class TestCrossSportHealth(unittest.TestCase):
             result = H.audit(runs, releases, BRANCH, NOW)
             self.assertIn("SCHEDULED_RUN_NOT_OBSERVED",
                           [i["code"] for i in result["issues"]])
+
+    def test_audit_keeps_archive_claim_and_provider_acceptance_separate(self):
+        runs, releases = source()
+        now = datetime(2026, 11, 12, 10, tzinfo=timezone.utc)
+        tag = "football-jc-review-latest-20261111"
+        releases.append({"tag_name": tag, "assets": [{"name": f"{tag}.zip"}]})
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            nba = root / "2026-11-12"
+            nba.mkdir()
+            (nba / "awaiting-finals.json").write_text("{}")
+            (nba / "push.claim.json").write_text("{}")
+            out = H.audit(runs, releases, BRANCH, now, nba_reviews_root=root)
+            football, _, today_nba = out["review_delivery_evidence"]
+            self.assertTrue(football["archive"])
+            self.assertFalse(football["accepted"])
+            self.assertTrue(today_nba["claimed"])
+            self.assertFalse(today_nba["accepted"])
+            self.assertEqual(sum(i["code"] == "REVIEW_PUSH_RECEIPT_NOT_OBSERVED"
+                                 for i in out["issues"]), 2)
+
+            for name in ("settlement.json", "report.html"):
+                (nba / name).touch()
+            (nba / "2200.json").write_text(json.dumps({
+                "date": "2026-11-12", "state": "API_ACCEPTED_NOT_DEVICE_CONFIRMED"}))
+            releases[-1]["assets"].append({"name": f"{tag}-push-1300.accepted.json"})
+            closed = H.review_evidence(releases, root, now, 180)
+            self.assertTrue(closed[0]["accepted"])
+            self.assertTrue(closed[-1]["archive"] and closed[-1]["accepted"])
 
     def test_naive_time_rejected(self):
         with self.assertRaisesRegex(ValueError, "NAIVE_TIMESTAMP"):
