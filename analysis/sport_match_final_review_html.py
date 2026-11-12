@@ -96,13 +96,15 @@ def render(report, *, include_matches=True, timing_only=False):
     sha=hashlib.sha256(json.dumps(body,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
     if report.get("review_sha256")!=sha:
         raise ValueError("SCORECARD_HASH_MISMATCH")
+    ink = "color:#1c2d42!important;" if sport == "football" else ""
     out=[
         "<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width, initial-scale=1'>",
         "</head><body style='margin:0 auto;max-width:620px;padding:12px;",
         "font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;",
         "font-size:14px;line-height:1.6;background:#f5f7fa;color:#1c2d42'>",
-        "<h2 style='font-size:20px;margin:4px 0 7px'>北京时间 ",
+        (f"<div style='{ink}background:#f5f7fa!important;padding:8px'>" if ink else ""),
+        f"<h2 style='{ink}font-size:20px;margin:4px 0 7px'>北京时间 ",
         E(str(report.get("beijing_day") or ""))," ",SPORT_NAMES[sport],"逐场复盘</h2>",
         "<p style='font-size:12px;color:#5f7185;margin:0 0 12px'>",
         ("仅按北京时间21:00原始赛前冻结版评分。" if report.get("prediction_source")=="ONLY_BEIJING_2100_IMMUTABLE_FORECAST"
@@ -118,7 +120,7 @@ def render(report, *, include_matches=True, timing_only=False):
         more=[]
         for key,label in (("pushes","走盘"),("excluded","未入样"),("unsettled","待核")):
             if d.get(key):more.append(f"{label}{d[key]}")
-        out.append("<div style='background:white;padding:7px 9px;border-bottom:1px solid #e9edf4'>"
+        out.append(f"<div style='{ink}background:#ffffff;padding:7px 9px;border-bottom:1px solid #e9edf4'>"
                    "<b>"+MARKET_NAMES[market]+"</b>　<b>"+E(value)+"</b>"+
                    ("　"+E("　".join(more)) if more else "")+"</div>")
     matches = (report.get("matches") or []) if include_matches else []
@@ -131,10 +133,10 @@ def render(report, *, include_matches=True, timing_only=False):
         away=str(row.get("away_team") or "客队待核")
         tip=clock(row.get("kickoff_utc") or row.get("tipoff_beijing"),seconds=sport=="football",compact=timing_only and sport=="football")
         if timing_only and sport=="football":
-            out.append("<div><b>"+E(title)+"</b>　"+E(tip)+"<br>"+
+            out.append(f"<div style='{ink}'><b>"+E(title)+"</b>　"+E(tip)+"<br>"+
                        E(football_analysis_time(row,compact=True))+"　比分 "+E(score)+"</div>")
             continue
-        out.extend(["<section style='margin:9px 0;padding:11px;background:white;",
+        out.extend([f"<section style='{ink}margin:9px 0;padding:11px;background:#ffffff;",
                    "border:1px solid #dae2eb;border-radius:11px'>",
                    "<b>"+E(title)+"　"+E(home)+"（主） vs "+E(away)+"（客）</b>",
                    "<div style='font-size:12px;color:#66798c'>"+("开赛 " if sport=="football" else "")+
@@ -152,11 +154,11 @@ def render(report, *, include_matches=True, timing_only=False):
             if status=="MISS":
                 actual=actual_market(sport,m,x,h,a)
                 extra="　实际："+str(actual or "赛果方向待核")+"｜比分"+score
-            out.extend(["<div style='padding:5px 0;border-top:1px solid #ebeff4'>",
+            out.extend([f"<div style='{ink}padding:5px 0;border-top:1px solid #ebeff4'>",
                        E(MARKET_NAMES[m])+"　"+E(verdict)+"　",
                        "<b>"+E(label)+"</b>"+E(extra)+"</div>"])
         out.append("</section>")
-    out.append("<p style='font-size:11px;color:#687b8e'>仅回测已封存的赛前判断；缺失、走盘和未核实赛果均不计入方向命中率。</p></body></html>")
+    out.append("<p style='font-size:11px;color:#687b8e'>仅回测已封存的赛前判断；缺失、走盘和未核实赛果均不计入方向命中率。</p>"+("</div>" if ink else "")+"</body></html>")
     return "".join(out)
 
 def main():

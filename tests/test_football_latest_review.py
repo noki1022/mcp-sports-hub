@@ -93,6 +93,12 @@ class LatestFootballReview(unittest.TestCase):
         self.assertEqual(issues["3075305"], "007_KICKOFF_MISMATCH")
         self.assertEqual(report["summary"]["had"]["unsettled"], 1)
         self.assertEqual(report["summary"]["had"]["graded"], 0)
+        with TemporaryDirectory() as tmp:
+            archive = Path(tmp) / "review.zip"
+            with ZipFile(archive, "w") as z:
+                z.writestr("review.json", json.dumps(report))
+            with self.assertRaisesRegex(ValueError, "FOOTBALL_REVIEW_HAS_NO_VERIFIED_RESULTS"):
+                sender.prepare(archive, T.date(), "fixture/repo", "")
 
     def test_no_effective_picks_is_visible_but_never_scored(self):
         now = TIP + timedelta(hours=4)

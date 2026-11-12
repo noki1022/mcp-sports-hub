@@ -119,6 +119,9 @@ def run(repo, output, publish):
     if not report["matches"]:
         print("FOOTBALL_REVIEW_NO_SEALABLE_FIXTURES", day)
         return
+    if not manifest["results"]:
+        print("FOOTBALL_REVIEW_NO_VERIFIED_RESULTS", day, json.dumps(issues, ensure_ascii=False))
+        return
     # Leave both the 12:25 and 12:50 preparation runs time before delivery.
     if issues and now.astimezone(BJ) < datetime.combine(today, time(12, 20), BJ):
         print("FOOTBALL_REVIEW_WAITING_FOR_RESULTS", day, json.dumps(issues, ensure_ascii=False))

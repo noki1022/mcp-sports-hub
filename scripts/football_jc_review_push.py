@@ -11,7 +11,7 @@ import sys
 from zipfile import ZipFile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "analysis"))
-from sport_match_final_review_html import render
+from sport_match_final_review_html import render, result_score
 from football_jc_final_2130 import BJ
 from sports_postgame_slot import validate
 from football_jc_slot_push import payload_size
@@ -25,6 +25,8 @@ def prepare(archive, day, repo, token):
             or report.get("prediction_source") != "LATEST_VERIFIED_PREKICKOFF_PER_MATCH_IMMUTABLE"
             or not report.get("matches")):
         raise ValueError("EXPECTED_PREVIOUS_DAY_PER_MATCH_FOOTBALL_REVIEW")
+    if not any(result_score("football", row)[1] is not None for row in report["matches"]):
+        raise ValueError("FOOTBALL_REVIEW_HAS_NO_VERIFIED_RESULTS")
     tag = f"football-jc-review-latest-{day:%Y%m%d}"
     url = escape(f"https://github.com/{repo}/releases/tag/{tag}", quote=True)
     link = f'<p><a href="{url}">完整复盘归档</a></p>'
