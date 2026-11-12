@@ -65,7 +65,7 @@ def football(raw, match_id):
     visible = ' '.join(header.visible)
     stage = visible.split('完场', 1)[0]
     regular = (scalar('_isCup') == '1' and re.search(r'第\s*\d+\s*轮', stage))
-    group = re.search(r'联赛阶段|小组赛|小组阶段', stage)
+    group = re.search(r'联赛阶段|小组赛|小组阶段|英锦赛\s+分组赛[南北](?=\s|$)', stage)
     if not (regular or group):
         raise ValueError('REGULATION_STAGE_NOT_VERIFIED')
     def goals(key):

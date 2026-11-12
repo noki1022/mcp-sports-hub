@@ -25,6 +25,15 @@ def html():
 
 
 class Results(unittest.TestCase):
+    def test_efl_trophy_regional_group_and_unverified_knockout(self):
+        cup = html().replace(b'_isCup="1"', b'_isCup="2"')
+        for region in ("北", "南"):
+            group = cup.replace("巴西甲 第34轮".encode(), ("英锦赛 分组赛" + region).encode())
+            self.assertEqual(S.football(group, 3075305)["home_goals"], 2)
+        knockout = cup.replace("巴西甲 第34轮".encode(), "日联杯 半准决赛".encode())
+        with self.assertRaisesRegex(ValueError, "REGULATION_STAGE_NOT_VERIFIED"):
+            S.football(knockout, 3075305)
+
     def test_football_source_timeout_keeps_the_result_pending(self):
         sys.path.insert(0, str(Path(__file__).resolve().parents[1]/"ops"))
         import sports_result_to_review as job
