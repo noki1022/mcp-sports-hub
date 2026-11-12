@@ -60,7 +60,7 @@ def main():
     assert crons(FOOTBALL_REVIEW_PUSH)==["0 5 * * *"],"FOOTBALL_REVIEW_MUST_RUN_AT_BEIJING_1300"
     postgame={
         FOOTBALL_REVIEW_PUSH: "0 5 * * *",
-        "nba-two-market-nightly-2200.yml": "0 7 * * *",
+        "nba-two-market-nightly-2200.yml": "25,50 * * * *",
         "sports-per-match-finalizer.yml": "25 * * * *",
         "sports-verified-results.yml": "50 * * * *",
     }
