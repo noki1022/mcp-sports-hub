@@ -1,3 +1,5 @@
+import gzip
+import hashlib
 import json
 from datetime import timedelta
 from pathlib import Path
@@ -8,7 +10,7 @@ from unittest.mock import patch
 from zipfile import ZipFile
 
 from test_sport_match_final_grade import T, TIP, iso
-from test_sports_verified_results import html
+from test_sports_verified_results import desktop_events, html, knockout_html
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / name) for name in ("analysis", "ops", "scripts")]
@@ -99,6 +101,42 @@ class LatestFootballReview(unittest.TestCase):
                 z.writestr("review.json", json.dumps(report))
             with self.assertRaisesRegex(ValueError, "FOOTBALL_REVIEW_HAS_NO_VERIFIED_RESULTS"):
                 sender.prepare(archive, T.date(), "fixture/repo", "")
+
+    def test_knockout_score_and_both_original_007_pages_are_archived(self):
+        now = TIP + timedelta(hours=6)
+        mobile, desktop = knockout_html(), desktop_events()
+        saved = [candidate(1, T, "2100")]
+        sale_day = T.date().strftime("%Y%m%d")
+        capture_tag = f"football-007-raw-{sale_day}"
+        asset = {"name": f"football-007-candidates-{sale_day}-2100.json"}
+        with (
+            TemporaryDirectory() as tmp,
+            patch.object(review, "datetime", wraps=review.datetime) as clock,
+            patch.object(review, "release", side_effect=lambda repo, tag: (
+                {"assets": [asset]} if tag == capture_tag else None)),
+            patch.object(review, "asset_bytes", return_value=json.dumps(saved[0]).encode()),
+            patch.object(review, "fetch", side_effect=[(mobile, iso(now)), (desktop, iso(now))]) as fetch,
+            patch.object(review, "gh") as publish,
+        ):
+            clock.now.return_value = now
+            review.run("fixture/repo", Path(tmp), publish=False)
+            publish.assert_not_called()
+            self.assertEqual([call.args[0] for call in fetch.call_args_list], [
+                "https://m.titan007.com/analy/Analysis/3075305.htm",
+                "https://live.titan007.com/detail/3075305cn.htm",
+            ])
+            with ZipFile(Path(tmp) / f"football-jc-review-latest-{sale_day}.zip") as archive:
+                self.assertEqual(gzip.decompress(archive.read("raw/3075305.html.gz")), mobile)
+                self.assertEqual(gzip.decompress(archive.read("raw/3075305.desktop.html.gz")), desktop)
+                self.assertEqual(json.loads(archive.read("result-issues.json")), {})
+                result, = json.loads(archive.read("verified-results.json"))["results"]
+                self.assertEqual(result["regulation_evidence"]["source_sha256"], hashlib.sha256(desktop).hexdigest())
+                match, = json.loads(archive.read("review.json"))["matches"]
+                self.assertEqual(match["actual_score"], {"home": 2, "away": 1})
+
+        with patch.object(review, "fetch") as unused:
+            review.settle(saved, T.date(), now, lambda mid: (html(), iso(now)), unused)
+            unused.assert_not_called()
 
     def test_no_effective_picks_is_visible_but_never_scored(self):
         now = TIP + timedelta(hours=4)

@@ -23,7 +23,7 @@ BJ = ZoneInfo("Asia/Shanghai")
 RESULT_SCHEMA = "football-007-final-results-v1"
 
 
-def settle(bundles, day, now, load_result):
+def settle(bundles, day, now, load_result, load_events=None):
     prefix = "周" + "一二三四五六日"[day.weekday()]
     scheduled = {}
     original_runs = []
@@ -50,11 +50,20 @@ def settle(bundles, day, now, load_result):
     def collect(final):
         mid = final["match_id"]
         if now < registry.stamp(final["kickoff_utc"]) + timedelta(minutes=90):
-            return mid, None, None, "RESULT_OBSERVED_TOO_EARLY"
-        raw = None
+            return mid, None, {}, "RESULT_OBSERVED_TOO_EARLY"
+        evidence = {}
         try:
             raw, observed = load_result(mid)
-            result = source.football(raw, mid)
+            evidence[mid] = raw
+            try:
+                result = source.football(raw, mid)
+            except source.RegulationStageUnverified:
+                if load_events is None:
+                    raise
+                desktop, events_observed = load_events(mid)
+                evidence[f"{mid}.desktop"] = desktop
+                result = source.football(raw, mid, desktop=desktop)
+                observed = max(registry.stamp(observed), registry.stamp(events_observed)).isoformat()
             result.update(jc_number=final["jc_number"], result_observed_at_utc=observed)
             grading.ft.verify_join({
                 "match_id": mid, "jc_number": final["jc_number"],
@@ -62,14 +71,14 @@ def settle(bundles, day, now, load_result):
                 "home_team_id_007": final["home_id"], "away_team_id_007": final["away_id"],
             }, result, registry.stamp(final["generated_utc"]))
             grading.ft.validate_results({"schema_version": RESULT_SCHEMA, "results": [result]}, {mid: raw})
-            return mid, result, raw, None
+            return mid, result, evidence, None
         except (OSError, ValueError, KeyError, TypeError) as exc:
-            return mid, None, raw, str(exc)[:180]
+            return mid, None, evidence, str(exc)[:180]
 
     with ThreadPoolExecutor(max_workers=8) as pool:
         results = list(pool.map(collect, finals))
     manifest = {"schema_version": RESULT_SCHEMA, "results": [row for _, row, _, _ in results if row]}
-    raw_evidence = {mid: raw for mid, _, raw, _ in results if raw is not None}
+    raw_evidence = {name: raw for _, _, evidence, _ in results for name, raw in evidence.items()}
     issues = {mid: reason for mid, _, _, reason in results if reason}
     rows, totals = grading.football_grade(finals, manifest, raw_evidence)
     for row, final in zip(rows, finals, strict=True):
@@ -115,7 +124,9 @@ def run(repo, output, publish):
         bundles = list(pool.map(lambda asset: json.loads(asset_bytes(repo, asset)), assets))
 
     report, finals, manifest, raw, issues = settle(
-        bundles, day, now, lambda mid: fetch(f"https://m.titan007.com/analy/Analysis/{mid}.htm"))
+        bundles, day, now,
+        lambda mid: fetch(f"https://m.titan007.com/analy/Analysis/{mid}.htm"),
+        lambda mid: fetch(source.football_event_url(mid)))
     if not report["matches"]:
         print("FOOTBALL_REVIEW_NO_SEALABLE_FIXTURES", day)
         return
