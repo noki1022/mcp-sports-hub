@@ -24,6 +24,24 @@ def html():
     </script>'''.encode()
 
 
+def knockout_html():
+    return html().replace("巴西甲 第34轮".encode(), "日联杯 半准决赛".encode())
+
+
+def desktop_events():
+    return """<script>
+    var scheduleID = 3075305;
+    var strTime = '2026-11-06 07:30';
+    var homeTeamFlg = '//zq.titan007.com/Image/team/images/1/home.png';
+    var guestTeamFlg = '//zq.titan007.com/Image/team/images/2/away.png';
+    </script><ul id="teamEventDiv">
+    <li class='teamtit'><div class='data'><span>主队</span><span></span><span>客队</span></div></li>
+    <li class='lists'><div class='data'><span><a><span>球员</span></a><img title='点球'></span><span>20'</span><span></span></div></li>
+    <li class='lists'><div class='data'><span></span><span>45+6'</span><span><img title='入球'></span></div></li>
+    <li class='lists'><div class='data'><span><img title='入球'></span><span>90+4'</span><span></span></div></li>
+    </ul><div><img title='入球'></div>""".encode()
+
+
 class Results(unittest.TestCase):
     def test_efl_trophy_regional_group_and_unverified_knockout(self):
         cup = html().replace(b'_isCup="1"', b'_isCup="2"')
@@ -33,6 +51,32 @@ class Results(unittest.TestCase):
         knockout = cup.replace("巴西甲 第34轮".encode(), "日联杯 半准决赛".encode())
         with self.assertRaisesRegex(ValueError, "REGULATION_STAGE_NOT_VERIFIED"):
             S.football(knockout, 3075305)
+
+    def test_knockout_requires_matching_007_regulation_goal_events(self):
+        raw, events = knockout_html(), desktop_events()
+        row = S.football(raw, 3075305, desktop=events)
+        self.assertEqual((row["home_goals"], row["away_goals"]), (2, 1))
+        self.assertEqual(row["regulation_evidence"]["source_url"], S.football_event_url(3075305))
+        cases = (
+            (events.replace(b"90+4'", b"105+1'"), "NON_REGULATION"),
+            (events.replace(b"90+4'", b"91'"), "NON_REGULATION"),
+            (events + "<div>点球大战</div>".encode(), "EXTRA_TIME_OR_SHOOTOUT"),
+            (events.replace("title='点球'".encode(), b""), "GOALS_DO_NOT_CONFIRM_SCORE"),
+            (events.replace(b"teamEventDiv", b"other"), "LIST_MISSING_OR_DUPLICATE"),
+            (events.replace(b"3075305", b"3075306"), "MATCH_ID_MISMATCH"),
+            (events.replace(b"07:30", b"07:45"), "KICKOFF_MISMATCH"),
+            (events.replace(b"images/1/", b"images/2/"), "TEAM_ID_MISMATCH"),
+        )
+        for altered, reason in cases:
+            with self.subTest(reason=reason), self.assertRaisesRegex(ValueError, reason):
+                S.football(raw, 3075305, desktop=altered)
+        tied = raw.replace(b'id="homeScore">2', b'id="homeScore">0').replace(
+            b'id="guestScore">1', b'id="guestScore">0')
+        empty = events.replace("title='入球'".encode(), b"").replace("title='点球'".encode(), b"")
+        with self.assertRaisesRegex(ValueError, "GOALS_DO_NOT_CONFIRM_SCORE"):
+            S.football(tied, 3075305, desktop=empty)
+        with self.assertRaisesRegex(ValueError, "REGULATION_SCORE_AMBIGUOUS"):
+            S.football(raw.replace("完场</span>".encode(), "完场</span>点球".encode()), 3075305, desktop=events)
 
     def test_nations_league_header_accepts_group_phase_only(self):
         cup = html().replace(b'_isCup="1"', b'_isCup="2"')
