@@ -13,7 +13,7 @@ from zipfile import ZipFile
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "analysis"))
 from sport_match_final_review_html import render
 from football_jc_final_2130 import BJ
-from football_jc_capture_slot import validate_send_window
+from sports_postgame_slot import validate
 from football_jc_slot_push import payload_size
 from pushplus_mobile import MAX_BYTES, save_status, send
 
@@ -50,7 +50,9 @@ def main():
     args.preview.write_text(payload["html"], encoding="utf-8")
     if args.receipt:
         now = datetime.now(BJ)
-        validate_send_window("1300", now)
+        validate("football-review", os.environ["GITHUB_EVENT_NAME"],
+                 os.getenv("CLOUDFLARE_SLOT_UTC", ""), now,
+                 os.environ["GITHUB_REF"], os.getenv("POSTGAME_CRON", ""))
         if args.day != now.date() - timedelta(days=1):
             raise ValueError("FOOTBALL_REVIEW_IS_NOT_FOR_YESTERDAY")
         response = send(payload, token)

@@ -37,6 +37,12 @@ jobs:
       - name: Rehearse per-match selection, verified scoring and PushPlus preview without sending
         run: python -B -m unittest discover -s tests -p test_football_latest_review.py -v
   send:
+    concurrency:
+      group: football-review-1300
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_SLOT_UTC: ${{ inputs.cloudflare_slot_utc }}
+      POSTGAME_CRON: ${{ github.event.schedule }}
     if: github.ref == 'refs/heads/main' && github.run_attempt == '1' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot_utc != ''))
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -50,15 +56,12 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate original scheduler slot
-        env:
-          CLOUDFLARE_SLOT_UTC: ${{ inputs.cloudflare_slot_utc }}
         run: python -B scripts/sports_postgame_slot.py football-review
       - name: Send one verified previous-day review and archive API acceptance
         env:
           GH_TOKEN: ${{ github.token }}
           FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN || secrets.FOOTBALL_PUSHPLUS_TOKEN }}
         run: |
-          python -B scripts/football_jc_capture_slot.py --send-window 1300
           day="$(TZ=Asia/Shanghai date --date=yesterday +%F)"
           tag="football-jc-review-latest-${day//-/}"
           claim="$tag-push-1300.claim.json"
@@ -84,7 +87,7 @@ jobs:
           gh release download "$tag" --pattern "$tag.zip"
           args=(--archive "$tag.zip" --day "$day" --repo "$GITHUB_REPOSITORY" --preview review-preview.html)
           python -B scripts/football_jc_review_push.py "${args[@]}"
-          python -B scripts/football_jc_capture_slot.py --send-window 1300
+          python -B scripts/sports_postgame_slot.py football-review
           printf '{"review_day_beijing":"%s","scheduled_slot_beijing":"13:00","run_id":"%s"}\n' "$day" "$GITHUB_RUN_ID" > "$claim"
           # Release asset names are unique. Upload without clobber before calling PushPlus.
           gh release upload "$tag" "$claim"

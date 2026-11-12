@@ -181,14 +181,22 @@ def select(bundles,as_of,*,football_latest=False):
     grouped={}
     seen_records=set()
     identities={}
+    basketball_numbers={}
     for bundle in bundles:
         check_bundle(bundle)
         for r in bundle["records"]:
             if football_latest and r["sport"]=="football" and not is_official_football_slot(r["planned_slot_beijing"]):
                 continue
             k=(r["sport"],r["match_id"])
-            identity=tuple(r.get(t) for t in ("official_game_id","jc_number","home_team","away_team",
+            identity=tuple(r.get(t) for t in ("official_game_id","home_team","away_team",
                                              "home_id","away_id","kickoff_utc"))
+            number=r.get("jc_number")
+            if r["sport"]=="basketball":
+                if number:
+                    if basketball_numbers.setdefault(k,number)!=number:
+                        raise ValueError("FIXTURE_IDENTITY_OR_KICKOFF_CHANGED_REQUIRES_MANUAL_AUDIT:"+"/".join(k))
+            else:
+                identity+=(number,)
             if k in identities and identities[k]!=identity:
                 raise ValueError("FIXTURE_IDENTITY_OR_KICKOFF_CHANGED_REQUIRES_MANUAL_AUDIT:"+"/".join(k))
             identities[k]=identity

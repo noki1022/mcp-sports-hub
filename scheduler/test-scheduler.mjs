@@ -47,25 +47,27 @@ assert.equal((await dispatchAt(at("2026-11-06T08:00:00Z"),
 console.log("TWELVE_HOURLY_SLOTS_CLOUDFLARE_GITHUB_TEST_PASS");
 await import("./test-football-scheduler.mjs");
 
-const nbaReviewAt = at("2026-11-06T07:00:00Z");
-assert.equal(plannedJob(nbaReviewAt).slot,"1500");
-assert.equal(plannedFootballJob(nbaReviewAt).slot,"1500");
+const nbaPregameAt = at("2026-11-06T07:00:00Z");
+assert.equal(plannedJob(nbaPregameAt).slot,"1500");
+assert.equal(plannedFootballJob(nbaPregameAt).slot,"1500");
+assert.deepEqual(plannedPostgameJobs(nbaPregameAt),[]);
 assert.deepEqual(plannedPostgameJobs(at("2026-11-06T16:30:00Z")),[]);
 const postgameCases=[
   ["2026-11-06T05:00:00Z","football-review-push-1300.yml"],
-  ["2026-11-06T07:00:00Z","nba-two-market-nightly-2200.yml"],
-  ["2026-11-06T23:25:00Z","sports-per-match-finalizer.yml"],
-  ["2026-11-06T00:50:00Z","sports-verified-results.yml"],
+  ["2026-11-06T23:25:00Z","sports-per-match-finalizer.yml","nba-two-market-nightly-2200.yml"],
+  ["2026-11-06T00:50:00Z","sports-verified-results.yml","nba-two-market-nightly-2200.yml"],
 ];
-for(const [stamp,workflow] of postgameCases){
+for(const [stamp,...workflows] of postgameCases){
+  assert.deepEqual(plannedPostgameJobs(at(stamp)),workflows);
+}
+for(const [stamp,workflow] of postgameCases.flatMap(([stamp,...workflows])=>workflows.map(workflow=>[stamp,workflow]))){
   const ts=at(stamp);
-  assert.deepEqual(plannedPostgameJobs(ts),[workflow]);
   assert.deepEqual(plannedPostgameJobs(ts+60000),[]);
   assert.equal((await dispatchPostgameAt(workflow,ts+60000,{},fake)).state,"NO_SLOT");
   assert.equal((await dispatchPostgameAt(workflow,ts,{GITHUB_TOKEN:"test"},fake)).state,
     "POSTGAME_EXACT_SLOT_DISPATCH_ACCEPTED_NOT_DELIVERED");
   assert.deepEqual(sent.pop().inputs,{cloudflare_slot_utc:new Date(ts).toISOString()});
-  if(workflow==="nba-two-market-nightly-2200.yml"){
+  if(workflow==="nba-two-market-nightly-2200.yml" || workflow==="football-review-push-1300.yml"){
     let posts=0;
     const direct=async (url,options)=>{
       assert.ok(url.endsWith("/dispatches"));
@@ -88,4 +90,4 @@ for(const [stamp,workflow] of postgameCases){
       "POSTGAME_CANONICAL_RUN_EXISTS_NO_RETRY");
   }
 }
-console.log("POSTGAME_FOUR_EXACT_SLOTS_NO_RETRY_PASS");
+console.log("POSTGAME_REVIEW_ROUTES_AND_NO_RETRY_PASS");
