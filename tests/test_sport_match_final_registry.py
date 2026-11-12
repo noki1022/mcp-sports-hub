@@ -83,6 +83,22 @@ class TestRegistry(unittest.TestCase):
         pred["games"][0]["markets"]["CROWN_TOTAL"]["captured_at_utc"]=iso(TIP+timedelta(minutes=1))
         with self.assertRaisesRegex(ValueError,"NON_PRETIP"):
             S.make_candidate("basketball",snap,pred,9,"0630")
+    def test_nba_number_can_arrive_after_first_capture_without_changing_the_fixture(self):
+        early_snap,early_pred=nba(BASE-timedelta(hours=1))
+        early_pred["games"][0]["jingcai_number"]=None
+        early=S.make_candidate("basketball",early_snap,early_pred,7,"2000")
+        frozen=S.make_candidate("basketball",*nba(),8,"2100")
+        for bundles in ([early,frozen],[frozen,early]):
+            game=S.select(bundles,iso(TIP))["matched_games"][0]
+            self.assertEqual(game["jc_number"],"周五314")
+            self.assertEqual(game["run_id"],"8")
+
+        later_snap,later_pred=nba(BASE+timedelta(hours=1))
+        later_pred["games"][0]["jingcai_number"]="周五315"
+        conflict=S.make_candidate("basketball",later_snap,later_pred,9,"2200")
+        with self.assertRaisesRegex(ValueError,"IDENTITY_OR_KICKOFF"):
+            S.select([frozen,early,conflict],iso(TIP))
+
     def test_wrong_nba_id_home_away_or_tip_blocks(self):
         snap,pred=nba()
         pred["games"][0]["nba_game_id"]="wrong"

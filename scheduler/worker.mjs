@@ -130,18 +130,17 @@ export function plannedPostgameJobs(timestamp){
   const utc=new Date(timestamp),hour=utc.getUTCHours(),minute=utc.getUTCMinutes();
   if(utc.getUTCSeconds()!==0||utc.getUTCMilliseconds()!==0)return [];
   if(minute===0&&hour===5)return ["football-review-push-1300.yml"];
-  if(minute===25)return ["sports-per-match-finalizer.yml"];
-  if(minute===50)return ["sports-verified-results.yml"];
-  if(minute===0&&hour===7)return ["nba-two-market-nightly-2200.yml"];
+  if(minute===25)return ["sports-per-match-finalizer.yml","nba-two-market-nightly-2200.yml"];
+  if(minute===50)return ["sports-verified-results.yml","nba-two-market-nightly-2200.yml"];
   return [];
 }
 
 export async function dispatchPostgameAt(workflow,timestamp,env,fetcher=fetch){
   if(!plannedPostgameJobs(timestamp).includes(workflow))return {state:"NO_SLOT"};
   const slot=new Date(timestamp).toISOString();
-  // NBA review dispatches independently at the original minute. GitHub serializes
-  // both jobs and the immutable send claim fences the single actual send.
-  if(workflow==="nba-two-market-nightly-2200.yml"){
+  // Both review routes run independently. Their senders serialize by workflow
+  // and acquire one immutable delivery claim per scored day.
+  if(workflow==="nba-two-market-nightly-2200.yml" || workflow==="football-review-push-1300.yml"){
     await dispatch(workflow,{cloudflare_slot_utc:slot},env,fetcher);
     return {state:"POSTGAME_EXACT_SLOT_DISPATCH_ACCEPTED_NOT_DELIVERED",slot};
   }
