@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {plannedJob,plannedFootballJob,dispatchAt,dispatchFootballAt,plannedPostgameJobs,dispatchPostgameAt} from "./worker.mjs";
+import worker, {plannedJob,plannedFootballJob,dispatchAt,dispatchFootballAt,plannedPostgameJobs,dispatchPostgameAt} from "./worker.mjs";
 const at=s=>Date.parse(s);
 const toml=readFileSync(new URL("./wrangler.toml",import.meta.url),"utf8");
 assert.ok(toml.includes('crons = ["0 4-15 * * *", "25,50 * * * *"]'));
@@ -91,3 +91,34 @@ for(const [stamp,workflow] of postgameCases.flatMap(([stamp,...workflows])=>work
   }
 }
 console.log("POSTGAME_REVIEW_ROUTES_AND_NO_RETRY_PASS");
+
+const originalNow=Date.now;
+const originalFetch=globalThis.fetch;
+const workerPosts=[];
+globalThis.fetch=async (url,options)=>{
+  if(url.endsWith("/dispatches"))workerPosts.push([url.split("/").at(-2),JSON.parse(options.body).inputs]);
+  return fake(url,options);
+};
+try{
+  for(const [stamp,...workflows] of postgameCases){
+    const scheduledAt=at(stamp)+750;
+    Date.now=()=>scheduledAt+300;
+    workerPosts.length=0;
+    await worker.scheduled({scheduledTime:scheduledAt},{GITHUB_TOKEN:"test"});
+    const postgamePosts=workerPosts.filter(([name])=>workflows.includes(name));
+    assert.deepEqual(postgamePosts.map(([name])=>name).sort(),[...workflows].sort());
+    assert.ok(postgamePosts.every(([,inputs])=>inputs.cloudflare_slot_utc===new Date(at(stamp)).toISOString()));
+    if(stamp.includes("T05:00:00")){
+      assert.deepEqual(workerPosts.map(([name])=>name).sort(),
+        [...workflows,"titan007-three-analysis.yml","football-007-live-capture.yml"].sort());
+    }
+    workerPosts.length=0;
+    Date.now=()=>scheduledAt+121000;
+    await worker.scheduled({scheduledTime:scheduledAt},{GITHUB_TOKEN:"test"});
+    assert.deepEqual(workerPosts,[]);
+  }
+}finally{
+  Date.now=originalNow;
+  globalThis.fetch=originalFetch;
+}
+console.log("WORKER_POSTGAME_SLOT_PRESERVES_SCHEDULED_MINUTE_PASS");

@@ -160,10 +160,12 @@ export default {
       console.error("LATE_CRON_RECORDED_NO_SEND",skew);
       return;
     }
+    // GitHub validates the postgame input against the scheduled UTC minute.
+    const postgameAt=Math.floor(scheduledAt/60000)*60000;
     const cases=[["NBA",dispatchAt(scheduledAt,env)],
                  ["FOOTBALL",dispatchFootballAt(scheduledAt,env)],
-                 ...plannedPostgameJobs(scheduledAt).map(workflow=>
-                   [workflow,dispatchPostgameAt(workflow,scheduledAt,env)])];
+                 ...plannedPostgameJobs(postgameAt).map(workflow=>
+                   [workflow,dispatchPostgameAt(workflow,postgameAt,env)])];
     const results=await Promise.allSettled(cases.map(c=>c[1]));
     let failures=[];
     results.forEach((r,i)=>{
