@@ -19,7 +19,10 @@ class Header(HTMLParser):
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
         key = attrs.get('id')
-        if key in ('homeScore', 'guestScore', 'mState', 'scoreState'):
+        if tag == 'div' and 'league' in attrs.get('class', '').split() and any(
+                parent == 'head' for _, parent in self.stack):
+            key = 'match_league_header'
+        if key in ('homeScore', 'guestScore', 'mState', 'scoreState', 'match_league_header'):
             if key in self.fields:
                 raise ValueError('DUPLICATE_SCORE_HEADER')
             self.fields[key] = ''
@@ -66,7 +69,11 @@ def football(raw, match_id):
     stage = visible.split('完场', 1)[0]
     regular = (scalar('_isCup') == '1' and re.search(r'第\s*\d+\s*轮', stage))
     group = re.search(r'联赛阶段|小组赛|小组阶段|英锦赛\s+分组赛[南北](?=\s|$)', stage)
-    if not (regular or group):
+    # 007 displays the UEFA Nations League group phase as A联赛 through D联赛.
+    # Match the league header, so a reference elsewhere cannot authorize a knockout score.
+    nations_group = re.match(r'^欧国联\s+[A-D]联赛\s+\d{2}-\d{2}\s+\d{2}:\d{2}(?=\s|$)',
+                             f.get('match_league_header', ''))
+    if not (regular or group or nations_group):
         raise ValueError('REGULATION_STAGE_NOT_VERIFIED')
     def goals(key):
         text = f.get(key, '')
