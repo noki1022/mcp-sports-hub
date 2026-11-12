@@ -1,0 +1,78 @@
+name: One-time football review delivery for 2026-11-11
+on:
+  push:
+    branches: [codex/football-review-20261111-one-time]
+    paths: ['.github/workflows/football-review-20261111-one-time.yml']
+permissions:
+  contents: write
+jobs:
+  send:
+    if: github.run_attempt == '1' && github.event_name == 'push'
+    concurrency:
+      group: football-review-one-time-20261111
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Send the archived 11 November football review once
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN || secrets.FOOTBALL_PUSHPLUS_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          from datetime import date, datetime, timezone
+          from hashlib import sha256
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          sys.path.insert(0, "scripts")
+          from football_jc_review_push import MAX_BYTES, payload_size, prepare, save_status, send
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          day = date(2026, 11, 11)
+          tag = "football-jc-review-latest-20261111"
+          claim = Path(tag + "-push-1300.claim.json")
+          receipt = Path(tag + "-push-1300.accepted.json")
+
+          def gh(*args):
+              return subprocess.check_output(["gh", *args], text=True)
+
+          assets = set(gh("api", f"repos/{repo}/releases/tags/{tag}", "--jq", ".assets[].name").splitlines())
+          if receipt.name in assets:
+              print("FOOTBALL_REVIEW_ALREADY_ACCEPTED")
+              raise SystemExit(0)
+          if claim.name in assets:
+              raise SystemExit("FOOTBALL_REVIEW_ALREADY_CLAIMED_ACCEPTANCE_UNCONFIRMED")
+          token = os.environ.get("FOOTBALL_PUSHPLUS_TOKEN")
+          if not token:
+              raise SystemExit("FOOTBALL_PUSHPLUS_TOKEN_NOT_CONFIGURED")
+          archive = Path(tag + ".zip")
+          gh("release", "download", tag, "--pattern", archive.name, "--repo", repo)
+          payload = prepare(archive, day, repo, token)
+          payload["title"] = "11 月 11 日足球复盘 · 补发"
+          if payload_size(payload, token) > MAX_BYTES:
+              raise SystemExit("FOOTBALL_REVIEW_PUSH_PAYLOAD_TOO_LARGE")
+          meta = {"review_day_beijing": day.isoformat(), "scheduled_slot_beijing": "13:00",
+                  "run_id": os.environ["GITHUB_RUN_ID"], "delivery_mode": "USER_AUTHORIZED_ONE_TIME"}
+          claim.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+          gh("release", "upload", tag, str(claim), "--repo", repo)
+          response = send(payload, token)
+          save_status(receipt, {**response, **meta,
+                                "accepted_at_utc": datetime.now(timezone.utc).isoformat(),
+                                "payload_sha256": sha256(payload["html"].encode()).hexdigest()})
+          print("FOOTBALL_REVIEW_API_ACCEPTED", day.isoformat(), flush=True)
+          gh("release", "upload", tag, str(receipt), "--repo", repo)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: one-time-football-review-receipt
+          path: football-jc-review-latest-20261111-push-1300.accepted.json
+          if-no-files-found: ignore
+          retention-days: 14
