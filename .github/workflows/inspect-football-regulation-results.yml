@@ -16,22 +16,16 @@ jobs:
           from concurrent.futures import ThreadPoolExecutor
           import re
           from urllib.request import Request, urlopen
-          pages = {
-              "mobile-3110400":"https://m.titan007.com/analy/Analysis/3110400.htm",
-              "mobile-3110401":"https://m.titan007.com/analy/Analysis/3110401.htm",
-              "mobile-3110402":"https://m.titan007.com/analy/Analysis/3110402.htm",
-              "mobile-3110403":"https://m.titan007.com/analy/Analysis/3110403.htm",
-              "desktop":"https://zq.titan007.com/analysis/3110400cn.htm",
-              "detail-script":"https://m.titan007.com/script/DetailLive.js?ver=9",
-              "event-script":"https://m.titan007.com/script/eventNew.js?ver=5",
-          }
+          pages = {str(i):f"https://live.titan007.com/detail/{i}cn.htm" for i in range(3110400,3110404)}
           def inspect(item):
               name,url=item
               try:
-                  req=Request(url,headers={"User-Agent":"Mozilla/5.0","Referer":"https://m.titan007.com/analy/Analysis/3110400.htm"})
+                  req=Request(url,headers={"User-Agent":"Sports-Verified-Postgame/1.0"})
                   with urlopen(req,timeout=12) as response:
                       raw=response.read(1000000)
                   html=raw.decode("utf-8-sig",errors="replace")
+                  from pathlib import Path
+                  Path(name + ".html").write_bytes(raw)
                   hits=re.findall(r".{0,90}(?:加时|点球|常规时间|90分钟|首回合|第一回合|下半场结束|ShowLiveHead|url\s*:|\.ashx|\.aspx|homeScore|guestScore).{0,125}",html,re.I)
                   return name,len(raw),hits[:35]
               except Exception as error:
@@ -40,3 +34,8 @@ jobs:
               for row in pool.map(inspect,pages.items()):
                   print(row,flush=True)
           PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 007-desktop-match-evidence
+          path: '*.html'
+          if-no-files-found: error
