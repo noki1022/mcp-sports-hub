@@ -1,4 +1,4 @@
-name: Read-only football regulation result source inspection
+name: Inspect 007 football regulation result evidence
 on:
   push:
     branches: [codex/inspect-football-regulation-results]
@@ -10,26 +10,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Inspect Sporttery result format and archived 007 fixture identities
+      - name: Read 007 match pages and their public event scripts
         run: |
           python3 - <<'PY'
-          import json
+          from concurrent.futures import ThreadPoolExecutor
+          import re
           from urllib.request import Request, urlopen
-          from urllib.parse import urlencode
-          query = urlencode(dict(matchPage=1,matchBeginDate="2026-11-11",matchEndDate="2026-11-12",
-                                leagueId="",pageSize=200,pageNo=1,isFix=0,pcOrWap=1))
-          url = "https://webapi.sporttery.cn/gateway/jc/football/getMatchResultV1.qry?" + query
-          req = Request(url, headers={"User-Agent":"Football Regulation Results Audit/1.0",
-                                     "Accept":"application/json","Referer":"https://www.sporttery.cn/jc/zqsgkj/"})
-          with urlopen(req, timeout=18) as response:
-              doc=json.loads(response.read(1000001))
-          rows=(doc.get("value") or {}).get("matchResult") or []
-          print("SPORTTERY_ENVELOPE",doc.get("errorCode"),len(rows))
-          keys=("matchNumStr","matchDate","matchTime","homeTeam","awayTeam","allHomeTeam","allAwayTeam",
-                "sectionsNo999","matchResultStatus","poolStatus","goalLine")
-          for row in rows:
-              if str(row.get("matchNumStr","")).startswith("周三"):
-                  print("SPORTTERY_RESULT",json.dumps({k:row.get(k) for k in keys},ensure_ascii=False))
-          if not any(str(row.get("matchNumStr","")).startswith("周三") for row in rows):
-              raise SystemExit("NO_EXPECTED_RESULTS")
+          pages = {
+              "mobile-3110400":"https://m.titan007.com/analy/Analysis/3110400.htm",
+              "mobile-3110401":"https://m.titan007.com/analy/Analysis/3110401.htm",
+              "mobile-3110402":"https://m.titan007.com/analy/Analysis/3110402.htm",
+              "mobile-3110403":"https://m.titan007.com/analy/Analysis/3110403.htm",
+              "desktop":"https://zq.titan007.com/analysis/3110400cn.htm",
+              "detail-script":"https://m.titan007.com/script/DetailLive.js?ver=9",
+              "event-script":"https://m.titan007.com/script/eventNew.js?ver=5",
+          }
+          def inspect(item):
+              name,url=item
+              try:
+                  req=Request(url,headers={"User-Agent":"Mozilla/5.0","Referer":"https://m.titan007.com/analy/Analysis/3110400.htm"})
+                  with urlopen(req,timeout=12) as response:
+                      raw=response.read(1000000)
+                  html=raw.decode("utf-8-sig",errors="replace")
+                  hits=re.findall(r".{0,90}(?:加时|点球|常规时间|90分钟|首回合|第一回合|下半场结束|ShowLiveHead|url\s*:|\.ashx|\.aspx|homeScore|guestScore).{0,125}",html,re.I)
+                  return name,len(raw),hits[:35]
+              except Exception as error:
+                  return name,type(error).__name__,str(error)
+          with ThreadPoolExecutor(max_workers=5) as pool:
+              for row in pool.map(inspect,pages.items()):
+                  print(row,flush=True)
           PY
