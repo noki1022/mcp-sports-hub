@@ -93,6 +93,7 @@ jobs:
             --archive-branch audit-input/nba-archive-branch.json \
             --priority-jobs-dir audit-input/priority-jobs \
             --nba-receipts-root reports/pushplus-sent \
+            --nba-reviews-root reports/five-market-settled \
             --out audit-output/sports-chain-health.json --strict
       - name: Keep read-only diagnostic report, even when the audit detects missing runs
         if: always() && github.event_name != 'pull_request'

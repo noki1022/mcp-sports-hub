@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/nba-two-market-nightly-2200.yml'
       - 'scheduler/**'
+      - 'analysis/nba_final_review_gate.py'
   workflow_dispatch:
     inputs:
       cloudflare_slot_utc:
@@ -73,13 +74,22 @@ jobs:
         run: |
           git pull --ff-only origin main
           day="$(TZ=Asia/Shanghai date +%F)"
-          if [ -f "reports/five-market-settled/$day/push.claim.json" ]; then
-            echo "NBA_REVIEW_ALREADY_CLAIMED $day"
-            exit 0
-          fi
-          python3 analysis/nba_final_review_gate.py --day "$day" --github-env "$GITHUB_ENV" \
+          python3 analysis/nba_final_review_gate.py --day "$day" --include-pending --github-env "$GITHUB_ENV" \
             --status-out nba_final_review_readiness.json \
             --scores-out nba_final_review_scores.json
+      - name: Record the active cohort while official finals are pending
+        if: env.NBA_REVIEW_WAITING_DAY != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          day="$NBA_REVIEW_WAITING_DAY"
+          marker="reports/five-market-settled/$day/awaiting-finals.json"
+          if [ ! -f "$marker" ]; then
+            evidence="$(printf '{"review_day_beijing":"%s","run_id":"%s"}\n' "$day" "$GITHUB_RUN_ID" | base64 -w0)"
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$marker" \
+              --silent --field branch=main --field message="Track pending NBA finals $day" \
+              --field content="$evidence"
+          fi
       - name: Settle five locked directions against official completed NBA scores
         if: env.RUN_REPORT == 'true'
         run: |
@@ -96,7 +106,7 @@ jobs:
           dir="reports/five-market-settled/$REVIEW_DAY"
           test -n "$PUSHPLUS_TOKEN"
           python3 analysis/nba_five_market_review_push.py --settlement "$dir/settlement.json" \
-            --preview "$dir/report.html" --status "$dir/2200.json"
+            --preview "$dir/report.html" --status nba-review-preview-status.json
           python -B scripts/sports_postgame_slot.py nba-review
           # A create-only Contents API write is atomic across both trigger sources.
           claim="$(printf '{"review_day_beijing":"%s","run_id":"%s"}\n' "$REVIEW_DAY" "$GITHUB_RUN_ID" | base64 -w0)"
@@ -157,15 +167,20 @@ jobs:
           else
             echo "NO_FROZEN_INDEPENDENT_MODEL_TO_SCORE"
           fi
-      - name: Archive frozen five-market settlement and accepted marker
-        if: env.RUN_REPORT == 'true'
+      - name: Archive frozen five-market settlement and any acceptance receipt
+        if: always() && env.RUN_REPORT == 'true'
         run: |
-          git pull --ff-only origin main
+          dir="reports/five-market-settled/$REVIEW_DAY"
+          if [ ! -s "$dir/settlement.json" ]; then
+            echo "NBA_REVIEW_SETTLEMENT_NOT_GENERATED $REVIEW_DAY"
+            exit 1
+          fi
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add "reports/five-market-settled/$REVIEW_DAY"
           git diff --cached --quiet && exit 0
           git commit -m "Archive five-market NBA settlement $REVIEW_DAY"
+          git pull --rebase origin main
           for n in 1 2 3; do
             if git push origin HEAD:main; then exit 0; fi
             git pull --rebase origin main
