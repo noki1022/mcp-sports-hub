@@ -1,0 +1,50 @@
+name: NBA rolling-origin margin competitors (research only)
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_rolling_margin_competition.py'
+      - '.github/workflows/nba-rolling-margin-competitors.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned numerical package
+        run: python3 -m pip install --disable-pip-version-check --quiet numpy==2.2.6
+      - name: Verify module and offline self-tests
+        run: |
+          python3 -m py_compile analysis/nba_rolling_margin_competition.py
+          python3 analysis/nba_rolling_margin_competition.py --self-test
+      - name: Compare six forward folds on development-only NBA games
+        run: python3 analysis/nba_rolling_margin_competition.py --out /tmp/nba-rolling-margin-competition.json
+      - name: Assert no automatic model promotion or data leakage
+        run: |
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/nba-rolling-margin-competition.json'))
+          assert len(d['folds'])==6
+          assert d['no_production_changes'] is True
+          assert d['promote_to_production'] is False
+          assert d['previously_viewed_2025_26_holdout_accessed'] is False
+          assert d['2026_27_monitor_accessed'] is False
+          assert d['uses_historical_007_market_lines'] is False
+          assert d['evaluated_distinct_games'] >= 700
+          assert all(x['leakage_checked'] for x in d['folds'])
+          print('NBA_ROLLING_COMPETITION_RESEARCH_PASS')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-rolling-margin-competitors
+          path: /tmp/nba-rolling-margin-competition.json
+          if-no-files-found: warn
+          retention-days: 30
