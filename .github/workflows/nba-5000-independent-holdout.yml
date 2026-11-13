@@ -1,0 +1,27 @@
+name: NBA 5000 one-shot independent holdout research
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  independent-holdout:
+    if: github.ref == 'refs/heads/research/nba-5000-game-history-20261031'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install isolated research dependency
+        run: python -m pip install numpy
+      - name: One-shot independent holdout (no model promotion)
+        run: python analysis/nba_5000_independent_holdout.py --output /tmp/nba_5000_independent_holdout.json
+      - name: Preserve compact test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-5000-independent-holdout
+          path: /tmp/nba_5000_independent_holdout.json
+          if-no-files-found: warn
+          retention-days: 30
