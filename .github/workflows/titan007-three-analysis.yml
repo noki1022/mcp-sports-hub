@@ -391,10 +391,6 @@ jobs:
             done
             exit 1
           fi
-      - name: Audit market B and fusion C without directional assumptions
-        if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
-        run: |
-          python3 analysis/nba_market_bc_diagnostics.py --joined titan007_three_joined.json --movement titan007_slot_movement.json --model nba_model_analysis.json --out nba_market_bc_diagnostics.json
       - name: Recheck verified acceptance before PushPlus
         id: recheck
         if: steps.preflight.outputs.skip != 'true' && steps.offday.outputs.verified != 'true'
@@ -501,6 +497,11 @@ jobs:
             done
             exit 1
           fi
+      - name: Audit market B and fusion C without directional assumptions
+        if: ${{ success() && steps.preflight.outputs.skip != 'true' && env.REPORT_ALREADY_SENT != 'true' && steps.offday.outputs.verified != 'true' }}
+        continue-on-error: true
+        run: |
+          python3 analysis/nba_market_bc_diagnostics.py --joined titan007_three_joined.json --movement titan007_slot_movement.json --model nba_model_analysis.json --out nba_market_bc_diagnostics.json
       - if: always()
         uses: actions/upload-artifact@v4
         with:

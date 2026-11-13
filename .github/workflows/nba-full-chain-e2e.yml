@@ -52,5 +52,11 @@ jobs:
           assert 'nba_five_market_integrity_gate.py' in p
           assert '--require-token --require-delivery' in p
           assert 'nba_delivery_contract.py' in p
+          receipt = p.index("      - name: Save confirmed accepted notification slot")
+          diagnostic = p.index("      - name: Audit market B and fusion C")
+          artifacts = p.index("        uses: actions/upload-artifact@v4", diagnostic)
+          assert receipt < diagnostic < artifacts
+          assert "continue-on-error: true" in p[diagnostic:artifacts]
+          assert "--out nba_market_bc_diagnostics.json" in p[diagnostic:artifacts]
           print('NBA_FULL_CHAIN_CI_PRODUCTION_WIRING_PASS')
           PY
