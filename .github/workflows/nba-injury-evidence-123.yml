@@ -1,0 +1,70 @@
+name: NBA injury evidence stages 1 2 3 (research only)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "analysis/nba_injury_historical_research.py"
+      - ".github/workflows/nba-injury-evidence-123.yml"
+permissions:
+  contents: read
+jobs:
+  strict-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Self-test all three stages
+        run: python3 analysis/nba_injury_historical_research.py --stage self-test
+      - name: Stage 1 - audit checked-in ball-by-ball team box datasets
+        run: python3 analysis/nba_injury_historical_research.py --stage local --out /tmp/nba-injury/stage1.json
+      - name: Download bounded research-only historical evidence (do not commit raw data)
+        run: |
+          python3 - <<'PY'
+          import hashlib,pathlib,urllib.request
+          root='https://raw.githubusercontent.com/Professor-Pete/2024-2025-injury_analysis/6fcf87e34c6c0bd791a1f4c0f100c0a6500ac949/data/'
+          out=pathlib.Path('/tmp/nba-injury');out.mkdir(parents=True,exist_ok=True)
+          for name,limit in (('crossref.csv',500000),('season_rows.csv',16000000)):
+              url=root+name
+              req=urllib.request.Request(url,headers={'User-Agent':'NBA-Injury-Evidence-Audit/1.0'})
+              with urllib.request.urlopen(req,timeout=40) as response:
+                  assert response.status==200
+                  body=response.read(limit+1)
+              if len(body)>limit or len(body)<200:raise RuntimeError('BAD_SOURCE_SIZE '+name)
+              assert body.startswith(b'player,') if name=='crossref.csv' else body.startswith(b'snapshot_date,')
+              (out/name).write_bytes(body)
+              print('RESEARCH_SOURCE',name,'bytes',len(body),'sha256',hashlib.sha256(body).hexdigest())
+          PY
+      - name: Stage 2 - audit historical nominal PDF snapshot slots, fail closed on publication proof
+        run: python3 analysis/nba_injury_historical_research.py --stage archive --source /tmp/nba-injury/season_rows.csv --out /tmp/nba-injury/stage2.json
+      - name: Stage 3a - chronological independent participation comparison
+        run: python3 analysis/nba_injury_historical_research.py --stage attendance --source /tmp/nba-injury/crossref.csv --out /tmp/nba-injury/stage3a.json
+      - name: Stage 3b - require independent verified five-market forecasts (expected blocked)
+        run: python3 analysis/nba_injury_historical_research.py --stage market --baseline /tmp/nba-injury/paired_baseline.csv --enhanced /tmp/nba-injury/paired_injury.csv --manifest /tmp/nba-injury/paired_manifest.json --out /tmp/nba-injury/stage3b.json
+      - name: Assert no false claims of backtest certification
+        run: |
+          python3 - <<'PY'
+          import json,pathlib
+          p=pathlib.Path('/tmp/nba-injury')
+          one,two,three,four=[json.loads((p/f).read_text()) for f in ('stage1.json','stage2.json','stage3a.json','stage3b.json')]
+          assert one['valid_player_game_rows']==0
+          assert two['publication_timestamp_verified'] is False and two['fit_eligible_player_injury_rows']==0
+          assert three['eligible_for_live_player_impact_catalog'] is False
+          assert four['status']=='BLOCKED_MISSING_REAL_PAIRED_PRETIP_ARTIFACTS'
+          print('NBA_123_RESEARCH_GATE_PASSED_BUT_FIVE_MARKET_VALIDATION_NOT_AVAILABLE')
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-injury-evidence-123
+          path: |
+            /tmp/nba-injury/stage1.json
+            /tmp/nba-injury/stage2.json
+            /tmp/nba-injury/stage3a.json
+            /tmp/nba-injury/stage3b.json
+          if-no-files-found: warn
+          retention-days: 14
