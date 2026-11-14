@@ -90,6 +90,19 @@ class Results(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "REGULATION_STAGE_NOT_VERIFIED"):
                 S.football(knockout, 3075305)
 
+    def test_desktop_match_header_identifies_teams_when_flags_lack_ids(self):
+        header = b'''<div class="analyhead new">
+          <div class="home"><a href="//zq.titan007.com/cn/team/Summary/1.html">Home</a></div>
+          <div class="guest"><a href="//zq.titan007.com/cn/team/Summary/2.html">Away</a></div>
+        </div>'''
+        events = desktop_events().replace(b'images/1/home.png', b'images/165018987224.png').replace(
+            b'images/2/away.png', b'images/1kd9x06mhg1c.png')
+        self.assertEqual(S.football(knockout_html(), 3075305, desktop=header + events)['away_goals'], 1)
+        for invalid in (header.replace(b'Summary/1.html', b'Summary/2.html'),
+                        header.replace(b'class="guest"', b'class="other"'), header + header):
+            with self.subTest(header=invalid), self.assertRaisesRegex(ValueError, 'TEAM_ID_MISMATCH'):
+                S.football(knockout_html(), 3075305, desktop=invalid + events)
+
     def test_football_source_timeout_keeps_the_result_pending(self):
         sys.path.insert(0, str(Path(__file__).resolve().parents[1]/"ops"))
         import sports_result_to_review as job

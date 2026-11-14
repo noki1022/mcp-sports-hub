@@ -58,11 +58,25 @@ class FootballEvents(Header):
     def __init__(self):
         super().__init__()
         self.feed_count = 0
+        self.team_header_count = 0
+        self.team_headers = {side: [] for side in ('home', 'guest')}
         self.row = []
         self.rows = []
 
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
+        key = attributes.get('id')
+        if tag == 'div' and 'analyhead' in attributes.get('class', '').split():
+            self.team_header_count += 1
+            key = 'match_team_header'
+        elif tag == 'div' and self.stack and self.stack[-1] == ('div', 'match_team_header'):
+            key = next((side for side in self.team_headers if side in attributes.get('class', '').split()), key)
+        elif tag == 'a' and len(self.stack) >= 2 and self.stack[-2] == ('div', 'match_team_header'):
+            side = self.stack[-1][1]
+            if side in self.team_headers:
+                team = re.fullmatch(r'//zq\.titan007\.com/cn/team/Summary/(\d+)\.html', attributes.get('href', ''))
+                if team:
+                    self.team_headers[side].append(int(team[1]))
         if attributes.get('id') == 'teamEventDiv':
             self.feed_count += 1
         if ('ul', 'teamEventDiv') in self.stack:
@@ -76,6 +90,8 @@ class FootballEvents(Header):
                 if parents != ['li', 'div', 'span'] or not self.row:
                     raise ValueError('007_EVENT_GOAL_LAYOUT')
                 self.row[-1]['goals'].append(attributes['title'])
+        if key != attributes.get('id'):
+            attrs = [*attrs, ('id', key)]
         super().handle_starttag(tag, attrs)
 
     def handle_data(self, data):
@@ -104,10 +120,6 @@ def verify_football_events(raw, result):
 
     if field('scheduleID', r'(\d+)') != result['match_id']:
         raise ValueError('007_EVENT_MATCH_ID_MISMATCH')
-    for name, side in (('homeTeamFlg', 'home'), ('guestTeamFlg', 'away')):
-        team = field(name, r"'//zq\.titan007\.com/Image/team/images/(\d+)/[^'\s]+'")
-        if int(team) != result[f'{side}_team_id_007']:
-            raise ValueError('007_EVENT_TEAM_ID_MISMATCH')
     tip = datetime.fromisoformat(result['kickoff_beijing'])
     if tip.strftime('%Y-%m-%d %H:%M') != field('strTime', r"'(\d{4}-\d{2}-\d{2} \d{2}:\d{2})'"):
         raise ValueError('007_EVENT_KICKOFF_MISMATCH')
@@ -115,6 +127,18 @@ def verify_football_events(raw, result):
     feed = FootballEvents()
     feed.feed(html)
     feed.close()
+    if feed.team_header_count:
+        if feed.team_header_count != 1:
+            raise ValueError('007_EVENT_TEAM_ID_MISMATCH')
+        for desktop_side, mobile_side in (('home', 'home'), ('guest', 'away')):
+            if feed.team_headers[desktop_side] != [result[f'{mobile_side}_team_id_007']]:
+                raise ValueError('007_EVENT_TEAM_ID_MISMATCH')
+    else:
+        # Older desktop pages embedded team IDs in the flag image paths.
+        for name, side in (('homeTeamFlg', 'home'), ('guestTeamFlg', 'away')):
+            team = field(name, r"'//zq\.titan007\.com/Image/team/images/(\d+)/[^'\s]+'")
+            if int(team) != result[f'{side}_team_id_007']:
+                raise ValueError('007_EVENT_TEAM_ID_MISMATCH')
     if feed.feed_count != 1:
         raise ValueError('007_EVENT_LIST_MISSING_OR_DUPLICATE')
     if re.search(r'加时赛|点球大战|点球决胜|互射点球|十二碼決勝|penalty shootout',
