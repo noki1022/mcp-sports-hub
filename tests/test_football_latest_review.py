@@ -148,6 +148,44 @@ class LatestFootballReview(unittest.TestCase):
         self.assertEqual(report["summary"]["had"]["excluded"], 1)
         self.assertEqual(report["summary"]["had"]["graded"], 0)
 
+    def test_presend_recheck_only_regrades_unresolved_results(self):
+        now = TIP + timedelta(hours=6)
+        good, pending = "3075305", "3075306"
+        bundles = [candidate(1, T, "2100"), candidate(2, T, "2100", match_id=pending)]
+        def first_fetch(mid):
+            if mid == pending:
+                raise TimeoutError("007 result unavailable")
+            return html(), iso(now)
+
+        day = T.date()
+        archive_parts = review.settle(bundles, day, now, first_fetch)
+        with TemporaryDirectory() as tmp:
+            original = Path(tmp) / "original.zip"
+            updated = Path(tmp) / f"football-jc-review-latest-{day:%Y%m%d}-send-123.zip"
+            review.write_archive(original, *archive_parts)
+            with patch.object(review, "fetch", side_effect=TimeoutError("007 still unavailable")) as fetch:
+                review.recheck(original, updated, day, now)
+                fetch.assert_called_once()
+                self.assertFalse(updated.exists())
+                self.assertIn("1场赛果未核实", sender.prepare(original, day, "fixture/repo", "")["title"])
+
+            with patch.object(review, "fetch", return_value=(html().replace(good.encode(), pending.encode()),
+                                                             iso(now))) as fetch:
+                review.recheck(original, updated, day, now)
+                fetch.assert_called_once_with(f"https://m.titan007.com/analy/Analysis/{pending}.htm")
+            with ZipFile(updated) as bundle:
+                self.assertEqual(json.loads(bundle.read("locked-forecasts.json")), archive_parts[1])
+                self.assertEqual(json.loads(bundle.read("result-issues.json")), {})
+                report = json.loads(bundle.read("review.json"))
+                self.assertEqual(report["summary"]["had"]["graded"], 2)
+                self.assertEqual(report["summary"]["had"]["unsettled"], 0)
+                self.assertEqual(gzip.decompress(bundle.read(f"raw/{good}.html.gz")), html())
+            self.assertIn(f"/download/football-jc-review-latest-{day:%Y%m%d}/{updated.name}",
+                          sender.prepare(updated, day, "fixture/repo", "")["html"])
+            with patch.object(review, "fetch") as fetch:
+                review.recheck(updated, original, day, now)
+                fetch.assert_not_called()
+
     def test_historical_per_match_review_keeps_its_original_schema(self):
         now = TIP + timedelta(hours=4)
         old, = registry.publishable_final_documents([candidate(1, T, "2100")], iso(now))

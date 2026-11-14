@@ -28,9 +28,16 @@ def prepare(archive, day, repo, token):
     if not any(result_score("football", row)[1] is not None for row in report["matches"]):
         raise ValueError("FOOTBALL_REVIEW_HAS_NO_VERIFIED_RESULTS")
     tag = f"football-jc-review-latest-{day:%Y%m%d}"
-    url = escape(f"https://github.com/{repo}/releases/tag/{tag}", quote=True)
+    release = f"https://github.com/{repo}/releases"
+    if archive.name.startswith(f"{tag}-send-"):
+        url = f"{release}/download/{tag}/{archive.name}"
+    else:
+        url = f"{release}/tag/{tag}"
+    url = escape(url, quote=True)
     link = f'<p><a href="{url}">完整复盘归档</a></p>'
-    payload = {"title": f"北京时间{day.month}月{day.day}日 竞彩足球复盘",
+    pending = sum(result_score("football", row)[1] is None for row in report["matches"])
+    status = f"（{pending}场赛果未核实）" if pending else ""
+    payload = {"title": f"北京时间{day.month}月{day.day}日 竞彩足球复盘{status}",
                "html": render(report) + link}
     if payload_size(payload, token) > MAX_BYTES:
         payload["html"] = render(report, timing_only=True) + link

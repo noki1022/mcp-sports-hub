@@ -16,6 +16,7 @@ on:
       - 'analysis/sport_match_final_review_html.py'
       - 'analysis/sport_match_final_grade.py'
       - 'analysis/sport_match_final_registry.py'
+      - 'analysis/sports_verified_result_sources.py'
       - 'ops/football_latest_review.py'
       - 'tests/test_football_latest_review.py'
 
@@ -85,8 +86,17 @@ jobs:
           fi
           test -n "$FOOTBALL_PUSHPLUS_TOKEN"
           gh release download "$tag" --pattern "$tag.zip"
-          args=(--archive "$tag.zip" --day "$day" --repo "$GITHUB_REPOSITORY" --preview review-preview.html)
+          archive="$tag.zip"
+          refreshed="$tag-send-${GITHUB_RUN_ID}.zip"
+          python -B ops/football_latest_review.py --recheck-archive "$archive" --out "$refreshed"
+          if [ -f "$refreshed" ]; then
+            archive="$refreshed"
+          fi
+          args=(--archive "$archive" --day "$day" --repo "$GITHUB_REPOSITORY" --preview review-preview.html)
           python -B scripts/football_jc_review_push.py "${args[@]}"
+          if [ "$archive" = "$refreshed" ]; then
+            gh release upload "$tag" "$refreshed"
+          fi
           python -B scripts/sports_postgame_slot.py football-review
           printf '{"review_day_beijing":"%s","scheduled_slot_beijing":"13:00","run_id":"%s"}\n' "$day" "$GITHUB_RUN_ID" > "$claim"
           # Release asset names are unique. Upload without clobber before calling PushPlus.
