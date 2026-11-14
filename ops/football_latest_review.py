@@ -23,6 +23,14 @@ BJ = ZoneInfo("Asia/Shanghai")
 RESULT_SCHEMA = "football-007-final-results-v1"
 
 
+def load_007_result(mid):
+    return fetch(f"https://m.titan007.com/analy/Analysis/{mid}.htm")
+
+
+def load_007_events(mid):
+    return fetch(source.football_event_url(mid))
+
+
 def settle(bundles, day, now, load_result, load_events=None):
     prefix = "周" + "一二三四五六日"[day.weekday()]
     scheduled = {}
@@ -46,9 +54,16 @@ def settle(bundles, day, now, load_result, load_events=None):
             scheduled[row["match_id"]] = row
     finals = registry.publishable_final_documents(
         original_runs, now.isoformat(), grace_minutes=0, football_latest=True)
+    return grade_results(day, scheduled, finals, now, load_result, load_events)
+
+
+def grade_results(day, scheduled, finals, now, load_result, load_events, *, verified=None, raw=None):
+    verified = verified or {}
 
     def collect(final):
         mid = final["match_id"]
+        if mid in verified:
+            return mid, verified[mid], {}, None
         if now < registry.stamp(final["kickoff_utc"]) + timedelta(minutes=90):
             return mid, None, {}, "RESULT_OBSERVED_TOO_EARLY"
         evidence = {}
@@ -78,7 +93,9 @@ def settle(bundles, day, now, load_result, load_events=None):
     with ThreadPoolExecutor(max_workers=8) as pool:
         results = list(pool.map(collect, finals))
     manifest = {"schema_version": RESULT_SCHEMA, "results": [row for _, row, _, _ in results if row]}
-    raw_evidence = {name: raw for _, _, evidence, _ in results for name, raw in evidence.items()}
+    raw_evidence = dict(raw or {})
+    for _, _, evidence, _ in results:
+        raw_evidence.update(evidence)
     issues = {mid: reason for mid, _, _, reason in results if reason}
     rows, totals = grading.football_grade(finals, manifest, raw_evidence)
     for row, final in zip(rows, finals, strict=True):
@@ -94,6 +111,38 @@ def settle(bundles, day, now, load_result, load_events=None):
         rows.append(row)
     report = grading.result("football", day.isoformat(), rows, totals)
     return report, finals, manifest, raw_evidence, issues
+
+
+def write_archive(archive, report, finals, manifest, raw, issues):
+    with ZipFile(archive, "w", compression=ZIP_DEFLATED) as bundle:
+        for name, data in (("review", report), ("locked-forecasts", finals),
+                           ("verified-results", manifest), ("result-issues", issues)):
+            bundle.writestr(f"{name}.json", json.dumps(data, ensure_ascii=False, indent=2))
+        bundle.writestr("review.html", review_html.render(report))
+        for mid, data in raw.items():
+            bundle.writestr(f"raw/{mid}.html.gz", gzip.compress(data, mtime=0))
+
+
+def recheck(archive, output, day, now, load_result=load_007_result, load_events=load_007_events):
+    with ZipFile(archive) as bundle:
+        previous = json.loads(bundle.read("review.json"))
+        if previous["sport"] != "football" or previous["beijing_day"] != day.isoformat():
+            raise ValueError("EXPECTED_PREVIOUS_DAY_PER_MATCH_FOOTBALL_REVIEW")
+        if all(row.get("actual_score") is not None for row in previous["matches"]):
+            return
+        finals = json.loads(bundle.read("locked-forecasts.json"))
+        manifest = json.loads(bundle.read("verified-results.json"))
+        raw = {name.removeprefix("raw/").removesuffix(".html.gz"): gzip.decompress(bundle.read(name))
+               for name in bundle.namelist() if re.fullmatch(r"raw/\d+(?:\.desktop)?\.html\.gz", name)}
+    verified = grading.ft.validate_results(manifest, raw)
+    scheduled = {row["match_id"]: row for row in previous["matches"]}
+    report, finals, manifest, raw, issues = grade_results(
+        day, scheduled, finals, now, load_result, load_events, verified=verified, raw=raw)
+    if issues:
+        print("::warning::Football review still has unresolved matches", json.dumps(
+            {scheduled[mid]["jc_number"]: reason for mid, reason in issues.items()}, ensure_ascii=False))
+    if len(manifest["results"]) > len(verified):
+        write_archive(output, report, finals, manifest, raw, issues)
 
 
 def run(repo, output, publish):
@@ -123,10 +172,7 @@ def run(repo, output, publish):
     with ThreadPoolExecutor(max_workers=6) as pool:
         bundles = list(pool.map(lambda asset: json.loads(asset_bytes(repo, asset)), assets))
 
-    report, finals, manifest, raw, issues = settle(
-        bundles, day, now,
-        lambda mid: fetch(f"https://m.titan007.com/analy/Analysis/{mid}.htm"),
-        lambda mid: fetch(source.football_event_url(mid)))
+    report, finals, manifest, raw, issues = settle(bundles, day, now, load_007_result, load_007_events)
     if not report["matches"]:
         print("FOOTBALL_REVIEW_NO_SEALABLE_FIXTURES", day)
         return
@@ -139,13 +185,7 @@ def run(repo, output, publish):
         return
     output.mkdir(parents=True, exist_ok=True)
     archive = output / f"{tag}.zip"
-    with ZipFile(archive, "w", compression=ZIP_DEFLATED) as bundle:
-        for name, data in (("review", report), ("locked-forecasts", finals),
-                           ("verified-results", manifest), ("result-issues", issues)):
-            bundle.writestr(f"{name}.json", json.dumps(data, ensure_ascii=False, indent=2))
-        bundle.writestr("review.html", review_html.render(report))
-        for mid, data in raw.items():
-            bundle.writestr(f"raw/{mid}.html.gz", gzip.compress(data, mtime=0))
+    write_archive(archive, report, finals, manifest, raw, issues)
     if publish:
         gh("release", "create", tag, str(archive), "--repo", repo, "--target", "main",
            "--title", f"Football per-match verified review {day}",
@@ -155,10 +195,16 @@ def run(repo, output, publish):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--repo", required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--repo")
+    mode.add_argument("--recheck-archive", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--publish", action="store_true")
     args = parser.parse_args()
-    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", args.repo):
+    if args.recheck_archive:
+        now = datetime.now(timezone.utc)
+        recheck(args.recheck_archive, args.out, now.astimezone(BJ).date() - timedelta(days=1), now)
+    elif not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", args.repo):
         parser.error("INVALID_REPOSITORY")
-    run(args.repo, args.out, args.publish)
+    else:
+        run(args.repo, args.out, args.publish)
