@@ -1,0 +1,1386 @@
+{
+  "schema_version": "nba-007-visible-top10-v1",
+  "target_date": "2026-11-15",
+  "captured_at_utc": "2026-11-14T15:01:42.080001+00:00",
+  "collection_completed_at_utc": "2026-11-14T15:02:59.756941+00:00",
+  "quote_timestamp": "PER_SOURCE_CAPTURE_TIME_RECORDED",
+  "company_order": "TEN_VALIDATED_SOURCE_IDS_NOT_TOP_TEN_RANKED",
+  "candidate_ids": [
+    "3",
+    "1",
+    "2",
+    "8",
+    "9",
+    "10",
+    "19",
+    "20",
+    "24",
+    "31"
+  ],
+  "source_audit": [
+    {
+      "id": "3",
+      "url": "https://bf.titan007.com/nba_Oddsdata.aspx?id=3",
+      "status": "REUSED_CANONICAL_CROSS_DATE_JOIN",
+      "matched_games": 0,
+      "verified_market_rows": 0
+    },
+    {
+      "id": "1",
+      "url": "https://bf.titan007.com/nba_Oddsdata.aspx?date=2026-11-15&id=1&h=12&m=00",
+      "status": "PARSED",
+      "matched_games": 5,
+      "query_dates": [
+        "2026-11-15",
+        "2026-11-14",
+        "2026-11-16"
+      ],
+      "source_rows": 82,
+      "verified_market_rows": 10,
+      "rejections": {},
+      "query_capture_utc": [
+        {
+          "date": "2026-11-15",
+          "captured_at_utc": "2026-11-14T15:01:56.072101+00:00"
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "url": "https://bf.titan007.com/nba_Oddsdata.aspx?date=2026-11-15&id=2&h=12&m=00",
+      "status": "PARSED",
+      "matched_games": 0,
+      "query_dates": [
+        "2026-11-15",
+        "2026-11-14",
+        "2026-11-16"
+      ],
+      "source_rows": 266,
+      "verified_market_rows": 0,
+      "rejections": {
+        "QUERY_URLError": 1
+      },
+      "query_capture_utc": [
+        {
+          "date": "2026-11-14",
+          "captured_at_utc": "2026-11-14T15:02:10.662269+00:00"
+        },
+        {
+          "date": "2026-11-16",
+          "captured_at_utc": "2026-11-14T15:02:11.829302+00:00"
+        }
+      ],
+      "query_errors": [
+        {
+          "date": "2026-11-15",
+          "error": "URLError: <urlopen error _ssl.c:994: The handshake operation timed out>"
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "url": "https://bf.titan007.com/nba_Oddsdata.aspx?date=2026-11-15&id=8&h=12&m=00",
+      "status": "PARSED",
+      "matched_games": 0,
+      "query_dates": [
+        "2026-11-15",
+        "2026-11-14",
+        "2026-11-16"
+      ],
+      "source_rows": 642,
+      "verified_market_rows": 0,
+      "rejections": {
+        "QUERY_URLError": 1
+      },
+      "query_capture_utc": [
+        {
+          "date": "2026-11-14",
+          "captured_at_utc": "2026-11-14T15:02:26.499694+00:00"
+        },
+        {
+          "date": "2026-11-16",
+          "captured_at_utc": "2026-11-14T15:02:28.668593+00:00"
+        }
+      ],
+      "query_errors": [
+        {
+          "date": "2026-11-15",
+          "error": "URLError: <urlopen error _ssl.c:994: The handshake operation timed out>"
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "url": "https://bf.titan007.com/nba_Oddsdata.aspx?date=2026-11-15&id=9&h=12&m=00",
+      "status": "PARSED",
+      "matched_games": 5,
+      "query_dates": [
+        "2026-11-15",
+        "2026-11-14",
+        "2026-11-16"
+      ],
+      "source_rows": 251,
+      "verified_market_rows": 10,
+      "rejections": {
+        "TOTAL_MISSING_OR_INVALID": 2
+      },
+      "query_capture_utc": [
+        {
+          "date": "2026-11-15",
+          "captured_at_utc": "2026-11-14T15:02:30.649211+00:00"
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "url": "https://bf.titan007.com/nba_Oddsdata.aspx?date=2026-11-15&id=10&h=12&m=00",
+      "status": "PARSED",
+      "matched_games": 0,
+      "query_dates": [
+        "2026-11-15",
+        "2026-11-14",
+        "2026-11-16"
+      ],
+      "source_rows": 477,
+      "verified_market_rows": 0,
+      "rejections": {
+        "QUERY_URLError": 1,
+        "TOTAL_MISSING_OR_INVALID": 3
+      },
+      "query_capture_utc": [
+        {
+          "date": "2026-11-14",
+          "captured_at_utc": "2026-11-14T15:02:45.279872+00:00"
+        },
+        {
+          "date": "2026-11-16",
+          "captured_at_utc": "2026-11-14T15:02:47.998411+00:00"
+        }
+      ],
+      "query_errors": [
+        {
+          "date": "2026-11-15",
+          "error": "URLError: <urlopen error _ssl.c:994: The handshake operation timed out>"
+        }
+      ]
+    },
+    {
+      "id": "19",
+      "url": "https://bf.titan007.com/nba_Oddsdata.aspx?date=2026-11-15&id=19&h=12&m=00",
+      "status": "PARSED",
+      "matched_games": 5,
+      "query_dates": [
+        "2026-11-15",
+        "2026-11-14",
+        "2026-11-16"
+      ],
+      "source_rows": 315,
+      "verified_market_rows": 10,
+      "rejections": {
+        "TOTAL_MISSING_OR_INVALID": 1
+      },
+      "query_capture_utc": [
+        {
+          "date": "2026-11-15",
+          "captured_at_utc": "2026-11-14T15:02:49.187720+00:00"
+        }
+      ]
+    },
+    {
+      "id": "20",
+      "url": "https://bf.titan007.com/nba_Oddsdata.aspx?date=2026-11-15&id=20&h=12&m=00",
+      "status": "PARSED",
+      "matched_games": 5,
+      "query_dates": [
+        "2026-11-15",
+        "2026-11-14",
+        "2026-11-16"
+      ],
+      "source_rows": 348,
+      "verified_market_rows": 10,
+      "rejections": {},
+      "query_capture_utc": [
+        {
+          "date": "2026-11-15",
+          "captured_at_utc": "2026-11-14T15:02:56.877019+00:00"
+        }
+      ]
+    },
+    {
+      "id": "24",
+      "url": "https://bf.titan007.com/nba_Oddsdata.aspx?date=2026-11-15&id=24&h=12&m=00",
+      "status": "PARSED",
+      "matched_games": 5,
+      "query_dates": [
+        "2026-11-15",
+        "2026-11-14",
+        "2026-11-16"
+      ],
+      "source_rows": 349,
+      "verified_market_rows": 10,
+      "rejections": {},
+      "query_capture_utc": [
+        {
+          "date": "2026-11-15",
+          "captured_at_utc": "2026-11-14T15:02:58.562432+00:00"
+        }
+      ]
+    },
+    {
+      "id": "31",
+      "url": "https://bf.titan007.com/nba_Oddsdata.aspx?date=2026-11-15&id=31&h=12&m=00",
+      "status": "PARSED",
+      "matched_games": 5,
+      "query_dates": [
+        "2026-11-15",
+        "2026-11-14",
+        "2026-11-16"
+      ],
+      "source_rows": 366,
+      "verified_market_rows": 10,
+      "rejections": {
+        "TOTAL_MISSING_OR_INVALID": 1
+      },
+      "query_capture_utc": [
+        {
+          "date": "2026-11-15",
+          "captured_at_utc": "2026-11-14T15:02:59.755341+00:00"
+        }
+      ]
+    }
+  ],
+  "games": [
+    {
+      "game_id": "728940",
+      "nba_game_id": "401909980",
+      "markets": {
+        "full_spread": {
+          "status": "QUOTES_WITH_UNVERIFIED_COMPANY_RANK",
+          "companies": [
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 1（名称待核）",
+              "company_id": "1",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -12.5,
+                "first_side_water": 0.83,
+                "second_side_water": 0.89
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:01:56.072101+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 9（名称待核）",
+              "company_id": "9",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -11.5,
+                "first_side_water": 0.95,
+                "second_side_water": 0.8
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:30.649211+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 19（名称待核）",
+              "company_id": "19",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -12.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.9
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:49.187720+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 20（名称待核）",
+              "company_id": "20",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -12.5,
+                "first_side_water": 0.91,
+                "second_side_water": 0.91
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:56.877019+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 24（名称待核）",
+              "company_id": "24",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -12.5,
+                "first_side_water": 0.92,
+                "second_side_water": 0.96
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:58.562432+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 31（名称待核）",
+              "company_id": "31",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -12.0,
+                "first_side_water": 0.94,
+                "second_side_water": 0.94
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:59.755341+00:00",
+              "source_query_date": "2026-11-15"
+            }
+          ],
+          "source_id_order_unverified": true,
+          "company_ids": [
+            "1",
+            "9",
+            "19",
+            "20",
+            "24",
+            "31"
+          ]
+        },
+        "full_total": {
+          "status": "QUOTES_WITH_UNVERIFIED_COMPANY_RANK",
+          "companies": [
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 1（名称待核）",
+              "company_id": "1",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 235.5,
+                "first_side_water": 0.86,
+                "second_side_water": 0.86
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:01:56.072101+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 9（名称待核）",
+              "company_id": "9",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 235.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.9
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:30.649211+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 19（名称待核）",
+              "company_id": "19",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 235.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.9
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:49.187720+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 20（名称待核）",
+              "company_id": "20",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 235.5,
+                "first_side_water": 0.91,
+                "second_side_water": 0.91
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:56.877019+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 24（名称待核）",
+              "company_id": "24",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 235.5,
+                "first_side_water": 0.89,
+                "second_side_water": 0.97
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:58.562432+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 31（名称待核）",
+              "company_id": "31",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 235.0,
+                "first_side_water": 0.9,
+                "second_side_water": 0.96
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:59.755341+00:00",
+              "source_query_date": "2026-11-15"
+            }
+          ],
+          "source_id_order_unverified": true,
+          "company_ids": [
+            "1",
+            "9",
+            "19",
+            "20",
+            "24",
+            "31"
+          ]
+        }
+      }
+    },
+    {
+      "game_id": "728336",
+      "nba_game_id": "401909981",
+      "markets": {
+        "full_spread": {
+          "status": "QUOTES_WITH_UNVERIFIED_COMPANY_RANK",
+          "companies": [
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 1（名称待核）",
+              "company_id": "1",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": 1.5,
+                "first_side_water": 0.86,
+                "second_side_water": 0.86
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:01:56.072101+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 9（名称待核）",
+              "company_id": "9",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": 1.5,
+                "first_side_water": 0.95,
+                "second_side_water": 0.8
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:30.649211+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 19（名称待核）",
+              "company_id": "19",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -1.5,
+                "first_side_water": 0.85,
+                "second_side_water": 0.95
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:49.187720+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 20（名称待核）",
+              "company_id": "20",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -1.5,
+                "first_side_water": 0.85,
+                "second_side_water": 0.91
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:56.877019+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 24（名称待核）",
+              "company_id": "24",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -1.5,
+                "first_side_water": 0.92,
+                "second_side_water": 0.96
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:58.562432+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 31（名称待核）",
+              "company_id": "31",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -1.5,
+                "first_side_water": 0.93,
+                "second_side_water": 0.95
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:59.755341+00:00",
+              "source_query_date": "2026-11-15"
+            }
+          ],
+          "source_id_order_unverified": true,
+          "company_ids": [
+            "1",
+            "9",
+            "19",
+            "20",
+            "24",
+            "31"
+          ]
+        },
+        "full_total": {
+          "status": "QUOTES_WITH_UNVERIFIED_COMPANY_RANK",
+          "companies": [
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 1（名称待核）",
+              "company_id": "1",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 231.5,
+                "first_side_water": 0.84,
+                "second_side_water": 0.88
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:01:56.072101+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 9（名称待核）",
+              "company_id": "9",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 231.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.9
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:30.649211+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 19（名称待核）",
+              "company_id": "19",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 231.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.9
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:49.187720+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 20（名称待核）",
+              "company_id": "20",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 231.5,
+                "first_side_water": 0.91,
+                "second_side_water": 0.91
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:56.877019+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 24（名称待核）",
+              "company_id": "24",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 231.5,
+                "first_side_water": 0.94,
+                "second_side_water": 0.92
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:58.562432+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 31（名称待核）",
+              "company_id": "31",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 231.5,
+                "first_side_water": 0.93,
+                "second_side_water": 0.93
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:59.755341+00:00",
+              "source_query_date": "2026-11-15"
+            }
+          ],
+          "source_id_order_unverified": true,
+          "company_ids": [
+            "1",
+            "9",
+            "19",
+            "20",
+            "24",
+            "31"
+          ]
+        }
+      }
+    },
+    {
+      "game_id": "728337",
+      "nba_game_id": "401909982",
+      "markets": {
+        "full_spread": {
+          "status": "QUOTES_WITH_UNVERIFIED_COMPANY_RANK",
+          "companies": [
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 1（名称待核）",
+              "company_id": "1",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -4.5,
+                "first_side_water": 0.86,
+                "second_side_water": 0.86
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:01:56.072101+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 9（名称待核）",
+              "company_id": "9",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -4.5,
+                "first_side_water": 0.95,
+                "second_side_water": 0.8
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:30.649211+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 19（名称待核）",
+              "company_id": "19",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -4.5,
+                "first_side_water": 0.95,
+                "second_side_water": 0.85
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:49.187720+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 20（名称待核）",
+              "company_id": "20",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -4.5,
+                "first_side_water": 0.91,
+                "second_side_water": 0.85
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:56.877019+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 24（名称待核）",
+              "company_id": "24",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -5.0,
+                "first_side_water": 0.93,
+                "second_side_water": 0.95
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:58.562432+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 31（名称待核）",
+              "company_id": "31",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": -5.0,
+                "first_side_water": 0.94,
+                "second_side_water": 0.94
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:59.755341+00:00",
+              "source_query_date": "2026-11-15"
+            }
+          ],
+          "source_id_order_unverified": true,
+          "company_ids": [
+            "1",
+            "9",
+            "19",
+            "20",
+            "24",
+            "31"
+          ]
+        },
+        "full_total": {
+          "status": "QUOTES_WITH_UNVERIFIED_COMPANY_RANK",
+          "companies": [
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 1（名称待核）",
+              "company_id": "1",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 229.5,
+                "first_side_water": 0.85,
+                "second_side_water": 0.87
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:01:56.072101+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 9（名称待核）",
+              "company_id": "9",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 228.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.9
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:30.649211+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 19（名称待核）",
+              "company_id": "19",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 228.5,
+                "first_side_water": 0.85,
+                "second_side_water": 0.95
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:49.187720+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 20（名称待核）",
+              "company_id": "20",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 229.5,
+                "first_side_water": 0.91,
+                "second_side_water": 0.85
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:56.877019+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 24（名称待核）",
+              "company_id": "24",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 229.0,
+                "first_side_water": 0.94,
+                "second_side_water": 0.92
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:58.562432+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 31（名称待核）",
+              "company_id": "31",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 228.5,
+                "first_side_water": 0.91,
+                "second_side_water": 0.95
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:59.755341+00:00",
+              "source_query_date": "2026-11-15"
+            }
+          ],
+          "source_id_order_unverified": true,
+          "company_ids": [
+            "1",
+            "9",
+            "19",
+            "20",
+            "24",
+            "31"
+          ]
+        }
+      }
+    },
+    {
+      "game_id": "728941",
+      "nba_game_id": "401909983",
+      "markets": {
+        "full_spread": {
+          "status": "QUOTES_WITH_UNVERIFIED_COMPANY_RANK",
+          "companies": [
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 1（名称待核）",
+              "company_id": "1",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": 4.5,
+                "first_side_water": 0.83,
+                "second_side_water": 0.89
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:01:56.072101+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 9（名称待核）",
+              "company_id": "9",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": 3.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.9
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:30.649211+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 19（名称待核）",
+              "company_id": "19",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": 3.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.9
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:49.187720+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 20（名称待核）",
+              "company_id": "20",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": 3.5,
+                "first_side_water": 0.91,
+                "second_side_water": 0.91
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:56.877019+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 24（名称待核）",
+              "company_id": "24",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": 3.5,
+                "first_side_water": 0.88,
+                "second_side_water": 1.0
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:58.562432+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 31（名称待核）",
+              "company_id": "31",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": 4.0,
+                "first_side_water": 0.96,
+                "second_side_water": 0.92
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:59.755341+00:00",
+              "source_query_date": "2026-11-15"
+            }
+          ],
+          "source_id_order_unverified": true,
+          "company_ids": [
+            "1",
+            "9",
+            "19",
+            "20",
+            "24",
+            "31"
+          ]
+        },
+        "full_total": {
+          "status": "QUOTES_WITH_UNVERIFIED_COMPANY_RANK",
+          "companies": [
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 1（名称待核）",
+              "company_id": "1",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 227.5,
+                "first_side_water": 0.84,
+                "second_side_water": 0.88
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:01:56.072101+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 9（名称待核）",
+              "company_id": "9",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 228.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.9
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:30.649211+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 19（名称待核）",
+              "company_id": "19",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 228.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.9
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:49.187720+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 20（名称待核）",
+              "company_id": "20",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 228.5,
+                "first_side_water": 0.91,
+                "second_side_water": 0.91
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:56.877019+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 24（名称待核）",
+              "company_id": "24",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 228.5,
+                "first_side_water": 0.94,
+                "second_side_water": 0.92
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:58.562432+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 31（名称待核）",
+              "company_id": "31",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 227.5,
+                "first_side_water": 0.84,
+                "second_side_water": 1.02
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:59.755341+00:00",
+              "source_query_date": "2026-11-15"
+            }
+          ],
+          "source_id_order_unverified": true,
+          "company_ids": [
+            "1",
+            "9",
+            "19",
+            "20",
+            "24",
+            "31"
+          ]
+        }
+      }
+    },
+    {
+      "game_id": "728942",
+      "nba_game_id": "401909984",
+      "markets": {
+        "full_spread": {
+          "status": "QUOTES_WITH_UNVERIFIED_COMPANY_RANK",
+          "companies": [
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 1（名称待核）",
+              "company_id": "1",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": 14.5,
+                "first_side_water": 0.85,
+                "second_side_water": 0.87
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:01:56.072101+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 9（名称待核）",
+              "company_id": "9",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": 14.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.9
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:30.649211+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 19（名称待核）",
+              "company_id": "19",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": 14.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.9
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:49.187720+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 20（名称待核）",
+              "company_id": "20",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": 14.5,
+                "first_side_water": 0.85,
+                "second_side_water": 0.91
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:56.877019+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 24（名称待核）",
+              "company_id": "24",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": 15.0,
+                "first_side_water": 0.96,
+                "second_side_water": 0.92
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:58.562432+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 31（名称待核）",
+              "company_id": "31",
+              "market": "full_spread",
+              "opening": {},
+              "current": {
+                "line": 14.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.98
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:59.755341+00:00",
+              "source_query_date": "2026-11-15"
+            }
+          ],
+          "source_id_order_unverified": true,
+          "company_ids": [
+            "1",
+            "9",
+            "19",
+            "20",
+            "24",
+            "31"
+          ]
+        },
+        "full_total": {
+          "status": "QUOTES_WITH_UNVERIFIED_COMPANY_RANK",
+          "companies": [
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 1（名称待核）",
+              "company_id": "1",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 235.5,
+                "first_side_water": 0.86,
+                "second_side_water": 0.86
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:01:56.072101+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 9（名称待核）",
+              "company_id": "9",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 234.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.9
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:30.649211+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 19（名称待核）",
+              "company_id": "19",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 234.5,
+                "first_side_water": 0.9,
+                "second_side_water": 0.9
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:49.187720+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 20（名称待核）",
+              "company_id": "20",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 234.5,
+                "first_side_water": 0.91,
+                "second_side_water": 0.91
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:56.877019+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 24（名称待核）",
+              "company_id": "24",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 234.5,
+                "first_side_water": 0.91,
+                "second_side_water": 0.95
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:58.562432+00:00",
+              "source_query_date": "2026-11-15"
+            },
+            {
+              "display_rank": null,
+              "company_display": "007机构ID 31（名称待核）",
+              "company_id": "31",
+              "market": "full_total",
+              "opening": {},
+              "current": {
+                "line": 235.5,
+                "first_side_water": 1.0,
+                "second_side_water": 0.86
+              },
+              "side_orientation": "UNVERIFIED_RAW_SLOTS",
+              "source": "DATED_007_COMPANY_ID",
+              "source_capture_utc": "2026-11-14T15:02:59.755341+00:00",
+              "source_query_date": "2026-11-15"
+            }
+          ],
+          "source_id_order_unverified": true,
+          "company_ids": [
+            "1",
+            "9",
+            "19",
+            "20",
+            "24",
+            "31"
+          ]
+        }
+      }
+    }
+  ],
+  "model_probability_adjusted": false,
+  "decision": "NO_BET"
+}
