@@ -1,0 +1,502 @@
+{
+  "captured_at_utc": "2026-11-16T04:01:19.652286+00:00",
+  "crown_quote_captured_at_utc": "2026-11-16T04:01:19.652286+00:00",
+  "crown_source_id": "3",
+  "requested_display_date": "2026-11-17",
+  "date_standard": "Asia/Shanghai derived from UTC start",
+  "score_source": "https://bf.titan007.com/nba_date.aspx?date=...",
+  "odds_source": "https://bf.titan007.com/nba_Oddsdata.aspx?date=...",
+  "official_schedule_source": [
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261116&limit=100",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261117&limit=100"
+  ],
+  "official_schedule_count": 8,
+  "upcoming_nba_games": [
+    {
+      "nba_game_id": "401909994",
+      "home": "BOS",
+      "away": "ORL",
+      "utc_tip": "2026-11-17T00:00:00+00:00",
+      "beijing_tip": "2026-11-17T08:00+08:00",
+      "beijing_date": "2026-11-17",
+      "us_eastern_date": "2026-11-16",
+      "us_eastern_tip": "2026-11-16T19:00-05:00"
+    },
+    {
+      "nba_game_id": "401909995",
+      "home": "CLE",
+      "away": "CHI",
+      "utc_tip": "2026-11-17T00:00:00+00:00",
+      "beijing_tip": "2026-11-17T08:00+08:00",
+      "beijing_date": "2026-11-17",
+      "us_eastern_date": "2026-11-16",
+      "us_eastern_tip": "2026-11-16T19:00-05:00"
+    },
+    {
+      "nba_game_id": "401909996",
+      "home": "WAS",
+      "away": "MEM",
+      "utc_tip": "2026-11-17T00:00:00+00:00",
+      "beijing_tip": "2026-11-17T08:00+08:00",
+      "beijing_date": "2026-11-17",
+      "us_eastern_date": "2026-11-16",
+      "us_eastern_tip": "2026-11-16T19:00-05:00"
+    },
+    {
+      "nba_game_id": "401909997",
+      "home": "BKN",
+      "away": "PHI",
+      "utc_tip": "2026-11-17T00:30:00+00:00",
+      "beijing_tip": "2026-11-17T08:30+08:00",
+      "beijing_date": "2026-11-17",
+      "us_eastern_date": "2026-11-16",
+      "us_eastern_tip": "2026-11-16T19:30-05:00"
+    },
+    {
+      "nba_game_id": "401909998",
+      "home": "MIA",
+      "away": "HOU",
+      "utc_tip": "2026-11-17T00:30:00+00:00",
+      "beijing_tip": "2026-11-17T08:30+08:00",
+      "beijing_date": "2026-11-17",
+      "us_eastern_date": "2026-11-16",
+      "us_eastern_tip": "2026-11-16T19:30-05:00"
+    },
+    {
+      "nba_game_id": "401909999",
+      "home": "MIN",
+      "away": "POR",
+      "utc_tip": "2026-11-17T01:00:00+00:00",
+      "beijing_tip": "2026-11-17T09:00+08:00",
+      "beijing_date": "2026-11-17",
+      "us_eastern_date": "2026-11-16",
+      "us_eastern_tip": "2026-11-16T20:00-05:00"
+    },
+    {
+      "nba_game_id": "401910000",
+      "home": "NOP",
+      "away": "GSW",
+      "utc_tip": "2026-11-17T01:00:00+00:00",
+      "beijing_tip": "2026-11-17T09:00+08:00",
+      "beijing_date": "2026-11-17",
+      "us_eastern_date": "2026-11-16",
+      "us_eastern_tip": "2026-11-16T20:00-05:00"
+    },
+    {
+      "nba_game_id": "401910001",
+      "home": "DEN",
+      "away": "PHX",
+      "utc_tip": "2026-11-17T02:00:00+00:00",
+      "beijing_tip": "2026-11-17T10:00+08:00",
+      "beijing_date": "2026-11-17",
+      "us_eastern_date": "2026-11-16",
+      "us_eastern_tip": "2026-11-16T21:00-05:00"
+    }
+  ],
+  "site_query_dates": {
+    "2026-11-17": {
+      "source_rows": 115,
+      "market_rows": 41,
+      "id3_state": "AVAILABLE",
+      "nba_rows": 8
+    },
+    "2026-11-16": {
+      "source_rows": 395,
+      "market_rows": 156,
+      "id3_state": "AVAILABLE",
+      "nba_rows": 6
+    },
+    "2026-11-18": {
+      "source_rows": 150,
+      "market_rows": 0,
+      "id3_state": "AVAILABLE",
+      "nba_rows": 8
+    }
+  },
+  "match_rejections": {
+    "NOT_OFFICIAL_BEIJING_MATCHUP": 14,
+    "NO_DATE_MARKET_FOR_GAME_ID": 8
+  },
+  "missing_id3_diagnostics": [
+    {
+      "007_game_id": "728343",
+      "nba_game_id": "401909994",
+      "home": "BOS",
+      "away": "ORL",
+      "site_date": "2026-11-17",
+      "site_clock": "08:00",
+      "id3_dated_market": "MISSING"
+    },
+    {
+      "007_game_id": "728344",
+      "nba_game_id": "401909996",
+      "home": "WAS",
+      "away": "MEM",
+      "site_date": "2026-11-17",
+      "site_clock": "08:00",
+      "id3_dated_market": "MISSING"
+    },
+    {
+      "007_game_id": "728345",
+      "nba_game_id": "401909995",
+      "home": "CLE",
+      "away": "CHI",
+      "site_date": "2026-11-17",
+      "site_clock": "08:00",
+      "id3_dated_market": "MISSING"
+    },
+    {
+      "007_game_id": "728346",
+      "nba_game_id": "401909998",
+      "home": "MIA",
+      "away": "HOU",
+      "site_date": "2026-11-17",
+      "site_clock": "08:30",
+      "id3_dated_market": "MISSING"
+    },
+    {
+      "007_game_id": "728347",
+      "nba_game_id": "401909997",
+      "home": "BKN",
+      "away": "PHI",
+      "site_date": "2026-11-17",
+      "site_clock": "08:30",
+      "id3_dated_market": "MISSING"
+    },
+    {
+      "007_game_id": "728947",
+      "nba_game_id": "401910000",
+      "home": "NOP",
+      "away": "GSW",
+      "site_date": "2026-11-17",
+      "site_clock": "09:00",
+      "id3_dated_market": "MISSING"
+    },
+    {
+      "007_game_id": "728948",
+      "nba_game_id": "401909999",
+      "home": "MIN",
+      "away": "POR",
+      "site_date": "2026-11-17",
+      "site_clock": "09:00",
+      "id3_dated_market": "MISSING"
+    },
+    {
+      "007_game_id": "728949",
+      "nba_game_id": "401910001",
+      "home": "DEN",
+      "away": "PHX",
+      "site_date": "2026-11-17",
+      "site_clock": "10:00",
+      "id3_dated_market": "MISSING"
+    }
+  ],
+  "source_rejections": {
+    "identity_rejected": 0
+  },
+  "source_query_errors": [],
+  "unmatched_nba_fixtures": [
+    {
+      "nba_game_id": "401909994",
+      "home": "BOS",
+      "away": "ORL",
+      "beijing_tip": "2026-11-17T08:00+08:00",
+      "reason": "007_MARKET_MISSING"
+    },
+    {
+      "nba_game_id": "401909995",
+      "home": "CLE",
+      "away": "CHI",
+      "beijing_tip": "2026-11-17T08:00+08:00",
+      "reason": "007_MARKET_MISSING"
+    },
+    {
+      "nba_game_id": "401909996",
+      "home": "WAS",
+      "away": "MEM",
+      "beijing_tip": "2026-11-17T08:00+08:00",
+      "reason": "007_MARKET_MISSING"
+    },
+    {
+      "nba_game_id": "401909997",
+      "home": "BKN",
+      "away": "PHI",
+      "beijing_tip": "2026-11-17T08:30+08:00",
+      "reason": "007_MARKET_MISSING"
+    },
+    {
+      "nba_game_id": "401909998",
+      "home": "MIA",
+      "away": "HOU",
+      "beijing_tip": "2026-11-17T08:30+08:00",
+      "reason": "007_MARKET_MISSING"
+    },
+    {
+      "nba_game_id": "401909999",
+      "home": "MIN",
+      "away": "POR",
+      "beijing_tip": "2026-11-17T09:00+08:00",
+      "reason": "007_MARKET_MISSING"
+    },
+    {
+      "nba_game_id": "401910000",
+      "home": "NOP",
+      "away": "GSW",
+      "beijing_tip": "2026-11-17T09:00+08:00",
+      "reason": "007_MARKET_MISSING"
+    },
+    {
+      "nba_game_id": "401910001",
+      "home": "DEN",
+      "away": "PHX",
+      "beijing_tip": "2026-11-17T10:00+08:00",
+      "reason": "007_MARKET_MISSING"
+    }
+  ],
+  "nba_cba_games": [
+    {
+      "game_id": "728343",
+      "nba_game_id": "401909994",
+      "league": "NBA",
+      "home_team": "波士顿凯尔特人",
+      "away_team": "奥兰多魔术",
+      "display_date": "2026-11-17",
+      "display_clock": "08:00",
+      "tipoff_utc": "2026-11-17T00:00:00+00:00",
+      "start_time_beijing": "2026-11-17T08:00+08:00",
+      "us_eastern_date": "2026-11-16",
+      "site_display_date": "2026-11-17",
+      "site_display_clock": "08:00",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "market_source_id": "3",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
+        },
+        "full_total": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
+        }
+      }
+    },
+    {
+      "game_id": "728344",
+      "nba_game_id": "401909996",
+      "league": "NBA",
+      "home_team": "华盛顿奇才",
+      "away_team": "孟菲斯灰熊",
+      "display_date": "2026-11-17",
+      "display_clock": "08:00",
+      "tipoff_utc": "2026-11-17T00:00:00+00:00",
+      "start_time_beijing": "2026-11-17T08:00+08:00",
+      "us_eastern_date": "2026-11-16",
+      "site_display_date": "2026-11-17",
+      "site_display_clock": "08:00",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "market_source_id": "3",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
+        },
+        "full_total": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
+        }
+      }
+    },
+    {
+      "game_id": "728345",
+      "nba_game_id": "401909995",
+      "league": "NBA",
+      "home_team": "克里夫兰骑士",
+      "away_team": "芝加哥公牛",
+      "display_date": "2026-11-17",
+      "display_clock": "08:00",
+      "tipoff_utc": "2026-11-17T00:00:00+00:00",
+      "start_time_beijing": "2026-11-17T08:00+08:00",
+      "us_eastern_date": "2026-11-16",
+      "site_display_date": "2026-11-17",
+      "site_display_clock": "08:00",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "market_source_id": "3",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
+        },
+        "full_total": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
+        }
+      }
+    },
+    {
+      "game_id": "728346",
+      "nba_game_id": "401909998",
+      "league": "NBA",
+      "home_team": "迈阿密热火",
+      "away_team": "休斯顿火箭",
+      "display_date": "2026-11-17",
+      "display_clock": "08:30",
+      "tipoff_utc": "2026-11-17T00:30:00+00:00",
+      "start_time_beijing": "2026-11-17T08:30+08:00",
+      "us_eastern_date": "2026-11-16",
+      "site_display_date": "2026-11-17",
+      "site_display_clock": "08:30",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "market_source_id": "3",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
+        },
+        "full_total": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
+        }
+      }
+    },
+    {
+      "game_id": "728347",
+      "nba_game_id": "401909997",
+      "league": "NBA",
+      "home_team": "布鲁克林篮网",
+      "away_team": "费城76人",
+      "display_date": "2026-11-17",
+      "display_clock": "08:30",
+      "tipoff_utc": "2026-11-17T00:30:00+00:00",
+      "start_time_beijing": "2026-11-17T08:30+08:00",
+      "us_eastern_date": "2026-11-16",
+      "site_display_date": "2026-11-17",
+      "site_display_clock": "08:30",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "market_source_id": "3",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
+        },
+        "full_total": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
+        }
+      }
+    },
+    {
+      "game_id": "728947",
+      "nba_game_id": "401910000",
+      "league": "NBA",
+      "home_team": "新奥尔良鹈鹕",
+      "away_team": "金州勇士",
+      "display_date": "2026-11-17",
+      "display_clock": "09:00",
+      "tipoff_utc": "2026-11-17T01:00:00+00:00",
+      "start_time_beijing": "2026-11-17T09:00+08:00",
+      "us_eastern_date": "2026-11-16",
+      "site_display_date": "2026-11-17",
+      "site_display_clock": "09:00",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "market_source_id": "3",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
+        },
+        "full_total": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
+        }
+      }
+    },
+    {
+      "game_id": "728948",
+      "nba_game_id": "401909999",
+      "league": "NBA",
+      "home_team": "明尼苏达森林狼",
+      "away_team": "波特兰开拓者",
+      "display_date": "2026-11-17",
+      "display_clock": "09:00",
+      "tipoff_utc": "2026-11-17T01:00:00+00:00",
+      "start_time_beijing": "2026-11-17T09:00+08:00",
+      "us_eastern_date": "2026-11-16",
+      "site_display_date": "2026-11-17",
+      "site_display_clock": "09:00",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "market_source_id": "3",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
+        },
+        "full_total": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
+        }
+      }
+    },
+    {
+      "game_id": "728949",
+      "nba_game_id": "401910001",
+      "league": "NBA",
+      "home_team": "丹佛掘金",
+      "away_team": "菲尼克斯太阳",
+      "display_date": "2026-11-17",
+      "display_clock": "10:00",
+      "tipoff_utc": "2026-11-17T02:00:00+00:00",
+      "start_time_beijing": "2026-11-17T10:00+08:00",
+      "us_eastern_date": "2026-11-16",
+      "site_display_date": "2026-11-17",
+      "site_display_clock": "10:00",
+      "source": "007 dated site verified by ESPN UTC matchup",
+      "market_source_id": "3",
+      "markets": {
+        "full_spread": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_SPREAD"
+        },
+        "full_total": {
+          "opening": {},
+          "current": {},
+          "status": "NO_VERIFIED_ID3_TOTAL"
+        }
+      }
+    }
+  ],
+  "markets_joined_for_date": 0,
+  "verified_fixture_ids_for_date": 8,
+  "nba_cba_joined_for_date": 8,
+  "nba_markets_missing": 8,
+  "crown_quote_coverage": {
+    "spread_games": 0,
+    "total_games": 0,
+    "any_market_games": 0,
+    "complete_crown_games": 0,
+    "missing_market_games": 8,
+    "status": "SCHEDULE_ONLY_NO_VERIFIED_007_MARKETS"
+  },
+  "all_scoreboard_matches": 660,
+  "all_untargeted_market_matches": 197,
+  "market_opening_not_available": true,
+  "time_zone": "Asia/Shanghai (verified UTC fixture)",
+  "water_orientation": "UNVERIFIED; original market slots",
+  "company_identity": "UNVERIFIED",
+  "report_quality": "SCHEDULE_ONLY_NO_VERIFIED_007_MARKETS",
+  "recommendations": []
+}
