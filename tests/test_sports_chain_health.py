@@ -268,6 +268,26 @@ class TestCrossSportHealth(unittest.TestCase):
         result=H.audit(runs,releases,BRANCH,NOW,nba_receipts=receipts)
         self.assertIn("API_RECEIPT_BEFORE_SCHEDULED_SLOT",[x["code"] for x in result["issues"]])
 
+    def test_football_actual_api_acceptance_delay_is_audited(self):
+        runs,releases=source()
+        target=next(r for r in runs if r["name"]==H.FOOTBALL)
+        planned=H.when(target["created_at"])-timedelta(minutes=12)
+        local=planned.astimezone(H.BJ);day=local.strftime("%Y%m%d");slot=local.strftime("%H%M")
+        release=next(r for r in releases if r["tag_name"]=="football-007-raw-"+day)
+        release["assets"].append({"name":f"football-push-{day}-{slot}.accepted.json"})
+        response={"status":"API_ACCEPTED_NOT_DEVICE_CONFIRMED","api_response":{"api_code":200,"accepted_at_utc":(planned+timedelta(minutes=25)).isoformat()}}
+        result=H.audit(runs,releases,BRANCH,NOW,football_receipts={(day,slot):response})
+        evidence=next(s for s in result["slots"] if s["run_id"]==target["id"])
+        self.assertEqual(evidence["delivery_delay_seconds"],1500.)
+        self.assertEqual(evidence["pushplus_api_receipt"],"ACCEPTED")
+        self.assertIn("PUSH_API_ACCEPTED_LATE",[x["code"] for x in result["issues"]])
+        response["api_response"]["api_code"]=999
+        invalid=H.audit(runs,releases,BRANCH,NOW,football_receipts={(day,slot):response})
+        self.assertIn("FOOTBALL_ACCEPTANCE_RECEIPT_INVALID",[x["code"] for x in invalid["issues"]])
+        bad=next(s for s in invalid["slots"] if s["run_id"]==target["id"])
+        self.assertEqual(bad["pushplus_api_receipt"],"NOT_OBSERVED")
+        self.assertIsNone(bad["delivery_delay_seconds"])
+
     def test_naive_time_rejected(self):
         with self.assertRaisesRegex(ValueError, "NAIVE_TIMESTAMP"):
             H.when("2026-11-06T12:00:00")

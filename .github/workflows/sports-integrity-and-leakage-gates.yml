@@ -49,6 +49,29 @@ jobs:
           gh api "/repos/$GITHUB_REPOSITORY/releases?per_page=100" > audit-input/releases.json
           gh api "/repos/$GITHUB_REPOSITORY/branches/archive/nba-market-captures" \
             > audit-input/nba-archive-branch.json
+      - name: Read original football API acceptance timestamps without sending
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p audit-input/football-receipts
+          python3 - <<'PY' > audit-input/football-receipt-assets.txt
+          import json,sys
+          from datetime import datetime,timezone
+          sys.path.insert(0,'scripts')
+          import sports_chain_health as h
+          assets=h.release_assets(json.load(open('audit-input/releases.json')))
+          for slot in h.expected_slots(datetime.now(timezone.utc),24,180):
+              if slot['workflow']!=h.FOOTBALL:continue
+              local=slot['planned'].astimezone(h.BJ)
+              day=local.strftime('%Y%m%d');tag='football-007-raw-'+day
+              name='football-push-'+day+'-'+local.strftime('%H%M')+'.accepted.json'
+              if name in assets.get(tag,set()):print(tag,name)
+          PY
+          while read -r tag name; do
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$name" \
+              --dir audit-input/football-receipts --skip-existing
+          done < audit-input/football-receipt-assets.txt
       - name: Inspect actual priority PushPlus jobs, including skipped sends
         if: github.event_name != 'pull_request'
         env:
@@ -94,6 +117,7 @@ jobs:
             --priority-jobs-dir audit-input/priority-jobs \
             --nba-receipts-root reports/pushplus-sent \
             --nba-reviews-root reports/five-market-settled \
+            --football-receipts-dir audit-input/football-receipts \
             --out audit-output/sports-chain-health.json --strict
       - name: Keep read-only diagnostic report, even when the audit detects missing runs
         if: always() && github.event_name != 'pull_request'
