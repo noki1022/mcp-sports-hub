@@ -1,0 +1,107 @@
+name: Cloudflare executor readiness-only deployment (paid resources)
+on:
+  workflow_dispatch:
+    inputs:
+      acknowledge_paid_resources:
+        description: 'Explicit approval for Cloudflare paid resources. Does not enable production or send messages.'
+        required: true
+        default: false
+        type: boolean
+permissions:
+  contents: read
+jobs:
+  deployment-access-preflight:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      configured: ${{ steps.access.outputs.configured }}
+    steps:
+      - name: Report deployment credential availability without revealing it
+        id: access
+        env:
+          DEPLOYMENT_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          python3 - <<'PYCODE'
+          import json,os
+          configured=bool(os.environ.get('DEPLOYMENT_TOKEN'))
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:out.write('configured='+str(configured).lower()+'\n')
+          print('DEPLOYMENT_ACCESS_PREFLIGHT',json.dumps({'cloudflare_api_token_configured':configured,'resource_created':False}))
+          PYCODE
+  deploy-readiness-only:
+    needs: deployment-access-preflight
+    if: github.ref == 'refs/heads/main' && inputs.acknowledge_paid_resources == true && needs.deployment-access-preflight.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: e2321eb34965e73fd368168b308aa42f
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify staging stays inactive and deployment credential is configured
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo '::error::CLOUDFLARE_API_TOKEN is not configured'; exit 1; }
+          python3 - <<'PY'
+          import json,tomllib
+          from pathlib import Path
+          root=Path('services/cloudflare_executor')
+          d=tomllib.loads((root/'wrangler.toml').read_text())
+          assert d['vars']['SPORTS_EXECUTOR_LIVE']=='0'
+          assert d['containers'][0]['max_instances']==1
+          assert d['containers'][0]['instance_type']=='basic'
+          assert 'triggers' not in d
+          gate=json.loads(Path('services/sports_executor/cutover.json').read_text())
+          assert gate['activation_approved'] is False and gate['backend']=='github'
+          PY
+      - name: Deploy isolated staging Worker and one bounded container definition
+        run: |
+          npx --yes wrangler@4.164.0 deploy --config services/cloudflare_executor/wrangler.toml > deploy-output.txt 2>&1
+          cat deploy-output.txt
+      - name: Set a generated probe-only secret without exposing its value
+        run: |
+          python3 - <<'PY'
+          import os,secrets,subprocess
+          secret=secrets.token_hex(32)
+          print('::add-mask::'+secret,flush=True)
+          with open(os.environ['GITHUB_ENV'],'a') as out:out.write('EXECUTOR_PROBE_SECRET='+secret+'\n')
+          subprocess.run(['npx','--yes','wrangler@4.164.0','secret','put','SPORTS_EXECUTOR_SECRET',
+            '--config','services/cloudflare_executor/wrangler.toml'],input=secret+'\n',text=True,check=True)
+          PY
+      - name: Probe actual deployed container readiness without business credentials or jobs
+        run: |
+          python3 - <<'PY'
+          import hashlib,hmac,json,os,re,time,urllib.request
+          from pathlib import Path
+          urls=re.findall(r'https://noki-sports-independent-executor\.[a-z0-9-]+\.workers\.dev',Path('deploy-output.txt').read_text())
+          assert urls,'Wrangler did not return an observed deployment URL'
+          url=urls[-1]+'/health'
+          sig=hmac.new(os.environ['EXECUTOR_PROBE_SECRET'].encode(),b'readiness-v1',hashlib.sha256).hexdigest()
+          result=None
+          # Readiness probes may repeat. No POST /jobs, capture, forecast or send occurs.
+          for attempt in range(12):
+              try:
+                  request=urllib.request.Request(url,headers={'X-Sports-Signature':sig})
+                  with urllib.request.urlopen(request,timeout=30) as response:result=json.load(response)
+                  if result.get('ready'):break
+              except Exception:pass
+              time.sleep(5)
+          assert result and result['ready'] is True,result
+          assert result['live_enabled'] is False and result['cutover_ready'] is False,result
+          assert result['claim_owner']=='cloudflare_durable_object',result
+          assert result['pending_observations']==0,result
+          Path('cloudflare-executor-readiness.json').write_text(json.dumps(result,indent=2)+'\n')
+          print('DEPLOYED_CLOUDFLARE_READINESS_ONLY_VERIFIED',url)
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-readiness-only-deployment
+          path: |
+            cloudflare-executor-readiness.json
+            deploy-output.txt
+          if-no-files-found: ignore

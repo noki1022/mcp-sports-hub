@@ -100,11 +100,11 @@ def preserve(root,run_dir,meta,stage):
  if check.returncode:
   subprocess.run(['gh','release','create',tag,'--repo',REPOSITORY,'--target','main',
       '--title','Independent sports execution '+meta['execution_id'],
-      '--notes','Original independent-executor evidence. Not a GitHub Actions run.'],check=True,capture_output=True)
- subprocess.run(['gh','release','upload',tag,str(target),'--repo',REPOSITORY],check=True,capture_output=True)
+      '--notes','Original independent-executor evidence. Not a GitHub Actions run.'],check=True,capture_output=True,timeout=120)
+ subprocess.run(['gh','release','upload',tag,str(target),'--repo',REPOSITORY],check=True,capture_output=True,timeout=120)
  verified=target.with_suffix('.verified-download')
  subprocess.run(['gh','release','download',tag,'--pattern',target.name,'--output',str(verified),
-     '--repo',REPOSITORY],check=True,capture_output=True)
+     '--repo',REPOSITORY],check=True,capture_output=True,timeout=120)
  if sha256(verified.read_bytes()).digest()!=sha256(target.read_bytes()).digest():
   raise ValueError('DURABLE_ARCHIVE_READBACK_HASH_MISMATCH')
  verified.unlink()
@@ -178,6 +178,7 @@ def execute(obj,stamp,key):
    if root.exists():preserve(root,run_dir,meta,'final')
   except Exception as error:
    status='ARCHIVE_FAILED';(run_dir/'archive-failure.json').write_text(json.dumps({'error_type':type(error).__name__,'reason':safe_error(error)}))
+  (run_dir/'result.json').write_text(json.dumps({**meta,**result,'status':status},indent=2)+'\n')
   with CLAIM_LOCK:
    db=sqlite3.connect(STATE/'claims.sqlite3')
    with db:db.execute('UPDATE runs SET status=? WHERE key=?',(status,key))
@@ -210,7 +211,8 @@ def health():
  return {'schema_version':'sports-executor-readiness-v1','plans':plans,'binaries':binaries,
      'ready':ready,'live_enabled':os.getenv('SPORTS_EXECUTOR_LIVE')=='1',
      'execution_backend':'independent','queue_provider':'local-process','send_retry_enabled':False,
-     'cutover_ready':cutover_ready(),'source_cache_ready':cache_ready}
+     'cutover_ready':cutover_ready(),'source_cache_ready':cache_ready,
+     'claim_owner':os.getenv('SPORTS_CLAIM_OWNER','persistent_host_volume')}
 
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass  # Never log auth headers or payloads.
@@ -218,6 +220,15 @@ class Handler(BaseHTTPRequestHandler):
   data=json.dumps(obj).encode();self.send_response(code)
   self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data)
  def do_GET(self):
+  if self.path=='/state':
+   secret=os.getenv('SPORTS_EXECUTOR_SECRET','')
+   expected=hmac.new(secret.encode(),b'state-v1',sha256).hexdigest()
+   if len(secret)<32 or not hmac.compare_digest(expected,self.headers.get('X-Sports-State-Signature','')):
+    return self.respond(401,{'state':'REQUEST_REJECTED'})
+   db=sqlite3.connect(STATE/'claims.sqlite3')
+   try:rows=db.execute('SELECT key,status FROM runs ORDER BY rowid DESC LIMIT 100').fetchall()
+   finally:db.close()
+   return self.respond(200,{'runs':[{'key':key,'status':status} for key,status in rows]})
   if self.path!='/health':return self.respond(404,{'state':'NOT_FOUND'})
   info=health();self.respond(200 if info['ready'] else 503,info)
  def do_POST(self):

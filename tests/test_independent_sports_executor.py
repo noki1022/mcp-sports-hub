@@ -21,6 +21,25 @@ class IndependentExecutorTests(unittest.TestCase):
   self.assertEqual(service['environment']['SPORTS_EXECUTOR_LIVE'],'${SPORTS_EXECUTOR_LIVE:-0}')
   self.assertEqual(service['ports'],['127.0.0.1:8080:8080'])
   self.assertIn('executor-state:/var/lib/sports-executor',service['volumes'])
+ def test_cloudflare_readiness_keeps_one_inactive_container_and_no_cron(self):
+  import tomllib
+  d=tomllib.loads((ROOT/'services/cloudflare_executor/wrangler.toml').read_text())
+  self.assertEqual(d['vars']['SPORTS_EXECUTOR_LIVE'],'0')
+  self.assertEqual(d['containers'][0]['max_instances'],1)
+  self.assertEqual(d['containers'][0]['instance_type'],'basic')
+  self.assertNotIn('triggers',d)
+ def test_paid_deployment_requires_separate_explicit_acknowledgment(self):
+  import yaml
+  text=(ROOT/'.github/workflows/cloudflare-executor-readiness-deploy.yml').read_text()
+  doc=yaml.safe_load(text);events=doc.get('on',doc.get(True))
+  self.assertEqual(set(events),{'workflow_dispatch'})
+  self.assertFalse(events['workflow_dispatch']['inputs']['acknowledge_paid_resources']['default'])
+  self.assertIn('acknowledge_paid_resources == true',doc['jobs']['deploy-readiness-only']['if'])
+  self.assertNotIn('secrets.PUSHPLUS_TOKEN',text)
+  self.assertNotIn('secrets.GITHUB_TOKEN',text)
+  preflight=doc['jobs']['deployment-access-preflight']['steps'][0]['run']
+  self.assertNotIn('npx',preflight)
+  self.assertNotIn('requests',preflight)
  def test_all_six_current_production_workflows_compile(self):
   for route in plan.WORKFLOWS:
    with self.subTest(route=route):self.assertTrue(plan.load_plan(ROOT,route)['jobs'])

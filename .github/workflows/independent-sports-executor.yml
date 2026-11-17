@@ -3,9 +3,11 @@ on:
   pull_request:
     paths:
       - 'services/sports_executor/**'
+      - 'services/cloudflare_executor/**'
       - 'scheduler/**'
       - 'tests/test_independent_sports_executor.py'
       - '.github/workflows/independent-sports-executor.yml'
+      - '.github/workflows/cloudflare-executor-readiness-deploy.yml'
 permissions:
   contents: read
 jobs:
@@ -22,6 +24,12 @@ jobs:
       - run: pip install --quiet PyYAML==6.0.2
       - run: python3 -B -m unittest discover -s tests -p test_independent_sports_executor.py -v
       - run: node scheduler/test-independent-executor.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node services/cloudflare_executor/test-runtime.mjs
+      - name: Validate Cloudflare-native configuration and bundle without deployment
+        run: npx --yes wrangler@4.164.0 deploy --dry-run --config services/cloudflare_executor/wrangler.toml --outdir "$RUNNER_TEMP/cloudflare-executor-bundle"
       - run: node scheduler/test-scheduler.mjs
       - run: node scheduler/test-football-scheduler.mjs
       - name: Validate Compose deployment configuration with dummy values only
