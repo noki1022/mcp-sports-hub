@@ -173,17 +173,64 @@ def parse_fixtures(raw,odds,captured,target=None,target_jc_day=None):
 def collect(raw_map,captured,target=None,target_jc_day=None):
     if not isinstance(captured,datetime) or captured.tzinfo is None:
         raise ValueError("CAPTURE_TIMESTAMP_REQUIRED")
-    odds=parse_odds(raw_map["jc_odds"])
-    games,coverage=parse_fixtures(raw_map["fixtures"],odds,captured,target,target_jc_day)
+    xml_errors={}
+    odds={}
+    try:
+        if "jc_odds" in raw_map:odds=parse_odds(raw_map["jc_odds"])
+    except (ValueError,UnicodeError) as exc:
+        xml_errors["jc_odds"]=str(exc)
+    coverage={"total_fixture_ids":0,"future_source_rows_before_identity_filter":0,
+        "rejected_future_identity_rows":0,"excluded_other_jc_sale_days":0,
+        "future_jc_fixtures":0,"odds_fixture_ids":len(odds),
+        "had_with_price":0,"hhad_with_price":0,"ttg_with_price":0}
+    games=[]
+    try:
+        if "fixtures" in raw_map:
+            games,coverage=parse_fixtures(raw_map["fixtures"],odds,captured,target,target_jc_day)
+    except (ValueError,UnicodeError) as exc:
+        xml_errors["fixtures"]=str(exc)
+    coverage["xml_parse_errors"]=xml_errors
     # No future games in a successfully parsed 007 source is NOT a broken fetch.
     # Keep the whole raw evidence + a zero-game manifest, with no fake picks.
     if not games and coverage["rejected_future_identity_rows"]>0:
         raise RuntimeError("007_FUTURE_ROWS_EXIST_BUT_NO_VERIFIED_JC_IDENTITY__DO_NOT_TREAT_AS_OFFDAY")
-    verified_empty=not games
     cp_state="CP_TTG_NOT_CAPTURED"
+    cp_rows={}
     if "cp_ttg" in raw_map:
         try:
             cp_rows,cp_stats=cp_ttg.parse_cp_ttg(raw_map["cp_ttg"])
+            # The CP page is an independent fixture list. The XML feed can
+            # retain yesterday's sale day while CP has today's numbered games.
+            by_id={g["match_id"]:g for g in games}
+            recovered=0
+            for mid,row in cp_rows.items():
+                tip=datetime.fromisoformat(row["kickoff_beijing"])
+                if tip<=captured or (target and tip.date().isoformat()!=target):continue
+                if target_jc_day:
+                    if row["sale_day_beijing"]!=target_jc_day:continue
+                    if not row["jc_number"].startswith(jc_prefix(target_jc_day)):
+                        raise ValueError("CP_SALE_DATE_AND_WEEKDAY_CONFLICT")
+                if mid in by_id:
+                    if cp_ttg.join_fixture(by_id[mid],{mid:row})[1] in (
+                            "CP_TTG_JC_NUMBER_MISMATCH","CP_TTG_KICKOFF_MISMATCH"):
+                        raise ValueError("CP_XML_FIXTURE_IDENTITY_CONFLICT")
+                    continue
+                # Legacy diagnostic calls retain their original XML cohort.
+                if target_jc_day is None:continue
+                games.append({"match_id":mid,"jc_number":row["jc_number"],
+                    "league":row["league"],"league_id_007":row["league_id_007"],
+                    "home_team_id_007":row["home_team_id_007"],"away_team_id_007":row["away_team_id_007"],
+                    "home_team":row["home_team_cp"],"away_team":row["away_team_cp"],
+                    "kickoff_beijing":row["kickoff_beijing"],"source_url":cp_ttg.CP_TTG_URL,
+                    "analysis_url":"https://zq.titan007.com/analysis/"+mid+"cn.htm",
+                    "source_fixture_status":"CP_NUMBERED_FIXTURE",
+                    "home_last5":[],"away_last5":[],"h2h":[],
+                    "injury_report_state":"UNAVAILABLE","injuries":[],
+                    "jc_markets":{"had":None,"hhad":None,"ttg":None},
+                    "data_gaps":["RECENT_FIVE_NOT_YET_PARSED","H2H_NOT_YET_PARSED",
+                        "INJURIES_NOT_YET_VERIFIED","JC_TTG_ODDS_NOT_IN_PUBLIC_FEED"]})
+                recovered+=1
+            coverage["cp_recovered_fixtures"]=recovered
             matched=0
             for game in games:
                 odds8,state=cp_ttg.join_fixture(game,cp_rows)
@@ -209,9 +256,29 @@ def collect(raw_map,captured,target=None,target_jc_day=None):
             coverage["cp_eight_quotes"]=cp_stats["eight_quotes"]
             coverage["ttg_with_price"]=matched
         except (ValueError,TypeError,KeyError) as exc:
+            if "CONFLICT" in str(exc):raise
             cp_state="CP_TTG_PARSE_REJECTED:"+type(exc).__name__+":"+str(exc)[:100]
             for game in games:
                 game["cp_ttg_source_status"]=cp_state
+    if "cp_had" in raw_map:
+        cp_prices=cp_ttg.parse_cp_had(raw_map["cp_had"])
+        for game in games:
+            found=cp_prices.get(game["match_id"])
+            if found is None:continue
+            if (found["jc_number"]!=game["jc_number"] or
+                    found["kickoff_beijing"]!=game["kickoff_beijing"]):
+                raise ValueError("CP_HAD_FIXTURE_IDENTITY_CONFLICT")
+            game["jc_markets"].update({"had":found["had"],"hhad":found["hhad"]})
+            game["cp_had_source"]={"url":cp_ttg.CP_HAD_URL,"had_not_on_sale":found["had_not_on_sale"]}
+    games.sort(key=lambda g:(g["kickoff_beijing"],g["match_id"]))
+    if target_jc_day:validate_jc_scope(games,target_jc_day)
+    verified_empty=not games
+    if verified_empty and target_jc_day and not any(
+            r["sale_day_beijing"]==target_jc_day for r in cp_rows.values()):
+        raise RuntimeError("007_CURRENT_SALE_DAY_NOT_VERIFIED__STALE_SOURCE_IS_NOT_OFFDAY")
+    coverage.update({"future_jc_fixtures":len(games),
+        "had_with_price":sum(bool(g["jc_markets"]["had"]) for g in games),
+        "hhad_with_price":sum(bool((g["jc_markets"]["hhad"] or {}).get("odds")) for g in games)})
     return {"schema_version":"football-jc-007-v1",
             "beijing_date":target_jc_day or target or captured.astimezone(BJ).date().isoformat(),
              "jc_sale_day_beijing":target_jc_day or captured.astimezone(BJ).date().isoformat(),
@@ -220,7 +287,8 @@ def collect(raw_map,captured,target=None,target_jc_day=None):
                                       "LIVE_007_PUBLIC_FIXTURE_HAD_HHAD_TTG_PARTIAL" if coverage["ttg_with_price"] else
                                       "LIVE_007_PUBLIC_FIXTURE_AND_HAD_HHAD_ONLY"),
                                  "cp_ttg_status":cp_state,
-                                 "urls":{**FEEDS,**({"cp_ttg":cp_ttg.CP_TTG_URL} if "cp_ttg" in raw_map else {})},
+                                 "urls":{**FEEDS,**({"cp_ttg":cp_ttg.CP_TTG_URL} if "cp_ttg" in raw_map else {}),
+                                         **({"cp_had":cp_ttg.CP_HAD_URL} if "cp_had" in raw_map else {})},
                                  "sha256":{k:hashlib.sha256(v).hexdigest() for k,v in raw_map.items()},
                                  "coverage":coverage},
             "games":games}
@@ -314,26 +382,31 @@ def main():
         date.fromisoformat(args.jc_sale_day)
         if args.target_date:raise ValueError("MIXED_KICKOFF_AND_JC_DAY_FILTERS")
     start=datetime.now(timezone.utc)
-    raw={k:fetch(v) for k,v in FEEDS.items()}
-    try:
-        raw["cp_ttg"]=cp_ttg.fetch_cp_ttg()
-    except (OSError,ValueError,RuntimeError) as exc:
-        print("FOOTBALL_CP_TTG_FETCH_UNAVAILABLE",type(exc).__name__,str(exc)[:180])
+    sources={**FEEDS,"cp_ttg":cp_ttg.CP_TTG_URL,"cp_had":cp_ttg.CP_HAD_URL}
+    raw={}
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        pending={k:pool.submit(cp_ttg.fetch_cp_page,v) if k.startswith("cp_") else pool.submit(fetch,v)
+                 for k,v in sources.items()}
+        for key,future in pending.items():
+            try:raw[key]=future.result()
+            except (OSError,ValueError,RuntimeError) as exc:
+                print("FOOTBALL_SOURCE_FETCH_UNAVAILABLE",key,type(exc).__name__,str(exc)[:180])
     # Use collection completion as the as-of boundary; never claim a quote
     # fetched after kickoff existed at the earlier request start.
     completed=datetime.now(timezone.utc)
+    scope=args.jc_sale_day or completed.astimezone(BJ).date().isoformat()
     folder=Path(args.raw_dir);folder.mkdir(parents=True,exist_ok=True)
     for key,data in raw.items():
-        ext=".html.gz" if key=="cp_ttg" else ".txt.gz"
+        ext=".html.gz" if key.startswith("cp_") else ".txt.gz"
         (folder/(key+ext)).write_bytes(gzip.compress(data,mtime=0))
     # Archive actual source bytes before fixture filtering or model parsing:
     # even a source format change or zero verified fixtures must not erase raw evidence.
     (folder/"manifest.json").write_text(json.dumps({
+        "jc_sale_day_beijing":scope,
         "capture_started_at_utc":start.isoformat(),
         "capture_completed_at_utc":completed.isoformat(),
-        "sources":{k:{"url":(cp_ttg.CP_TTG_URL if k=="cp_ttg" else FEEDS[k]),"sha256":hashlib.sha256(v).hexdigest(),
+        "sources":{k:{"url":sources[k],"sha256":hashlib.sha256(v).hexdigest(),
                       "bytes":len(v)} for k,v in raw.items()}},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    scope=args.jc_sale_day or completed.astimezone(BJ).date().isoformat()
     snapshot=collect(raw,completed,args.target_date,scope)
     snapshot["source_provenance"]["capture_started_at_utc"]=start.isoformat()
     feature_coverage=enrich_analysis(snapshot,folder)

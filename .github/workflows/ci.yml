@@ -75,6 +75,7 @@ jobs:
 
       - name: Verify fail-closed market policy, probability calibration gate and delivery contract
         run: |
+          python3 -B -m unittest discover -s tests -p test_007_cp_chain_regressions.py -v
           python3 analysis/nba_calibration_evidence.py
           python3 -m py_compile analysis/nba_independent_predictions.py
           python3 analysis/market_value_policy.py --self-test

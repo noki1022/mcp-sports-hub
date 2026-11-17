@@ -485,6 +485,7 @@ jobs:
               output.write_text(json.dumps({'state':status['state'],'target_date':os.environ['TARGET_DATE'],
                   'slot':os.environ['REPORT_SLOT'],'run_id':os.environ['GITHUB_RUN_ID'],
                   'message_id':status.get('message_id'),'games_considered':status.get('games_considered'),
+                  'accepted_at_utc':status.get('accepted_at_utc'),'content_quality':status.get('content_quality'),
                   'preview_sha256':sha256(preview.read_bytes()).hexdigest()})+'\n')
               print('PUSHPLUS_SLOT_MARKED',output)
           PY
@@ -520,6 +521,7 @@ jobs:
             nba_market_consensus_status.json
             nba_market_consensus.json
             nba_jingcai_three_market.json
+            nba_jingcai_cp_source.json
             nba_five_market_forecast.json
             nba_five_market_integrity.json
             nba_analysis_sop.json

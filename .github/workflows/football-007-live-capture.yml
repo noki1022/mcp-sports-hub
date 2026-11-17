@@ -315,10 +315,8 @@ jobs:
           path: football-output
       - name: Persist immutable football-only raw evidence in GitHub Release assets
         run: |
-          test -s football-output/raw/fixtures.txt.gz
-          test -s football-output/raw/jc_odds.txt.gz
           test -s football-output/raw/manifest.json
-          bj_day="$(python3 -c 'import datetime,json; d=json.load(open("football-output/football_007_snapshot.json"))["jc_sale_day_beijing"]; datetime.date.fromisoformat(d); print(d.replace("-",""))')"
+          bj_day="$(python3 -c 'import datetime,json,pathlib; p=pathlib.Path("football-output/football_007_snapshot.json"); p=p if p.exists() else pathlib.Path("football-output/raw/manifest.json"); d=json.loads(p.read_text())["jc_sale_day_beijing"]; datetime.date.fromisoformat(d); print(d.replace("-",""))')"
           tag="football-007-raw-$bj_day"
           archive="football-007-raw-$bj_day-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}.zip"
           zip -q -r "$archive" football-output/

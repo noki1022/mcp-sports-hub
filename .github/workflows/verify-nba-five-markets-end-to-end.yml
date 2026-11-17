@@ -124,10 +124,47 @@ jobs:
                 labels['verified'],'VERIFIED',
                 labels['total_games']-labels['verified'],'UNVERIFIED')
           PY
+      - name: Replay current CP prices through the archived five-market model without sending
+        run: |
+          PYTHONPATH=scripts:analysis python3 - <<'PY'
+          import json
+          from datetime import datetime,timedelta
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          from nba_007_cp_markets import capture
+          from nba_five_markets import make
+          from nba_injury_prerequisite import gate
+          from nba_five_market_integrity_gate import verify
+          from pushplus_five_compact import render_compact,report_title
+          day=(datetime.now(ZoneInfo('Asia/Shanghai')).date()+timedelta(days=1)).isoformat()
+          folders=sorted(Path('reports/daily',day).glob('[0-9][0-9]00'))
+          if not folders:raise RuntimeError('NO_CURRENT_ARCHIVED_BOARD_FOR_CP_REPLAY')
+          folder=folders[-1]
+          read=lambda name:json.loads((folder/name).read_text())
+          board=read('titan007_three_joined.json')
+          model=read('nba_model_analysis.json')
+          jc=capture(board,read('nba_jingcai_three_market.json'))
+          forecast=make(board,model,jc,{'games':[]})
+          forecast=gate(forecast,read('nba_injury_context.json'),model)
+          result=verify(board,forecast,jc)
+          if result['status']!='PASS':raise RuntimeError(str(result))
+          rows=[{**g,'five_market_forecast':g} for g in forecast['games']]
+          Path('current-cp-preview.html').write_text(render_compact(rows,{},report_title(day),day,'three'))
+          Path('current-cp-forecast.json').write_text(json.dumps(forecast,ensure_ascii=False,indent=2))
+          Path('current-cp-jingcai.json').write_text(json.dumps(jc,ensure_ascii=False,indent=2))
+          assert all(g['jingcai_number'] for g in forecast['games']), 'CURRENT_CP_NUMBERS_MISSING'
+          assert all(forecast['ready_counts'][k]==forecast['game_count'] for k in ('JINGCAI_HANDICAP','JINGCAI_TOTAL')),forecast['ready_counts']
+          print('CURRENT_CP_MODEL_RENDER_REPLAY',forecast['game_count'],forecast['ready_counts'])
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: nba-five-market-integration-verify
-          path: sampled-jingcai.json
+          path: |
+            sampled-jingcai.json
+            current-cp-preview.html
+            current-cp-forecast.json
+            current-cp-jingcai.json
+            nba_jingcai_cp_source.json
           if-no-files-found: ignore
           retention-days: 2

@@ -239,7 +239,7 @@ def review_evidence(releases, nba_root, now, grace_minutes):
 
 
 def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=180,
-          priority_jobs=None, nba_receipts=None, nba_reviews_root=None):
+          priority_jobs=None, nba_receipts=None, nba_reviews_root=None, nba_quality=None):
     now = now.astimezone(timezone.utc)
     slots = sorted(expected_slots(now, horizon_hours, grace_minutes),
                    key=lambda x: (x["planned"], x["workflow"]))
@@ -273,6 +273,10 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
                                     if str(r["id"]) == str(nba_receipt.get("run_id"))), None)
         receipt = (f"football-push-{day}-{slot_code}.accepted.json" in names
                    if slot["workflow"] == FOOTBALL else accepted_run_id is not None)
+        quality=(nba_quality or {}).get(((local.date()+timedelta(days=1)).isoformat(),slot_code)) if slot["workflow"]==NBA_DAY else None
+        delivery_delay=None
+        if nba_receipt and nba_receipt.get("accepted_at_utc"):
+            delivery_delay=round((when(nba_receipt["accepted_at_utc"])-slot["planned"]).total_seconds(),1)
         # Evaluate all declared attempts. Prefer the run named by the receipt,
         # then the earliest successful attempt, while keeping every attempt visible.
         run, lag = min(attempts, key=lambda item: (
@@ -284,6 +288,7 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
                           "attempts": [{"run_id": r["id"], "conclusion": r.get("conclusion"),
                                         "delay_minutes": delay} for r, delay in attempts],
                           "pushplus_api_receipt": "ACCEPTED" if receipt else "NOT_OBSERVED",
+                          "content_quality":quality,"delivery_delay_seconds":delivery_delay,
                           "schedule_delay_minutes": lag,
                           "recovered_via_workflow_dispatch": bool(run and run.get("event") == "workflow_dispatch"),
                           "cron_verified_from_run_name": bool(run and advertised_cron(run))})
@@ -292,6 +297,13 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
                              "workflow": slot["workflow"], "slot": slot["slot_beijing"]})
             continue
         found.append(run["id"])
+        if quality:
+            if quality["missing_jingcai_numbers"] or quality["missing_jingcai_directions"]:
+                problems.append({"severity":"critical","code":"NBA_JINGCAI_CONTENT_INCOMPLETE",
+                    "workflow":slot["workflow"],"slot":slot["slot_beijing"],"content_quality":quality})
+            if quality["provisional_injury_games"]:
+                problems.append({"severity":"warning","code":"NBA_INJURY_MODEL_PROVISIONAL",
+                    "workflow":slot["workflow"],"slot":slot["slot_beijing"]})
         state, conclusion = run.get("status"), run.get("conclusion")
         if state != "completed" or conclusion != "success":
             problems.append({"severity": "critical", "code": "RUN_NOT_SUCCESSFUL",
@@ -405,6 +417,7 @@ def main():
                 raise ValueError("BAD_PRIORITY_JOB_RESPONSE")
             priority_jobs[filename.stem] = data["jobs"]
     nba_receipts = {}
+    nba_quality = {}
     if args.nba_receipts_root:
         for slot in expected_slots(now, args.horizon_hours, args.grace_minutes):
             if slot["workflow"] != NBA_DAY:
@@ -417,8 +430,12 @@ def main():
                 if (receipt.get("state") == "API_ACCEPTED_NOT_DEVICE_CONFIRMED"
                         and receipt.get("slot") == clock and receipt.get("target_date") == day):
                     nba_receipts[day, clock] = receipt
+            forecast=args.nba_receipts_root.parent / "daily" / day / clock / "nba_five_market_forecast.json"
+            if forecast.is_file():
+                from nba_delivery_contract import content_quality
+                nba_quality[day,clock]=content_quality(json.loads(forecast.read_text(encoding="utf-8")))
     result = audit(runs, releases, branch, now, args.horizon_hours, args.grace_minutes,
-                   priority_jobs, nba_receipts, args.nba_reviews_root)
+                   priority_jobs, nba_receipts, args.nba_reviews_root, nba_quality)
     path = Path(args.out)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")

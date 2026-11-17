@@ -114,23 +114,27 @@ def make(joined,model,jc,top10,consensus=None,history=None):
                 return selection(market,None,None,status=state,source="007_JINGCAI")
             cur=(item.get("data") or {}).get("current") or {}
             line=n(cur.get("line"))
-            if not jc_valid:
+            observed_at=item.get("captured_at_utc") or feed.get("captured_at_utc")
+            observed=when(observed_at)
+            if not jc_valid or observed is None or observed>=tip:
                 return selection(market,None,line,status="JC_PRICE_TIME_OR_GAME_ID_UNVERIFIED",source="007_JINGCAI")
             first,second=n(cur.get("first_side")),n(cur.get("second_side"))
             if first is None or second is None or not (1<first<30 and 1<second<30):
                 return selection(market,None,line,status="JC_INVALID_PRICE_PAIR",source="007_JINGCAI")
             if key=="win_lose":
-                ans=selection(market,margin,None,observed_at=feed.get("captured_at_utc"),source="007_JINGCAI")
+                ans=selection(market,margin,None,observed_at=observed_at,source="007_JINGCAI")
             else:
                 if line is None:
                     return selection(market,None,None,status="INVALID_JC_LINE",source="007_JINGCAI")
                 gap=(margin+line) if key=="handicap" and margin is not None else (
                      total-line if key=="total" and total is not None else None)
-                ans=selection(market,gap,line,observed_at=feed.get("captured_at_utc"),source="007_JINGCAI")
+                ans=selection(market,gap,line,observed_at=observed_at,source="007_JINGCAI")
+            ans["source_url"]=item.get("source_url") or feed.get("source")
             if ans["status"]=="DIRECTION_ISSUED":
                 ans["model_direction_probability"]=jc_probability(market,ans["direction"],p,line)
                 ans["raw_price_slots"]={"first":first,"second":second,
-                    "orientation":"UNVERIFIED_RAW_FIRST_SECOND"}
+                    "orientation":("OVER_UNDER" if key=="total" else "HOME_AWAY")
+                        if item.get("direction_slot_order_verified") else "UNVERIFIED_RAW_FIRST_SECOND"}
             return ans
 
         selected={"JINGCAI_WIN":jc_market("win_lose","JINGCAI_WIN"),

@@ -13,6 +13,7 @@ from datetime import datetime,timezone
 from html import escape
 import json
 import os
+import re
 from pathlib import Path
 import sys
 import urllib.error
@@ -150,13 +151,20 @@ def hourly_report(movement,model,final_window):
     body.append(footer())
     return "NBA/CBA 盘口波动｜"+str(target),"".join(body),len(significant)
 
-def parse_response(status,raw):
+def parse_response(status,raw,redactions=()):
     if status!=200:raise RuntimeError("PUSHPLUS_HTTP_NOT_200")
     try:obj=json.loads(raw.decode("utf-8"))
     except (ValueError,UnicodeDecodeError) as exc:raise RuntimeError("PUSHPLUS_RESPONSE_NOT_JSON") from exc
     if not isinstance(obj,dict):raise RuntimeError("PUSHPLUS_RESPONSE_NOT_OBJECT")
-    if obj.get("code")!=200:raise RuntimeError("PUSHPLUS_API_REJECTED_CODE_"+str(obj.get("code")))
+    if obj.get("code")!=200:
+        message=str(obj.get("msg") or obj.get("message") or "NO_PROVIDER_MESSAGE")
+        for value in redactions:
+            if value:message=message.replace(value,"[REDACTED]")
+        message=re.sub(r"https?://\S+|[A-Za-z0-9_-]{24,}","[REDACTED]",message)
+        message=" ".join(message.split())[:160]
+        raise RuntimeError("PUSHPLUS_API_REJECTED_CODE_"+str(obj.get("code"))+" "+message)
     return {"state":"API_ACCEPTED_NOT_DEVICE_CONFIRMED","http_status":status,"api_code":200,
+            "accepted_at_utc":datetime.now(timezone.utc).isoformat(),
             "message_id":str(obj.get("data",""))[:100] if obj.get("data") is not None else None}
 
 def send(payload,token):
@@ -171,7 +179,7 @@ def send(payload,token):
     try:
         with urllib.request.urlopen(req,timeout=18) as res:
             raw=res.read(8192)
-            return parse_response(res.status,raw)
+            return parse_response(res.status,raw,(token,))
     except urllib.error.HTTPError as exc:
         raise RuntimeError("PUSHPLUS_HTTP_ERROR_"+str(exc.code)) from None
     except urllib.error.URLError as exc:
@@ -315,6 +323,9 @@ def main():
     html="<div style='"+style()+"max-width:560px;margin:0 auto;'>"+html+"</div>"
     Path(args.preview).write_text(html,encoding="utf-8")
     state={"mode":args.mode,"games_considered":count,"template":"html","preview":args.preview}
+    if args.five:
+        from nba_delivery_contract import content_quality
+        state["content_quality"]=content_quality(five_doc)
     if count==0:
         state.update(state="SKIPPED_NO_RELEVANT_GAMES")
     elif not args.send:
@@ -326,7 +337,9 @@ def main():
             save_status(args.status,state)
             raise RuntimeError("PUSHPLUS_TOKEN_NOT_CONFIGURED")
     else:
-        try:state.update(send({"title":title,"html":html},os.environ["PUSHPLUS_TOKEN"]))
+        try:
+            state.update(send({"title":title,"html":html},os.environ["PUSHPLUS_TOKEN"]))
+            state["accepted_at_utc"]=datetime.now(timezone.utc).isoformat()
         except Exception as exc:
             state.update(state="SEND_FAILED",reason=str(exc)[:120])
             save_status(args.status,state)

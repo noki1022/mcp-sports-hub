@@ -188,6 +188,15 @@ def render_compact(games, model_map, title, target, mode, snapshot_utc=None, off
         "<div style='font-size:12px;color:#5f7085;'>共 " + str(len(rows)) +
         " 场" + esc(stamp) + (" · 模拟" if synthetic else "") + "</div></div>"
     )
+    from nba_delivery_contract import content_quality
+    quality=content_quality({"games":[g.get("five_market_forecast") or {} for g in rows]})
+    if quality["status"]!="COMPLETE":
+        details=[]
+        if quality["missing_jingcai_numbers"]:details.append("竞彩编号缺"+str(quality["missing_jingcai_numbers"])+"场")
+        if quality["missing_jingcai_directions"]:details.append("竞彩判断缺"+str(quality["missing_jingcai_directions"])+"项")
+        if quality["missing_crown_directions"]:details.append("皇冠盘口缺"+str(quality["missing_crown_directions"])+"项")
+        if quality["provisional_injury_games"]:details.append("伤停影响未完成量化"+str(quality["provisional_injury_games"])+"场")
+        head+=("<div style='padding:7px 10px;color:#8a4e16;font-weight:600;'>临时研判 · "+esc("；".join(details))+"</div>")
     # First capture already carries verified official UTC fixture tipoffs.
     # Show earliest tip on every push so users need not spot an early game manually.
     tips=[]
