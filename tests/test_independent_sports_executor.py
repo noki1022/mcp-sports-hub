@@ -14,6 +14,13 @@ import plan
 import server
 
 class IndependentExecutorTests(unittest.TestCase):
+ def test_compose_keeps_live_execution_disabled_and_storage_persistent(self):
+  import yaml
+  doc=yaml.safe_load((ROOT/'services/sports_executor/compose.yaml').read_text())
+  service=doc['services']['executor']
+  self.assertEqual(service['environment']['SPORTS_EXECUTOR_LIVE'],'${SPORTS_EXECUTOR_LIVE:-0}')
+  self.assertEqual(service['ports'],['127.0.0.1:8080:8080'])
+  self.assertIn('executor-state:/var/lib/sports-executor',service['volumes'])
  def test_all_six_current_production_workflows_compile(self):
   for route in plan.WORKFLOWS:
    with self.subTest(route=route):self.assertTrue(plan.load_plan(ROOT,route)['jobs'])

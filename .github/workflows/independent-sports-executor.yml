@@ -24,6 +24,12 @@ jobs:
       - run: node scheduler/test-independent-executor.mjs
       - run: node scheduler/test-scheduler.mjs
       - run: node scheduler/test-football-scheduler.mjs
+      - name: Validate Compose deployment configuration with dummy values only
+        env:
+          SPORTS_EXECUTOR_SECRET: test-only-000000000000000000000000
+          GITHUB_TOKEN: test-only-not-a-real-token
+          PUSHPLUS_TOKEN: test-only-not-a-real-token
+        run: docker compose -f services/sports_executor/compose.yaml config --quiet
       - name: Build actual independent runtime image without any live credentials
         run: docker build -f services/sports_executor/Dockerfile -t sports-executor-candidate .
       - name: Verify container readiness and disabled cutover without sending
