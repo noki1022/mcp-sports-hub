@@ -484,6 +484,8 @@ jobs:
               if not preview.is_file():raise RuntimeError('PUSHPLUS_SENT_BUT_NO_ARCHIVED_PREVIEW')
               output.write_text(json.dumps({'state':status['state'],'target_date':os.environ['TARGET_DATE'],
                   'slot':os.environ['REPORT_SLOT'],'run_id':os.environ['GITHUB_RUN_ID'],
+                  'execution_backend':os.getenv('SPORTS_EXECUTION_BACKEND','github_actions'),
+                  'execution_id':os.getenv('SPORTS_EXECUTION_ID',os.environ['GITHUB_RUN_ID']),
                   'message_id':status.get('message_id'),'games_considered':status.get('games_considered'),
                   'accepted_at_utc':status.get('accepted_at_utc'),'content_quality':status.get('content_quality'),
                   'preview_sha256':sha256(preview.read_bytes()).hexdigest()})+'\n')

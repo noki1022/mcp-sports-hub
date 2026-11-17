@@ -1,3 +1,4 @@
+import { dispatchIndependentAt } from './independent-executor.mjs';
 /**
  * Exact-time dual-trigger scheduler. Cloudflare and GitHub BOTH schedule at
  * the canonical wall-clock minute. No delayed checks, retries, or compensatory
@@ -158,6 +159,13 @@ export default {
     const skew=Date.now()-scheduledAt;
     if(skew<0||skew>120000){
       console.error("LATE_CRON_RECORDED_NO_SEND",skew);
+      return;
+    }
+    // Independent execution is opt-in. A rejection never falls back to an
+    // Actions job, since that could enqueue stale work or duplicate a push.
+    if(env.EXECUTION_BACKEND==='independent'){
+      const results=await dispatchIndependentAt(Math.floor(scheduledAt/60000)*60000,env);
+      for(const result of results)console.log('INDEPENDENT',JSON.stringify(result));
       return;
     }
     // GitHub validates the postgame input against the scheduled UTC minute.
