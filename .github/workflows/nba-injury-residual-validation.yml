@@ -4,6 +4,7 @@ on:
     paths:
       - 'analysis/nba_injury_residual.py'
       - 'analysis/nba_injury_live_residual_audit.py'
+      - 'tests/test_nba_injury_live_residual_audit.py'
       - '.github/workflows/nba-injury-residual-validation.yml'
   workflow_dispatch:
 permissions:
@@ -21,6 +22,7 @@ jobs:
           python-version: '3.12'
       - run: pip install --quiet numpy==2.2.6 pandas==2.3.3 pyarrow==21.0.0
       - run: python3 analysis/nba_injury_residual.py --self-test
+      - run: python3 -B -m unittest discover -s tests -p test_nba_injury_live_residual_audit.py -v
       - name: Fetch historical injury archives and record exact source bytes
         run: |
           python3 - <<'PY'
