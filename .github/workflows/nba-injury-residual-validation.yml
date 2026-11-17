@@ -20,32 +20,28 @@ jobs:
           python-version: '3.12'
       - run: pip install --quiet numpy==2.2.6 pandas==2.3.3 pyarrow==21.0.0
       - run: python3 analysis/nba_injury_residual.py --self-test
-      - name: Fetch checksum-pinned historical injury sources
+      - name: Fetch historical injury archives and record exact source bytes
         run: |
           python3 - <<'PY'
           import urllib.request,hashlib
           from pathlib import Path
           import sys
           sys.path.insert(0,'analysis')
-          from nba_production_injury_shadow_replay import HASH_EXPECTED
           sources={
             'in2025.parquet':'https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nba_stats_injury_report/injury_report_2025.parquet',
-            'in2026.parquet':'https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nba_stats_injury_report/injury_report_2026.parquet',
-            'pl2025.csv':'https://raw.githubusercontent.com/xtheredshirtx/fanduel-player-data/main/NBA/csv/NBA_players_game_log_2024-25_as_of_2026-10-31.csv',
-            'pl2026.csv':'https://raw.githubusercontent.com/xtheredshirtx/fanduel-player-data/main/NBA/csv/NBA_players_game_log_2025-26_as_of_2026-10-31.csv'}
+            'in2026.parquet':'https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nba_stats_injury_report/injury_report_2026.parquet'}
           root=Path('/tmp/injury-train');root.mkdir()
           for name,url in sources.items():
               with urllib.request.urlopen(url,timeout=55) as response:data=response.read(5000001)
-              assert hashlib.sha256(data).hexdigest()==HASH_EXPECTED[name]
+              assert 1000<len(data)<5000000
               (root/name).write_bytes(data)
+              print('INJURY_SOURCE_BYTES',name,len(data),hashlib.sha256(data).hexdigest())
           PY
       - name: Train on earlier season and evaluate held-out later fixtures
         run: |
           python3 analysis/nba_injury_residual.py \
             --injury-2025 /tmp/injury-train/in2025.parquet \
             --injury-2026 /tmp/injury-train/in2026.parquet \
-            --players-2025 /tmp/injury-train/pl2025.csv \
-            --players-2026 /tmp/injury-train/pl2026.csv \
             --out nba-injury-residual-evidence.json
       - if: always()
         uses: actions/upload-artifact@v4

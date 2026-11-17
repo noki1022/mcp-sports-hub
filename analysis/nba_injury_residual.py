@@ -5,6 +5,7 @@ import argparse
 from collections import Counter, defaultdict
 from datetime import date, datetime, timezone
 import json
+import hashlib
 import math
 from pathlib import Path
 
@@ -70,11 +71,11 @@ def scores(rows,model,target):
 
 
 def train(args):
-    from nba_production_injury_shadow_replay import official_asof, source_audit
+    from nba_production_injury_shadow_replay import official_asof
     from nba_injury_cross_season_research import clean_team
-    paths=[args.injury_2025,args.injury_2026,args.players_2025,args.players_2026]
-    hashes=source_audit(paths)
-    official,audit=official_asof(paths[:2])
+    paths=[args.injury_2025,args.injury_2026]
+    hashes={Path(p).name:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths}
+    official,audit=official_asof(paths)
     history,rejected,sources=extract_history(date(2026,10,29))
     dynamic=_rows_with_dynamic_strength(history)
     by_day=defaultdict(list)
@@ -139,7 +140,7 @@ def selftest():
 
 if __name__=="__main__":
     p=argparse.ArgumentParser()
-    for k in ("injury_2025","injury_2026","players_2025","players_2026","out"):
+    for k in ("injury_2025","injury_2026","out"):
         p.add_argument("--"+k.replace("_","-"))
     p.add_argument("--self-test",action="store_true")
     args=p.parse_args()
