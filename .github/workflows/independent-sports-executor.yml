@@ -1,0 +1,59 @@
+name: Independent sports executor candidate validation
+on:
+  pull_request:
+    paths:
+      - 'services/sports_executor/**'
+      - 'scheduler/**'
+      - 'tests/test_independent_sports_executor.py'
+      - '.github/workflows/independent-sports-executor.yml'
+permissions:
+  contents: read
+jobs:
+  bounded-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet PyYAML==6.0.2
+      - run: python3 -B -m unittest discover -s tests -p test_independent_sports_executor.py -v
+      - run: node scheduler/test-independent-executor.mjs
+      - run: node scheduler/test-scheduler.mjs
+      - run: node scheduler/test-football-scheduler.mjs
+      - name: Validate Compose deployment configuration with dummy values only
+        env:
+          SPORTS_EXECUTOR_SECRET: test-only-000000000000000000000000
+          GITHUB_TOKEN: test-only-not-a-real-token
+          PUSHPLUS_TOKEN: test-only-not-a-real-token
+        run: docker compose -f services/sports_executor/compose.yaml config --quiet
+      - name: Build actual independent runtime image without any live credentials
+        run: docker build -f services/sports_executor/Dockerfile -t sports-executor-candidate .
+      - name: Verify container readiness and disabled cutover without sending
+        run: |
+          docker run -d --name sports-executor-candidate -p 127.0.0.1:18731:8080 sports-executor-candidate
+          for n in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:18731/health > executor-readiness.json; then break; fi
+            sleep 1
+          done
+          python3 - <<'PY'
+          import json
+          d=json.load(open('executor-readiness.json'))
+          assert d['ready'] is True,d
+          assert d['live_enabled'] is False,d
+          assert d['cutover_ready'] is False,d
+          assert d['send_retry_enabled'] is False,d
+          assert set(d['plans'].values())=={'SUPPORTED'},d
+          print('INDEPENDENT_CONTAINER_REAL_READINESS_NO_LIVE_SEND',d)
+          PY
+      - if: always()
+        run: docker rm -f sports-executor-candidate || true
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: independent-executor-readiness
+          path: executor-readiness.json
+          if-no-files-found: ignore

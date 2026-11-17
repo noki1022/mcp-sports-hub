@@ -184,7 +184,9 @@ def send(payload,token):
     if len(data)>MAX_BYTES:raise ValueError("PUSHPLUS_PAYLOAD_TOO_LARGE")
     metadata={"requested_at_utc":datetime.now(timezone.utc).isoformat(),"request_bytes":len(data),
         "content_chars":len(payload["html"]),"title_chars":len(payload["title"]),
-        "content_sha256":hashlib.sha256(payload["html"].encode()).hexdigest(),"channel":"wechat"}
+        "content_sha256":hashlib.sha256(payload["html"].encode()).hexdigest(),"channel":"wechat",
+        "execution_backend":os.getenv("SPORTS_EXECUTION_BACKEND","github_actions"),
+        "execution_id":os.getenv("SPORTS_EXECUTION_ID",os.getenv("GITHUB_RUN_ID",""))}
     req=urllib.request.Request(ENDPOINT,data=data,headers={
         "Content-Type":"application/json; charset=utf-8","Accept":"application/json"
     },method="POST")

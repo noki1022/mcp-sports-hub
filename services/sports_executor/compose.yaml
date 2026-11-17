@@ -1,0 +1,18 @@
+services:
+  executor:
+    build:
+      context: ../..
+      dockerfile: services/sports_executor/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      SPORTS_EXECUTOR_WARM_CACHE: "1"
+      SPORTS_EXECUTOR_LIVE: "${SPORTS_EXECUTOR_LIVE:-0}"
+      SPORTS_EXECUTOR_SECRET: "${SPORTS_EXECUTOR_SECRET:?Required}"
+      GITHUB_TOKEN: "${GITHUB_TOKEN:?Required}"
+      PUSHPLUS_TOKEN: "${PUSHPLUS_TOKEN:?Required}"
+    volumes:
+      - executor-state:/var/lib/sports-executor
+volumes:
+  executor-state:

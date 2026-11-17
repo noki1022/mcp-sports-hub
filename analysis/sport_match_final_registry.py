@@ -6,6 +6,7 @@ same run. Only an already-created pre-kickoff answer can become the per-match
 final after kickoff. Never rerun a model against a final score or a later quote.
 """
 from __future__ import annotations
+import os
 import argparse
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -114,6 +115,8 @@ def make_candidate(sport,snapshot,forecast,run_id,slot=""):
             "home_id":home_id,"away_id":away_id,
             "kickoff_utc":tip.isoformat(),"capture_utc":captured.isoformat(),
             "generated_utc":generated.isoformat(),"run_id":str(run_id),
+            "execution_backend":os.getenv("SPORTS_EXECUTION_BACKEND","github_actions"),
+            "execution_id":os.getenv("SPORTS_EXECUTION_ID",str(run_id)),
             "planned_slot_beijing":str(slot),"model_version":forecast.get("model_version") or forecast.get("schema_version"),
             "source_snapshot_sha256":digest(snapshot),"forecast_sha256":digest(forecast),
             "markets":checked}
@@ -140,7 +143,9 @@ def make_candidate(sport,snapshot,forecast,run_id,slot=""):
         records.append(record)
     require(len(seen)==len(originals),"MISSING_FIXTURE_FORECAST")
     bundle={"schema_version":SCHEMA,"sport":sport,"run_id":str(run_id),
-            "records":records,"skipped":skipped,"total_source_games":len(originals)}
+            "records":records,"skipped":skipped,"total_source_games":len(originals),
+            "execution_backend":os.getenv("SPORTS_EXECUTION_BACKEND","github_actions"),
+            "execution_id":os.getenv("SPORTS_EXECUTION_ID",str(run_id))}
     bundle["bundle_sha256"]=digest(bundle)
     return bundle
 
