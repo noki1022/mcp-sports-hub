@@ -209,6 +209,10 @@ if __name__=="__main__":
         Path(a.preview).write_text(h,encoding="utf-8")
         state={"date":obj["beijing_date"],"games":len(obj["games"]),"state":"DRY_RUN_NOT_SENT"}
         if a.send:
-            state.update(send({"title":"NBA 竞彩+皇冠五玩法复盘｜"+obj["beijing_date"],"html":h},os.environ.get("PUSHPLUS_TOKEN","")))
+            from pushplus_mobile import PushPlusSendError
+            try:state.update(send({"title":"NBA 竞彩+皇冠五玩法复盘｜"+obj["beijing_date"],"html":h},os.environ.get("PUSHPLUS_TOKEN","")))
+            except PushPlusSendError as exc:
+                Path(a.status).write_text(json.dumps({**state,**exc.details},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+                raise
         Path(a.status).write_text(json.dumps(state,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         print("NBA_FIVE_MARKET_PUSHPLUS",state["state"],state["games"])

@@ -138,7 +138,7 @@ def train(args):
         "partition":{"fit":len(fit_rows),"validation":len(validation),"test":len(test)},
         "historical_publication_clock_independently_verified":False,
         "test_season_previously_used_in_research":True,
-        "individual_player_values_estimated":False,"models":{}}
+        "individual_player_values_estimated":False,"release_approved":False,"production_modified":False,"models":{}}
     if player_history:
         evidence.update(feature_names=["away_minus_home_expected_absent_minutes_over40","both_expected_absent_minutes_over40"],
             playing_probabilities_learned_before="2025-02-01",playing_probabilities=playing_probability,
@@ -147,7 +147,7 @@ def train(args):
         model=fit(fit_rows,target)
         earlier=scores(validation,model,target)
         later=scores(test,model,target)
-        useful=earlier["injury_mae"]<earlier["base_mae"] and later["injury_mae"]<later["base_mae"]
+        useful=all(v["base_mae"]-v["injury_mae"]>=.1 for v in (earlier,later))
         if target=="margin":
             useful=useful and earlier["injury_brier"]<earlier["base_brier"] and later["injury_brier"]<later["base_brier"]
         evidence["models"][target]={**model,"validation_metrics":earlier,"test_metrics":later,

@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'analysis/nba_injury_residual.py'
+      - 'analysis/nba_injury_live_residual_audit.py'
       - '.github/workflows/nba-injury-residual-validation.yml'
   workflow_dispatch:
 permissions:
@@ -58,4 +59,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nba-injury-residual-evidence
-          path: nba-injury-residual-evidence.json
+          path: |
+            nba-injury-residual-evidence.json
+            nba-injury-live-residual-audit.json
+      - name: Verify actual live prior-player feature coverage without sending or changing forecasts
+        run: python3 analysis/nba_injury_live_residual_audit.py --candidate nba-injury-residual-evidence.json --out nba-injury-live-residual-audit.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-injury-live-feature-evidence
+          path: nba-injury-live-residual-audit.json
