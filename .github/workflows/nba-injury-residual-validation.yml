@@ -23,7 +23,7 @@ jobs:
       - name: Fetch historical injury archives and record exact source bytes
         run: |
           python3 - <<'PY'
-          import urllib.request,hashlib
+          import urllib.request,hashlib,json,re
           from pathlib import Path
           import sys
           sys.path.insert(0,'analysis')
@@ -36,12 +36,23 @@ jobs:
               assert 1000<len(data)<5000000
               (root/name).write_bytes(data)
               print('INJURY_SOURCE_BYTES',name,len(data),hashlib.sha256(data).hexdigest())
+          with urllib.request.urlopen('https://api.github.com/repos/xtheredshirtx/fanduel-player-data/contents/NBA/csv',timeout=25) as response:
+              listing=json.load(response)
+          for year,season in ((2025,'2024-25'),(2026,'2025-26')):
+              matched=[r for r in listing if re.fullmatch('NBA_players_game_log_'+season+r'_as_of_\d{4}-\d{2}-\d{2}\.csv',r['name'])]
+              latest=max(matched,key=lambda r:r['name'])
+              with urllib.request.urlopen(latest['download_url'],timeout=40) as response:data=response.read(5000001)
+              assert 1000<len(data)<5000000
+              (root/f'pl{year}.csv').write_bytes(data)
+              print('PLAYER_SOURCE_BYTES',latest['name'],hashlib.sha256(data).hexdigest())
           PY
       - name: Train on earlier season and evaluate held-out later fixtures
         run: |
           python3 analysis/nba_injury_residual.py \
             --injury-2025 /tmp/injury-train/in2025.parquet \
             --injury-2026 /tmp/injury-train/in2026.parquet \
+            --players-2025 /tmp/injury-train/pl2025.csv \
+            --players-2026 /tmp/injury-train/pl2026.csv \
             --out nba-injury-residual-evidence.json
       - if: always()
         uses: actions/upload-artifact@v4

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import bisect
 from collections import Counter, defaultdict
 from datetime import date, datetime, timezone
 import json
@@ -71,11 +72,27 @@ def scores(rows,model,target):
 
 
 def train(args):
-    from nba_production_injury_shadow_replay import official_asof
+    from nba_production_injury_shadow_replay import official_asof, player_prior
     from nba_injury_cross_season_research import clean_team
     paths=[args.injury_2025,args.injury_2026]
     hashes={Path(p).name:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths}
     official,audit=official_asof(paths)
+    player_history={}
+    playing_probability={}
+    if args.players_2025 and args.players_2026:
+        player_paths=[args.players_2025,args.players_2026]
+        player_history,player_audit=player_prior(player_paths)
+        hashes.update({Path(p).name:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in player_paths})
+        attendance=defaultdict(list)
+        for (day,home,away),teams in official.items():
+            if day>="2025-02-01":continue
+            for team,players in teams.items():
+                for pid,status in players:
+                    rows=player_history.get((team,pid),[])
+                    before=[r for r in rows if r[0]<day]
+                    if len(before)>=3:attendance[status].append(any(r[0]==day for r in rows))
+        playing_probability={s:float(np.mean(v)) for s,v in attendance.items()}
+        if set(playing_probability)!=set(STATUSES):raise ValueError("STATUS_ATTENDANCE_TRAINING_INCOMPLETE")
     history,rejected,sources=extract_history(date(2026,10,29))
     dynamic=_rows_with_dynamic_strength(history)
     by_day=defaultdict(list)
@@ -86,7 +103,20 @@ def train(args):
         teams=official[key]
         home=[{"status":s} for pid,s in teams[key[1]]]
         away=[{"status":s} for pid,s in teams[key[2]]]
-        by_day[row["date"]].append((row,vector(home,away)))
+        x=vector(home,away)
+        if player_history:
+            unavailable={}
+            for team,players in teams.items():
+                minutes=0.
+                for pid,status in players:
+                    previous=player_history.get((team,pid),[])
+                    pos=bisect.bisect_left([p[0] for p in previous],row["date"])
+                    if pos<3:continue
+                    prior=previous[max(0,pos-8):pos]
+                    minutes+=(1-playing_probability[status])*sum(p[1] for p in prior)/len(prior)
+                unavailable[team]=minutes
+            x=[(unavailable[key[2]]-unavailable[key[1]])/40.,(unavailable[key[2]]+unavailable[key[1]])/40.]
+        by_day[row["date"]].append((row,x))
     samples=[]
     for day in sorted(by_day):
         fits,cal,metadata=_fit_production_model(dynamic,date.fromisoformat(day))
@@ -109,6 +139,10 @@ def train(args):
         "historical_publication_clock_independently_verified":False,
         "test_season_previously_used_in_research":True,
         "individual_player_values_estimated":False,"models":{}}
+    if player_history:
+        evidence.update(feature_names=["away_minus_home_expected_absent_minutes_over40","both_expected_absent_minutes_over40"],
+            playing_probabilities_learned_before="2025-02-01",playing_probabilities=playing_probability,
+            feature_mode="PRIOR_SAME_TEAM_MINUTES_TIMES_LEARNED_ABSENCE")
     for target in ("margin","total"):
         model=fit(fit_rows,target)
         earlier=scores(validation,model,target)
@@ -140,7 +174,7 @@ def selftest():
 
 if __name__=="__main__":
     p=argparse.ArgumentParser()
-    for k in ("injury_2025","injury_2026","out"):
+    for k in ("injury_2025","injury_2026","players_2025","players_2026","out"):
         p.add_argument("--"+k.replace("_","-"))
     p.add_argument("--self-test",action="store_true")
     args=p.parse_args()
