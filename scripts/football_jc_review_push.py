@@ -15,7 +15,7 @@ from sport_match_final_review_html import render, result_score
 from football_jc_final_2130 import BJ
 from sports_postgame_slot import validate
 from football_jc_slot_push import payload_size
-from pushplus_mobile import MAX_BYTES, save_status, send
+from pushplus_mobile import MAX_BYTES, save_status, send, PushPlusSendError
 
 
 def prepare(archive, day, repo, token):
@@ -64,7 +64,12 @@ def main():
                  os.environ["GITHUB_REF"], os.getenv("POSTGAME_CRON", ""))
         if args.day != now.date() - timedelta(days=1):
             raise ValueError("FOOTBALL_REVIEW_IS_NOT_FOR_YESTERDAY")
-        response = send(payload, token)
+        try:response = send(payload, token)
+        except PushPlusSendError as exc:
+            failed=args.receipt.with_name(args.receipt.name.replace(".accepted.json",".failed.json"))
+            save_status(failed,{**exc.details,"review_day_beijing":args.day.isoformat(),
+                "scheduled_slot_beijing":"13:00","run_id":os.environ["GITHUB_RUN_ID"]})
+            raise
         save_status(args.receipt, {
             **response,
             "review_day_beijing": args.day.isoformat(),

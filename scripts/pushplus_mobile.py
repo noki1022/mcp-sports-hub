@@ -9,6 +9,7 @@ WeChat's conservative renderer, readable at 320px. Dry-run needs no secrets.
 from __future__ import annotations
 
 import argparse
+import hashlib
 from datetime import datetime,timezone
 from html import escape
 import json
@@ -151,6 +152,12 @@ def hourly_report(movement,model,final_window):
     body.append(footer())
     return "NBA/CBA 盘口波动｜"+str(target),"".join(body),len(significant)
 
+class PushPlusSendError(RuntimeError):
+    def __init__(self,message,details):
+        super().__init__(message)
+        self.details=details
+
+
 def parse_response(status,raw,redactions=()):
     if status!=200:raise RuntimeError("PUSHPLUS_HTTP_NOT_200")
     try:obj=json.loads(raw.decode("utf-8"))
@@ -162,7 +169,9 @@ def parse_response(status,raw,redactions=()):
             if value:message=message.replace(value,"[REDACTED]")
         message=re.sub(r"https?://\S+|[A-Za-z0-9_-]{24,}","[REDACTED]",message)
         message=" ".join(message.split())[:160]
-        raise RuntimeError("PUSHPLUS_API_REJECTED_CODE_"+str(obj.get("code"))+" "+message)
+        raise PushPlusSendError("PUSHPLUS_API_REJECTED_CODE_"+str(obj.get("code"))+" "+message,
+            {"state":"SEND_FAILED","http_status":status,"api_code":obj.get("code"),
+             "provider_message":message,"response_sha256":hashlib.sha256(raw).hexdigest()})
     return {"state":"API_ACCEPTED_NOT_DEVICE_CONFIRMED","http_status":status,"api_code":200,
             "accepted_at_utc":datetime.now(timezone.utc).isoformat(),
             "message_id":str(obj.get("data",""))[:100] if obj.get("data") is not None else None}
@@ -173,20 +182,30 @@ def send(payload,token):
                      "content":payload["html"],"template":TEMPLATE,
                      "channel":"wechat"},ensure_ascii=False).encode("utf-8")
     if len(data)>MAX_BYTES:raise ValueError("PUSHPLUS_PAYLOAD_TOO_LARGE")
+    metadata={"requested_at_utc":datetime.now(timezone.utc).isoformat(),"request_bytes":len(data),
+        "content_chars":len(payload["html"]),"title_chars":len(payload["title"]),
+        "content_sha256":hashlib.sha256(payload["html"].encode()).hexdigest(),"channel":"wechat"}
     req=urllib.request.Request(ENDPOINT,data=data,headers={
         "Content-Type":"application/json; charset=utf-8","Accept":"application/json"
     },method="POST")
     try:
         with urllib.request.urlopen(req,timeout=18) as res:
             raw=res.read(8192)
-            return parse_response(res.status,raw,(token,))
+            return {**metadata,**parse_response(res.status,raw,(token,))}
+    except PushPlusSendError as exc:
+        exc.details.update(metadata)
+        raise
     except urllib.error.HTTPError as exc:
-        raise RuntimeError("PUSHPLUS_HTTP_ERROR_"+str(exc.code)) from None
-    except urllib.error.URLError as exc:
-        raise RuntimeError("PUSHPLUS_NETWORK_FAILURE") from None
+        raise PushPlusSendError("PUSHPLUS_HTTP_ERROR_"+str(exc.code),
+            {**metadata,"state":"SEND_FAILED","http_status":exc.code}) from None
+    except (urllib.error.URLError, TimeoutError):
+        raise PushPlusSendError("PUSHPLUS_NETWORK_FAILURE",
+            {**metadata,"state":"SEND_OUTCOME_UNKNOWN","failure_type":"NETWORK_OR_TIMEOUT"}) from None
 
 def save_status(path,obj):
-    Path(path).write_text(json.dumps(obj,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    path=Path(path)
+    path.parent.mkdir(parents=True,exist_ok=True)
+    path.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
 
 def main():
     a=argparse.ArgumentParser()
@@ -295,7 +314,9 @@ def main():
         focus=read(args.priority_focus) if args.priority_focus else None
         if focus is not None and (args.mode!="three" or focus.get("slot") not in ("2130","0630")):
             raise RuntimeError("INVALID_PRIORITY_FOCUS_REPORT")
-        html=render_compact(rows,model,title,joined.get("requested_display_date") if args.mode=="three" else movement.get("target_date"),args.mode,official_fixtures=(joined if args.mode=="three" else window).get("upcoming_nba_games"))
+        html=render_compact(rows,model,title,joined.get("requested_display_date") if args.mode=="three" else movement.get("target_date"),args.mode,
+            snapshot_utc=(joined if args.mode=="three" else movement).get("captured_at_utc"),
+            official_fixtures=(joined if args.mode=="three" else window).get("upcoming_nba_games"))
     if args.overnight_audit:
         if args.mode!="three" or not args.priority_focus or focus.get("slot")!="0630":
             raise RuntimeError("OVERNIGHT_AUDIT_ONLY_FOR_0630")
@@ -342,6 +363,7 @@ def main():
             state["accepted_at_utc"]=datetime.now(timezone.utc).isoformat()
         except Exception as exc:
             state.update(state="SEND_FAILED",reason=str(exc)[:120])
+            if isinstance(exc,PushPlusSendError):state.update(exc.details)
             save_status(args.status,state)
             raise
     save_status(args.status,state)

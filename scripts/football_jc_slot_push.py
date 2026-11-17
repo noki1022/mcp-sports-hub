@@ -13,7 +13,7 @@ import football_forecast_contract as contract
 import football_jc_final_2130 as final
 import football_jc_report as report
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-from pushplus_mobile import send, MAX_BYTES
+from pushplus_mobile import send, MAX_BYTES, PushPlusSendError, save_status
 
 def prepare(forecast,mode,lock=None,comparison=None,daytime_slot=None,movement=None):
     if not contract.compatible(forecast):
@@ -100,7 +100,11 @@ def cli():
             "payload_sha256":hashlib.sha256(payload["html"].encode()).hexdigest()}
     if a.send:
         if not token:raise ValueError("FOOTBALL_PUSHPLUS_TOKEN_MISSING")
-        response=send(payload,token)
+        try:response=send(payload,token)
+        except PushPlusSendError as exc:
+            status.update(status="SEND_FAILED",api_response=exc.details)
+            save_status(a.status_out,status)
+            raise
         status.update(status="API_ACCEPTED_NOT_DEVICE_CONFIRMED",api_response=response)
     path=Path(a.status_out);path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(status,ensure_ascii=False,indent=2)+"\n","utf-8")

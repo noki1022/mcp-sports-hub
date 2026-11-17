@@ -136,7 +136,8 @@ jobs:
           from nba_injury_prerequisite import gate
           from nba_five_market_integrity_gate import verify
           from pushplus_five_compact import render_compact,report_title
-          day=(datetime.now(ZoneInfo('Asia/Shanghai')).date()+timedelta(days=1)).isoformat()
+          local=datetime.now(ZoneInfo('Asia/Shanghai'))
+          day=(local.date()+timedelta(days=int(local.hour>=12))).isoformat()
           folders=sorted(Path('reports/daily',day).glob('[0-9][0-9]00'))
           if not folders:raise RuntimeError('NO_CURRENT_ARCHIVED_BOARD_FOR_CP_REPLAY')
           folder=folders[-1]

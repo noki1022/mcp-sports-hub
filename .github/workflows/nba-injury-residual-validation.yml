@@ -1,0 +1,73 @@
+name: Verify trained injury residual on chronological production-model pairs
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_injury_residual.py'
+      - 'analysis/nba_injury_live_residual_audit.py'
+      - 'tests/test_nba_injury_live_residual_audit.py'
+      - '.github/workflows/nba-injury-residual-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  train-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy==2.2.6 pandas==2.3.3 pyarrow==21.0.0
+      - run: python3 analysis/nba_injury_residual.py --self-test
+      - run: python3 -B -m unittest discover -s tests -p test_nba_injury_live_residual_audit.py -v
+      - name: Fetch historical injury archives and record exact source bytes
+        run: |
+          python3 - <<'PY'
+          import urllib.request,hashlib,json,re
+          from pathlib import Path
+          import sys
+          sys.path.insert(0,'analysis')
+          sources={
+            'in2025.parquet':'https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nba_stats_injury_report/injury_report_2025.parquet',
+            'in2026.parquet':'https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nba_stats_injury_report/injury_report_2026.parquet'}
+          root=Path('/tmp/injury-train');root.mkdir()
+          for name,url in sources.items():
+              with urllib.request.urlopen(url,timeout=55) as response:data=response.read(5000001)
+              assert 1000<len(data)<5000000
+              (root/name).write_bytes(data)
+              print('INJURY_SOURCE_BYTES',name,len(data),hashlib.sha256(data).hexdigest())
+          with urllib.request.urlopen('https://api.github.com/repos/xtheredshirtx/fanduel-player-data/contents/NBA/csv',timeout=25) as response:
+              listing=json.load(response)
+          for year,season in ((2025,'2024-25'),(2026,'2025-26')):
+              matched=[r for r in listing if re.fullmatch('NBA_players_game_log_'+season+r'_as_of_\d{4}-\d{2}-\d{2}\.csv',r['name'])]
+              latest=max(matched,key=lambda r:r['name'])
+              with urllib.request.urlopen(latest['download_url'],timeout=40) as response:data=response.read(5000001)
+              assert 1000<len(data)<5000000
+              (root/f'pl{year}.csv').write_bytes(data)
+              print('PLAYER_SOURCE_BYTES',latest['name'],hashlib.sha256(data).hexdigest())
+          PY
+      - name: Train on earlier season and evaluate held-out later fixtures
+        run: |
+          python3 analysis/nba_injury_residual.py \
+            --injury-2025 /tmp/injury-train/in2025.parquet \
+            --injury-2026 /tmp/injury-train/in2026.parquet \
+            --players-2025 /tmp/injury-train/pl2025.csv \
+            --players-2026 /tmp/injury-train/pl2026.csv \
+            --out nba-injury-residual-evidence.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-injury-residual-evidence
+          path: |
+            nba-injury-residual-evidence.json
+            nba-injury-live-residual-audit.json
+      - name: Verify actual live prior-player feature coverage without sending or changing forecasts
+        run: python3 analysis/nba_injury_live_residual_audit.py --candidate nba-injury-residual-evidence.json --out nba-injury-live-residual-audit.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-injury-live-feature-evidence
+          path: nba-injury-live-residual-audit.json
