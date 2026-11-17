@@ -275,8 +275,14 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
                    if slot["workflow"] == FOOTBALL else accepted_run_id is not None)
         quality=(nba_quality or {}).get(((local.date()+timedelta(days=1)).isoformat(),slot_code)) if slot["workflow"]==NBA_DAY else None
         delivery_delay=None
-        if nba_receipt and nba_receipt.get("accepted_at_utc"):
+        if slot["workflow"]==NBA_DAY and receipt and nba_receipt.get("accepted_at_utc"):
             delivery_delay=round((when(nba_receipt["accepted_at_utc"])-slot["planned"]).total_seconds(),1)
+            if delivery_delay<0:
+                problems.append({"severity":"critical","code":"API_RECEIPT_BEFORE_SCHEDULED_SLOT",
+                    "workflow":slot["workflow"],"slot":slot["slot_beijing"],"delay_seconds":delivery_delay})
+            elif delivery_delay>15*60:
+                problems.append({"severity":"warning","code":"PUSH_API_ACCEPTED_LATE",
+                    "workflow":slot["workflow"],"slot":slot["slot_beijing"],"delay_seconds":delivery_delay})
         # Evaluate all declared attempts. Prefer the run named by the receipt,
         # then the earliest successful attempt, while keeping every attempt visible.
         run, lag = min(attempts, key=lambda item: (

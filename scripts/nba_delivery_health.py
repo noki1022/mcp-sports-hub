@@ -110,18 +110,9 @@ def exact_fixed_run_slot(run:dict,slot:str,target:str)->bool:
         return False  # Unlabelled runs cannot prove a canonical slot.
     schedule,claimed_date=match.groups()
     if run.get("event")=="schedule":
-        if schedule in ("30 16 * * *","45 16 * * *","0 17 * * *"):
-            actual="0030"
-        elif schedule in ("30 19 * * *","45 19 * * *","0 20 * * *"):
-            actual="0330"
-        else:
-            cron=re.fullmatch(r"(0|15|30) (\d{1,2}) \* \* \*",schedule)
-            if not cron:
-                return False
-            minute,hour=map(int,cron.groups())
-            if not (4<=hour<=13 and (minute==0 or (minute in (15,30) and hour in (4,6,7,10)))):
-                return False
-            actual=f"{hour+8:02d}00"
+        cron=re.fullmatch(r"0 ([4-9]|1[0-5]) \* \* \*",schedule)
+        if not cron:return False
+        actual=f"{int(cron.group(1))+8:02d}00"
         return claimed_date=="auto" and actual==slot
     return schedule==slot and claimed_date!="auto" and claimed_date==target
 
@@ -197,6 +188,11 @@ def self_test():
         when=datetime.fromisoformat(f"2026-11-06T{h:02d}:00:00+08:00")
         assert infer_slot(cron,when)==(slot,"2026-11-07")
         assert expected_workflow(slot)=="titan007-three-analysis.yml"
+        native={"event":"schedule","display_title":f"NBA full report | slot={cron} | date=auto"}
+        assert exact_fixed_run_slot(native,slot,"2026-11-07")
+        for minute in (15,30):
+            retired={**native,"display_title":f"NBA full report | slot={minute} {h-8} * * * | date=auto"}
+            assert not exact_fixed_run_slot(retired,slot,"2026-11-07")
     assert len(SCHEDULES)==12
     with tempfile.TemporaryDirectory() as d:
         root=Path(d)
