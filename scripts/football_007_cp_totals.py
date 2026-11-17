@@ -8,7 +8,7 @@ GuestTeam_<id> anchor attributes. No name-only matches are permitted.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from html.parser import HTMLParser
 import re
 import urllib.request
@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 CP_TTG_URL="https://cp.titan007.com/buy/jingcai.aspx?typeID=103&oddstype=2"
+CP_HAD_URL="https://cp.titan007.com/buy/jingcai.aspx?typeID=101&oddstype=2"
 BJ=ZoneInfo("Asia/Shanghai")
 LABELS=tuple([str(i)+"球" for i in range(7)]+["7+球"])
 CAP=850000
@@ -23,36 +24,44 @@ CAP=850000
 class Rows(HTMLParser):
     def __init__(self):
         super().__init__()
-        self.rows=[];self.row=None;self.cell=None;self.forms=[]
+        self.rows=[];self.row_stack=[];self.cell_stack=[];self.forms=[]
+        self.sale_day=None
     def handle_starttag(self,tag,attrs):
         a=dict(attrs)
         if tag=="form":self.forms.append(a)
-        if tag=="tr" and re.fullmatch(r"row_\d{5,12}",a.get("id","")):
-            if self.row is not None:raise ValueError("NESTED_TTG_MATCH_ROWS")
-            self.row={"attrs":a,"cells":[]}
-        if tag in ("td","th") and self.row is not None:
-            if self.cell is not None:raise ValueError("NESTED_TTG_CELL")
-            self.cell={"attrs":a,"text":[],"anchors":[]}
-        if tag=="a" and self.cell is not None:
-            self.cell["anchors"].append(a)
+        if tag=="tr":
+            self.row_stack.append({"attrs":a,"cells":[],"subrows":[],"sale_day":self.sale_day})
+        if tag in ("td","th") and self.row_stack:
+            self.cell_stack.append({"attrs":a,"text":[],"anchors":[],"elements":[]})
+        if self.cell_stack:
+            self.cell_stack[-1]["elements"].append((tag,a))
+            if tag=="a":self.cell_stack[-1]["anchors"].append(a)
     def handle_data(self,v):
-        if self.cell is not None:self.cell["text"].append(v)
+        if self.cell_stack:self.cell_stack[-1]["text"].append(v)
     def handle_endtag(self,tag):
-        if tag in ("td","th") and self.cell is not None:
-            self.cell["text"]=" ".join(" ".join(self.cell["text"]).split())
-            self.row["cells"].append(self.cell);self.cell=None
-        if tag=="tr" and self.row is not None:
-            if self.cell is not None:raise ValueError("UNCLOSED_TTG_CELL")
-            self.rows.append(self.row);self.row=None
+        if tag in ("td","th") and self.cell_stack and self.row_stack:
+            cell=self.cell_stack.pop()
+            cell["text"]=" ".join(" ".join(cell["text"]).split())
+            self.row_stack[-1]["cells"].append(cell)
+        if tag=="tr" and self.row_stack:
+            row=self.row_stack.pop()
+            if self.row_stack:
+                self.row_stack[-1]["subrows"].append(row)
+            else:
+                text=" ".join(c["text"] for c in row["cells"])
+                m=re.search(r"(\d{4})年(\d{1,2})月(\d{1,2})日\s+星期",text)
+                if m:self.sale_day=date(*map(int,m.groups())).isoformat()
+                if re.fullmatch(r"row_\d{5,12}",row["attrs"].get("id","")):
+                    self.rows.append(row)
 
-def fetch_cp_ttg():
-    req=urllib.request.Request(CP_TTG_URL,headers={
+def fetch_cp_page(url=CP_TTG_URL):
+    req=urllib.request.Request(url,headers={
         "User-Agent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0",
         "Accept":"text/html,application/xhtml+xml,*/*;q=0.8",
         "Accept-Language":"zh-CN,zh;q=0.9",
         "Referer":"https://cp.titan007.com/"})
     with urllib.request.urlopen(req,timeout=18) as res:
-        if res.status!=200 or res.url!=CP_TTG_URL:
+        if res.status!=200 or res.url!=url:
             raise ValueError("CP_TTG_HTTP_STATUS_OR_REDIRECT")
         if urlparse(res.url).hostname!="cp.titan007.com":
             raise ValueError("INVALID_CP_TTG_HOST")
@@ -60,6 +69,9 @@ def fetch_cp_ttg():
         if not raw or len(raw)>CAP:
             raise ValueError("CP_TTG_EMPTY_OR_EXCESS")
         return raw
+
+def fetch_cp_ttg():
+    return fetch_cp_page()
 
 def decode(raw):
     if not isinstance(raw,bytes) or len(raw)>CAP:raise ValueError("INVALID_CP_TTG_HTML_BYTES")
@@ -137,6 +149,14 @@ def parse_cp_ttg(raw):
             "away_team_cp":cells[6]["text"],
             "kickoff_beijing":kickoff.isoformat(),
             "can_sale":attr.get("cansale")=="true",
+            "sale_day_beijing":row["sale_day"],
+            "league":cells[1]["text"],
+            "league_id_007":next((int(m.group(1)) for a in cells[1]["anchors"]
+                if (m:=re.search(r"/(\d+)\.html",a.get("href","")))),None),
+            "home_team_id_007":next((int(m.group(1)) for tag,a in cells[4]["elements"]
+                if (m:=re.fullmatch(r"Vs_"+match_id+r"_(\d+)",a.get("id","")))),None),
+            "away_team_id_007":next((int(m.group(1)) for tag,a in cells[6]["elements"]
+                if (m:=re.fullmatch(r"Vs_"+match_id+r"_(\d+)",a.get("id","")))),None),
             "odds":quotes
         }
     if not result or statuses["rows_seen"]==0:
@@ -153,3 +173,49 @@ def join_fixture(game,by_match_id):
         return None,"CP_TTG_KICKOFF_MISMATCH"
     if not found["odds"]:return None,"CP_TTG_QUOTE_MISSING"
     return found["odds"],"VERIFIED_MATCH_ID_JC_NUMBER_KICKOFF"
+
+def parse_cp_had(raw):
+    parsed=Rows();parsed.feed(decode(raw))
+    if not any("typeid=101" in a.get("action","").lower() for a in parsed.forms):
+        raise ValueError("CP_PAGE_NOT_HAD_TYPE_101")
+    result={}
+    for row in parsed.rows:
+        cells=row["cells"]
+        home=next((c for c in cells if fixture_id(c,"HomeTeam")),None)
+        away=next((c for c in cells if fixture_id(c,"GuestTeam")),None)
+        if not home or not away:raise ValueError("CP_HAD_TEAM_ID_MISSING")
+        mid=fixture_id(home,"HomeTeam")
+        if mid!=fixture_id(away,"GuestTeam") or mid in result:
+            raise ValueError("CP_HAD_IDENTITY_CONFLICT")
+        bet=row["attrs"]["id"].removeprefix("row_")
+        prefix=row["attrs"].get("name","")
+        label=prefix+cells[0]["text"]
+        if not re.fullmatch(r"周[一二三四五六日天]\d{3}",label):
+            raise ValueError("CP_HAD_NUMBER_INVALID")
+        clock=next((c["attrs"]["title"].removeprefix("开赛时间：") for c in cells
+                    if c["attrs"].get("title","").startswith("开赛时间：")),None)
+        tip=datetime.strptime(clock or "","%Y-%m-%d %H:%M").replace(tzinfo=BJ)
+        pools={sub["attrs"].get("id"):sub["cells"] for sub in row["subrows"]}
+        def prices(sub_id,ids):
+            pool=pools.get(sub_id,[])
+            values=[]
+            for i,title in zip(ids,("主胜","平局","客胜")):
+                cell=next((c for c in pool if c["attrs"].get("id")==f"cell_{bet}_{i}"),None)
+                if cell is None:return None
+                if cell["attrs"].get("title")!=title:raise ValueError("CP_HAD_PRICE_ORDER")
+                try:value=float(cell["text"])
+                except ValueError:return None
+                if not 1<value<=1000:return None
+                values.append(value)
+            return values
+        had=prices("spfTr_"+bet,(52,53,54))
+        hhad=prices("rqTr_"+bet,(1,2,3))
+        handicap=row["attrs"].get("polygoal","")
+        if hhad is not None and not re.fullmatch(r"[+-]?\d+",handicap):
+            raise ValueError("CP_HHAD_HANDICAP_INVALID")
+        result[mid]={"jc_number":label,"kickoff_beijing":tip.isoformat(),
+            "home_team_cp":home["text"],"away_team_cp":away["text"],
+            "had":had,"hhad":({"signed_home_handicap":int(handicap),"odds":hhad} if hhad else None),
+            "had_not_on_sale":any("未开售胜平负" in c["text"] for c in pools.get("spfTr_"+bet,[]))}
+    if not result:raise ValueError("CP_HAD_NO_RECOGNIZED_MATCH_ROWS")
+    return result

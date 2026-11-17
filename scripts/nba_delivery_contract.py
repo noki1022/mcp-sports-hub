@@ -1,10 +1,23 @@
 #!/usr/bin/env python3
 """Fail closed on cross-artifact identity mismatch before PushPlus."""
-import argparse,json
+import argparse,json,re
 from pathlib import Path
 from datetime import datetime
 from zoneinfo import ZoneInfo
 MARKETS={"JINGCAI_WIN","JINGCAI_HANDICAP","JINGCAI_TOTAL","CROWN_HANDICAP","CROWN_TOTAL"}
+def content_quality(five):
+    rows=five.get("games") or []
+    missing_labels=sum(not re.fullmatch(r"周[一二三四五六日天]\d{3}",str(g.get("jingcai_number") or "")) for g in rows)
+    counts={k:sum((g.get("markets") or {}).get(k,{}).get("status")=="DIRECTION_ISSUED" for g in rows) for k in sorted(MARKETS)}
+    missing_jc=sum((g.get("markets") or {}).get(k,{}).get("status") not in (
+        "DIRECTION_ISSUED","NOT_ON_SALE_USER_CONFIRMED") for g in rows for k in MARKETS if k.startswith("JINGCAI_"))
+    missing_crown=sum((g.get("markets") or {}).get(k,{}).get("status")!="DIRECTION_ISSUED"
+                      for g in rows for k in MARKETS if k.startswith("CROWN_"))
+    provisional=sum(g.get("final_signal_status")!="FINAL_INJURY_VERIFIED" for g in rows)
+    return {"status":"COMPLETE" if rows and not (missing_labels or missing_jc or missing_crown or provisional) else "PARTIAL",
+        "games":len(rows),"missing_jingcai_numbers":missing_labels,"missing_jingcai_directions":missing_jc,
+        "missing_crown_directions":missing_crown,"provisional_injury_games":provisional,"ready_counts":counts}
+
 def check(joined,movement,dynamic,five):
     target=joined.get("requested_display_date")
     games=joined.get("nba_cba_games") or []
@@ -52,4 +65,8 @@ if __name__=="__main__":
     if a.self_test:selftest()
     else:
         vals=[json.loads(Path(getattr(a,k)).read_text()) for k in ("joined","movement","dynamic","five")]
-        print("DELIVERY_CONTRACT_PASS",check(*vals))
+        print("DELIVERY_IDENTITY_CONTRACT_PASS",check(*vals))
+        quality=content_quality(vals[-1])
+        print("DELIVERY_CONTENT_QUALITY",json.dumps(quality,ensure_ascii=False))
+        if quality["status"]!="COMPLETE":
+            print("::warning::NBA_CONTENT_PARTIAL "+json.dumps(quality,ensure_ascii=False))

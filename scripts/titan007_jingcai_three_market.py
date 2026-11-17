@@ -129,6 +129,10 @@ if __name__=="__main__":
                 "total_games":len([g for g in board.get("nba_cba_games",[]) if g.get("league")=="NBA"]),
                 "error_type":type(exc).__name__,"games":{}}
             print("JC_007_LOTTERY_MATCH_NUMBERS_UNAVAILABLE",type(exc).__name__)
+        from nba_007_cp_markets import capture as capture_cp_markets
+        x=capture_cp_markets(board,x)
+        print("JC_007_CP_VERIFIED_COVERAGE",x["jc_007_public_odds_shadow"].get("nba_coverage"),
+              x["jc_007_match_numbers"].get("verified"),x.get("cp_source_errors"))
         Path(a.out).write_text(json.dumps(x,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         print("JINGCAI_THREE_MARKET_AUDIT",x["game_count"],x["verified_games_with_all_three"],
              {k:v["status"] for k,v in x["source_status"].items()})
