@@ -1,0 +1,54 @@
+name: Verify trained injury residual on chronological production-model pairs
+on:
+  pull_request:
+    paths:
+      - 'analysis/nba_injury_residual.py'
+      - '.github/workflows/nba-injury-residual-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  train-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy==2.2.6 pandas==2.3.3 pyarrow==21.0.0
+      - run: python3 analysis/nba_injury_residual.py --self-test
+      - name: Fetch checksum-pinned historical injury sources
+        run: |
+          python3 - <<'PY'
+          import urllib.request,hashlib
+          from pathlib import Path
+          import sys
+          sys.path.insert(0,'analysis')
+          from nba_production_injury_shadow_replay import HASH_EXPECTED
+          sources={
+            'in2025.parquet':'https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nba_stats_injury_report/injury_report_2025.parquet',
+            'in2026.parquet':'https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nba_stats_injury_report/injury_report_2026.parquet',
+            'pl2025.csv':'https://raw.githubusercontent.com/xtheredshirtx/fanduel-player-data/main/NBA/csv/NBA_players_game_log_2024-25_as_of_2026-10-31.csv',
+            'pl2026.csv':'https://raw.githubusercontent.com/xtheredshirtx/fanduel-player-data/main/NBA/csv/NBA_players_game_log_2025-26_as_of_2026-10-31.csv'}
+          root=Path('/tmp/injury-train');root.mkdir()
+          for name,url in sources.items():
+              with urllib.request.urlopen(url,timeout=55) as response:data=response.read(5000001)
+              assert hashlib.sha256(data).hexdigest()==HASH_EXPECTED[name]
+              (root/name).write_bytes(data)
+          PY
+      - name: Train on earlier season and evaluate held-out later fixtures
+        run: |
+          python3 analysis/nba_injury_residual.py \
+            --injury-2025 /tmp/injury-train/in2025.parquet \
+            --injury-2026 /tmp/injury-train/in2026.parquet \
+            --players-2025 /tmp/injury-train/pl2025.csv \
+            --players-2026 /tmp/injury-train/pl2026.csv \
+            --out nba-injury-residual-evidence.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-injury-residual-evidence
+          path: nba-injury-residual-evidence.json
