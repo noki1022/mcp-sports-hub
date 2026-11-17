@@ -239,7 +239,8 @@ def review_evidence(releases, nba_root, now, grace_minutes):
 
 
 def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=180,
-          priority_jobs=None, nba_receipts=None, nba_reviews_root=None, nba_quality=None):
+          priority_jobs=None, nba_receipts=None, nba_reviews_root=None, nba_quality=None,
+          football_receipts=None):
     now = now.astimezone(timezone.utc)
     slots = sorted(expected_slots(now, horizon_hours, grace_minutes),
                    key=lambda x: (x["planned"], x["workflow"]))
@@ -273,10 +274,24 @@ def audit(runs, releases, archive_branch, now, horizon_hours=24, grace_minutes=1
                                     if str(r["id"]) == str(nba_receipt.get("run_id"))), None)
         receipt = (f"football-push-{day}-{slot_code}.accepted.json" in names
                    if slot["workflow"] == FOOTBALL else accepted_run_id is not None)
+        football_receipt=(football_receipts or {}).get((day,slot_code)) if slot["workflow"]==FOOTBALL else None
+        if football_receipt and not (football_receipt.get("status")=="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
+                and (football_receipt.get("api_response") or {}).get("api_code")==200):
+            problems.append({"severity":"critical","code":"FOOTBALL_ACCEPTANCE_RECEIPT_INVALID",
+                "workflow":slot["workflow"],"slot":slot["slot_beijing"]})
+            receipt=False
         quality=(nba_quality or {}).get(((local.date()+timedelta(days=1)).isoformat(),slot_code)) if slot["workflow"]==NBA_DAY else None
         delivery_delay=None
-        if nba_receipt and nba_receipt.get("accepted_at_utc"):
-            delivery_delay=round((when(nba_receipt["accepted_at_utc"])-slot["planned"]).total_seconds(),1)
+        accepted_at=((nba_receipt or {}).get("accepted_at_utc") if slot["workflow"]==NBA_DAY else
+            ((football_receipt or {}).get("api_response") or {}).get("accepted_at_utc"))
+        if receipt and accepted_at:
+            delivery_delay=round((when(accepted_at)-slot["planned"]).total_seconds(),1)
+            if delivery_delay<0:
+                problems.append({"severity":"critical","code":"API_RECEIPT_BEFORE_SCHEDULED_SLOT",
+                    "workflow":slot["workflow"],"slot":slot["slot_beijing"],"delay_seconds":delivery_delay})
+            elif delivery_delay>15*60:
+                problems.append({"severity":"warning","code":"PUSH_API_ACCEPTED_LATE",
+                    "workflow":slot["workflow"],"slot":slot["slot_beijing"],"delay_seconds":delivery_delay})
         # Evaluate all declared attempts. Prefer the run named by the receipt,
         # then the earliest successful attempt, while keeping every attempt visible.
         run, lag = min(attempts, key=lambda item: (
@@ -388,6 +403,7 @@ def main():
     p.add_argument("--priority-jobs-dir")
     p.add_argument("--nba-receipts-root", type=Path)
     p.add_argument("--nba-reviews-root", type=Path)
+    p.add_argument("--football-receipts-dir", type=Path)
     p.add_argument("--out", required=True)
     p.add_argument("--now-utc")
     p.add_argument("--horizon-hours", type=int, default=24)
@@ -434,8 +450,14 @@ def main():
             if forecast.is_file():
                 from nba_delivery_contract import content_quality
                 nba_quality[day,clock]=content_quality(json.loads(forecast.read_text(encoding="utf-8")))
+    football_receipts={}
+    if args.football_receipts_dir:
+        for filename in sorted(args.football_receipts_dir.glob("*.json")):
+            match=re.fullmatch(r"football-push-(\d{8})-((?:1[2-9]|2[0-3])00)\.accepted\.json",filename.name)
+            if not match:raise ValueError("UNEXPECTED_FOOTBALL_RECEIPT_FILENAME")
+            football_receipts[match.groups()]=json.loads(filename.read_text(encoding="utf-8"))
     result = audit(runs, releases, branch, now, args.horizon_hours, args.grace_minutes,
-                   priority_jobs, nba_receipts, args.nba_reviews_root, nba_quality)
+                   priority_jobs, nba_receipts, args.nba_reviews_root, nba_quality,football_receipts)
     path = Path(args.out)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
