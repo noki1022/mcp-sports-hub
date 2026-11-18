@@ -23,6 +23,7 @@ on:
       - 'analysis/sports_verified_result_sources.py'
       - 'ops/football_latest_review.py'
       - 'tests/test_football_latest_review.py'
+      - 'tests/test_football_review_delivery_preflight.py'
 
 permissions:
   actions: read
@@ -41,7 +42,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Rehearse per-match selection, verified scoring and PushPlus preview without sending
-        run: python -B -m unittest discover -s tests -p test_football_latest_review.py -v
+        run: |
+          python -B -m unittest discover -s tests -p test_football_latest_review.py -v
+          python -B -m unittest discover -s tests -p test_football_review_delivery_preflight.py -v
   send:
     concurrency:
       group: football-review-1300
@@ -89,8 +92,8 @@ jobs:
           endpoint="repos/$GITHUB_REPOSITORY/releases/tags/$tag"
           if ! gh api "$endpoint" --jq '.assets[].name' > assets.txt 2> release-error.txt; then
             if grep -Fq 'HTTP 404' release-error.txt; then
-              echo "::notice::No verified per-match football review is archived for $day"
-              exit 0
+              echo "::error::FOOTBALL_REVIEW_BLOCKED_NO_VERIFIED_ARCHIVE $day; no retrospective predictions or delivery receipt created"
+              exit 1
             fi
             cat release-error.txt >&2
             exit 1
