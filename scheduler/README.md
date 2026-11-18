@@ -54,8 +54,9 @@ downstream jobs may still queue; they do not create an additional sender.
 
 This uses public-repository standard GitHub runners and the existing free
 Worker only. No Cloudflare Container, Workers Paid upgrade, new credential,
-VM, trial-credit service or paid runner is provisioned. Four cron expressions
-fit the Workers Free limit of five per account (including other Workers).
+VM, trial-credit service or paid runner is provisioned. One combined cron expression reduces
+existing account cron usage from two to one (Free allows five per account).
+Other minutes perform no work; the combined expression does not add sends.
 Preparation reduces queue exposure; it is not a promise of exact delivery
 when GitHub delays longer than the preparation lead or a provider is down.
 A GitHub workflow success or a Cloudflare dispatch 204 never proves the
@@ -64,7 +65,7 @@ message arrived on the recipient's iPhone.
 Worker cron configuration (UTC):
 
 ```toml
-crons = ["0 4-15 * * *", "25,50 * * * *", "30 3-14 * * *", "15,40 * * * *"]
+crons = ["0,15,25,30,40,50 * * * *"]
 [vars]
 GITHUB_PREWARM = "1"
 ```

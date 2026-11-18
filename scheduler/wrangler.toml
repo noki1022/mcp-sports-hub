@@ -4,8 +4,9 @@ compatibility_date = "2026-10-30"
 [triggers]
 # Original archive slots stay intact. The additional minutes prepare existing
 # runners only: hourly/football-review 30m early, NBA final checks 10m early.
-# Four cron expressions, within the Workers Free account limit of five.
-crons = ["0 4-15 * * *", "25,50 * * * *", "30 3-14 * * *", "15,40 * * * *"]
+# One combined cron expression reduces existing account trigger usage; each
+# route below still executes only at its own original/preparation minute.
+crons = ["0,15,25,30,40,50 * * * *"]
 
 [vars]
 GITHUB_PREWARM = "1"

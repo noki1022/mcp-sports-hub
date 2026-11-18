@@ -43,7 +43,7 @@ jobs:
           import tomllib
           c=tomllib.loads(Path('scheduler/wrangler.toml').read_text())
           assert c['name']=='nba-external-schedule-watchdog'
-          assert c['triggers']['crons']==["0 4-15 * * *", "25,50 * * * *", "30 3-14 * * *", "15,40 * * * *"]
+          assert c['triggers']['crons']==["0,15,25,30,40,50 * * * *"]
           worker=Path('scheduler/worker.mjs').read_text()
           assert 'export async function dispatchAt(' in worker
           assert 'export async function dispatchFootballAt(' in worker

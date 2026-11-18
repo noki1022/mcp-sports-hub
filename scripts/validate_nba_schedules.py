@@ -77,7 +77,7 @@ def main():
     for name in DISABLED:
         assert not crons(name),("OLD_PREMATCH_SCHEDULE_STILL_ACTIVE",name)
     cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
-    assert cloud["triggers"]["crons"]==["0 4-15 * * *", "25,50 * * * *", "30 3-14 * * *", "15,40 * * * *"],"CLOUDFLARE_HAS_EXTRA_CRON"
+    assert cloud["triggers"]["crons"]==["0,15,25,30,40,50 * * * *"],"CLOUDFLARE_HAS_EXTRA_CRON"
     worker=(ROOT/"scheduler/worker.mjs").read_text()
     assert "h>=12&&h<=23&&m===0" in worker
     assert "EXACT_SLOT" in worker and "NO_RETRY" in worker
