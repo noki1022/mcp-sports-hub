@@ -195,7 +195,8 @@ def gate(route, env, get=request_json, clock=lambda: datetime.now(UTC), waiter=w
         return {"skip": True, "state": "PREPARED_ORIGINAL_EXISTS_NO_RETRY", "owner_run_id": run_ids[0],
                 "scheduled_at_utc": stamp(target)}
     if not prepared:
-        return {"skip": False, "state": "ORIGINAL_TRIGGER_NO_PREPARED_OWNER"}
+        return {"skip": False, "state": "ORIGINAL_TRIGGER_NO_PREPARED_OWNER",
+                "scheduled_at_utc": stamp(target)}
     # The current run must be observable before its original-slot work begins.
     if own not in run_ids:
         raise ValueError("PREWARM_CURRENT_RUN_NOT_OBSERVABLE")
@@ -218,7 +219,7 @@ def cli():
             summary.write("\nOriginal-slot runner preparation\n```json\n" + json.dumps(result, indent=2) + "\n```\n")
     if result.get("scheduled_at_utc") and not result["skip"]:
         with open(os.environ["GITHUB_ENV"], "a") as output:
-            output.write("SPORTS_PREWARM_TARGET_UTC=" + result["scheduled_at_utc"] + "\n")
+            output.write("SPORTS_ORIGINAL_TARGET_UTC=" + result["scheduled_at_utc"] + "\n")
     print("SPORTS_RUNNER_PREPARATION", json.dumps(result, sort_keys=True))
 
 

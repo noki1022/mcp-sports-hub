@@ -81,6 +81,24 @@ class PrewarmTests(unittest.TestCase):
         env=self.env();env.update(PREPARE_FOR_UTC="",PREWARM_CRON="0 4 * * *",GITHUB_EVENT_NAME="schedule")
         self.assertFalse(warm.gate("nba",env,lambda *args:{"workflow_runs":[]},clock=lambda:t)["skip"])
 
+    def test_delayed_native_2300_retains_its_original_game_day_across_midnight(self):
+        import os,subprocess,tempfile,textwrap
+        env=self.env();env.update(PREPARE_FOR_UTC='',PREWARM_CRON='0 15 * * *',
+            GITHUB_EVENT_NAME='schedule',PREWARM_TARGET_DATE='')
+        result=warm.gate('nba',env,lambda *a:{'workflow_runs':[]},
+                         clock=lambda:at('2026-11-18T16:02:00Z'))
+        self.assertEqual(result['scheduled_at_utc'],'2026-11-18T15:00:00Z')
+        # Run the actual workflow's date step with a fixed original date.
+        # Its result must be independent of the test host's current day.
+        text=(ROOT/'.github/workflows/titan007-three-analysis.yml').read_text()
+        block=text.split('      - name: Select Beijing game display date for the scheduled slot\n',1)[1]
+        script=textwrap.dedent(block.split('        run: |\n',1)[1].split('      - name:',1)[0])
+        with tempfile.TemporaryDirectory() as folder:
+            output=Path(folder)/'env'
+            args={**os.environ,'REQUESTED_DATE':'','SPORTS_ORIGINAL_TARGET_UTC':'2001-11-18T15:00:00Z','GITHUB_ENV':str(output)}
+            subprocess.run(['bash','-eo','pipefail','-c',script],env=args,check=True,capture_output=True,text=True)
+            self.assertEqual(output.read_text().strip(),'TARGET_DATE=2001-11-19')
+
     def test_api_uncertainty_never_grants_duplicate_permission(self):
         env=self.env();env.update(PREPARE_FOR_UTC="",PREWARM_CRON="0 4 * * *",GITHUB_EVENT_NAME="schedule")
         with self.assertRaises(ValueError):warm.gate("nba",env,lambda *a:{},clock=lambda:at("2026-11-18T04:00:00Z"))

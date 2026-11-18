@@ -74,6 +74,10 @@ jobs:
           if x:
               if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',x): raise ValueError('invalid target date')
               target=x
+          elif os.environ.get('SPORTS_ORIGINAL_TARGET_UTC'):
+              original=datetime.fromisoformat(os.environ['SPORTS_ORIGINAL_TARGET_UTC'].replace('Z','+00:00'))
+              original=original.astimezone(ZoneInfo('Asia/Shanghai'))
+              target=(original.date()+timedelta(days=1)).isoformat()
           else:
               local=datetime.now(ZoneInfo('Asia/Shanghai'))
               target=(local.date()+timedelta(days=1)).isoformat()
