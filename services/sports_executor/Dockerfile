@@ -8,6 +8,5 @@ RUN useradd --uid 10001 --create-home executor && mkdir -p /var/lib/sports-execu
     && chown executor:executor /var/lib/sports-executor
 USER executor
 ENV SPORTS_EXECUTOR_LIVE=0 PORT=8080 PYTHONDONTWRITEBYTECODE=1
-VOLUME ["/var/lib/sports-executor"]
 EXPOSE 8080
 CMD ["python3", "services/sports_executor/server.py"]
