@@ -1,10 +1,14 @@
 name: Football 13:00 previous-day review PushPlus
-run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot_utc != '' && format('Cloudflare | slot={0}', inputs.cloudflare_slot_utc) || github.workflow }}
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot_utc != '' && format('Cloudflare | slot={0}', inputs.cloudflare_slot_utc) || github.workflow }}${{ inputs.prepare_for_utc && format(' | prepare={0}', inputs.prepare_for_utc) || '' }}
 on:
   schedule:
     - cron: '0 5 * * *'
   workflow_dispatch:
     inputs:
+      prepare_for_utc:
+        description: 'Original UTC business slot; runner preparation only, never an early capture or retry'
+        required: false
+        type: string
       cloudflare_slot_utc:
         description: 'Original Cloudflare cron timestamp in UTC'
         required: false
@@ -21,6 +25,7 @@ on:
       - 'tests/test_football_latest_review.py'
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -46,8 +51,9 @@ jobs:
       POSTGAME_CRON: ${{ github.event.schedule }}
     if: github.ref == 'refs/heads/main' && github.run_attempt == '1' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot_utc != ''))
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 40
     permissions:
+      actions: read
       contents: write
     steps:
       - uses: actions/checkout@v4
@@ -56,9 +62,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Prepare original runner and wait without collecting or sending early
+        id: runner_preparation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREPARE_FOR_UTC: ${{ inputs.prepare_for_utc || '' }}
+          PREWARM_CRON: ${{ github.event.schedule || inputs.recovery_cron || '' }}
+          PREWARM_DAY: ${{ inputs.recovery_day || '' }}
+          PREWARM_TARGET_DATE: ${{ inputs.target_date || '' }}
+          PREWARM_REPORT_SLOT: ${{ inputs.report_slot || '' }}
+          CLOUDFLARE_SLOT_UTC: ${{ inputs.cloudflare_slot_utc || '' }}
+        run: python3 -B scripts/sports_runner_prewarm.py football-review
       - name: Validate original scheduler slot
+        if: steps.runner_preparation.outputs.skip != 'true'
         run: python -B scripts/sports_postgame_slot.py football-review
       - name: Send one verified previous-day review and archive API acceptance
+        if: steps.runner_preparation.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN || secrets.FOOTBALL_PUSHPLUS_TOKEN }}
@@ -104,7 +123,7 @@ jobs:
           python -B scripts/football_jc_review_push.py "${args[@]}" --receipt "$receipt"
           gh release upload "$tag" "$receipt"
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: (always()) && steps.runner_preparation.outputs.skip != 'true'
         with:
           name: football-review-1300-delivery
           path: |

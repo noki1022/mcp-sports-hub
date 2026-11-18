@@ -5,6 +5,9 @@ on:
     paths:
       - 'scheduler/**'
       - 'scripts/sports_postgame_slot.py'
+      - 'scripts/sports_runner_prewarm.py'
+      - 'tests/test_sports_runner_prewarm.py'
+      - 'tests/test_football_priority_push_idempotency.py'
       - '.github/workflows/football-review-push-1300.yml'
       - '.github/workflows/nba-two-market-nightly-2200.yml'
       - '.github/workflows/sports-per-match-finalizer.yml'
@@ -22,7 +25,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 -m pip install --quiet PyYAML==6.0.2
       - run: node scheduler/test-scheduler.mjs
+      - run: node scheduler/test-prewarm.mjs
+      - run: python3 -B -m unittest discover -s tests -p test_sports_runner_prewarm.py -v
+      - run: python3 -B -m unittest discover -s tests -p test_football_priority_push_idempotency.py -v
+      - run: python3 -B -m unittest discover -s tests -p test_sports_chain_health.py -q
+      - run: python3 -B analysis/nba_007_durable_capture_archive.py --selftest
+      - name: Validate free Worker configuration without deploying
+        run: npx --yes wrangler@4.164.0 deploy --dry-run --config scheduler/wrangler.toml
       - name: Verify one Worker and no retry Cron
         run: |
           python3 - <<'PY'
@@ -30,7 +43,7 @@ jobs:
           import tomllib
           c=tomllib.loads(Path('scheduler/wrangler.toml').read_text())
           assert c['name']=='nba-external-schedule-watchdog'
-          assert c['triggers']['crons']==["0 4-15 * * *", "25,50 * * * *"]
+          assert c['triggers']['crons']==["0 4-15 * * *", "25,50 * * * *", "30 3-14 * * *", "15,40 * * * *"]
           worker=Path('scheduler/worker.mjs').read_text()
           assert 'export async function dispatchAt(' in worker
           assert 'export async function dispatchFootballAt(' in worker

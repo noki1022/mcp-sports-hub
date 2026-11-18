@@ -1,5 +1,5 @@
 name: Football JC hourly 12:00–23:00
-run-name: ${{ github.event_name == 'schedule' && format('Football 007 | cron={0} | day=auto', github.event.schedule) || github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && format('Football 007 | cron={0} | day={1}', inputs.recovery_cron, inputs.recovery_day) || 'Football 007 | manual' }}
+run-name: ${{ github.event_name == 'schedule' && format('Football 007 | cron={0} | day=auto', github.event.schedule) || github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && format('Football 007 | cron={0} | day={1}', inputs.recovery_cron, inputs.recovery_day) || 'Football 007 | manual' }}${{ inputs.prepare_for_utc && format(' | prepare={0}', inputs.prepare_for_utc) || '' }}
 on:
   pull_request:
     paths:
@@ -54,6 +54,10 @@ on:
       - '.github/workflows/football-007-live-capture.yml'
   workflow_dispatch:
     inputs:
+      prepare_for_utc:
+        description: 'Original UTC business slot; runner preparation only, never an early capture or retry'
+        required: false
+        type: string
       recovery_source:
         description: 'Recovery origin (cloudflare only); leave blank for manual capture'
         required: false
@@ -67,7 +71,8 @@ on:
         required: false
         type: string
   schedule:
-    # Twelve exact Beijing hours; Cloudflare independently triggers SAME slot.
+    # Twelve original business hours. A prepared original owns its slot;
+    # a native duplicate exits without collecting or sending again.
     - cron: "0 4 * * *"
     - cron: "0 5 * * *"
     - cron: "0 6 * * *"
@@ -81,28 +86,46 @@ on:
     - cron: "0 14 * * *"
     - cron: "0 15 * * *"
 permissions:
+  actions: read
   contents: read
 concurrency:
   group: football-007-capture-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   live-football:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
+    timeout-minutes: 60
+    permissions:
+      actions: read
+      contents: write
+    steps: &football_pipeline_steps
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Prepare original runner and wait without collecting or sending early
+        id: runner_preparation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREPARE_FOR_UTC: ${{ inputs.prepare_for_utc || '' }}
+          PREWARM_CRON: ${{ github.event.schedule || inputs.recovery_cron || '' }}
+          PREWARM_DAY: ${{ inputs.recovery_day || '' }}
+          PREWARM_TARGET_DATE: ${{ inputs.target_date || '' }}
+          PREWARM_REPORT_SLOT: ${{ inputs.report_slot || '' }}
+          CLOUDFLARE_SLOT_UTC: ${{ inputs.cloudflare_slot_utc || '' }}
+        run: python3 -B scripts/sports_runner_prewarm.py football
       - name: Verify Cloudflare recovery date, canonical slot and fresh execution window
+        if: steps.runner_preparation.outputs.skip != 'true'
         env:
           FOOTBALL_RECOVERY_SOURCE: ${{ inputs.recovery_source || '' }}
           FOOTBALL_RECOVERY_DAY: ${{ inputs.recovery_day || '' }}
           FOOTBALL_RECOVERY_CRON: ${{ inputs.recovery_cron || '' }}
         run: python3 -B scripts/football_cloudflare_recovery.py
       - name: Validate 007 real fixture and official odds record contracts offline
+        if: steps.runner_preparation.outputs.skip != 'true'
         run: |
           python3 -B -m unittest discover -s tests -p test_football_007_live_capture.py -v
           python3 -B -m unittest discover -s tests -p test_football_007_cp_totals.py -v
@@ -110,10 +133,10 @@ jobs:
           python3 -B -m unittest discover -s tests -p test_football_archived_form.py -v
           python3 -B -m unittest discover -s tests -p test_football_jc.py -v
       - name: Verify P0 personnel/opponent and distribution research gates (PR only)
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         run: python3 -B -m unittest discover -s tests -p test_football_p0_quant.py -v
       - name: Audit actual frozen 21:00 football goal distribution with verified 007 FT bytes (PR only)
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -136,48 +159,49 @@ jobs:
                 doc["candidate_metrics"])
           PY
       - name: Verify 007 suspension and opponent tier deep source evidence (PR only)
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         run: python3 -B -m unittest discover -s tests -p test_football_007_deep_context.py -v
       - name: Test independent football season plus venue quantification and odds invariance (PR only)
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         run: |
           python3 -B -m unittest discover -s tests -p test_football_jc_contextual_challenger.py -v
           python3 -B -m unittest discover -s tests -p test_football_jc_integrated.py -v
       - name: Verify new 007 opponent IDs and context feature integrity (PR only)
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         run: python3 -B -m unittest discover -s tests -p test_football_context_features.py -v
       - name: Validate mandatory European-to-Asian handicap and Asian quarter settlement (PR only)
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         run: python3 -B -m unittest discover -s tests -p test_football_jc_euro_asian.py -v
       - name: Validate 007 market-reading math without touching model or collection (PR only)
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         run: python3 -B -m unittest discover -s tests -p test_football_jc_market_reading.py -v
       - name: Test 007 actual Asian multi-company schema and independent consensus (PR only)
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         run: |
           python3 -B -m unittest discover -s tests -p test_football_007_asian_companies.py -v
           python3 -B -m unittest discover -s tests -p test_football_007_asian_real_compare.py -v
       - name: Validate football 007 actual Asian market assimilation invariants (PR only)
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         run: python3 -B -m unittest discover -s tests -p test_football_jc_asian_assimilation.py -v
       - name: Verify 21:00-only three-market football review and iPhone settled layout
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         run: python3 -B -m unittest discover -s tests -p test_football_jc_single_final_review.py -v
       - name: Regression-test oversized football PushPlus payload without sending
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         run: python3 -B -m unittest discover -s tests -p test_football_push_payload_limit.py -v
       - name: Validate first capture and per-game football / NBA pretip final selection
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         run: |
           python3 -B -m unittest discover -s tests -p test_sport_match_final_registry.py -v
           python3 -B -m unittest discover -s tests -p test_football_capture_slot_recovery.py -v
           python3 -B -m unittest discover -s tests -p test_football_cloudflare_recovery.py -v
       - name: Test one-model 21:00 lock and immutable comparison
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         run: |
           python3 -B -m unittest discover -s tests -p test_football_jc_final_2130.py -v
           python3 -B -m py_compile analysis/football_jc_report.py scripts/football_jc_slot_push.py
       - name: Capture only official current-day 007 周Xnnn sales fixtures
+        if: steps.runner_preparation.outputs.skip != 'true'
         run: |
           # Hourly 23:00 may queue across midnight. Preserve the ORIGINAL
           # 007 sale weekday for this scheduled run; never reclassify Friday
@@ -197,13 +221,14 @@ jobs:
           print("JC_OFFICIAL_SALE_DAY_SCOPE_VERIFIED",prefix,len(s["games"]))
           PY
       - name: Capture real 007 full-time multi-company Asian handicap source (independent; fail per match)
+        if: steps.runner_preparation.outputs.skip != 'true'
         run: |
           python3 -B scripts/football_007_asian_companies.py \
             --snapshot football-output/football_007_snapshot.json \
             --raw-dir football-output/raw \
             --out football-output/football_007_snapshot.json
       - name: Restore previous football raw snapshots for same-book dynamic analysis
-        if: github.event_name != 'pull_request'
+        if: (github.event_name != 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         continue-on-error: true
         timeout-minutes: 2
         env:
@@ -211,7 +236,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: python3 -B scripts/restore_football_market_history.py
       - name: Restore original prior 007 snapshots for P0 evidence verification (PR only)
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         timeout-minutes: 3
         env:
           GH_TOKEN: ${{ github.token }}
@@ -225,6 +250,7 @@ jobs:
           print("P0_RESEARCH_CROSSDAY_HISTORY_RESTORED",n)
           PY
       - name: Generate the unified 007 football forecast for all three markets
+        if: steps.runner_preparation.outputs.skip != 'true'
         run: |
           python3 -B scripts/restore_football_market_history.py \
             --reuse-form football-output/football_007_snapshot.json
@@ -236,6 +262,7 @@ jobs:
             --out football-output/football_jc_forecast_market.json
           python3 -B analysis/football_jc_report.py --forecast football-output/football_jc_forecast_market.json --html football-output/football_jc_mobile.html
       - name: Archive P0 player availability and prior opponent study without touching forecasts
+        if: steps.runner_preparation.outputs.skip != 'true'
         continue-on-error: true
         run: |
           python3 -B analysis/football_p0_fact_audit.py \
@@ -244,6 +271,7 @@ jobs:
             --out football-output/football_p0_fact_audit.json
           test -s football-output/football_p0_fact_audit.json
       - name: Store timestamp-hashed per-match candidates independently of 21:00 baseline
+        if: steps.runner_preparation.outputs.skip != 'true'
         env:
           FOOTBALL_SCHEDULE_EXPR: ${{ github.event.schedule || inputs.recovery_cron || '' }}
         run: |
@@ -257,7 +285,7 @@ jobs:
             --slot "$PLANNED_SLOT" \
             --out football-output/football_match_candidates.json
       - name: Restore only archived prior 007 football candidates; first capture is valid without history
-        if: github.event_name != 'pull_request'
+        if: (github.event_name != 'pull_request') && steps.runner_preparation.outputs.skip != 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -276,12 +304,14 @@ jobs:
             fi
           done
       - name: Compare each model against actual previous 007 snapshot (no backfilled postkickoff data)
+        if: steps.runner_preparation.outputs.skip != 'true'
         run: |
           python3 -B analysis/football_jc_capture_movement.py \
             --current football-output/football_match_candidates.json \
             --history-dir $RUNNER_TEMP/football-prior-candidates \
             --out football-output/football_capture_movement.json
       - name: Compare real 007 bookmaker Asian opening/current lines with theory (no auto model override)
+        if: steps.runner_preparation.outputs.skip != 'true'
         # Research output is archived when available; delivery uses the integrated forecast.
         continue-on-error: true
         run: |
@@ -291,29 +321,19 @@ jobs:
             --out football-output/football_007_asian_real_compare.json
           test -s football-output/football_007_asian_real_compare.json
       - name: Upload 007 audited football reports and frozen decisions
-        if: always()
+        if: (always()) && steps.runner_preparation.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: football-007-live-source-evidence
           path: football-output/
           retention-days: 90
 
-  archive-football-raw-release:
-    needs: live-football
-    if: always() && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 6
-    permissions:
-      contents: write
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GH_REPO: ${{ github.repository }}
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: football-007-live-source-evidence
-          path: football-output
       - name: Persist immutable football-only raw evidence in GitHub Release assets
+        id: raw_archive
+        if: always() && !cancelled() && github.event_name != 'pull_request' && steps.runner_preparation.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           test -s football-output/raw/manifest.json
           bj_day="$(python3 -c 'import datetime,json,pathlib; p=pathlib.Path("football-output/football_007_snapshot.json"); p=p if p.exists() else pathlib.Path("football-output/raw/manifest.json"); d=json.loads(p.read_text())["jc_sale_day_beijing"]; datetime.date.fromisoformat(d); print(d.replace("-",""))')"
@@ -340,33 +360,16 @@ jobs:
           gh release upload "$tag" "${files[@]}"
           echo "FOOTBALL_007_RAW_RELEASE_ARCHIVED=$tag/$archive"
           echo "FOOTBALL_MATCH_CANDIDATES=$tag/$candidate"
+          echo "archived=true" >> "$GITHUB_OUTPUT"
 
-
-  football-daytime-push:
-    needs: [live-football, archive-football-raw-release]
-    if: always() && !cancelled() && needs.live-football.result == 'success' && needs.archive-football-raw-release.result == 'success' && ((github.event_name == 'schedule' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","0 14 * * *","0 15 * * *"]'), github.event.schedule)) || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","0 14 * * *","0 15 * * *"]'), inputs.recovery_cron)))
-    runs-on: ubuntu-latest
-    timeout-minutes: 6
-    permissions:
-      contents: write
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GH_REPO: ${{ github.repository }}
-      FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN || secrets.FOOTBALL_PUSHPLUS_TOKEN }}
-      TRIGGER_SCHEDULE: ${{ github.event.schedule || inputs.recovery_cron || '' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - uses: actions/download-artifact@v4
-        with:
-          name: football-007-live-source-evidence
-          path: football-output
       - name: Claim exactly one daytime football notification per scheduled Beijing hour
         id: claim
+        if: success() && steps.raw_archive.outputs.archived == 'true' && ((github.event_name == 'schedule' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","0 14 * * *","0 15 * * *"]'), github.event.schedule)) || (github.event_name == 'workflow_dispatch' && inputs.recovery_source == 'cloudflare' && contains(fromJSON('["0 4 * * *","0 5 * * *","0 6 * * *","0 7 * * *","0 8 * * *","0 9 * * *","0 10 * * *","0 11 * * *","0 12 * * *","0 13 * * *","0 14 * * *","0 15 * * *"]'), inputs.recovery_cron)))
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN || secrets.FOOTBALL_PUSHPLUS_TOKEN }}
+          TRIGGER_SCHEDULE: ${{ github.event.schedule || inputs.recovery_cron || '' }}
         run: |
           if python3 -c 'import json,sys;sys.exit(0 if not json.load(open("football-output/football_007_snapshot.json")).get("games") else 1)'; then
             echo "VERIFIED_EMPTY_FOOTBALL_SOURCE_SKIP_PUSH_KEEP_RAW_ARCHIVE"
@@ -427,7 +430,9 @@ jobs:
           echo "FOOTBALL_DAYTIME_SLOT_PRECLAIMED $day $SLOT"
           echo "skip=false" >> "$GITHUB_OUTPUT"
       - name: Send phone-friendly three-play integrated forecast after source is durably archived
-        if: steps.claim.outputs.skip != 'true'
+        env:
+          FOOTBALL_PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN || secrets.FOOTBALL_PUSHPLUS_TOKEN }}
+        if: success() && steps.claim.outputs.skip == 'false'
         run: |
           python3 -B scripts/football_jc_slot_push.py \
             --forecast football-output/football_jc_forecast_market.json \
@@ -437,7 +442,10 @@ jobs:
             --status-out football-output/football_jc_send_status.json --send
           test -s football-output/football_jc_send_status.json
       - name: Append PushPlus API acceptance receipt; do not confuse with iPhone delivery
-        if: success() && steps.claim.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        if: success() && steps.claim.outputs.skip == 'false'
         run: |
           day="$FOOTBALL_SALE_DAY"
           tag="football-007-raw-$day"
@@ -453,3 +461,13 @@ jobs:
             football-output/football_jc_sent_preview.html
           if-no-files-found: warn
 
+
+  preview:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    # Reuse identical source/model tests without exposing production write access.
+    steps: *football_pipeline_steps

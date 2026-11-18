@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 import re
 from zoneinfo import ZoneInfo
+from sports_runner_prewarm import prepared_target
 
 BJ = ZoneInfo("Asia/Shanghai")
 FOOTBALL = "Football JC hourly 12:00–23:00; 21:00 immutable grading baseline"
@@ -116,6 +117,9 @@ def verified_football_recovery(run, slot):
     """
     if run.get("event") != "workflow_dispatch":
         return False
+    route = "nba" if slot["workflow"] == NBA_DAY else "football"
+    if prepared_target(run, route) == slot["planned"]:
+        return True
     if slot["workflow"] == NBA_DAY:
         name = run.get("display_title") or run.get("name") or ""
         local = slot["planned"].astimezone(BJ)
@@ -148,6 +152,10 @@ def chronological_assignments(slots, runs):
             if type(run.get("id")) is not int:
                 continue
             lag = (when(run["created_at"]) - planned).total_seconds() / 60
+            route = "nba" if slot["workflow"] == NBA_DAY else "football"
+            if prepared_target(run, route) == planned:
+                edges.append((0, 0, i, run["id"]))
+                continue
             if lag < 0:
                 continue
             declared = advertised_cron(run)

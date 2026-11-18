@@ -1,5 +1,5 @@
 name: NBA official-final-triggered five-market postgame review
-run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot_utc != '' && format('Cloudflare | slot={0}', inputs.cloudflare_slot_utc) || github.workflow }}
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot_utc != '' && format('Cloudflare | slot={0}', inputs.cloudflare_slot_utc) || github.workflow }}${{ inputs.prepare_for_utc && format(' | prepare={0}', inputs.prepare_for_utc) || '' }}
 on:
   pull_request:
     paths:
@@ -8,6 +8,10 @@ on:
       - 'analysis/nba_final_review_gate.py'
   workflow_dispatch:
     inputs:
+      prepare_for_utc:
+        description: 'Original UTC business slot; runner preparation only, never an early capture or retry'
+        required: false
+        type: string
       cloudflare_slot_utc:
         description: 'Original Cloudflare cron timestamp in UTC'
         required: false
@@ -16,6 +20,7 @@ on:
     # Check for official finals on the existing postgame ticks.
     - cron: "25,50 * * * *"
 permissions:
+  actions: read
   contents: write
 jobs:
   verify-frozen-review:
@@ -63,14 +68,27 @@ jobs:
       cancel-in-progress: false
     if: github.ref == 'refs/heads/main' && github.run_attempt == '1' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.cloudflare_slot_utc != ''))
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
+      - name: Prepare original runner and wait without collecting or sending early
+        id: runner_preparation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREPARE_FOR_UTC: ${{ inputs.prepare_for_utc || '' }}
+          PREWARM_CRON: ${{ github.event.schedule || inputs.recovery_cron || '' }}
+          PREWARM_DAY: ${{ inputs.recovery_day || '' }}
+          PREWARM_TARGET_DATE: ${{ inputs.target_date || '' }}
+          PREWARM_REPORT_SLOT: ${{ inputs.report_slot || '' }}
+          CLOUDFLARE_SLOT_UTC: ${{ inputs.cloudflare_slot_utc || '' }}
+        run: python3 -B scripts/sports_runner_prewarm.py nba-review
       - name: Validate original scheduler slot
+        if: steps.runner_preparation.outputs.skip != 'true'
         run: python -B scripts/sports_postgame_slot.py nba-review
       - name: Check last frozen game has official Final before review
+        if: steps.runner_preparation.outputs.skip != 'true'
         run: |
           git pull --ff-only origin main
           day="$(TZ=Asia/Shanghai date +%F)"
@@ -78,7 +96,7 @@ jobs:
             --status-out nba_final_review_readiness.json \
             --scores-out nba_final_review_scores.json
       - name: Record the active cohort while official finals are pending
-        if: env.NBA_REVIEW_WAITING_DAY != ''
+        if: (env.NBA_REVIEW_WAITING_DAY != '') && steps.runner_preparation.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -91,14 +109,14 @@ jobs:
               --field content="$evidence"
           fi
       - name: Settle five locked directions against official completed NBA scores
-        if: env.RUN_REPORT == 'true'
+        if: (env.RUN_REPORT == 'true') && steps.runner_preparation.outputs.skip != 'true'
         run: |
           mkdir -p "reports/five-market-settled/$REVIEW_DAY"
           python3 analysis/nba_five_market_settlement.py --self-test
           python3 analysis/nba_five_market_settlement.py --forecast "$FROZEN_FORECAST" --day "$REVIEW_DAY" \
             --scores nba_final_review_scores.json --out "reports/five-market-settled/$REVIEW_DAY/settlement.json"
       - name: Send one iPhone five-market review
-        if: env.RUN_REPORT == 'true'
+        if: (env.RUN_REPORT == 'true') && steps.runner_preparation.outputs.skip != 'true'
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
@@ -124,7 +142,7 @@ jobs:
           assert json.loads(p.read_text())["state"]=="API_ACCEPTED_NOT_DEVICE_CONFIRMED"
           PY
       - name: Replay chronological five-market shadow probabilities against official finals
-        if: env.RUN_REPORT == 'true'
+        if: (env.RUN_REPORT == 'true') && steps.runner_preparation.outputs.skip != 'true'
         continue-on-error: true
         run: |
           python3 analysis/nba_dynamic_five_market_replay.py \
@@ -144,7 +162,7 @@ jobs:
                 readiness.get("smallest_market_distinct_days",0))
           PY
       - name: Score multi-company consensus against exact frozen pretip captures
-        if: env.RUN_REPORT == 'true'
+        if: (env.RUN_REPORT == 'true') && steps.runner_preparation.outputs.skip != 'true'
         continue-on-error: true
         run: |
           python3 analysis/nba_market_consensus_backtest.py --self-test
@@ -153,7 +171,7 @@ jobs:
             --settled-root reports/five-market-settled \
             --out "reports/five-market-settled/$REVIEW_DAY/market_consensus_scorecard.json"
       - name: Score frozen independent model probabilities against official Final (read-only)
-        if: env.RUN_REPORT == 'true'
+        if: (env.RUN_REPORT == 'true') && steps.runner_preparation.outputs.skip != 'true'
         continue-on-error: true
         run: |
           folder="${FROZEN_FORECAST%/*}"
@@ -168,7 +186,7 @@ jobs:
             echo "NO_FROZEN_INDEPENDENT_MODEL_TO_SCORE"
           fi
       - name: Archive frozen five-market settlement and any acceptance receipt
-        if: always() && env.RUN_REPORT == 'true'
+        if: (always() && env.RUN_REPORT == 'true') && steps.runner_preparation.outputs.skip != 'true'
         run: |
           dir="reports/five-market-settled/$REVIEW_DAY"
           if [ ! -s "$dir/settlement.json" ]; then
@@ -186,7 +204,7 @@ jobs:
             git pull --rebase origin main
           done
           exit 1
-      - if: always()
+      - if: always() && steps.runner_preparation.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: nba-five-market-2200

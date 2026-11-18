@@ -105,6 +105,10 @@ def exact_fixed_run_slot(run:dict,slot:str,target:str)->bool:
     if slot not in FIXED:
         return True  # 21:30/06:30 and review have dedicated workflows.
     title=run.get("display_title") or run.get("name") or ""
+    if " | prepare=" in title:
+        from sports_runner_prewarm import prepared_target
+        prepared=prepared_target(run,"nba")
+        return prepared is not None and prepared==scheduled_start(slot,target).astimezone(timezone.utc)
     match=re.fullmatch(r"NBA full report \| slot=(.+) \| date=(.+)",title)
     if not match:
         return False  # Unlabelled runs cannot prove a canonical slot.
@@ -119,8 +123,8 @@ def exact_fixed_run_slot(run:dict,slot:str,target:str)->bool:
 
 def run_hint(runs:list|None,slot:str,target:str)->tuple[str,int]:
     if runs is None:return "RUN_HISTORY_UNAVAILABLE",0
-    start=scheduled_start(slot,target).astimezone(timezone.utc)-timedelta(minutes=8)
-    end=start+timedelta(minutes=110)
+    start=scheduled_start(slot,target).astimezone(timezone.utc)-timedelta(minutes=30)
+    end=scheduled_start(slot,target).astimezone(timezone.utc)+timedelta(minutes=102)
     relevant=[]
     for run in runs:
         if run.get("event") not in ("schedule","workflow_dispatch"):continue
