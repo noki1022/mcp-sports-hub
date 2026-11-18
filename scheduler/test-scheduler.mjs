@@ -3,7 +3,7 @@ import {readFileSync} from "node:fs";
 import worker, {plannedJob,plannedFootballJob,dispatchAt,dispatchFootballAt,plannedPostgameJobs,dispatchPostgameAt} from "./worker.mjs";
 const at=s=>Date.parse(s);
 const toml=readFileSync(new URL("./wrangler.toml",import.meta.url),"utf8");
-assert.ok(toml.includes('crons = ["0 4-15 * * *", "25,50 * * * *"]'));
+assert.ok(toml.includes('crons = ["0,15,25,30,40,50 * * * *"]'));
 for(let hour=12;hour<=23;hour++){
   const ts=Date.UTC(2026,10,6,hour-8,0);
   const slot=String(hour)+"00";

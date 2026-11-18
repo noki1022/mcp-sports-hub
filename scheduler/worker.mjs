@@ -1,8 +1,8 @@
 import { dispatchIndependentAt } from './independent-executor.mjs';
 /**
- * Exact-time dual-trigger scheduler. Cloudflare and GitHub BOTH schedule at
- * the canonical wall-clock minute. No delayed checks, retries, or compensatory
- * sends. Collection, forecasts and PushPlus remain exclusively in GitHub.
+ * Free runner preparation, with original-time business work. GitHub's native
+ * triggers recognize a prepared owner instead of retrying it. No delayed
+ * checks or compensatory sends. Collection/model/PushPlus remain in GitHub.
  *
  * A 204 from workflow_dispatch proves ONLY queued, never delivered.
  */
@@ -76,8 +76,9 @@ async function dispatch(workflow,inputs,env,fetcher){
   if(resp.status!==204)throw Error("GITHUB_DISPATCH_HTTP_"+resp.status);
 }
 async function nativeRuns(job,timestamp,env,fetcher,matching){
+  const range=new Date(timestamp-120000).toISOString()+'..'+new Date(timestamp+120000).toISOString();
   const r=await get(BASE+"/actions/workflows/"+encodeURIComponent(job.workflow)+
-    "/runs?per_page=100&branch=main",env,fetcher);
+    "/runs?per_page=100&branch=main&created="+encodeURIComponent(range),env,fetcher);
   if(!Array.isArray(r.workflow_runs))throw Error("RUN_LIST_UNAVAILABLE");
   return r.workflow_runs.filter(run=>{
     const created=Date.parse(run.created_at);
@@ -153,6 +154,36 @@ export async function dispatchPostgameAt(workflow,timestamp,env,fetcher=fetch){
   return {state:"POSTGAME_EXACT_SLOT_DISPATCH_ACCEPTED_NOT_DELIVERED",slot};
 }
 
+// Preparation moves runner allocation only. Original source capture and send
+// times remain unchanged. A failed prepared run is never redispatched.
+export function plannedPreparations(timestamp){
+  const minute=Math.floor(timestamp/60000)*60000;
+  const result=[];
+  const hourly=minute+30*60000;
+  const nba=plannedJob(hourly),football=plannedFootballJob(hourly);
+  if(nba)result.push({workflow:nba.workflow,target:hourly,inputs:{
+    target_date:nba.target_date,report_slot:nba.slot}});
+  if(football)result.push({workflow:football.workflow,target:hourly,inputs:{
+    recovery_source:'cloudflare',recovery_day:football.date,recovery_cron:football.cron}});
+  if(plannedPostgameJobs(hourly).includes('football-review-push-1300.yml'))
+    result.push({workflow:'football-review-push-1300.yml',target:hourly,
+      inputs:{cloudflare_slot_utc:new Date(hourly).toISOString()}});
+  const review=minute+10*60000;
+  if(plannedPostgameJobs(review).includes('nba-two-market-nightly-2200.yml'))
+    result.push({workflow:'nba-two-market-nightly-2200.yml',target:review,
+      inputs:{cloudflare_slot_utc:new Date(review).toISOString()}});
+  return result;
+}
+export async function dispatchPreparation(job,timestamp,env,fetcher=fetch){
+  const stamp=new Date(job.target).toISOString().replace('.000Z','Z');
+  const existing=await nativeRuns(job,timestamp,env,fetcher,run=>
+    run.event==='workflow_dispatch' &&
+    (run.display_title||'').endsWith(' | prepare='+stamp));
+  if(existing.length)return {state:'PREPARED_ORIGINAL_EXISTS_NO_RETRY',target:stamp,workflow:job.workflow};
+  await dispatch(job.workflow,{...job.inputs,prepare_for_utc:stamp},env,fetcher);
+  return {state:'PREPARATION_QUEUED_NOT_CAPTURED_OR_DELIVERED',target:stamp,workflow:job.workflow};
+}
+
 export default {
   async scheduled(event,env){
     const scheduledAt=Number(event.scheduledTime||Date.now());
@@ -170,9 +201,13 @@ export default {
     }
     // GitHub validates the postgame input against the scheduled UTC minute.
     const postgameAt=Math.floor(scheduledAt/60000)*60000;
-    const cases=[["NBA",dispatchAt(scheduledAt,env)],
-                 ["FOOTBALL",dispatchFootballAt(scheduledAt,env)],
-                 ...plannedPostgameJobs(postgameAt).map(workflow=>
+    const preparing=env.GITHUB_PREWARM==='1';
+    const cases=[...(preparing ? plannedPreparations(postgameAt).map(job=>
+                   [job.workflow,dispatchPreparation(job,postgameAt,env)]) :
+                  [["NBA",dispatchAt(scheduledAt,env)],
+                   ["FOOTBALL",dispatchFootballAt(scheduledAt,env)]]),
+                 ...plannedPostgameJobs(postgameAt).filter(workflow=>!preparing ||
+                   !['football-review-push-1300.yml','nba-two-market-nightly-2200.yml'].includes(workflow)).map(workflow=>
                    [workflow,dispatchPostgameAt(workflow,postgameAt,env)])];
     const results=await Promise.allSettled(cases.map(c=>c[1]));
     let failures=[];

@@ -1,5 +1,9 @@
 """Regress stale XML alongside current labelled CP pages and nested price rows."""
 from copy import deepcopy
+import base64
+import gzip
+import hashlib
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 import sys
@@ -50,6 +54,27 @@ class SourceRecovery(unittest.TestCase):
 
 
 class BasketballCP(unittest.TestCase):
+    def test_original_five_game_cp_bytes_replay_without_wall_clock_or_live_prices(self):
+        fixture=Path(__file__).resolve().parent/'fixtures/nba_cp_pretip_20261117.json'
+        meta=json.loads(fixture.read_text())
+        raw=gzip.decompress(base64.b64decode(meta['payload_gzip_base64']))
+        self.assertEqual(hashlib.sha256(raw).hexdigest(),meta['payload_sha256'])
+        evidence=json.loads(raw)
+        pages={}
+        for market,source in evidence['cp_source']['sources'].items():
+            body=base64.b64decode(source['raw_base64'])
+            self.assertEqual(hashlib.sha256(body).hexdigest(),source['sha256'])
+            pages[market]={'url':source['url'],'captured_at_utc':source['captured_at_utc'],
+                           'rows':basket.parse(body,market)}
+        result=basket.enrich(evidence['board'],deepcopy(evidence['audit']),pages)
+        self.assertEqual(result['verified_games_with_all_three'],5)
+        self.assertEqual(result['jc_007_public_odds_shadow']['nba_coverage'],
+                         {'win_lose':5,'handicap':5,'total':5})
+        after_tip=deepcopy(pages)
+        for page in after_tip.values():page['captured_at_utc']='2026-11-18T04:00:00+00:00'
+        with self.assertRaisesRegex(ValueError,'IDENTITY_MISMATCH'):
+            basket.enrich(evidence['board'],deepcopy(evidence['audit']),after_tip)
+
     def page(self,market):
         titles=('大分','小分') if market=='total' else ('主胜','客胜')
         line='' if market=='win_lose' else f'<td id="cell_5587307_goal" title="{"总分" if market=="total" else "让分"}">{216.5 if market=="total" else "+2.5"}</td>'

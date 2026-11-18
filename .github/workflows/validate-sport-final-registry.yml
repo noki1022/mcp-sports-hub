@@ -34,6 +34,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install workflow-contract parser
+        run: python3 -m pip install --disable-pip-version-check --quiet PyYAML==6.0.2
       - name: Test actual chronological final selection, no result leakage, market coverage
         run: python3 -B -m unittest discover -s tests -p test_sport_match_final_registry.py -v
       - name: Verify latest per-match frozen football and NBA actual-score scoring

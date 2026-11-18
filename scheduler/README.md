@@ -5,7 +5,7 @@
 snapshots and reports per sport every calendar day. Midnight is the end of
 the window; no 00:00 additional run, 21:30, 00:30, 03:30 or 06:30.
 
-At 21:00 a SHA-verified prediction is locked as the **only** review/scoring
+For NBA, at 21:00 a SHA-verified prediction is locked as the **only** review/scoring
 source. The later 22:00 and 23:00 snapshots are archived for historical
 model research, but cannot overwrite or substitute the 21:00 answer.
 If 21:00 is missing, the official scorecard is **missing**, not backfilled
@@ -24,17 +24,50 @@ with a different slot.
   used by 007/NBA; keep the original 12:00 cohort. The 21:00 report for
   that date is the only five-market outcome-scoring baseline.
 
-GitHub scheduled workflows and the existing Cloudflare Worker both have
-an original 12:00–23:00 exact-hour trigger for the same processing pipeline.
-Cloudflare does not analyse/send directly and neither scheduler performs
-late compensation or a second send. Deduplication claims stay in force.
+The existing Cloudflare Worker prepares each original hourly GitHub job
+30 minutes early. It prepares the 13:00 football review at 12:30, and the
+NBA official-final checks 10 minutes before their original :25/:50 ticks.
+Only checkout, Python/dependency setup and bounded waiting happen early.
+Actual collection and result reads start at the original slot. Real source
+timestamps are never replaced with a scheduled timestamp.
+
+The runner verifies that its dispatch was created during the original
+preparation minute (120-second provider allowance), on main, first attempt,
+for the matching canonical route/date/slot. It waits until the target time
+before releasing business steps. Expired preparations cannot compensate.
+
+Native GitHub triggers remain. Before business work they query for the
+prepared original. Its existence owns the slot even if failed or cancelled;
+they exit rather than retry it. If no preparation was created, the original
+native trigger retains its existing behavior. Immutable send claims remain
+the final atomic fence. The Worker no longer redispatches those senders at
+the business minute in preparation mode. There is no delayed fallback.
+
+Football capture, immutable Release archive, claim and send now execute
+sequentially on the same runner. Raw failure bytes are still archived after
+analysis failure; unsuccessful analysis or archive blocks the sender. Push
+credentials remain confined to the claim/preflight and sending steps.
+
+Shared per-match finalization and verified-result archive workflows retain
+their existing original cron and workflow-run triggers. Their archive-only
+downstream jobs may still queue; they do not create an additional sender.
+
+This uses public-repository standard GitHub runners and the existing free
+Worker only. No Cloudflare Container, Workers Paid upgrade, new credential,
+VM, trial-credit service or paid runner is provisioned. One combined cron expression reduces
+existing account cron usage from two to one (Free allows five per account).
+Other minutes perform no work; the combined expression does not add sends.
+Preparation reduces queue exposure; it is not a promise of exact delivery
+when GitHub delays longer than the preparation lead or a provider is down.
 A GitHub workflow success or a Cloudflare dispatch 204 never proves the
 message arrived on the recipient's iPhone.
 
 Worker cron configuration (UTC):
 
 ```toml
-crons = ["0 4-15 * * *"]
+crons = ["0,15,25,30,40,50 * * * *"]
+[vars]
+GITHUB_PREWARM = "1"
 ```
 
 Keep result verification and archival workflows separate from live odds

@@ -2,9 +2,14 @@ name = "nba-external-schedule-watchdog"
 main = "worker.mjs"
 compatibility_date = "2026-10-30"
 [triggers]
-# Original GitHub slots: hourly analysis, shared archive/settlement, and NBA review.
-# Both reviews share the existing hourly triggers at 13:00 and 15:00 Beijing.
-crons = ["0 4-15 * * *", "25,50 * * * *"]
+# Original archive slots stay intact. The additional minutes prepare existing
+# runners only: hourly/football-review 30m early, NBA final checks 10m early.
+# One combined cron expression reduces existing account trigger usage; each
+# route below still executes only at its own original/preparation minute.
+crons = ["0,15,25,30,40,50 * * * *"]
+
+[vars]
+GITHUB_PREWARM = "1"
 
 [observability]
 enabled = true

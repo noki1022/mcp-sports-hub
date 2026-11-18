@@ -14,7 +14,7 @@ GitHub schedule **可能延迟或漏触发**；这些只是配置时点，不能
 - GitHub Actions 每次运行把足球原始公开 feed 存成 gzip，并生成 raw/manifest.json，含 URL、SHA256、大小、实际抓取起止时间。
 - 无论解析成功与否，原始响应会优先保存；解析失败不能污染模型或生成假赛程。
 - 上传 GitHub Actions artifact 90 天作为短期排障证据。
-- 每次自动/手动运行另有独立 archive-football-raw-release job，将 zip 按北京时间日期写入 GitHub Releases，资产名包含 GitHub run_id 防覆盖；不把逐日大文件直接提交到 Git 仓库。
+- 每次自动/手动运行在采集所在运行器内顺序归档 zip，按北京时间日期写入 GitHub Releases，资产名包含 GitHub run_id 防覆盖；归档成功后才允许发送，分析失败仍保存原始数据，不把逐日大文件直接提交到 Git 仓库。
 - GitHub Releases 仍是**单一平台存储**，不是异地备份，不能保证绝对不丢；后续需增加 R2 或其他独立备份和恢复演练。
 - 归档只在实际 Release 上传成功后视为成功；失败的 run 必须报警、重试和补档。当前没有自动报警或双调度，不得宣称已实现高可用。
 

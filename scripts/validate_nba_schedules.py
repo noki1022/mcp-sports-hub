@@ -77,7 +77,7 @@ def main():
     for name in DISABLED:
         assert not crons(name),("OLD_PREMATCH_SCHEDULE_STILL_ACTIVE",name)
     cloud=tomllib.loads((ROOT/"scheduler/wrangler.toml").read_text())
-    assert cloud["triggers"]["crons"]==["0 4-15 * * *", "25,50 * * * *"],"CLOUDFLARE_HAS_EXTRA_CRON"
+    assert cloud["triggers"]["crons"]==["0,15,25,30,40,50 * * * *"],"CLOUDFLARE_HAS_EXTRA_CRON"
     worker=(ROOT/"scheduler/worker.mjs").read_text()
     assert "h>=12&&h<=23&&m===0" in worker
     assert "EXACT_SLOT" in worker and "NO_RETRY" in worker
@@ -97,12 +97,22 @@ def main():
                for step in daily["football-daily-review"]["steps"])
     assert any("football-jc-review-latest-" in step.get("run","")
                for step in review_workflow["jobs"]["send"]["steps"])
-    assert "football-daytime-push:" in football
     assert "football-final-and-morning-push:" not in football
     assert "30 13 * * *" not in football and "30 22 * * *" not in football
-    assert "FOOTBALL_PUSHPLUS_TOKEN" not in str(load("football-007-live-capture.yml")["jobs"]["live-football"])
-    assert "FOOTBALL_PUSHPLUS_TOKEN" not in str(load("football-007-live-capture.yml")["jobs"]["archive-football-raw-release"])
-    assert "archive-football-raw-release" in str(load("football-007-live-capture.yml")["jobs"]["football-daytime-push"]["needs"])
+    capture=load("football-007-live-capture.yml")["jobs"]
+    assert set(capture)=={"live-football","preview"}, "FOOTBALL_REQUEUING_BETWEEN_CAPTURE_ARCHIVE_SEND"
+    assert capture["preview"]["permissions"]["contents"]=="read"
+    assert capture["preview"]["steps"]==capture["live-football"]["steps"]
+    steps=capture["live-football"]["steps"]
+    by_id={s.get("id"):s for s in steps if s.get("id")}
+    assert "FOOTBALL_PUSHPLUS_TOKEN" not in str(capture["live-football"].get("env",{}))
+    assert "always()" in by_id["raw_archive"]["if"]
+    assert "steps.raw_archive.outputs.archived == 'true'" in by_id["claim"]["if"]
+    assert steps.index(by_id["raw_archive"])<steps.index(by_id["claim"])
+    for step in steps[:steps.index(by_id["raw_archive"])]:
+        assert "FOOTBALL_PUSHPLUS_TOKEN" not in str(step.get("env",{}))
+    assert cloud["vars"]["GITHUB_PREWARM"]=="1"
+    assert len(cloud["triggers"]["crons"])<=5
     registry=(ROOT/"analysis/sport_match_final_registry.py").read_text()
     review=(ROOT/"analysis/nba_final_review_gate.py").read_text()
     assert 'r["planned_slot_beijing"]=="2100"' in registry

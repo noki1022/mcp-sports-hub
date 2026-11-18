@@ -30,7 +30,8 @@ WORKFLOWS = {
 # static workflow name from "on.workflow_run.workflows". Never trust an arbitrary
 # title: permit only the exact full-board prefix, validated slot and date.
 _FULL_REPORT_TITLE = re.compile(
-    r"^NBA full report \| slot=([A-Za-z0-9*/,\- ]{1,72}) \| date=(auto|\d{4}-\d{2}-\d{2})$"
+    r"^NBA full report \| slot=([A-Za-z0-9*/,\- ]{1,72}) \| date=(auto|\d{4}-\d{2}-\d{2})"
+    r"(?: \| prepare=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00Z))?$"
 )
 
 def canonical_workflow_name(name: str) -> str:
@@ -40,6 +41,13 @@ def canonical_workflow_name(name: str) -> str:
     if match is None:
         raise ValueError("UNRECOGNIZED_ORIGINAL_CAPTURE_WORKFLOW")
     slot = match.group(1)
+    if match.group(3):
+        from datetime import timedelta
+        from zoneinfo import ZoneInfo
+        target=datetime.fromisoformat(match.group(3).replace('Z','+00:00')).astimezone(ZoneInfo('Asia/Shanghai'))
+        if (target.hour not in range(12,24) or target.minute or slot!=target.strftime('%H%M')
+                or match.group(2)!=(target.date()+timedelta(days=1)).isoformat()):
+            raise ValueError('UNVERIFIED_PREPARED_ORIGINAL_REPORT_SLOT')
     if not (re.fullmatch(r"\d{4}|ONCE(?:-[A-Z0-9-]{1,40})?", slot)
             or re.fullmatch(r"(?:[0-9*/,-]+ ){4}[0-9*/,-]+", slot)):
         raise ValueError("UNVERIFIED_ORIGINAL_REPORT_SLOT")
